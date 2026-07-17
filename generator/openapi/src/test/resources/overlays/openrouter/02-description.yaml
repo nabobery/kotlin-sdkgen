@@ -1,0 +1,7 @@
+overlay: 1.1.0
+info:
+  title: Clarify OpenRouter chat completion description
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/chat/completions']['post']['description']"
+    update: "Sends a chat-completion request and returns either one JSON response or an incremental server-sent event stream."

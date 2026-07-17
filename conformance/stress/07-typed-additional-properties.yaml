@@ -1,0 +1,14 @@
+# Stress: an object is a dictionary whose values have a concrete schema.
+# Expected: generate a typed map and preserve every key/value without Any or Any?.
+openapi: 3.1.0
+info:
+  title: Typed additionalProperties
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    ScoresByModel:
+      type: object
+      additionalProperties:
+        type: number
+        minimum: 0

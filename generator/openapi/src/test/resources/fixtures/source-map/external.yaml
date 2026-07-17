@@ -1,0 +1,9 @@
+components:
+  schemas:
+    ExternalThing:
+      type: object
+      required: [externalId]
+      properties:
+        externalId:
+          type: string
+          description: Located in the external file

@@ -1,0 +1,39 @@
+# Stress: multipart upload combines binary and JSON parts with explicit encoding metadata.
+# Expected: preserve per-part content types and binary streaming without platform engine types in common APIs.
+openapi: 3.1.0
+info:
+  title: Multipart encoding metadata
+  version: 1.0.0
+paths:
+  /uploads:
+    post:
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, metadata]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  $ref: '#/components/schemas/UploadMetadata'
+            encoding:
+              file:
+                contentType: application/octet-stream
+              metadata:
+                contentType: application/json
+      responses:
+        '201':
+          description: Uploaded
+components:
+  schemas:
+    UploadMetadata:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string

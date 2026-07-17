@@ -1,9 +1,21 @@
 .worktrees/
 .gradle/
+.kotlin/
 build/
 .DS_Store
+.idea/
+*.iml
+local.properties
+node_modules/
 
 # Local planning and experiment artifacts
 /archives/
-/docs/phase0/
-/docs/plans/
+
+# Orchestration logs and staging
+claudex*.log
+/experiments-import/
+
+docs/phase[0-9]/
+
+docs/plans/
+

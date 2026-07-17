@@ -1,0 +1,13 @@
+overlay: 1.1.0
+info:
+  title: Canonical stress cursor pagination metadata
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/items']['get']"
+    update:
+      x-sdkgen-pagination:
+        style: cursor
+        requestCursor: cursor
+        requestLimit: limit
+        responseItems: /data
+        responseNextCursor: /nextCursor

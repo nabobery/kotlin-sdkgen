@@ -1,0 +1,85 @@
+document sdkgen://source/01-reference-only-oneof.yaml
+title "Reference-only oneOf"
+version "1.0.0"
+sourceDocument sdkgen://source/01-reference-only-oneof.yaml sha256=efa99e75c57aa82cd2d22f44783bd1462f36baa2bffa817c02deb057b6c9b120 bytes=651 policy=LOCAL_FILE @sdkgen://source/01-reference-only-oneof.yaml#:3:1:132
+source sdkgen://source/01-reference-only-oneof.yaml#:3:1:132
+extensions {}
+security
+schemas 7
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat COMPONENT @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat:15:7:356
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property kind REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/kind readOnly=false writeOnly=false deprecated=false @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/kind:19:11:441
+  property lives REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/lives readOnly=false writeOnly=false deprecated=false @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/lives:21:11:477
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/kind INLINE @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/kind:19:11:441
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {const="cat"}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/lives INLINE @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat/properties/lives:21:11:477
+  reference -
+  types integer nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog COMPONENT @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog:23:7:506
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property barkVolume REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/barkVolume readOnly=false writeOnly=false deprecated=false @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/barkVolume:29:11:637
+  property kind REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/kind readOnly=false writeOnly=false deprecated=false @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/kind:27:11:596
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/barkVolume INLINE @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/barkVolume:29:11:637
+  reference -
+  types integer nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/kind INLINE @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog/properties/kind:27:11:596
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {const="dog"}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Pet COMPONENT @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Pet:11:7:248
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ONE_OF sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Cat, sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Dog @sdkgen://source/01-reference-only-oneof.yaml#/components/schemas/Pet/oneOf:12:9:263
+  extensions {}
+operations 0
+diagnostics 0

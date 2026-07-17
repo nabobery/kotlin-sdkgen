@@ -1,0 +1,24 @@
+public final class com/nabobery/sdkgen/testing/FakeByteStream : com/nabobery/sdkgen/runtime/SdkByteStream {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/lang/Throwable;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/Throwable;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close (Ljava/lang/Throwable;)V
+	public final fun getCloseCause ()Ljava/lang/Throwable;
+	public final fun getClosed ()Z
+	public fun readChunk (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/nabobery/sdkgen/testing/FakeTransport : com/nabobery/sdkgen/runtime/SdkTransport {
+	public fun <init> ()V
+	public final fun enqueueFailure (Ljava/lang/Throwable;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public final fun enqueueResponse (ILjava/util/List;Lcom/nabobery/sdkgen/testing/FakeByteStream;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public static synthetic fun enqueueResponse$default (Lcom/nabobery/sdkgen/testing/FakeTransport;ILjava/util/List;Lcom/nabobery/sdkgen/testing/FakeByteStream;ILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public fun execute (Lcom/nabobery/sdkgen/runtime/SdkRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getCapturedRequests ()Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/testing/TestingModuleKt {
+	public static final fun assertClosedNormally (Lcom/nabobery/sdkgen/testing/FakeByteStream;)V
+	public static final fun assertClosedWith (Lcom/nabobery/sdkgen/testing/FakeByteStream;Ljava/lang/Throwable;)V
+}
+

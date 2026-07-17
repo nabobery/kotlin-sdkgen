@@ -1,0 +1,29 @@
+# Stress: two component schemas reference each other recursively.
+# Expected: terminate graph resolution, emit stable declarations, and preserve nullable recursion without stack overflow.
+openapi: 3.1.0
+info:
+  title: Mutually recursive schemas
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Parent:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        child:
+          oneOf:
+            - $ref: '#/components/schemas/Child'
+            - type: 'null'
+    Child:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        parent:
+          oneOf:
+            - $ref: '#/components/schemas/Parent'
+            - type: 'null'

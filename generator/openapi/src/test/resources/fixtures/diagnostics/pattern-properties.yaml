@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Pattern properties diagnostic
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Labels:
+      type: object
+      patternProperties:
+        '^x-':
+          type: string

@@ -1,0 +1,12 @@
+# Stress: a free-form JSON object has arbitrary keys and heterogeneous JSON values.
+# Expected: use the portable JSON value model, not Any/Any?, and round-trip unknown structure losslessly.
+openapi: 3.1.0
+info:
+  title: Free-form object
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Metadata:
+      type: object
+      additionalProperties: true

@@ -1,0 +1,40 @@
+# Stress: request-driven streaming returns typed server-sent event chunks.
+# Expected: carry streaming endpoint metadata, decode incrementally, and close transport I/O on cancellation.
+openapi: 3.1.0
+info:
+  title: Request-driven SSE
+  version: 1.0.0
+paths:
+  /chat:
+    post:
+      operationId: streamChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt, stream]
+              properties:
+                prompt:
+                  type: string
+                stream:
+                  type: boolean
+                  const: true
+      responses:
+        '200':
+          description: Incremental chat chunks
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ChatChunk'
+components:
+  schemas:
+    ChatChunk:
+      type: object
+      required: [id, delta]
+      properties:
+        id:
+          type: string
+        delta:
+          type: string

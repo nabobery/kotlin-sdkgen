@@ -1,0 +1,59 @@
+document sdkgen://source/13-multipart-encoding.yaml
+title "Multipart encoding metadata"
+version "1.0.0"
+sourceDocument sdkgen://source/13-multipart-encoding.yaml sha256=0e2389af6ced293eb42b479c734a1333192cfa68d9350c2e74736f4aea16a014 bytes=1090 policy=LOCAL_FILE @sdkgen://source/13-multipart-encoding.yaml#:3:1:202
+source sdkgen://source/13-multipart-encoding.yaml#:3:1:202
+extensions {}
+security
+schemas 4
+schema sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata COMPONENT @sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata:35:7:997
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property title REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata/properties/title readOnly=false writeOnly=false deprecated=false @sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata/properties/title:39:11:1077
+  extensions {}
+schema sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata/properties/title INLINE @sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata/properties/title:39:11:1077
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema INLINE @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema:16:15:464
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property file REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file readOnly=false writeOnly=false deprecated=false @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:20:19:584
+  property metadata REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/13-multipart-encoding.yaml#/components/schemas/UploadMetadata readOnly=false writeOnly=false deprecated=false @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/metadata:23:19:674
+  extensions {}
+schema sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file INLINE @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:20:19:584
+  reference -
+  types string nullability=NON_NULL format=binary
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 1
+operation POST /uploads id=uploadDocument deprecated=false @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post:10:7:312
+  description -
+  request REQUIRED @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody:12:9:367
+    media multipart/form-data schema=sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema streaming=false encoding=[file:application/octet-stream, metadata:application/json] @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data:15:13:442
+  response EXACT:201 @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/responses/201:31:11:926
+  extensions {}
+diagnostics 0

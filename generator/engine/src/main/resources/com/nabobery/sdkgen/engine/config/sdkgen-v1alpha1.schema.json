@@ -1,0 +1,297 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schemas.nabobery.com/kotlin-sdkgen/sdkgen-v1alpha1.schema.json",
+    "title": "Kotlin SDKGen project configuration v1alpha1",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["version", "source", "kotlin", "output"],
+    "properties": {
+        "version": { "const": "v1alpha1" },
+        "source": { "$ref": "#/$defs/source" },
+        "overlays": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/overlay" },
+            "default": []
+        },
+        "compatibilityProfiles": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/compatibilityProfile" },
+            "default": []
+        },
+        "kotlin": { "$ref": "#/$defs/kotlin" },
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "rules": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/rule" },
+            "default": []
+        },
+        "plugins": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/plugin" },
+            "default": []
+        },
+        "output": { "$ref": "#/$defs/output" },
+        "diagnostics": { "$ref": "#/$defs/diagnostics" },
+        "verification": { "$ref": "#/$defs/verification" }
+    },
+    "$defs": {
+        "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+        },
+        "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["uri"],
+            "properties": {
+                "uri": { "type": "string", "minLength": 1 },
+                "sha256": { "$ref": "#/$defs/sha256" },
+                "acquisition": { "$ref": "#/$defs/acquisition" }
+            }
+        },
+        "acquisition": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mode": { "enum": ["local", "https"], "default": "local" },
+                "offline": { "type": "boolean", "default": false },
+                "allowedHosts": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "uniqueItems": true,
+                    "default": []
+                },
+                "followRedirects": { "type": "boolean", "default": false },
+                "maxRedirects": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                },
+                "maxBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 20971520
+                },
+                "timeoutSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 30
+                },
+                "cacheDirectory": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": ".sdkgen/cache"
+                },
+                "allowedLocalRoots": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "uniqueItems": true,
+                    "default": []
+                }
+            }
+        },
+        "overlay": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "uri"],
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "uri": { "type": "string", "minLength": 1 },
+                "sha256": { "$ref": "#/$defs/sha256" },
+                "zeroMatchPolicy": {
+                    "enum": ["fail", "allow"],
+                    "default": "fail"
+                },
+                "conflictPolicy": {
+                    "enum": ["fail", "last-wins"],
+                    "default": "fail"
+                }
+            }
+        },
+        "compatibilityProfile": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "version"],
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "version": { "type": "string", "minLength": 1 }
+            }
+        },
+        "kotlin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["packageName", "coordinates", "naming", "targets"],
+            "properties": {
+                "packageName": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+                },
+                "coordinates": { "$ref": "#/$defs/coordinates" },
+                "naming": { "$ref": "#/$defs/naming" },
+                "targets": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                        "enum": [
+                            "jvm",
+                            "android",
+                            "ios",
+                            "macos",
+                            "js",
+                            "linux",
+                            "windows"
+                        ]
+                    }
+                }
+            }
+        },
+        "coordinates": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["groupId", "artifactId"],
+            "properties": {
+                "groupId": { "type": "string", "minLength": 1 },
+                "artifactId": { "type": "string", "minLength": 1 }
+            }
+        },
+        "naming": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["clientName"],
+            "properties": {
+                "clientName": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "modelPrefix": { "type": ["string", "null"] },
+                "operationPrefix": { "type": ["string", "null"] },
+                "resourceGrouping": {
+                    "enum": ["tags", "operation-id", "single-client"],
+                    "default": "tags"
+                }
+            }
+        },
+        "runtime": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "requestTimeoutMillis": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 60000
+                },
+                "retries": { "$ref": "#/$defs/retries" },
+                "userAgentSuffix": { "type": ["string", "null"] },
+                "defaultServer": { "type": ["string", "null"] }
+            }
+        },
+        "retries": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "maxAttempts": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                },
+                "initialDelayMillis": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 250
+                },
+                "maxDelayMillis": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 5000
+                },
+                "jitterRatio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "default": 0.2
+                }
+            }
+        },
+        "rule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id"],
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "enabled": { "type": "boolean", "default": true },
+                "severity": {
+                    "enum": ["info", "warning", "error"],
+                    "default": "error"
+                }
+            }
+        },
+        "plugin": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "version", "spiRange"],
+            "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "version": { "type": "string", "minLength": 1 },
+                "spiRange": { "type": "string", "minLength": 1 },
+                "enabled": { "type": "boolean", "default": true },
+                "config": {
+                    "type": "object",
+                    "description": "Plugin-owned string settings. The engine hashes these values and the plugin validates their typed meaning.",
+                    "additionalProperties": { "type": "string" },
+                    "default": {}
+                }
+            }
+        },
+        "output": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sources", "resources", "manifest"],
+            "properties": {
+                "sources": { "type": "string", "minLength": 1 },
+                "resources": { "type": "string", "minLength": 1 },
+                "manifest": { "type": "string", "minLength": 1 },
+                "lock": {
+                    "type": "string",
+                    "minLength": 1,
+                    "default": "sdkgen.lock"
+                },
+                "checkedInSources": { "type": "boolean", "default": false }
+            }
+        },
+        "diagnostics": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "warningsAsErrors": { "type": "boolean", "default": false },
+                "warningAllowlist": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^SDKGEN-[A-Z0-9-]+$"
+                    },
+                    "uniqueItems": true,
+                    "default": []
+                },
+                "format": {
+                    "enum": ["human", "json", "both"],
+                    "default": "human"
+                }
+            }
+        },
+        "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "gates": {
+                    "type": "array",
+                    "items": {
+                        "enum": ["schema", "compile", "determinism", "api"]
+                    },
+                    "uniqueItems": true,
+                    "default": ["schema", "compile"]
+                }
+            }
+        }
+    }
+}

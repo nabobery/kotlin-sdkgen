@@ -1,0 +1,31 @@
+document sdkgen://source/07-typed-additional-properties.yaml
+title "Typed additionalProperties"
+version "1.0.0"
+sourceDocument sdkgen://source/07-typed-additional-properties.yaml sha256=cc4fde954d7c22d10b55542f19f8e91724b1f3715e1f86dce198fd82fc6c1322 bytes=369 policy=LOCAL_FILE @sdkgen://source/07-typed-additional-properties.yaml#:3:1:156
+source sdkgen://source/07-typed-additional-properties.yaml#:3:1:156
+extensions {}
+security
+schemas 2
+schema sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel COMPONENT @sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel:11:7:288
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  additionalProperties typed:sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel/additionalProperties @sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel/additionalProperties:13:9:337
+  extensions {}
+schema sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel/additionalProperties INLINE @sdkgen://source/07-typed-additional-properties.yaml#/components/schemas/ScoresByModel/additionalProperties:13:9:337
+  reference -
+  types number nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {minimum=0}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

@@ -1,0 +1,25 @@
+# Stress: reference-only anyOf where an object may satisfy one or both referenced schemas.
+# Expected: accept multi-match values and preserve all fields instead of selecting a single winner.
+openapi: 3.1.0
+info:
+  title: Reference-only anyOf
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    SearchHit:
+      anyOf:
+        - $ref: '#/components/schemas/Titled'
+        - $ref: '#/components/schemas/Scored'
+    Titled:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+    Scored:
+      type: object
+      required: [score]
+      properties:
+        score:
+          type: number

@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-streaming.schema.json",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "mode": { "const": "sse" },
+        "requestFlag": { "type": "string", "minLength": 1 },
+        "responseContentType": { "const": "text/event-stream" },
+        "sentinel": { "type": "string", "minLength": 1 }
+    },
+    "required": ["mode", "responseContentType"]
+}

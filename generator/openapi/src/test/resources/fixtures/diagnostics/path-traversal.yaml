@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Path traversal diagnostic
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Escaping:
+      type: object
+      properties:
+        outside:
+          $ref: '../outside.yaml#/components/schemas/Outside'

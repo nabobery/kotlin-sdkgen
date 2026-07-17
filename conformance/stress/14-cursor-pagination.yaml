@@ -1,0 +1,48 @@
+# Stress: cursor pagination has request cursor/limit and a nullable next cursor in the response envelope.
+# Expected: expose stable pagination metadata without assuming page-number semantics.
+openapi: 3.1.0
+info:
+  title: Cursor pagination
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      operationId: listItems
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: One page of items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemPage'
+components:
+  schemas:
+    ItemPage:
+      type: object
+      required: [data, nextCursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+        nextCursor:
+          type: [string, 'null']
+    Item:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string

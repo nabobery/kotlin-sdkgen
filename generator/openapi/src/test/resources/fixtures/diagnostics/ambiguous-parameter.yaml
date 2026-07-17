@@ -1,0 +1,20 @@
+openapi: 3.1.0
+info:
+  title: Ambiguous parameter diagnostic
+  version: 1.0.0
+paths:
+  /probe:
+    get:
+      operationId: probe
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          content:
+            application/json:
+              schema:
+                type: string
+      responses:
+        '204':
+          description: no content

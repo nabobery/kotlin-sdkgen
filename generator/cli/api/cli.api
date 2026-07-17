@@ -1,0 +1,8 @@
+public final class com/nabobery/sdkgen/cli/CliModuleKt {
+	public static final field SDKGEN_CLI_CONTRACT_VERSION Ljava/lang/String;
+	public static final field SDKGEN_EXIT_DIAGNOSTICS I
+	public static final field SDKGEN_EXIT_OK I
+	public static final field SDKGEN_EXIT_USAGE I
+	public static final fun main ([Ljava/lang/String;)V
+}
+

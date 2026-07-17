@@ -1,0 +1,20 @@
+document sdkgen://source/10-explicit-null-union.yaml
+title "Explicit null union"
+version "1.0.0"
+sourceDocument sdkgen://source/10-explicit-null-union.yaml sha256=1b117d8a2cf46bcd1ceaa64a39a1620b65eae00e0222f9f33c5e598c35e2d713 bytes=303 policy=LOCAL_FILE @sdkgen://source/10-explicit-null-union.yaml#:3:1:155
+source sdkgen://source/10-explicit-null-union.yaml#:3:1:155
+extensions {}
+security
+schemas 1
+schema sdkgen://source/10-explicit-null-union.yaml#/components/schemas/NullableLabel COMPONENT @sdkgen://source/10-explicit-null-union.yaml#/components/schemas/NullableLabel:11:7:280
+  reference -
+  types string nullability=NULLABLE format=-
+  nullabilityOrigins [JSON_SCHEMA_TYPE_ARRAY@sdkgen://source/10-explicit-null-union.yaml#/components/schemas/NullableLabel/type/1:11:22:295]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

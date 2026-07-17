@@ -1,0 +1,29 @@
+# Stress: reference-only oneOf.
+# Expected: generate an exact-one union; zero or multiple structural matches produce a typed error.
+openapi: 3.1.0
+info:
+  title: Reference-only oneOf
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+    Cat:
+      type: object
+      required: [kind, lives]
+      properties:
+        kind:
+          const: cat
+        lives:
+          type: integer
+    Dog:
+      type: object
+      required: [kind, barkVolume]
+      properties:
+        kind:
+          const: dog
+        barkVolume:
+          type: integer

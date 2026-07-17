@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Invalid source proof
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Broken:
+      type: object
+      properties:
+        missing:
+          $ref: '#/components/schemas/DoesNotExist'

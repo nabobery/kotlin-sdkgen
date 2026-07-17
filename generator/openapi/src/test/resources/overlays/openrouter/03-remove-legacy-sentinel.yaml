@@ -1,0 +1,7 @@
+overlay: 1.1.0
+info:
+  title: Remove translated legacy streaming metadata
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/chat/completions']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
+    remove: true

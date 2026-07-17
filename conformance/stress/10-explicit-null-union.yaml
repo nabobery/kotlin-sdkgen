@@ -1,0 +1,11 @@
+# Stress: JSON Schema 2020-12 type-array syntax explicitly admits null.
+# Expected: model String? while keeping requiredness independent from nullability.
+openapi: 3.1.0
+info:
+  title: Explicit null union
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    NullableLabel:
+      type: [string, 'null']

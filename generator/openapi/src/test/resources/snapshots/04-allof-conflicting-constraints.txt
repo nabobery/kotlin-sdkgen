@@ -1,0 +1,65 @@
+document sdkgen://source/04-allof-conflicting-constraints.yaml
+title "Conflicting allOf constraints"
+version "1.0.0"
+sourceDocument sdkgen://source/04-allof-conflicting-constraints.yaml sha256=34ce0f4de8762fa41edfd5b414848ebd4940587cbd7143c53acfffe32ea8d57e bytes=622 policy=LOCAL_FILE @sdkgen://source/04-allof-conflicting-constraints.yaml#:3:1:191
+source sdkgen://source/04-allof-conflicting-constraints.yaml#:3:1:191
+extensions {}
+security
+schemas 5
+schema sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName COMPONENT @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName:11:7:327
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ALL_OF sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0, sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1 @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf:12:9:342
+  owner name -> sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0 constraints={minLength=5} @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0/properties/name:16:15:438
+  owner name -> sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1 constraints={maxLength=3} @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1/properties/name:22:15:582
+  extensions {}
+schema sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0 INLINE @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0:12:11:344
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0/properties/name:16:15:438
+  extensions {}
+schema sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0/properties/name INLINE @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/0/properties/name:16:15:438
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {minLength=5}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1 INLINE @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1:18:11:488
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1/properties/name:22:15:582
+  extensions {}
+schema sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1/properties/name INLINE @sdkgen://source/04-allof-conflicting-constraints.yaml#/components/schemas/ImpossibleName/allOf/1/properties/name:22:15:582
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {maxLength=3}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

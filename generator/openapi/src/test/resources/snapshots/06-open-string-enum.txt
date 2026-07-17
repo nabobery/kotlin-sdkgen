@@ -1,0 +1,21 @@
+document sdkgen://source/06-open-string-enum.yaml
+title "Open string enum"
+version "1.0.0"
+sourceDocument sdkgen://source/06-open-string-enum.yaml sha256=d806bcb72bdaf5adcabc365c33598500e763b4470b127cf1b02013783a83f33d bytes=344 policy=LOCAL_FILE @sdkgen://source/06-open-string-enum.yaml#:3:1:177
+source sdkgen://source/06-open-string-enum.yaml#:3:1:177
+extensions {}
+security
+schemas 1
+schema sdkgen://source/06-open-string-enum.yaml#/components/schemas/DeliveryState COMPONENT @sdkgen://source/06-open-string-enum.yaml#/components/schemas/DeliveryState:11:7:299
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  enum OPEN ["queued", "delivered"] @sdkgen://source/06-open-string-enum.yaml#/components/schemas/DeliveryState/enum:12:13:324
+  extensions {}
+operations 0
+diagnostics 0

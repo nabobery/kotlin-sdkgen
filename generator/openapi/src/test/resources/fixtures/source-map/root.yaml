@@ -1,0 +1,70 @@
+openapi: 3.1.0
+info:
+  title: Source map proof
+  version: 1.0.0
+security:
+  - apiKey: []
+  - {}
+paths:
+  /probe:
+    post:
+      operationId: probe
+      x-sdkgen-operation:
+        retry: safe
+      parameters:
+        - name: q
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: string
+            nullable: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Holder'
+      responses:
+        200:
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shared'
+components:
+  schemas:
+    Shared:
+      type: object
+      x-sdkgen-schema:
+        retained: true
+      required: [value]
+      properties:
+        value:
+          type: string
+          default: hello
+          examples: [hello, world]
+    Holder:
+      type: object
+      required: [first, second, external]
+      properties:
+        first:
+          $ref: '#/components/schemas/Shared'
+        second:
+          $ref: '#/components/schemas/Shared'
+        external:
+          $ref: './external.yaml#/components/schemas/ExternalThing'
+    RecursiveA:
+      type: object
+      properties:
+        b:
+          $ref: '#/components/schemas/RecursiveB'
+    RecursiveB:
+      type: object
+      properties:
+        a:
+          $ref: '#/components/schemas/RecursiveA'
+    ClosedState:
+      type: string
+      enum: [on, off]
+      x-sdkgen-enum-open: false

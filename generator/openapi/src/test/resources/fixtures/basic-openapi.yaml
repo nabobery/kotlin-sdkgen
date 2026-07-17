@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info:
+  title: Overlay fixture
+  version: 1.0.0
+  x-unrelated: keep-me
+tags:
+  - name: base
+paths:
+  /chat:
+    post:
+      operationId: chat
+      description: Original description
+      responses:
+        '200':
+          description: OK

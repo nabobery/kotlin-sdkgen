@@ -1,0 +1,443 @@
+package com.nabobery.sdkgen.model
+
+/**
+ * A schema's identity within a [SemanticDocument], stable across adaptation runs for a given
+ * input. Two schemas share a [SchemaId] if and only if they represent the same OpenAPI schema
+ * node — either the same named component schema entry, or the same inline location.
+ */
+@JvmInline
+public value class SchemaId(
+    public val value: String,
+) : Comparable<SchemaId> {
+    public override fun compareTo(other: SchemaId): Int = value.compareTo(other.value)
+
+    public override fun toString(): String = value
+}
+
+/** A 1-based line/column position paired with a 0-based byte offset into the source document. */
+public data class SourceLocation(
+    public val line: Int,
+    public val column: Int,
+    public val byteOffset: Long,
+)
+
+/**
+ * Traces a [MaterialNode] back to the exact byte range in the original input that produced it.
+ * `documentUri` identifies which staged source document (root, reference, or overlay result)
+ * the node came from; `jsonPointer` is the RFC 6901 pointer within that document.
+ */
+public data class SourcePointer(
+    public val documentUri: String,
+    public val jsonPointer: String,
+    public val location: SourceLocation,
+)
+
+/**
+ * A JSON value carried through the semantic model without loss — used for defaults, examples,
+ * enum members, and vendor extensions. Distinct from Kotlin's native types so that adaptation
+ * never has to decide a target representation before the declaration/emission stage decides it.
+ */
+public sealed interface JsonValue {
+    public data object Null : JsonValue
+
+    public data class BooleanValue(
+        val value: Boolean,
+    ) : JsonValue
+
+    /** Preserves the lexical form of the source number (e.g. `1.0` vs `1`, exact precision). */
+    public data class NumberValue(
+        val lexicalValue: String,
+    ) : JsonValue
+
+    public data class StringValue(
+        val value: String,
+    ) : JsonValue
+
+    public data class ArrayValue(
+        val values: List<JsonValue>,
+    ) : JsonValue
+
+    public data class ObjectValue(
+        val properties: Map<String, JsonValue>,
+    ) : JsonValue
+}
+
+/**
+ * How a [SchemaModel] acquired its [SchemaId]: whether it is a named component-schema
+ * definition ([COMPONENT]), a schema written inline at its point of use ([INLINE]), or a schema
+ * that originates outside the root document's own component set ([EXTERNAL], e.g. resolved
+ * through a reference into a separate staged document). Paired with [SchemaModel.referenceTarget]:
+ * a schema that is itself a bare `$ref` wrapper carries the referenced id there while its own
+ * `identityKind` still reflects where the `$ref` node itself was written.
+ */
+public enum class IdentityKind {
+    COMPONENT,
+    INLINE,
+    EXTERNAL,
+}
+
+public enum class AcquisitionPolicy {
+    LOCAL_FILE,
+}
+
+/** Whether a property or parameter must appear in a valid instance (independent of [Nullability]). */
+public enum class Requiredness {
+    REQUIRED,
+    OPTIONAL,
+}
+
+/** Whether an explicit JSON `null` is a valid value once the property is present (independent of [Requiredness]). */
+public enum class Nullability {
+    NULLABLE,
+    NON_NULL,
+}
+
+/**
+ * The three ways a property can occur in a JSON instance. [Requiredness] and [Nullability] each
+ * describe one axis of a schema's *contract*; `PresenceState` describes what a given property
+ * declaration actually admits as a set of concrete instance shapes, which is not a simple product
+ * of the other two:
+ * - [ABSENT]: the key is missing entirely. Only possible when [Requiredness] is `OPTIONAL`.
+ * - [NULL]: the key is present with a JSON `null` value. Only possible when [Nullability] is
+ *   `NULLABLE`.
+ * - [VALUE]: the key is present with a non-null value matching the property's schema.
+ *
+ * [PropertyModel.presenceStates] lists exactly the subset of these three states a given property
+ * allows — e.g. a required-but-nullable property allows `[NULL, VALUE]` but never `ABSENT`.
+ */
+public enum class PresenceState {
+    ABSENT,
+    NULL,
+    VALUE,
+}
+
+/** Which OpenAPI/JSON Schema syntax contributed a [Nullability.NULLABLE] verdict for a schema. */
+public enum class NullabilitySurface {
+    OPENAPI_3_0_NULLABLE,
+    JSON_SCHEMA_TYPE_ARRAY,
+    NULL_COMPOSITION,
+}
+
+/**
+ * One syntactic source of a schema's nullability, kept even after normalization so diagnostics and
+ * tooling can point at the exact keyword (`nullable: true`, `type: [x, "null"]`, or a `null` branch
+ * in a composition) that made a schema nullable. A schema may carry more than one origin.
+ */
+public data class NullabilityOrigin(
+    public val surface: NullabilitySurface,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public enum class EnumOpenness {
+    OPEN,
+    CLOSED,
+}
+
+public enum class CompositionKind {
+    ONE_OF,
+    ANY_OF,
+    ALL_OF,
+}
+
+public enum class ParameterLocation {
+    PATH,
+    QUERY,
+    HEADER,
+    COOKIE,
+}
+
+public enum class StatusSelectorKind {
+    EXACT,
+    RANGE,
+    DEFAULT,
+}
+
+public enum class DiagnosticSeverity {
+    ERROR,
+    WARNING,
+}
+
+/** The adaptation stage a [Diagnostic] was raised in, from raw bytes toward the semantic model. */
+public enum class DiagnosticPhase {
+    ACQUISITION,
+    PARSE,
+    ADAPTATION,
+    NORMALIZATION,
+}
+
+/**
+ * Stable, machine-matchable identifiers for every diagnosis the OpenAPI adapter can raise.
+ * Notes on codes whose trigger is not evident from the name alone:
+ * - [ONE_OF_NULL_AMBIGUOUS]: a `oneOf` composition has zero or more than one null-accepting
+ *   branch (a bare `type: "null"` branch, the legacy nullable marker, or an unconstrained branch
+ *   that itself accepts `null`). Exactly one such branch is required to infer [Nullability]
+ *   unambiguously from a `oneOf`; this code marks the case left as non-nullable instead.
+ * - [LEGACY_NULLABLE_COMPOSITION]: a pre-3.1-style `nullable: true` sibling to a composition
+ *   keyword was honored, but the combination is deprecated and flagged for visibility.
+ * - [SCHEMA_ADAPTATION_FAILED] / [OPERATION_ADAPTATION_FAILED]: adaptation of one schema or
+ *   operation failed and was omitted from the document; the diagnostic is the caller's only
+ *   record that the omission was deliberate rather than silent (see
+ *   `AdaptationMetrics.silentSchemaOmissions` in the `openapi` module).
+ * - [PARSER_RESOLVED_MESSAGE] / [PARSER_UNRESOLVED_MESSAGE]: warnings surfaced verbatim from the
+ *   underlying swagger-parser's resolved and unresolved parse passes, respectively.
+ */
+public enum class DiagnosticCode {
+    AMBIGUOUS_PARAMETER_SCHEMA_AND_CONTENT,
+    INVALID_DISCRIMINATOR_MAPPING,
+    LEGACY_NULLABLE_COMPOSITION,
+    ONE_OF_NULL_AMBIGUOUS,
+    OPERATION_ADAPTATION_FAILED,
+    PARSER_RESOLVED_MESSAGE,
+    PARSER_UNRESOLVED_MESSAGE,
+    SCHEMA_ADAPTATION_FAILED,
+    UNRESOLVED_REFERENCE,
+    UNSUPPORTED_BOOLEAN_SCHEMA,
+    UNSUPPORTED_SCHEMA_KEYWORD,
+}
+
+/**
+ * Common supertype for every node in the semantic model. The one guarantee it carries is
+ * traceability: every node — down to individual properties and diagnostics — knows the exact
+ * [SourcePointer] in the original input it was adapted from.
+ */
+public sealed interface MaterialNode {
+    public val source: SourcePointer
+}
+
+public data class SourceDocumentIdentity(
+    public val canonicalUri: String,
+    public val sha256: String,
+    public val contentLength: Long,
+    public val acquisitionPolicy: AcquisitionPolicy,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class SchemaRef(
+    public val schemaId: SchemaId,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class EnumModel(
+    public val values: List<JsonValue>,
+    public val openness: EnumOpenness,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class DiscriminatorModel(
+    public val propertyName: String,
+    public val mapping: Map<String, SchemaId>,
+    public val unmappedBranches: List<SchemaId>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class CompositionModel(
+    public val kind: CompositionKind,
+    public val branches: List<SchemaRef>,
+    public val discriminator: DiscriminatorModel?,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class PropertyOwnership(
+    public val propertyName: String,
+    public val ownerSchemaId: SchemaId,
+    public val constraints: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+/**
+ * A single property on an object schema. [requiredness] and [nullability] state the contract;
+ * [presenceStates] is the derived, authoritative set of instance shapes the property actually
+ * admits (see [PresenceState]) and is what emission should consult rather than re-deriving the
+ * combination itself.
+ */
+public data class PropertyModel(
+    public val name: String,
+    public val schema: SchemaRef,
+    public val requiredness: Requiredness,
+    public val nullability: Nullability,
+    public val presenceStates: List<PresenceState>,
+    public val readOnly: Boolean,
+    public val writeOnly: Boolean,
+    public val description: String?,
+    public val deprecated: Boolean,
+    public val defaultValue: JsonValue?,
+    public val examples: List<JsonValue>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+/**
+ * The three ways an object schema treats properties not named in [SchemaModel.properties]:
+ * rejected entirely ([Closed]), accepted as arbitrary [JsonValue] with no schema constraint
+ * ([FreeForm]), or accepted so long as each value matches [Typed.valueSchema]. A `null`
+ * [SchemaModel.additionalProperties] is distinct from all three — it means the keyword was absent
+ * from the source and the OpenAPI-default (open, unconstrained) behavior applies implicitly.
+ */
+public sealed interface AdditionalPropertiesModel : MaterialNode {
+    public data class Closed(
+        override val source: SourcePointer,
+    ) : AdditionalPropertiesModel
+
+    public data class FreeForm(
+        override val source: SourcePointer,
+    ) : AdditionalPropertiesModel
+
+    public data class Typed(
+        public val valueSchema: SchemaRef,
+        public override val source: SourcePointer,
+    ) : AdditionalPropertiesModel
+}
+
+/**
+ * The normalized representation of one OpenAPI/JSON Schema schema node. [id] is stable per
+ * [IdentityKind] (see [IdentityKind] for how identity is assigned); [referenceTarget] is non-null
+ * exactly when this node is itself nothing more than a `$ref` — in that case every other field
+ * describes an empty/absent schema and callers should resolve through [referenceTarget] rather
+ * than reading this node's own fields. [nullability] is the single normalized verdict; the
+ * syntactic evidence behind it is preserved separately in [nullabilityOrigins] for diagnostics.
+ */
+public data class SchemaModel(
+    public val id: SchemaId,
+    public val identityKind: IdentityKind,
+    public val referenceTarget: SchemaId?,
+    public val types: List<String>,
+    public val format: String?,
+    public val nullability: Nullability,
+    public val nullabilityOrigins: List<NullabilityOrigin>,
+    public val description: String?,
+    public val deprecated: Boolean,
+    public val readOnly: Boolean,
+    public val writeOnly: Boolean,
+    public val constraints: Map<String, JsonValue>,
+    public val defaultValue: JsonValue?,
+    public val examples: List<JsonValue>,
+    public val enum: EnumModel?,
+    public val properties: List<PropertyModel>,
+    public val items: SchemaRef?,
+    public val additionalProperties: AdditionalPropertiesModel?,
+    public val compositions: List<CompositionModel>,
+    public val allOfPropertyOwnership: List<PropertyOwnership>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class EncodingModel(
+    public val partName: String,
+    public val contentType: String?,
+    public val headers: Map<String, JsonValue>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class MediaTypeModel(
+    public val mediaType: String,
+    public val schema: SchemaRef?,
+    public val encoding: List<EncodingModel>,
+    public val example: JsonValue?,
+    public val examples: Map<String, JsonValue>,
+    public val extensions: Map<String, JsonValue>,
+    public val streaming: Boolean,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class ParameterModel(
+    public val name: String,
+    public val location: ParameterLocation,
+    public val requiredness: Requiredness,
+    public val style: String?,
+    public val explode: Boolean?,
+    public val schema: SchemaRef?,
+    public val content: List<MediaTypeModel>,
+    public val description: String?,
+    public val deprecated: Boolean,
+    public val examples: Map<String, JsonValue>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class RequestBodyModel(
+    public val requiredness: Requiredness,
+    public val description: String?,
+    public val content: List<MediaTypeModel>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class HeaderModel(
+    public val name: String,
+    public val requiredness: Requiredness,
+    public val schema: SchemaRef?,
+    public val description: String?,
+    public val deprecated: Boolean,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class ResponseModel(
+    public val selector: String,
+    public val selectorKind: StatusSelectorKind,
+    public val description: String?,
+    public val content: List<MediaTypeModel>,
+    public val headers: List<HeaderModel>,
+    public val links: Map<String, JsonValue>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class SecurityRequirementModel(
+    public val schemes: Map<String, List<String>>,
+    public val anonymous: Boolean,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+public data class OperationModel(
+    public val operationId: String,
+    public val method: String,
+    public val path: String,
+    public val description: String?,
+    public val deprecated: Boolean,
+    public val parameters: List<ParameterModel>,
+    public val requestBody: RequestBodyModel?,
+    public val responses: List<ResponseModel>,
+    public val securityAlternatives: List<SecurityRequirementModel>,
+    public val extensions: Map<String, JsonValue>,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+/**
+ * A recorded adaptation event, always carrying enough context to act on: [message] describes what
+ * was observed, [remediation] describes what the input author should do about it, and
+ * [MaterialNode.source] pins the exact location. [DiagnosticSeverity.ERROR] diagnostics indicate a
+ * schema or operation was omitted from the document rather than represented incorrectly — see
+ * [DiagnosticCode] for which codes carry that meaning.
+ */
+public data class Diagnostic(
+    public val code: DiagnosticCode,
+    public val severity: DiagnosticSeverity,
+    public val phase: DiagnosticPhase,
+    public val message: String,
+    public val remediation: String,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+/**
+ * The complete, adapter-agnostic representation of one OpenAPI document (root document plus every
+ * document it references), produced by [com.nabobery.sdkgen.openapi.SemanticAdapter.adapt]. This
+ * is the sole input to declaration projection and Kotlin emission — nothing downstream reads the
+ * original OpenAPI source. [schemas] and [operations] hold only what was successfully adapted;
+ * [diagnostics] records everything that was not, so the two collections together — not
+ * [schemas]/[operations] alone — describe the full outcome of adaptation.
+ */
+public data class SemanticDocument(
+    public val documentUri: String,
+    public val title: String?,
+    public val version: String?,
+    public val sourceDocuments: List<SourceDocumentIdentity>,
+    public val schemas: Map<SchemaId, SchemaModel>,
+    public val operations: List<OperationModel>,
+    public val securityAlternatives: List<SecurityRequirementModel>,
+    public val extensions: Map<String, JsonValue>,
+    public val diagnostics: List<Diagnostic>,
+    public override val source: SourcePointer,
+) : MaterialNode

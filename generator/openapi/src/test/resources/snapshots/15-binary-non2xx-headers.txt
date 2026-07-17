@@ -1,0 +1,92 @@
+document sdkgen://source/15-binary-non2xx-headers.yaml
+title "Binary and non-2xx response"
+version "1.0.0"
+sourceDocument sdkgen://source/15-binary-non2xx-headers.yaml sha256=d44dedd23a0feb37b71de4e14ef285ef4d923900732a1246117b3000a3614e3d bytes=1229 policy=LOCAL_FILE @sdkgen://source/15-binary-non2xx-headers.yaml#:3:1:188
+source sdkgen://source/15-binary-non2xx-headers.yaml#:3:1:188
+extensions {}
+security
+schemas 7
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError COMPONENT @sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError:43:7:1089
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property code REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/code readOnly=false writeOnly=false deprecated=false @sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/code:47:11:1176
+  property message REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/message readOnly=false writeOnly=false deprecated=false @sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/message:49:11:1216
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/code INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/code:47:11:1176
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/message INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError/properties/message:49:11:1216
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/parameters/0/schema INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/parameters/0/schema:16:13:437
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/content/application~1octet-stream/schema INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/content/application~1octet-stream/schema:27:17:699
+  reference -
+  types string nullability=NON_NULL format=binary
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/headers/ETag/schema INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/headers/ETag/schema:23:17:591
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404/headers/X-Request-Id/schema INLINE @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404/headers/X-Request-Id/schema:35:17:908
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 1
+operation GET /files/{id} id=downloadFile deprecated=false @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get:10:7:300
+  description -
+  parameter PATH:id REQUIRED/sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/parameters/0/schema style=simple explode=false @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/parameters/0:12:11:354
+  response EXACT:200 @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200:19:11:492
+    header ETag OPTIONAL schema=sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/headers/ETag/schema @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/headers/ETag:22:15:567
+    media application/octet-stream schema=sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/content/application~1octet-stream/schema streaming=false encoding=[] @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/200/content/application~1octet-stream:26:15:675
+  response EXACT:404 @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404:30:11:768
+    header X-Request-Id REQUIRED schema=sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404/headers/X-Request-Id/schema @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404/headers/X-Request-Id:33:15:855
+    media application/json schema=sdkgen://source/15-binary-non2xx-headers.yaml#/components/schemas/ApiError streaming=false encoding=[] @sdkgen://source/15-binary-non2xx-headers.yaml#/paths/~1files~1{id}/get/responses/404/content/application~1json:38:15:984
+  extensions {}
+diagnostics 0

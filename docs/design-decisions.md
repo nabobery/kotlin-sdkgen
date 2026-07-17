@@ -1,10 +1,10 @@
 # Kotlin SDKGen: Design Decisions and Research
 
-| Field | Value |
-| --- | --- |
-| Status | Living decision record |
-| Last updated | 2026-07-16 |
-| Product | Open-source OpenAPI 3.1 Kotlin and Kotlin Multiplatform SDK generator |
+| Field                             | Value                                                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Status                            | Living decision record                                                                                                      |
+| Last updated                      | 2026-07-16                                                                                                                  |
+| Product                           | Open-source OpenAPI 3.1 Kotlin and Kotlin Multiplatform SDK generator                                                       |
 | Relationship to `requirements.md` | Locked decisions here refine or supersede earlier proposals; the requirements will be reconciled after the design interview |
 
 ## Purpose
@@ -34,6 +34,8 @@ The target is broader than a wire-model generator. Kotlin SDKGen should generate
 - iOS device and simulator.
 - macOS.
 - JavaScript browser and Node.js.
+
+Tier 1 states the product's ultimate release-blocking ambition, not the Phase 1 build matrix. Android and JavaScript browser are **deferred to Phase 2** by explicit user decision: Phase 1 has no Android Gradle Plugin dependency to build `androidTarget()` against, and a browser-only `js { browser() }` target adds no additional semantic coverage over the already-gated `js { nodejs() }` target for a project with no DOM/fetch-specific surface yet. See [ADR 0011](adr/0011-android-browser-target-deferral.md) for drivers and Phase 2 re-entry criteria.
 
 ### Tier 2 compile and contract-test targets
 
@@ -70,6 +72,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Identical definitions deduplicate; explicitly compatible, non-overlapping definitions may merge.
 - Meaningful conflicts require namespaces, overlays, or a per-conflict policy.
 - An opt-in named `speakeasy-compatible` last-wins mode may be supported, but is never the default.
+- SDKGen owns the overlay applicator. Phase 0 proved ordered `update` and `remove`; Overlay 1.1 `copy` and full RFC 9535 conformance remain Phase 1 gates. SnackJson 4.0.54 stays behind a replaceable JSONPath seam; see [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).
 
 ## Naming and generated client organization
 
@@ -101,6 +104,8 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - The common SDK API is genuinely transport-neutral.
 - Provide adapter artifacts for Ktor, OkHttp, Java `HttpClient`, and user-defined transports.
 - Each adapter must prove streaming, cancellation, timeout, and resource-lifetime semantics.
+- `SdkRequest` carries mandatory response-mode and semantic-deadline metadata; request bodies distinguish replayable bytes, replay factories, and one-shot streams.
+- `SdkByteStream` closes with `close(cause: Throwable? = null)` so cancellation and failure remain distinguishable from normal completion.
 - Publish a neutral core plus separate convenience artifacts such as `-ktor`, `-okhttp`, and `-java-http`.
 - The common async API uses `suspend` and cold `Flow`.
 - An optional JVM interop artifact provides `CompletableFuture` and Java `Flow.Publisher` projections.
@@ -112,9 +117,9 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Client defaults and per-call overrides use the same typed policy structures.
 - Wire request models never contain local execution policy.
 - Each policy override is nullable:
-  - absence means inherit;
-  - `Disabled` explicitly disables the policy;
-  - `Replace(value)` replaces the complete resolved policy.
+    - absence means inherit;
+    - `Disabled` explicitly disables the policy;
+    - `Replace(value)` replaces the complete resolved policy.
 - Per-call runtime policies do not perform implicit field-level merging.
 - Contract-level extensions may define explicit merge behavior during generation.
 
@@ -122,11 +127,11 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 
 - Define portable semantic timeouts in the core runtime and keep engine-specific network tuning in adapter artifacts.
 - Core timeout policies include:
-  - total logical-call deadline across retries;
-  - per-attempt deadline;
-  - streaming idle timeout between received bytes or decoded events;
-  - upload idle timeout between successful writes;
-  - pagination elapsed-time budget.
+    - total logical-call deadline across retries;
+    - per-attempt deadline;
+    - streaming idle timeout between received bytes or decoded events;
+    - upload idle timeout between successful writes;
+    - pagination elapsed-time budget.
 - A configured total deadline covers the whole logical operation; for a stream it covers collection until completion or cancellation.
 - Long-lived streaming operations have no finite total deadline by default and instead use an explicit idle policy when configured.
 - Adapter-specific options may expose connect, DNS, TLS, socket, pool, and engine settings.
@@ -137,9 +142,9 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 
 - Generate typed security configuration from OpenAPI Security Scheme and Security Requirement objects.
 - Preserve OpenAPI authorization logic exactly:
-  - schemes inside one Security Requirement are all required;
-  - entries in the Security Requirement array are alternatives;
-  - an empty requirement permits anonymous access.
+    - schemes inside one Security Requirement are all required;
+    - entries in the Security Requirement array are alternatives;
+    - an empty requirement permits anonymous access.
 - Execute authentication through a transport-neutral suspending provider SPI.
 - Generate first-class support for API keys in headers, queries, and cookies; HTTP basic and bearer schemes; OAuth2; OpenID Connect; and mutual TLS metadata.
 - Permit custom providers for schemes or credential acquisition that OpenAPI cannot fully describe.
@@ -178,7 +183,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Keep the raw wire value accessible and stable for logging, persistence, equality, Java interop, and future SDK upgrades.
 - Do not map unknown values to a single `UNKNOWN` constant because doing so loses the original server value.
 - Open enums can never give the compiler exhaustive `when` checking; that is inherent to forward compatibility, and documentation plus optional lint tooling are the intended mitigation, not a closed representation.
-- Phase 0 compares the `@JvmInline value class` shape against an AWS-style sealed hierarchy with an unknown-value case, because value-class members are name-mangled and awkward from Java; the unknown-value round-trip semantics are locked, the vehicle is not.
+- Use the AWS-style sealed hierarchy selected in [ADR 0010](adr/0010-open-enum-sealed-hierarchy.md): singleton documented cases, `SdkUnknown(value)`, and `fromValue()`. The value-class alternative is rejected for public generated types because mangling propagates into Java-visible constructors, properties, and methods.
 - Preserve absent, present-null, and present-value as distinct wire states.
 - Cross presence with `required` per property: OpenAPI 3.1 permits a required property whose type includes `null`, where present-null is legal but absence is a contract violation; request-model validation must distinguish those cases even though decode-time presence tracking treats them uniformly.
 - Ordinary generated property access returns an ergonomic `T?`; explicit presence inspection is a separately named opt-in API. Generated code never forces `Optional`-style wrappers onto plain field reads.
@@ -274,7 +279,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Add two unrelated real-world API corpora before 1.0 to catch assumptions accidentally optimized for OpenRouter; their selection remains a product decision.
 - Use reproducible property-test seeds in CI and print failing seeds for local replay.
 - Verify deterministic output across repeated runs, clean directories, path relocation, locale, timezone, and supported host operating systems.
-- Validate the generator's published JVM and KMP ABI against the actual Maven publications. Phase 0 compares the experimental KGP ABI validation DSL with the maintenance-mode standalone `Kotlin/binary-compatibility-validator`, whose KLib support is also experimental. Select the tool or combination from publication-level evidence; neither implementation is locked in advance.
+- Validate the generator's published JVM and KMP ABI against the actual Maven publications with BCV 0.18.1: point `jvmApiBuild.inputJar` at the staged JVM JAR and compare every staged KLib with Kotlin 2.3.20 `klib dump-abi`. KGP 2.3.20 has no `binariesSource`, `MAVEN_PUBLICATIONS`, or `keepLocallyUnsupportedTargets` DSL; use version-pinned syntax and re-evaluate on a Kotlin baseline bump. See [ADR 0007](adr/0007-abi-gate-bcv.md).
 - Classify generated API additions, removals, renames, type changes, presence/nullability changes, and operation moves independently of OpenAPI breaking-change classification.
 - On pull requests, run unit, semantic, golden, deterministic, JVM compile, representative KMP compile, and focused conformance tests.
 - On the main branch, run the complete stable-target compile matrix, all adapter contracts, full OpenRouter generation, and compatibility reports.
@@ -290,7 +295,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - For non-discriminated `oneOf`, evaluate every candidate and require exactly one successful match.
 - Treat zero matches as a typed union-decoding failure with bounded candidate diagnostics.
 - For `oneOf`, treat multiple matches as an ambiguity error rather than selecting the first schema by document order.
-- For non-discriminated `anyOf`, a payload matching multiple candidates is valid per JSON Schema and MUST NOT be rejected. Phase 0 selects a representation that preserves exact wire round trips and the semantics of every successful branch. A deterministic preferred view may improve ergonomics, but it cannot silently discard other matched data or annotations.
+- For non-discriminated `anyOf`, a payload matching multiple candidates is valid per JSON Schema and MUST NOT be rejected. Use the raw-preserving wrapper with lazy typed views from [ADR 0003](adr/0003-anyof-raw-preserving-wrapper.md). It preserves lossless JSON value identity with stable key-order re-emission and every successful branch; it does not claim preservation of arbitrary source whitespace or original wire bytes.
 - Union ambiguity diagnostics SHOULD emit a ready-to-apply overlay or `x-sdkgen-*` snippet that resolves the ambiguity, so strictness stays a workflow rather than a wall.
 - Permit an explicit contract extension or overlay to define priority only when the API's behavior is intentionally order-dependent and cannot be described structurally.
 - Generate a raw unknown case only when the effective schema intentionally models an open union; closed `oneOf` schemas remain closed.
@@ -298,7 +303,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 
 ## Kotlin baseline and portable format types
 
-- Use Kotlin 2.3.20 as the initial compiler, language, API, runtime, and generated-output baseline.
+- Use Kotlin 2.3.20 as the initial compiler/plugin, language/API, and generated-output baseline. Compatible dependency resolution may select a later stdlib patch; Ktor 3.5.1 selected stdlib 2.3.21 in the Phase 0 consumer graph.
 - Do not expose Kotlin 2.4-only APIs in the initial published runtime or generated SDKs.
 - Map instants to stable `kotlin.time.Instant` and durations to `kotlin.time.Duration`.
 - Map civil date/time formats to `kotlinx.datetime.LocalDate`, `LocalTime`, and `LocalDateTime`.
@@ -412,12 +417,12 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 ### Raw and typed layers
 
 - Use two transport-neutral layers:
-  - an SDK-owned scoped byte-stream abstraction for raw request and response bodies;
-  - generated typed `Flow<Event>` APIs for framed protocols.
+    - an SDK-owned scoped byte-stream abstraction for raw request and response bodies;
+    - generated typed `Flow<Event>` APIs for framed protocols.
 - Do not expose Ktor `ByteReadChannel`, Okio `Source`, Java `InputStream`, or another engine type from common generated APIs.
-- Define a minimal suspending pull-based `SdkByteStream` with bounded `copyTo` and `toByteArray(maxBytes)` conveniences.
+- Define a minimal suspending pull-based `SdkByteStream` with bounded `copyTo` and `toByteArray(maxBytes)` conveniences and `close(cause: Throwable? = null)`.
 - Adapter artifacts may provide bridges to Ktor, `kotlinx-io`, Okio, Java I/O, and engine-native types.
-- Scope raw response bodies so network resources close on return, failure, or cancellation.
+- Scope raw response bodies so network resources close on return, failure, or cancellation. A Ktor adapter must retain the `HttpStatement.execute` scope for the lifetime of the neutral stream and must not return a channel from an already-ended response scope.
 
 ### Replayability
 
@@ -430,8 +435,8 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 ### Protocol recognition
 
 - Recognize unambiguous well-known media types:
-  - `text/event-stream` for SSE (IANA-registered);
-  - `application/jsonl` and `application/x-ndjson` for line-delimited JSON (de facto community conventions; neither is IANA-registered as of 2026, so they live in the same extensible recognized-media-type table rather than being treated as standards).
+    - `text/event-stream` for SSE (IANA-registered);
+    - `application/jsonl` and `application/x-ndjson` for line-delimited JSON (de facto community conventions; neither is IANA-registered as of 2026, so they live in the same extensible recognized-media-type table rather than being treated as standards).
 - Use the media-type schema for decoded event types, including discriminated unions.
 - Require `x-sdkgen-streaming` for conditional modes, terminators, in-band errors, resumability, or ambiguous/non-standard framing.
 - Do not infer conditional streaming solely from a request property named `stream`.
@@ -455,17 +460,17 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 
 ## Industry research and lessons
 
-| Source | Observed pattern | Applied decision |
-| --- | --- | --- |
-| Smithy and AWS SDKs | Generated retry safety/throttling metadata, retry token bucket, replayability, typed errors | Metadata-driven retry engine and quota |
-| Speakeasy | OpenAPI extensions and overlays, per-call overrides, pagination page/item projections, typed SSE/JSONL, sentinels | Compatibility profile and ergonomic generated API |
-| Fern | Focused extensions for idempotency, retries, pagination, streaming, terminators, conditional and resumable SSE | Canonical focused extensions and resumable SSE metadata |
-| Stainless | Config-plus-contract SDK design, typed streaming variants, ordered event actions including yield/error/continue/done/break | Bounded declarative stream event rules |
-| AWS SDK for Kotlin | Cold `Flow` paginators, scoped streaming bodies, runtime-owned `ByteStream` | Kotlin-native lazy pagination and scoped raw streams |
-| Swift OpenAPI Generator | Runtime-owned `HTTPBody` shared by generated code, middleware, and pluggable transports | Neutral runtime body currency instead of engine types |
-| Microsoft Kiota | Request-adapter architecture and host-scoped authentication | Small transport SPI and trusted-host credential rules |
-| Azure SDK for Java | Separate page and item iteration, continuation-token access, reactive error channel | Page/item projections and caller-managed resumption |
-| Ktor and kotlinx.coroutines | Structured cancellation, cold Flow, explicit buffering, streaming channels | No hidden prefetch and cancellation-safe adapters |
+| Source                      | Observed pattern                                                                                                           | Applied decision                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Smithy and AWS SDKs         | Generated retry safety/throttling metadata, retry token bucket, replayability, typed errors                                | Metadata-driven retry engine and quota                  |
+| Speakeasy                   | OpenAPI extensions and overlays, per-call overrides, pagination page/item projections, typed SSE/JSONL, sentinels          | Compatibility profile and ergonomic generated API       |
+| Fern                        | Focused extensions for idempotency, retries, pagination, streaming, terminators, conditional and resumable SSE             | Canonical focused extensions and resumable SSE metadata |
+| Stainless                   | Config-plus-contract SDK design, typed streaming variants, ordered event actions including yield/error/continue/done/break | Bounded declarative stream event rules                  |
+| AWS SDK for Kotlin          | Cold `Flow` paginators, scoped streaming bodies, runtime-owned `ByteStream`                                                | Kotlin-native lazy pagination and scoped raw streams    |
+| Swift OpenAPI Generator     | Runtime-owned `HTTPBody` shared by generated code, middleware, and pluggable transports                                    | Neutral runtime body currency instead of engine types   |
+| Microsoft Kiota             | Request-adapter architecture and host-scoped authentication                                                                | Small transport SPI and trusted-host credential rules   |
+| Azure SDK for Java          | Separate page and item iteration, continuation-token access, reactive error channel                                        | Page/item projections and caller-managed resumption     |
+| Ktor and kotlinx.coroutines | Structured cancellation, cold Flow, explicit buffering, streaming channels                                                 | No hidden prefetch and cancellation-safe adapters       |
 
 ## Primary references
 

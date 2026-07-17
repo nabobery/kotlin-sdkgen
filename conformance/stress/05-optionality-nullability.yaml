@@ -1,0 +1,19 @@
+# Stress: required-nullable, optional-non-null, and optional-nullable are three distinct contracts.
+# Expected: preserve absent, present-null, and present-value states without conflating requiredness and nullability.
+openapi: 3.1.0
+info:
+  title: Optionality and nullability
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    PropertyStates:
+      type: object
+      required: [requiredNullable]
+      properties:
+        requiredNullable:
+          type: [string, 'null']
+        optionalNonNull:
+          type: string
+        optionalNullable:
+          type: [string, 'null']

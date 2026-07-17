@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-pagination.schema.json",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "style": { "const": "cursor" },
+        "requestCursor": { "type": "string", "minLength": 1 },
+        "requestLimit": { "type": "string", "minLength": 1 },
+        "responseItems": { "type": "string", "pattern": "^/" },
+        "responseNextCursor": { "type": "string", "pattern": "^/" }
+    },
+    "required": [
+        "style",
+        "requestCursor",
+        "responseItems",
+        "responseNextCursor"
+    ]
+}

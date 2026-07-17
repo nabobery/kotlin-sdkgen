@@ -1,0 +1,53 @@
+document sdkgen://source/05-optionality-nullability.yaml
+title "Optionality and nullability"
+version "1.0.0"
+sourceDocument sdkgen://source/05-optionality-nullability.yaml sha256=30112de736bcc6306df3561bb43901fe6aad33c56429b80dff6cd90bc00b3d5a bytes=583 policy=LOCAL_FILE @sdkgen://source/05-optionality-nullability.yaml#:3:1:217
+source sdkgen://source/05-optionality-nullability.yaml#:3:1:217
+extensions {}
+security
+schemas 4
+schema sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates COMPONENT @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates:11:7:351
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property optionalNonNull OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNonNull readOnly=false writeOnly=false deprecated=false @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNonNull:17:11:511
+  property optionalNullable OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNullable readOnly=false writeOnly=false deprecated=false @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNullable:19:11:560
+  property requiredNullable REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/requiredNullable readOnly=false writeOnly=false deprecated=false @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/requiredNullable:15:11:453
+  extensions {}
+schema sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNonNull INLINE @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNonNull:17:11:511
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNullable INLINE @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNullable:19:11:560
+  reference -
+  types string nullability=NULLABLE format=-
+  nullabilityOrigins [JSON_SCHEMA_TYPE_ARRAY@sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/optionalNullable/type/1:19:26:575]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/requiredNullable INLINE @sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/requiredNullable:15:11:453
+  reference -
+  types string nullability=NULLABLE format=-
+  nullabilityOrigins [JSON_SCHEMA_TYPE_ARRAY@sdkgen://source/05-optionality-nullability.yaml#/components/schemas/PropertyStates/properties/requiredNullable/type/1:15:26:468]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

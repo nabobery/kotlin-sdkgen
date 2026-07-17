@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: Dependent schemas diagnostic
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Credential:
+      type: object
+      dependentSchemas:
+        username:
+          required: [password]

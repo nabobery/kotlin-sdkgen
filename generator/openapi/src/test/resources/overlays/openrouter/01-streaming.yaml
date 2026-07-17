@@ -1,0 +1,12 @@
+overlay: 1.1.0
+info:
+  title: Canonical OpenRouter streaming metadata
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/chat/completions']['post']"
+    update:
+      x-sdkgen-streaming:
+        mode: sse
+        requestFlag: stream
+        responseContentType: text/event-stream
+        sentinel: "[DONE]"

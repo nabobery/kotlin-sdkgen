@@ -1,0 +1,63 @@
+document sdkgen://source/16-reference-only-anyof.yaml
+title "Reference-only anyOf"
+version "1.0.0"
+sourceDocument sdkgen://source/16-reference-only-anyof.yaml sha256=072492ced32fbdf27af7d3858ac0af5cc5e5c596ba532fdca7799908cb0c898c bytes=634 policy=LOCAL_FILE @sdkgen://source/16-reference-only-anyof.yaml#:3:1:191
+source sdkgen://source/16-reference-only-anyof.yaml#:3:1:191
+extensions {}
+security
+schemas 5
+schema sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored COMPONENT @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored:21:7:541
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property score REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored/properties/score readOnly=false writeOnly=false deprecated=false @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored/properties/score:25:11:621
+  extensions {}
+schema sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored/properties/score INLINE @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored/properties/score:25:11:621
+  reference -
+  types number nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/SearchHit COMPONENT @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/SearchHit:11:7:313
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ANY_OF sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled, sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Scored @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/SearchHit/anyOf:12:9:328
+  extensions {}
+schema sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled COMPONENT @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled:15:7:430
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property title REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled/properties/title readOnly=false writeOnly=false deprecated=false @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled/properties/title:19:11:510
+  extensions {}
+schema sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled/properties/title INLINE @sdkgen://source/16-reference-only-anyof.yaml#/components/schemas/Titled/properties/title:19:11:510
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

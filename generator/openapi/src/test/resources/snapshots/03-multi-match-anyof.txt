@@ -1,0 +1,63 @@
+document sdkgen://source/03-multi-match-anyof.yaml
+title "Multi-match anyOf"
+version "1.0.0"
+sourceDocument sdkgen://source/03-multi-match-anyof.yaml sha256=afcaaedcbff35f66f426c697ad1db91b49f24b77c2c59d0e3f811a40b26ae9a7 bytes=536 policy=LOCAL_FILE @sdkgen://source/03-multi-match-anyof.yaml#:3:1:161
+source sdkgen://source/03-multi-match-anyof.yaml#:3:1:161
+extensions {}
+security
+schemas 5
+schema sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult COMPONENT @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult:11:7:283
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {unevaluatedProperties=false}
+  default -
+  examples []
+  ANY_OF sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0, sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1 @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf:13:9:317
+  extensions {}
+schema sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0 INLINE @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0:13:11:319
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property title REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0/properties/title readOnly=false writeOnly=false deprecated=false @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0/properties/title:16:15:392
+  extensions {}
+schema sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0/properties/title INLINE @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/0/properties/title:16:15:392
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1 INLINE @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1:17:11:415
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property score REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1/properties/score readOnly=false writeOnly=false deprecated=false @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1/properties/score:20:15:488
+  extensions {}
+schema sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1/properties/score INLINE @sdkgen://source/03-multi-match-anyof.yaml#/components/schemas/SearchResult/anyOf/1/properties/score:20:15:488
+  reference -
+  types number nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

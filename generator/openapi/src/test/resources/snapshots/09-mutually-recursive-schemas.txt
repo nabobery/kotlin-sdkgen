@@ -1,0 +1,96 @@
+document sdkgen://source/09-mutually-recursive-schemas.yaml
+title "Mutually recursive schemas"
+version "1.0.0"
+sourceDocument sdkgen://source/09-mutually-recursive-schemas.yaml sha256=0a095b3d457c5c86da7f2a571c207d3e448d5459a0262d5c8e3f0ab4688580a3 bytes=730 policy=LOCAL_FILE @sdkgen://source/09-mutually-recursive-schemas.yaml#:3:1:188
+source sdkgen://source/09-mutually-recursive-schemas.yaml#:3:1:188
+extensions {}
+security
+schemas 8
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child COMPONENT @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child:21:7:529
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/name:25:11:607
+  property parent OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent readOnly=false writeOnly=false deprecated=false @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent:27:11:646
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/name INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/name:25:11:607
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent:27:11:646
+  reference -
+  types  nullability=NULLABLE format=-
+  nullabilityOrigins [NULL_COMPOSITION@sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent/oneOf/1/type:29:21:723]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ONE_OF sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent, sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent/oneOf/1 @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent/oneOf:28:13:665
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent/oneOf/1 INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child/properties/parent/oneOf/1:29:15:717
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent COMPONENT @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent:11:7:313
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property child OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child readOnly=false writeOnly=false deprecated=false @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child:17:11:429
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/name:15:11:391
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child:17:11:429
+  reference -
+  types  nullability=NULLABLE format=-
+  nullabilityOrigins [NULL_COMPOSITION@sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child/oneOf/1/type:19:21:505]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ONE_OF sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Child, sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child/oneOf/1 @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child/oneOf:18:13:448
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child/oneOf/1 INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/child/oneOf/1:19:15:499
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/name INLINE @sdkgen://source/09-mutually-recursive-schemas.yaml#/components/schemas/Parent/properties/name:15:11:391
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

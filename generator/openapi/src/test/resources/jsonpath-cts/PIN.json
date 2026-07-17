@@ -1,0 +1,9 @@
+{
+    "repository": "https://github.com/jsonpath-standard/jsonpath-compliance-test-suite",
+    "commit": "7be7c1fc28057c91e8eefaf197060fba7ed43acd",
+    "commitDate": "2026-05-20T19:27:56-07:00",
+    "ctsPath": "cts.json",
+    "ctsSha256": "a85db53fba1f675be48b534baec5a754dc685ad08c550d8927f609c7708f365a",
+    "ctsBytes": 233564,
+    "license": "BSD-3-Clause"
+}

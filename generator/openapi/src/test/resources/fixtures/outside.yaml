@@ -1,0 +1,4 @@
+components:
+  schemas:
+    Outside:
+      type: string

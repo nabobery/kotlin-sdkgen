@@ -1,0 +1,79 @@
+document sdkgen://source/02-mixed-inline-oneof.yaml
+title "Mixed inline oneOf"
+version "1.0.0"
+sourceDocument sdkgen://source/02-mixed-inline-oneof.yaml sha256=6da67052054516383d5b815e794d7f52bbfaa128fe1643b1794483719e161e88 bytes=906 policy=LOCAL_FILE @sdkgen://source/02-mixed-inline-oneof.yaml#:3:1:205
+source sdkgen://source/02-mixed-inline-oneof.yaml#:3:1:205
+extensions {}
+security
+schemas 6
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue COMPONENT @sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue:30:7:815
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue/properties/name:34:11:893
+  extensions {}
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue/properties/name INLINE @sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue/properties/name:34:11:893
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema INLINE @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema:16:15:450
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ONE_OF sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/0, sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1, sdkgen://source/02-mixed-inline-oneof.yaml#/components/schemas/NamedValue @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf:17:17:473
+  extensions {}
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/0 INLINE @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/0:17:19:475
+  reference -
+  types string nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1 INLINE @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1:18:19:506
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property count REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1/properties/count readOnly=false writeOnly=false deprecated=false @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1/properties/count:22:23:634
+  extensions {}
+schema sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1/properties/count INLINE @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema/oneOf/1/properties/count:22:23:634
+  reference -
+  types integer nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+operations 1
+operation POST /value id=submitValue deprecated=false @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post:10:7:304
+  description -
+  request REQUIRED @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody:12:9:356
+    media application/json schema=sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json/schema streaming=false encoding=[] @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/requestBody/content/application~1json:15:13:428
+  response EXACT:204 @sdkgen://source/02-mixed-inline-oneof.yaml#/paths/~1value/post/responses/204:26:11:748
+  extensions {}
+diagnostics 0

@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info:
+  title: Contains diagnostic
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Tags:
+      type: array
+      contains:
+        type: string

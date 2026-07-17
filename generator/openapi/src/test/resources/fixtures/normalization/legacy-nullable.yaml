@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: Nullability normalization twin
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    NullableName:
+      type: string
+      nullable: true
+      maxLength: 20

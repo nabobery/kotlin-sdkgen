@@ -1,0 +1,80 @@
+{
+    "version": "v1alpha1",
+    "source": {
+        "uri": "openapi/openapi.yaml",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "acquisition": {
+            "mode": "local",
+            "offline": true,
+            "allowedHosts": [],
+            "followRedirects": false,
+            "maxRedirects": 0,
+            "maxBytes": 20971520,
+            "timeoutSeconds": 30,
+            "cacheDirectory": ".sdkgen/cache",
+            "allowedLocalRoots": ["openapi"]
+        }
+    },
+    "overlays": [
+        {
+            "id": "compatibility",
+            "uri": "openapi/overlays/compatibility.yaml",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "zeroMatchPolicy": "fail",
+            "conflictPolicy": "fail"
+        }
+    ],
+    "compatibilityProfiles": [{ "id": "openapi-3.0-nullable", "version": "1" }],
+    "kotlin": {
+        "packageName": "com.nabobery.openrouter.generated",
+        "coordinates": {
+            "groupId": "com.nabobery",
+            "artifactId": "openrouter-kotlin"
+        },
+        "naming": {
+            "clientName": "OpenRouterClient",
+            "modelPrefix": null,
+            "operationPrefix": null,
+            "resourceGrouping": "tags"
+        },
+        "targets": ["jvm", "android", "ios", "macos", "js"]
+    },
+    "runtime": {
+        "requestTimeoutMillis": 120000,
+        "retries": {
+            "maxAttempts": 3,
+            "initialDelayMillis": 250,
+            "maxDelayMillis": 5000,
+            "jitterRatio": 0.2
+        },
+        "userAgentSuffix": "openrouter-kotlin"
+    },
+    "rules": [
+        { "id": "strict-operation-ids", "enabled": true, "severity": "error" },
+        { "id": "open-enum-preservation", "enabled": true, "severity": "error" }
+    ],
+    "plugins": [
+        {
+            "id": "com.nabobery.sdkgen.builtin.openrouter",
+            "version": "0.1.0",
+            "spiRange": ">=0.1 <0.2",
+            "enabled": true,
+            "config": { "preserveProviderRouting": "true" }
+        }
+    ],
+    "output": {
+        "sources": "build/generated/sdkgen/commonMain/kotlin",
+        "resources": "build/generated/sdkgen/commonMain/resources",
+        "manifest": "build/reports/sdkgen/manifest.json",
+        "lock": "sdkgen.lock",
+        "checkedInSources": false
+    },
+    "diagnostics": {
+        "warningsAsErrors": true,
+        "warningAllowlist": ["SDKGEN-SPEC-LEGACY-NULLABLE"],
+        "format": "both"
+    },
+    "verification": {
+        "gates": ["schema", "compile", "determinism", "api"]
+    }
+}

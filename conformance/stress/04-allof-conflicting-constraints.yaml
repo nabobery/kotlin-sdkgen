@@ -1,0 +1,23 @@
+# Stress: allOf branches impose conflicting constraints on the same property.
+# Expected: merge only when sound; diagnose the unsatisfiable name constraints instead of silently choosing one.
+openapi: 3.1.0
+info:
+  title: Conflicting allOf constraints
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    ImpossibleName:
+      allOf:
+        - type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              minLength: 5
+        - type: object
+          required: [name]
+          properties:
+            name:
+              type: string
+              maxLength: 3

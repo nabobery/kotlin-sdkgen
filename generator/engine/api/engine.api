@@ -1,0 +1,1244 @@
+public final class com/nabobery/sdkgen/engine/GenerationDiagnosticView {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/GenerationExclusionView {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationExclusionView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getSymbolId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/GenerationLockPublication {
+	public fun <init> (Ljava/nio/file/Path;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/nio/file/Path;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/nio/file/Path;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationLockPublication;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationLockPublication;Ljava/nio/file/Path;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationLockPublication;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDestination ()Ljava/nio/file/Path;
+	public final fun getEncodedLock ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/GenerationPipeline {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun generate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public static synthetic fun generate$default (Lcom/nabobery/sdkgen/engine/GenerationPipeline;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public final fun validate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
+}
+
+public final class com/nabobery/sdkgen/engine/GenerationResult {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/nio/file/Path;
+	public final fun component4 ()I
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;J)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationResult;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeclarationModelSha256 ()Ljava/lang/String;
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getElapsedMillis ()J
+	public final fun getExclusions ()Ljava/util/List;
+	public final fun getGeneratedFiles ()I
+	public final fun getManifestBytes ()J
+	public final fun getOutput ()Ljava/nio/file/Path;
+	public final fun getSnapshotSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/ResolvedGenerationOverlay {
+	public fun <init> (Ljava/lang/String;Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/nio/file/Path;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/ResolvedGenerationOverlay;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ResolvedGenerationOverlay;Ljava/lang/String;Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ResolvedGenerationOverlay;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPath ()Ljava/nio/file/Path;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/ResolvedReference {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;J)Lcom/nabobery/sdkgen/engine/ResolvedReference;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ResolvedReference;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ResolvedReference;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/ResolvedSource {
+	public fun <init> (Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)V
+	public synthetic fun <init> (Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/nio/file/Path;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()Ljava/util/List;
+	public final fun copy (Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)Lcom/nabobery/sdkgen/engine/ResolvedSource;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/nio/file/Path;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ResolvedSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getPath ()Ljava/nio/file/Path;
+	public final fun getReferences ()Ljava/util/List;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/ValidationResult {
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getExclusions ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcquisitionException : com/nabobery/sdkgen/engine/config/ConfigContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcquisitionMode : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/AcquisitionMode$Companion;
+	public static final field HTTPS Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+	public static final field LOCAL Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcquisitionMode$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcquisitionPolicy {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy$Companion;
+	public fun <init> ()V
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;ZLjava/util/List;ZIJILjava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;ZLjava/util/List;ZIJILjava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+	public final fun component2 ()Z
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Z
+	public final fun component5 ()I
+	public final fun component6 ()J
+	public final fun component7 ()I
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;ZLjava/util/List;ZIJILjava/lang/String;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;ZLjava/util/List;ZIJILjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllowedHosts ()Ljava/util/List;
+	public final fun getAllowedLocalRoots ()Ljava/util/List;
+	public final fun getCacheDirectory ()Ljava/lang/String;
+	public final fun getFollowRedirects ()Z
+	public final fun getMaxBytes ()J
+	public final fun getMaxRedirects ()I
+	public final fun getMode ()Lcom/nabobery/sdkgen/engine/config/AcquisitionMode;
+	public final fun getOffline ()Z
+	public final fun getTimeoutSeconds ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/AcquisitionPolicy$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcquisitionPolicy$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/CompatibilityProfileConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/CompatibilityProfileConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/CompatibilityProfileConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/CompatibilityProfileConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public abstract class com/nabobery/sdkgen/engine/config/ConfigContractException : java/lang/RuntimeException {
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigDecodeException : com/nabobery/sdkgen/engine/config/ConfigContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigDigest {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/ConfigDigest;
+	public final fun sha256 (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;)Ljava/lang/String;
+	public final fun sha256 (Ljava/util/Map;)Ljava/lang/String;
+	public final fun sha256 (Lkotlinx/serialization/SerializationStrategy;Ljava/lang/Object;)Ljava/lang/String;
+	public final fun sha256 (Lkotlinx/serialization/json/JsonElement;)Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigLoader {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/ConfigLoader;
+	public final fun decodeJson (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public final fun decodeYaml (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigValidationException : com/nabobery/sdkgen/engine/config/ConfigContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigVersion : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/ConfigVersion$Companion;
+	public static final field V1_ALPHA_1 Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ConfigVersion$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/Diagnostic {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/Diagnostic$Companion;
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;
+	public final fun component4 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPath ()Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;
+	public final fun getPhase ()Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public final fun getRemediation ()Ljava/lang/String;
+	public final fun getSeverity ()Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/Diagnostic$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/Diagnostic$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/Diagnostic$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticFormat : java/lang/Enum {
+	public static final field BOTH Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat$Companion;
+	public static final field HUMAN Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public static final field JSON Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticFormat$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticPath {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/DiagnosticPath$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun component4 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;)Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getColumn ()Ljava/lang/Integer;
+	public final fun getFile ()Ljava/lang/String;
+	public final fun getLine ()Ljava/lang/Integer;
+	public final fun getYamlPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/DiagnosticPath$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/DiagnosticPath$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/DiagnosticPath;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticPath$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticPhase : java/lang/Enum {
+	public static final field ACQUISITION Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public static final field CONFIGURATION Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase$Companion;
+	public static final field LOCK Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public static final field VERIFICATION Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/DiagnosticPhase;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticPhase$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticSeverity : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity$Companion;
+	public static final field ERROR Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public static final field INFO Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public static final field WARNING Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticSeverity$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticsConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig$Companion;
+	public fun <init> ()V
+	public fun <init> (ZLjava/util/List;Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;)V
+	public synthetic fun <init> (ZLjava/util/List;Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public final fun copy (ZLjava/util/List;Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;)Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;ZLjava/util/List;Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFormat ()Lcom/nabobery/sdkgen/engine/config/DiagnosticFormat;
+	public final fun getWarningAllowlist ()Ljava/util/List;
+	public final fun getWarningsAsErrors ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/DiagnosticsConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/DiagnosticsConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/KotlinGenerationConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig$Companion;
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/util/List;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCoordinates ()Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;
+	public final fun getNaming ()Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public final fun getPackageName ()Ljava/lang/String;
+	public final fun getTargets ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/KotlinGenerationConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/KotlinGenerationConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockCodec {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockCodec;
+	public final fun decode (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;
+	public static synthetic fun decode$default (Lcom/nabobery/sdkgen/engine/config/LockCodec;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;
+	public final fun encode (Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;)Ljava/lang/String;
+}
+
+public abstract class com/nabobery/sdkgen/engine/config/LockContractException : java/lang/RuntimeException {
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockDecodeException : com/nabobery/sdkgen/engine/config/LockContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;Ljava/lang/Throwable;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockVersion : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockVersion$Companion;
+	public static final field V1_ALPHA_1 Lcom/nabobery/sdkgen/engine/config/LockVersion;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockVersion;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/LockVersion;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockVersion$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedCompatibilityProfile {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedCompatibilityProfile$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedCompatibilityProfile;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedCompatibilityProfile$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedGenerator {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedGenerator$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedGenerator;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedGenerator;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedGenerator;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEdition ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedGenerator$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedGenerator$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedGenerator;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedGenerator;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedGenerator$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedInputVerifier {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedInputVerifier;
+	public final fun verify (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedOverlay {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedOverlay$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedOverlay;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedOverlay;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedOverlay;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedOverlay$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedOverlay$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedOverlay;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedOverlay;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedOverlay$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedPlugin {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedPlugin$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedPlugin;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfigSha256 ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSpiRange ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedPlugin$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedPlugin$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedPlugin;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedPlugin$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedReference {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedReference$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;J)Lcom/nabobery/sdkgen/engine/config/LockedReference;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedReference;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedReference;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedReference$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedReference$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedReference;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedReference;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedReference$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedSource {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedSource$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLjava/util/List;)Lcom/nabobery/sdkgen/engine/config/LockedSource;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedSource;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getReferences ()Ljava/util/List;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedSource$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedSource$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedSource;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedSource;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedSource$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedTool {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedTool$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedTool;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedTool;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedTool;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/LockedTool$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedTool$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/LockedTool;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/LockedTool;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/LockedTool$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/MissingConfigVersionException : com/nabobery/sdkgen/engine/config/ConfigContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/MissingLockVersionException : com/nabobery/sdkgen/engine/config/LockContractException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/NamingConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/NamingConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getModelPrefix ()Ljava/lang/String;
+	public final fun getOperationPrefix ()Ljava/lang/String;
+	public final fun getResourceGrouping ()Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/NamingConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/NamingConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/NamingConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/NamingConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OutputConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/OutputConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)Lcom/nabobery/sdkgen/engine/config/OutputConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/OutputConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/OutputConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCheckedInSources ()Z
+	public final fun getLock ()Ljava/lang/String;
+	public final fun getManifest ()Ljava/lang/String;
+	public final fun getResources ()Ljava/lang/String;
+	public final fun getSources ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/OutputConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/OutputConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/OutputConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/OutputConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OutputConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OverlayConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/OverlayConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+	public final fun component5 ()Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;)Lcom/nabobery/sdkgen/engine/config/OverlayConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/OverlayConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/OverlayConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConflictPolicy ()Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSha256 ()Ljava/lang/String;
+	public final fun getUri ()Ljava/lang/String;
+	public final fun getZeroMatchPolicy ()Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/OverlayConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/OverlayConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/OverlayConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/OverlayConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OverlayConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OverlayConflictPolicy : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy$Companion;
+	public static final field FAIL Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+	public static final field LAST_WINS Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/OverlayConflictPolicy;
+}
+
+public final class com/nabobery/sdkgen/engine/config/OverlayConflictPolicy$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/PackageCoordinates {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/PackageCoordinates$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getArtifactId ()Ljava/lang/String;
+	public final fun getGroupId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/PackageCoordinates$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/PackageCoordinates$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/PackageCoordinates;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/PackageCoordinates$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/PluginConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/PluginConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/Map;)Lcom/nabobery/sdkgen/engine/config/PluginConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/PluginConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/Map;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/PluginConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Ljava/util/Map;
+	public final fun getEnabled ()Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSpiRange ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/PluginConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/PluginConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/PluginConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/PluginConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/PluginConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ResourceGrouping : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/ResourceGrouping$Companion;
+	public static final field OPERATION_ID Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public static final field SINGLE_CLIENT Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public static final field TAGS Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ResourceGrouping$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RetryDefaults {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/RetryDefaults$Companion;
+	public fun <init> ()V
+	public fun <init> (IJJD)V
+	public synthetic fun <init> (IJJDILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()D
+	public final fun copy (IJJD)Lcom/nabobery/sdkgen/engine/config/RetryDefaults;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/RetryDefaults;IJJDILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/RetryDefaults;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInitialDelayMillis ()J
+	public final fun getJitterRatio ()D
+	public final fun getMaxAttempts ()I
+	public final fun getMaxDelayMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/RetryDefaults$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/RetryDefaults$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/RetryDefaults;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/RetryDefaults;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RetryDefaults$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RuleConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/RuleConfig$Companion;
+	public fun <init> (Ljava/lang/String;ZLcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;)V
+	public synthetic fun <init> (Ljava/lang/String;ZLcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public final fun copy (Ljava/lang/String;ZLcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;)Lcom/nabobery/sdkgen/engine/config/RuleConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/RuleConfig;Ljava/lang/String;ZLcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/RuleConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnabled ()Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getSeverity ()Lcom/nabobery/sdkgen/engine/config/DiagnosticSeverity;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/RuleConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/RuleConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/RuleConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/RuleConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RuleConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RuntimeDefaults {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults$Companion;
+	public fun <init> ()V
+	public fun <init> (JLcom/nabobery/sdkgen/engine/config/RetryDefaults;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (JLcom/nabobery/sdkgen/engine/config/RetryDefaults;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component2 ()Lcom/nabobery/sdkgen/engine/config/RetryDefaults;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (JLcom/nabobery/sdkgen/engine/config/RetryDefaults;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;JLcom/nabobery/sdkgen/engine/config/RetryDefaults;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultServer ()Ljava/lang/String;
+	public final fun getRequestTimeoutMillis ()J
+	public final fun getRetries ()Lcom/nabobery/sdkgen/engine/config/RetryDefaults;
+	public final fun getUserAgentSuffix ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/RuntimeDefaults$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/RuntimeDefaults$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1 {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1$Companion;
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
+	public final fun component10 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
+	public final fun component11 ()Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public final fun component2 ()Lcom/nabobery/sdkgen/engine/config/SourceConfig;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
+	public final fun component6 ()Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Lcom/nabobery/sdkgen/engine/config/OutputConfig;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCompatibilityProfiles ()Ljava/util/List;
+	public final fun getDiagnostics ()Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
+	public final fun getKotlin ()Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
+	public final fun getOutput ()Lcom/nabobery/sdkgen/engine/config/OutputConfig;
+	public final fun getOverlays ()Ljava/util/List;
+	public final fun getPlugins ()Ljava/util/List;
+	public final fun getRules ()Ljava/util/List;
+	public final fun getRuntime ()Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;
+	public final fun getSource ()Lcom/nabobery/sdkgen/engine/config/SourceConfig;
+	public final fun getVerification ()Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public final fun getVersion ()Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1 {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1$Companion;
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/LockVersion;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/LockedSource;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/LockedGenerator;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/LockVersion;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/LockedSource;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/LockedGenerator;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/engine/config/LockVersion;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/LockedSource;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Lcom/nabobery/sdkgen/engine/config/LockedGenerator;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/List;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/config/LockVersion;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/LockedSource;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/LockedGenerator;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;Lcom/nabobery/sdkgen/engine/config/LockVersion;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/LockedSource;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/LockedGenerator;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCompatibilityProfiles ()Ljava/util/List;
+	public final fun getConfigDigest ()Ljava/lang/String;
+	public final fun getGenerator ()Lcom/nabobery/sdkgen/engine/config/LockedGenerator;
+	public final fun getOverlays ()Ljava/util/List;
+	public final fun getPlugins ()Ljava/util/List;
+	public final fun getSource ()Lcom/nabobery/sdkgen/engine/config/LockedSource;
+	public final fun getTools ()Ljava/util/List;
+	public final fun getVersion ()Lcom/nabobery/sdkgen/engine/config/LockVersion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SourceConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/SourceConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;)Lcom/nabobery/sdkgen/engine/config/SourceConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SourceConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcquisition ()Lcom/nabobery/sdkgen/engine/config/AcquisitionPolicy;
+	public final fun getSha256 ()Ljava/lang/String;
+	public final fun getUri ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/SourceConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/SourceConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/SourceConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/SourceConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/SourceConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/TargetFamily : java/lang/Enum {
+	public static final field ANDROID Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/TargetFamily$Companion;
+	public static final field IOS Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field JS Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field JVM Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field LINUX Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field MACOS Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static final field WINDOWS Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/TargetFamily;
+}
+
+public final class com/nabobery/sdkgen/engine/config/TargetFamily$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/UnsupportedConfigVersionException : com/nabobery/sdkgen/engine/config/ConfigContractException {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public final fun getActualVersion ()Ljava/lang/String;
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/UnsupportedLockVersionException : com/nabobery/sdkgen/engine/config/LockContractException {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/Diagnostic;)V
+	public final fun getActualVersion ()Ljava/lang/String;
+	public fun getDiagnostic ()Lcom/nabobery/sdkgen/engine/config/Diagnostic;
+}
+
+public final class com/nabobery/sdkgen/engine/config/VerificationConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/VerificationConfig$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/VerificationConfig;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGates ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/VerificationConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/VerificationConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/VerificationConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/VerificationGate : java/lang/Enum {
+	public static final field API Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+	public static final field COMPILE Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/VerificationGate$Companion;
+	public static final field DETERMINISM Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+	public static final field SCHEMA Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/VerificationGate;
+}
+
+public final class com/nabobery/sdkgen/engine/config/VerificationGate$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ZeroMatchPolicy : java/lang/Enum {
+	public static final field ALLOW Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy$Companion;
+	public static final field FAIL Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/ZeroMatchPolicy;
+}
+
+public final class com/nabobery/sdkgen/engine/config/ZeroMatchPolicy$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/input/LocalInputResolver {
+	public fun <init> ()V
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun resolve (Ljava/nio/file/Path;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;)Lcom/nabobery/sdkgen/engine/input/ResolvedGenerationInputs;
+}
+
+public final class com/nabobery/sdkgen/engine/input/ResolvedGenerationInputs : java/io/Closeable {
+	public fun close ()V
+	public final fun getOverlays ()Ljava/util/List;
+	public final fun getSource ()Lcom/nabobery/sdkgen/engine/ResolvedSource;
+}
+

@@ -1,0 +1,33 @@
+# Stress: discriminator mapping names only one of two oneOf branches.
+# Expected: use explicit mapping where present, resolve the other branch by schema identity, and diagnose ambiguity.
+openapi: 3.1.0
+info:
+  title: Incomplete discriminator mapping
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Animal:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+      discriminator:
+        propertyName: kind
+        mapping:
+          cat: '#/components/schemas/Cat'
+    Cat:
+      type: object
+      required: [kind, lives]
+      properties:
+        kind:
+          const: cat
+        lives:
+          type: integer
+    Dog:
+      type: object
+      required: [kind, barkVolume]
+      properties:
+        kind:
+          const: dog
+        barkVolume:
+          type: integer

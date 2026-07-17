@@ -1,0 +1,340 @@
+document sdkgen://source/openapi.yaml
+title "OpenRouter API"
+version "1.0.0"
+sourceDocument sdkgen://source/openapi.yaml sha256=b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47 bytes=1203455 policy=LOCAL_FILE @sdkgen://source/openapi.yaml#:1:1:0
+source sdkgen://source/openapi.yaml#:1:1:0
+extensions {x-retry-strategy={initialDelay=500, maxAttempts=3, maxDelay=60000, type="exponential"}, x-speakeasy-globals={parameters=[{$ref="#/components/parameters/AppIdentifier"}, {$ref="#/components/parameters/AppDisplayName"}, {$ref="#/components/parameters/AppCategories"}]}, x-speakeasy-retries={backoff={exponent=1.5, initialInterval=500, maxElapsedTime=3600000, maxInterval=60000}, retryConnectionErrors=true, statusCodes=["5XX"], strategy="backoff"}}
+security {apiKey=[]}
+schemas 7
+schema sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig:3327:7:94753
+  reference -
+  types object nullability=NULLABLE format=-
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig/nullable:3330:17:94823]
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples [{effort="medium", summary="auto"}]
+  property context OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ReasoningContext readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig/properties/context:3333:11:94873
+  property effort OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ReasoningEffort readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig/properties/effort:3335:11:94945
+  property mode OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ReasoningMode readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig/properties/mode:3337:11:95014
+  property summary OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ReasoningSummaryVerbosity readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/BaseReasoningConfig/properties/summary:3339:11:95084
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/ChatRequest COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest:4939:7:141719
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description "Chat completion request parameters"
+  constraints {}
+  default -
+  examples [{max_tokens=150, messages=[{content="You are a helpful assistant.", role="system"}, {content="What is the capital of France?", role="user"}], model="openai/gpt-4", temperature=0.7}]
+  property cache_control OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/AnthropicCacheControlDirective readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/cache_control:4951:11:142078
+  property debug OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatDebugOptions readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/debug:4953:11:142163
+  property frequency_penalty OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/frequency_penalty readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/frequency_penalty:4955:11:142246
+  property image_config OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ImageConfig readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/image_config:4961:11:142417
+  property logit_bias OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/logit_bias readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/logit_bias:4963:11:142488
+  property logprobs OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/logprobs readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/logprobs:4972:11:142735
+  property max_completion_tokens OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/max_completion_tokens readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/max_completion_tokens:4977:11:142888
+  property max_tokens OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/max_tokens readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/max_tokens:4982:11:143032
+  property messages REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/messages readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/messages:4987:11:143249
+  property metadata OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/metadata readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/metadata:4996:11:143517
+  property min_p OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/min_p readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/min_p:5004:11:143816
+  property modalities OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/modalities readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/modalities:5011:11:144160
+  property model OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelName readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/model:5024:11:144536
+  property models OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatModelNames readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/models:5026:11:144601
+  property parallel_tool_calls OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/parallel_tool_calls readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/parallel_tool_calls:5028:11:144684
+  property plugins OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/plugins readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/plugins:5034:11:144949
+  property prediction OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Prediction readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/prediction:5060:11:146396
+  property presence_penalty OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/presence_penalty readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/presence_penalty:5062:11:146472
+  property prompt_cache_key OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/prompt_cache_key readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/prompt_cache_key:5068:11:146646
+  property prompt_cache_options OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/PromptCacheOptions readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/prompt_cache_options:5071:11:146724
+  property provider OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/provider:5073:11:146800
+  property reasoning OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/reasoning readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/reasoning:5075:11:146878
+  property reasoning_effort OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/reasoning_effort readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/reasoning_effort:5099:11:147629
+  property repetition_penalty OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/repetition_penalty readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/repetition_penalty:5115:11:148133
+  property response_format OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/response_format readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/response_format:5122:11:148497
+  property route OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/DeprecatedRoute readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/route:5140:11:149401
+  property seed OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/seed readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/seed:5142:11:149470
+  property service_tier OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/service_tier readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/service_tier:5147:11:149624
+  property session_id OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/session_id readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/session_id:5160:11:149974
+  property stop OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stop readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stop:5165:11:150479
+  property stop_server_tools_when OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/StopServerToolsWhen readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stop_server_tools_when:5176:11:150770
+  property stream OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stream readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stream:5178:11:150845
+  property stream_options OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatStreamOptions readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/stream_options:5183:11:150992
+  property temperature OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/temperature readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/temperature:5185:11:151070
+  property tool_choice OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatToolChoice readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/tool_choice:5191:11:151237
+  property tools OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/tools readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/tools:5193:11:151306
+  property top_a OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_a readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_a:5203:11:151625
+  property top_k OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_k readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_k:5210:11:151925
+  property top_logprobs OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_logprobs readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_logprobs:5216:11:152247
+  property top_p OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_p readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/top_p:5221:11:152404
+  property trace OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/TraceConfig readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/trace:5227:11:152569
+  property user OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/user readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatRequest/properties/user:5229:11:152634
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/ChatUsage COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage:5734:7:166927
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description "Token usage statistics"
+  constraints {}
+  default -
+  examples [{completion_tokens=15, completion_tokens_details={reasoning_tokens=5}, cost=0.0012, cost_details={upstream_inference_completions_cost=4.0E-4, upstream_inference_cost=null, upstream_inference_prompt_cost=8.0E-4}, is_byok=false, prompt_tokens=10, prompt_tokens_details={cached_tokens=2}, server_tool_use_details={tool_calls_executed=2, tool_calls_requested=2}, total_tokens=25}]
+  property completion_tokens REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/completion_tokens readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/completion_tokens:5754:11:167546
+  property completion_tokens_details OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/completion_tokens_details readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/completion_tokens_details:5757:11:167663
+  property cost OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/cost readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/cost:5778:11:168383
+  property cost_details OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/CostDetails readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/cost_details:5783:11:168524
+  property is_byok OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/is_byok readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/is_byok:5785:11:168592
+  property prompt_tokens REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/prompt_tokens readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/prompt_tokens:5788:11:168730
+  property prompt_tokens_details OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/prompt_tokens_details readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/prompt_tokens_details:5791:11:168839
+  property server_tool_use_details OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ServerToolUseDetails readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/server_tool_use_details:5808:11:169480
+  property total_tokens REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/total_tokens readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ChatUsage/properties/total_tokens:5810:11:169562
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/Model COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/Model:13102:7:400454
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description "Information about an AI model available on OpenRouter"
+  constraints {}
+  default -
+  examples [{architecture={input_modalities=["text"], instruct_type="chatml", modality="text->text", output_modalities=["text"], tokenizer="GPT"}, canonical_slug="openai/gpt-4", context_length=8192, created=1692901234, default_parameters=null, description="GPT-4 is a large multimodal model that can solve difficult problems with greater accuracy.", expiration_date=null, id="openai/gpt-4", knowledge_cutoff=null, links={details="/api/v1/models/openai/gpt-5.4/endpoints"}, name="GPT-4", per_request_limits=null, pricing={completion="0.00006", image="0", prompt="0.00003", request="0"}, reasoning={default_effort="medium", default_enabled=true, mandatory=false, supported_efforts=["high", "medium", "low", "minimal"]}, supported_parameters=["temperature", "top_p", "max_tokens"], supported_voices=null, top_provider={context_length=8192, is_moderated=true, max_completion_tokens=4096}}]
+  property architecture REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelArchitecture readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/architecture:13149:11:401830
+  property benchmarks OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelBenchmarks readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/benchmarks:13151:11:401907
+  property canonical_slug REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/canonical_slug readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/canonical_slug:13153:11:401986
+  property context_length REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/context_length readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/context_length:13157:11:402117
+  property created REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/created readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/created:13162:11:402263
+  property default_parameters REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/DefaultParameters readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/default_parameters:13166:11:402413
+  property description OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/description readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/description:13168:11:402491
+  property expiration_date OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/expiration_date readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/expiration_date:13172:11:402697
+  property hugging_face_id OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/hugging_face_id readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/hugging_face_id:13177:11:402932
+  property id REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/id readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/id:13182:11:403105
+  property knowledge_cutoff OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/knowledge_cutoff readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/knowledge_cutoff:13186:11:403241
+  property links REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelLinks readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/links:13191:11:403465
+  property name REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/name:13193:11:403529
+  property per_request_limits REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/PerRequestLimits readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/per_request_limits:13197:11:403654
+  property pricing REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/PublicPricing readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/pricing:13199:11:403727
+  property reasoning OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelReasoning readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/reasoning:13201:11:403799
+  property supported_parameters REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/supported_parameters readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/supported_parameters:13203:11:403883
+  property supported_voices REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/Model/properties/supported_voices readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/supported_voices:13208:11:404066
+  property top_provider REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/TopProviderInfo readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/Model/properties/top_provider:13215:11:404301
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse:13434:7:410846
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description "List of available models"
+  constraints {}
+  default -
+  examples [{data=[{architecture={input_modalities=["text"], instruct_type="chatml", modality="text->text", output_modalities=["text"], tokenizer="GPT"}, canonical_slug="openai/gpt-4", context_length=8192, created=1692901234, default_parameters=null, description="GPT-4 is a large multimodal model that can solve difficult problems with greater accuracy.", expiration_date=null, id="openai/gpt-4", knowledge_cutoff=null, links={details="/api/v1/models/openai/gpt-4/endpoints"}, name="GPT-4", per_request_limits=null, pricing={completion="0.00006", image="0", prompt="0.00003", request="0"}, supported_parameters=["temperature", "top_p", "max_tokens", "frequency_penalty", "presence_penalty"], supported_voices=null, top_provider={context_length=8192, is_moderated=true, max_completion_tokens=4096}}], links={next="/api/v1/models?offset=500&limit=500"}, total_count=150}]
+  property data REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponseData readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse/properties/data:13478:11:412272
+  property links REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse/properties/links readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse/properties/links:13480:11:412349
+  property total_count REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse/properties/total_count readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse/properties/total_count:13491:11:412721
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences:19155:7:584611
+  reference -
+  types object nullability=NULLABLE format=-
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/nullable:19159:17:584809]
+  flags deprecated=false readOnly=false writeOnly=false
+  description "When multiple model providers are available, optionally indicate your routing preference."
+  constraints {}
+  default -
+  examples [{allow_fallbacks=true}]
+  property allow_fallbacks OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/allow_fallbacks readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/allow_fallbacks:19162:11:584867
+  property data_collection OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/data_collection readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/data_collection:19172:11:585281
+  property enforce_distillable_text OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/enforce_distillable_text readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/enforce_distillable_text:19188:11:585837
+  property ignore OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/ignore readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/ignore:19194:11:586116
+  property max_price OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/max_price readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/max_price:19206:11:586541
+  property only OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/only readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/only:19226:11:587340
+  property order OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/order readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/order:19238:11:587760
+  property preferred_max_latency OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/PreferredMaxLatency readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/preferred_max_latency:19250:11:588335
+  property preferred_min_throughput OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/PreferredMinThroughput readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/preferred_min_throughput:19252:11:588428
+  property quantizations OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/quantizations readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/quantizations:19254:11:588513
+  property require_parameters OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/require_parameters readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/require_parameters:19260:11:588739
+  property sort OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/sort readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/sort:19265:11:589054
+  property zdr OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/zdr readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/properties/zdr:19273:11:589411
+  additionalProperties closed @sdkgen://source/openapi.yaml#/components/schemas/ProviderPreferences/additionalProperties:19155:29:584633
+  extensions {}
+schema sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse COMPONENT @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse:19280:7:589699
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description "Details of a provider response for a generation attempt"
+  constraints {}
+  default -
+  examples [{endpoint_id="ep_abc123", id="chatcmpl-abc123", is_byok=false, latency=1200, model_permaslug="openai/gpt-4", provider_name="OpenAI", status=200}]
+  property endpoint_id OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/endpoint_id readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/endpoint_id:19291:11:590024
+  property id OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/id readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/id:19295:11:590140
+  property is_byok OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/is_byok readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/is_byok:19299:11:590276
+  property latency OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/latency readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/latency:19303:11:590411
+  property model_permaslug OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/model_permaslug readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/model_permaslug:19308:11:590564
+  property provider_name OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/provider_name readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/provider_name:19312:11:590686
+  property routed_service_tier OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/routed_service_tier readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/routed_service_tier:19440:11:593655
+  property status REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/status readOnly=false writeOnly=false deprecated=false @sdkgen://source/openapi.yaml#/components/schemas/ProviderResponse/properties/status:19449:11:594021
+  extensions {}
+operations 5
+operation POST /chat/completions id=sendChatCompletionRequest deprecated=false @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post:25865:7:819447
+  description "Sends a request for a model response for the given chat conversation. Supports both streaming and non-streaming modes."
+  parameter HEADER:HTTP-Referer OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppIdentifier/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/parameters/0:26116:9:829094
+  parameter HEADER:X-OpenRouter-Categories OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppCategories/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/parameters/2:26118:9:829203
+  parameter HEADER:X-OpenRouter-Metadata OPTIONAL/sdkgen://source/openapi.yaml#/components/schemas/MetadataLevel style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/parameters/0:25869:11:819663
+  parameter HEADER:X-OpenRouter-Title OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppDisplayName/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/parameters/1:26117:9:829148
+  request REQUIRED @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/requestBody:25878:9:820107
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ChatRequest streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/requestBody/content/application~1json:25880:13:820156
+  response EXACT:200 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/200:25894:11:820598
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ChatResult streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/200/content/application~1json:25896:15:820651
+    media text/event-stream schema=sdkgen://source/openapi.yaml#/components/schemas/ChatStreamingResponse streaming=true encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/200/content/text~1event-stream:25914:15:821286
+  response EXACT:400 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/400:25931:11:821906
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadRequestResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/400/content/application~1json:25933:15:821959
+  response EXACT:401 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/401:25941:11:822267
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/UnauthorizedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/401/content/application~1json:25943:15:822320
+  response EXACT:402 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/402:25951:11:822635
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/PaymentRequiredResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/402/content/application~1json:25953:15:822688
+  response EXACT:403 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/403:25961:11:823050
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ForbiddenResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/403/content/application~1json:25963:15:823103
+  response EXACT:404 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/404:26010:11:825350
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/NotFoundResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/404/content/application~1json:26012:15:825403
+  response EXACT:408 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/408:26020:11:825677
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/RequestTimeoutResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/408/content/application~1json:26022:15:825730
+  response EXACT:413 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/413:26030:11:826048
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/PayloadTooLargeResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/413/content/application~1json:26032:15:826101
+  response EXACT:422 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/422:26040:11:826409
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/UnprocessableEntityResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/422/content/application~1json:26042:15:826462
+  response EXACT:429 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/429:26050:11:826760
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/TooManyRequestsResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/429/content/application~1json:26052:15:826813
+  response EXACT:500 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/500:26060:11:827099
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/InternalServerResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/500/content/application~1json:26062:15:827152
+  response EXACT:502 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/502:26070:11:827447
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadGatewayResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/502/content/application~1json:26072:15:827500
+  response EXACT:503 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/503:26080:11:827789
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ServiceUnavailableResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/503/content/application~1json:26082:15:827842
+  response EXACT:524 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/524:26090:11:828157
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/EdgeNetworkTimeoutResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/524/content/application~1json:26092:15:828210
+  response EXACT:529 @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/529:26100:11:828550
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ProviderOverloadedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1chat~1completions/post/responses/529/content/application~1json:26102:15:828603
+  security {apiKey=[]} anonymous=false @sdkgen://source/openapi.yaml#/security/0:35799:5:1201047
+  extensions {x-speakeasy-group="chat", x-speakeasy-name-override="send", x-speakeasy-stream-request-field="stream"}
+operation GET /generation id=getGeneration deprecated=false @sdkgen://source/openapi.yaml#/paths/~1generation/get:27792:7:896878
+  description "Get request & usage metadata for a generation"
+  parameter QUERY:id REQUIRED/sdkgen://source/openapi.yaml#/paths/~1generation/get/parameters/0/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1generation/get/parameters/0:27794:11:896933
+  parameter HEADER:HTTP-Referer OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppIdentifier/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1generation/parameters/0:27934:9:902130
+  parameter HEADER:X-OpenRouter-Categories OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppCategories/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1generation/parameters/2:27936:9:902239
+  parameter HEADER:X-OpenRouter-Title OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppDisplayName/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1generation/parameters/1:27935:9:902184
+  response EXACT:200 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/200:27805:11:897217
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/GenerationResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/200/content/application~1json:27807:15:897270
+  response EXACT:401 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/401:27851:11:899141
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/UnauthorizedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/401/content/application~1json:27853:15:899194
+  response EXACT:402 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/402:27861:11:899509
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/PaymentRequiredResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/402/content/application~1json:27863:15:899562
+  response EXACT:404 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/404:27871:11:899924
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/NotFoundResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/404/content/application~1json:27873:15:899977
+  response EXACT:429 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/429:27881:11:900251
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/TooManyRequestsResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/429/content/application~1json:27883:15:900304
+  response EXACT:500 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/500:27891:11:900590
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/InternalServerResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/500/content/application~1json:27893:15:900643
+  response EXACT:502 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/502:27901:11:900938
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadGatewayResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/502/content/application~1json:27903:15:900991
+  response EXACT:524 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/524:27911:11:901280
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/EdgeNetworkTimeoutResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/524/content/application~1json:27913:15:901333
+  response EXACT:529 @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/529:27921:11:901673
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ProviderOverloadedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1generation/get/responses/529/content/application~1json:27923:15:901726
+  security {apiKey=[]} anonymous=false @sdkgen://source/openapi.yaml#/security/0:35799:5:1201047
+  extensions {}
+operation GET /models id=getModels deprecated=false @sdkgen://source/openapi.yaml#/paths/~1models/get:31348:7:1035957
+  description "List all models and their properties"
+  parameter QUERY:arch OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/11/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/11:31484:11:1042188
+  parameter QUERY:category OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/2/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/2:31375:11:1037017
+  parameter QUERY:context OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/8/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/8:31455:11:1041208
+  parameter QUERY:distillable OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/14/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/14:31508:11:1043275
+  parameter QUERY:input_modalities OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/7/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/7:31447:11:1040834
+  parameter QUERY:limit OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/1/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/1:31362:11:1036498
+  parameter QUERY:max_age_days OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/20/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/20:31570:11:1045581
+  parameter QUERY:max_agentic_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/26/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/26:31630:11:1047605
+  parameter QUERY:max_coding_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/24/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/24:31610:11:1046945
+  parameter QUERY:max_intelligence_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/22/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/22:31590:11:1046270
+  parameter QUERY:max_output_price OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/18/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/18:31550:11:1044897
+  parameter QUERY:max_price OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/10/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/10:31474:11:1041879
+  parameter QUERY:max_tool_success_rate OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/28/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/28:31653:11:1048504
+  parameter QUERY:min_age_days OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/19/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/19:31560:11:1045239
+  parameter QUERY:min_agentic_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/25/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/25:31620:11:1047274
+  parameter QUERY:min_coding_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/23/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/23:31600:11:1046617
+  parameter QUERY:min_intelligence_index OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/21/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/21:31580:11:1045924
+  parameter QUERY:min_output_price OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/17/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/17:31540:11:1044556
+  parameter QUERY:min_price OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/9/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/9:31464:11:1041571
+  parameter QUERY:min_tool_success_rate OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/27/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/27:31640:11:1047937
+  parameter QUERY:model_authors OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/12/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/12:31492:11:1042527
+  parameter QUERY:offset OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/0/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/0:31350:11:1036008
+  parameter QUERY:output_modalities OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/4/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/4:31405:11:1037968
+  parameter QUERY:providers OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/13/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/13:31500:11:1042924
+  parameter QUERY:q OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/6/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/6:31439:11:1040572
+  parameter QUERY:region OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/16/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/16:31530:11:1044151
+  parameter QUERY:sort OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/5/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/5:31415:11:1038525
+  parameter QUERY:supported_parameters OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/3/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/3:31397:11:1037651
+  parameter QUERY:zdr OPTIONAL/sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/15/schema style=form explode=true @sdkgen://source/openapi.yaml#/paths/~1models/get/parameters/15:31520:11:1043775
+  parameter HEADER:HTTP-Referer OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppIdentifier/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1models/parameters/0:31743:9:1051706
+  parameter HEADER:X-OpenRouter-Categories OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppCategories/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1models/parameters/2:31745:9:1051815
+  parameter HEADER:X-OpenRouter-Title OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppDisplayName/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1models/parameters/1:31744:9:1051760
+  response EXACT:200 @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/200:31666:11:1048927
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ModelsListResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/200/content/application~1json:31668:15:1048980
+  response EXACT:400 @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/400:31708:11:1050612
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadRequestResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/400/content/application~1json:31710:15:1050665
+  response EXACT:500 @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/500:31718:11:1050973
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/InternalServerResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1models/get/responses/500/content/application~1json:31720:15:1051026
+  security {apiKey=[]} anonymous=false @sdkgen://source/openapi.yaml#/security/0:35799:5:1201047
+  extensions {x-speakeasy-name-override="list", x-speakeasy-pagination={inputs=[{in="parameters", name="offset", type="offset"}, {in="parameters", name="limit", type="limit"}], outputs={results="$.data"}, type="offsetLimit"}}
+operation GET /providers id=listProviders deprecated=false @sdkgen://source/openapi.yaml#/paths/~1providers/get:33401:7:1113416
+  description "List all providers"
+  parameter HEADER:HTTP-Referer OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppIdentifier/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1providers/parameters/0:34008:9:1134778
+  parameter HEADER:X-OpenRouter-Categories OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppCategories/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1providers/parameters/2:34010:9:1134887
+  parameter HEADER:X-OpenRouter-Title OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppDisplayName/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1providers/parameters/1:34009:9:1134832
+  response EXACT:200 @sdkgen://source/openapi.yaml#/paths/~1providers/get/responses/200:33404:11:1113485
+    media application/json schema=sdkgen://source/openapi.yaml#/paths/~1providers/get/responses/200/content/application~1json/schema streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1providers/get/responses/200/content/application~1json:33406:15:1113538
+  response EXACT:500 @sdkgen://source/openapi.yaml#/paths/~1providers/get/responses/500:33994:11:1134327
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/InternalServerResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1providers/get/responses/500/content/application~1json:33996:15:1134380
+  security {apiKey=[]} anonymous=false @sdkgen://source/openapi.yaml#/security/0:35799:5:1201047
+  extensions {x-speakeasy-name-override="list"}
+operation POST /responses id=createResponses deprecated=false @sdkgen://source/openapi.yaml#/paths/~1responses/post:34290:7:1146175
+  description "Creates a streaming or non-streaming response using OpenResponses API format"
+  parameter HEADER:HTTP-Referer OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppIdentifier/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1responses/parameters/0:34526:9:1155291
+  parameter HEADER:X-OpenRouter-Categories OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppCategories/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1responses/parameters/2:34528:9:1155400
+  parameter HEADER:X-OpenRouter-Metadata OPTIONAL/sdkgen://source/openapi.yaml#/components/schemas/MetadataLevel style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1responses/post/parameters/0:34293:11:1146328
+  parameter HEADER:X-OpenRouter-Title OPTIONAL/sdkgen://source/openapi.yaml#/components/parameters/AppDisplayName/schema style=simple explode=false @sdkgen://source/openapi.yaml#/paths/~1responses/parameters/1:34527:9:1155345
+  request REQUIRED @sdkgen://source/openapi.yaml#/paths/~1responses/post/requestBody:34302:9:1146772
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ResponsesRequest streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/requestBody/content/application~1json:34304:13:1146821
+  response EXACT:200 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/200:34312:11:1147046
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/OpenResponsesResult streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/200/content/application~1json:34314:15:1147099
+    media text/event-stream schema=sdkgen://source/openapi.yaml#/components/schemas/ResponsesStreamingResponse streaming=true encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/200/content/text~1event-stream:34333:15:1147806
+  response EXACT:400 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/400:34342:11:1148130
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadRequestResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/400/content/application~1json:34344:15:1148183
+  response EXACT:401 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/401:34352:11:1148491
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/UnauthorizedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/401/content/application~1json:34354:15:1148544
+  response EXACT:402 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/402:34362:11:1148859
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/PaymentRequiredResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/402/content/application~1json:34364:15:1148912
+  response EXACT:403 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/403:34372:11:1149274
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ForbiddenResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/403/content/application~1json:34374:15:1149327
+  response EXACT:404 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/404:34421:11:1151574
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/NotFoundResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/404/content/application~1json:34423:15:1151627
+  response EXACT:408 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/408:34431:11:1151901
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/RequestTimeoutResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/408/content/application~1json:34433:15:1151954
+  response EXACT:413 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/413:34441:11:1152272
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/PayloadTooLargeResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/413/content/application~1json:34443:15:1152325
+  response EXACT:422 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/422:34451:11:1152633
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/UnprocessableEntityResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/422/content/application~1json:34453:15:1152686
+  response EXACT:429 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/429:34461:11:1152984
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/TooManyRequestsResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/429/content/application~1json:34463:15:1153037
+  response EXACT:500 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/500:34471:11:1153323
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/InternalServerResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/500/content/application~1json:34473:15:1153376
+  response EXACT:502 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/502:34481:11:1153671
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/BadGatewayResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/502/content/application~1json:34483:15:1153724
+  response EXACT:503 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/503:34491:11:1154013
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ServiceUnavailableResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/503/content/application~1json:34493:15:1154066
+  response EXACT:524 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/524:34501:11:1154381
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/EdgeNetworkTimeoutResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/524/content/application~1json:34503:15:1154434
+  response EXACT:529 @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/529:34511:11:1154774
+    media application/json schema=sdkgen://source/openapi.yaml#/components/schemas/ProviderOverloadedResponse streaming=false encoding=[] @sdkgen://source/openapi.yaml#/paths/~1responses/post/responses/529/content/application~1json:34513:15:1154827
+  security {apiKey=[]} anonymous=false @sdkgen://source/openapi.yaml#/security/0:35799:5:1201047
+  extensions {x-speakeasy-name-override="send", x-speakeasy-stream-request-field="stream"}
+diagnostics 0

@@ -1,0 +1,565 @@
+@file:Suppress("ktlint:standard:max-line-length")
+
+package com.nabobery.sdkgen.engine.emit
+
+import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
+import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
+import com.nabobery.sdkgen.engine.declarations.SimpleModelDeclaration
+import com.nabobery.sdkgen.engine.declarations.sanitizeKDoc
+import com.squareup.kotlinpoet.BOOLEAN
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.STRING
+import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.TypeVariableName
+import com.squareup.kotlinpoet.UNIT
+
+internal fun EmissionContext.emitModel(
+    file: FileSpec.Builder,
+    model: ModelDeclaration,
+) {
+    model.auxiliaryModels.forEach { auxiliary -> file.addType(simpleModel(model.packageName, auxiliary)) }
+    file.addType(model(model))
+    file.addFunction(modelDsl(model))
+    file.addFunction(toNullableFieldState())
+    file.addFunction(decodeRequired(model.resolvedName))
+    file.addFunction(decodeOptional(model.resolvedName))
+    file.addFunction(putState())
+}
+
+private fun EmissionContext.simpleModel(
+    packageName: String,
+    declaration: SimpleModelDeclaration,
+): TypeSpec {
+    val constructor = FunSpec.constructorBuilder()
+    val type =
+        TypeSpec
+            .classBuilder(ClassName(packageName, declaration.resolvedName))
+            .addModifiers(KModifier.PUBLIC, KModifier.DATA)
+            .addAnnotation(SERIALIZABLE)
+            .addKdoc("%L\n", sanitizeKDoc(declaration.kdoc))
+    declaration.fields.forEach { field ->
+        constructor.addParameter(field.resolvedName, field.type.toTypeName())
+        val property =
+            PropertySpec
+                .builder(field.resolvedName, field.type.toTypeName())
+                .addModifiers(KModifier.PUBLIC)
+                .initializer(field.resolvedName)
+                .addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+        if (field.wireName != field.resolvedName) property.addAnnotation(serialName(field.wireName))
+        type.addProperty(property.build())
+    }
+    return type.primaryConstructor(constructor.build()).build()
+}
+
+private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
+    val requestType = ClassName(model.packageName, model.resolvedName)
+    val required = model.fields.filter(FieldDeclaration::required)
+    val optional = model.fields.filterNot(FieldDeclaration::required)
+    val primary = FunSpec.constructorBuilder().addModifiers(KModifier.INTERNAL)
+    required.forEach { field ->
+        primary.addParameter(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
+    }
+    optional.forEach { field ->
+        primary.addParameter("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+    }
+    val type =
+        TypeSpec
+            .classBuilder(model.resolvedName)
+            .addModifiers(KModifier.PUBLIC)
+            .addAnnotation(serializableWith(requestType.nestedClass("Serializer")))
+            .addKdoc("%L\n", sanitizeKDoc(model.kdoc))
+            .primaryConstructor(primary.build())
+    required.forEach { field ->
+        type.addProperty(
+            PropertySpec
+                .builder(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
+                .addModifiers(KModifier.PUBLIC)
+                .initializer(
+                    if (field.type.simpleName == "List") "%L.toList()" else "%L",
+                    field.resolvedName,
+                ).apply {
+                    if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+                }.build(),
+        )
+    }
+    optional.forEach { field ->
+        type.addProperty(
+            PropertySpec
+                .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+                .addModifiers(KModifier.PRIVATE)
+                .initializer("${field.resolvedName}State")
+                .build(),
+        )
+    }
+    type.addFunction(requiredFieldsConstructor(model, requestType))
+    optional.forEach { field ->
+        type.addProperty(
+            PropertySpec
+                .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+                .addModifiers(KModifier.PUBLIC)
+                .apply {
+                    if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+                }.getter(
+                    FunSpec
+                        .getterBuilder()
+                        .addStatement(
+                            "return %LState.valueOrNull()",
+                            field.resolvedName,
+                        ).build(),
+                ).build(),
+        )
+        type.addFunction(
+            FunSpec
+                .builder("${field.resolvedName}Presence")
+                .addModifiers(KModifier.PUBLIC)
+                .addKdoc("Returns the wire presence of `%L`.\n", field.wireName)
+                .returns(fieldPresence)
+                .addStatement("return %LState.presence", field.resolvedName)
+                .build(),
+        )
+    }
+    type.addType(modelBuilder(model, requestType))
+    type.addType(
+        TypeSpec
+            .companionObjectBuilder()
+            .addFunction(
+                FunSpec
+                    .builder("build")
+                    .addModifiers(KModifier.PUBLIC)
+                    .addParameter(
+                        "block",
+                        com.squareup.kotlinpoet.LambdaTypeName.get(
+                            receiver = requestType.nestedClass("Builder"),
+                            returnType = UNIT,
+                        ),
+                    ).returns(requestType)
+                    .addStatement("return %T().apply(block).build()", requestType.nestedClass("Builder"))
+                    .build(),
+            ).build(),
+    )
+    type.addType(modelSerializer(model, requestType))
+    return type.build()
+}
+
+private fun EmissionContext.requiredFieldsConstructor(
+    model: ModelDeclaration,
+    requestType: ClassName,
+): FunSpec {
+    val required = model.fields.filter(FieldDeclaration::required)
+    val optional = model.fields.filterNot(FieldDeclaration::required)
+    val function = FunSpec.constructorBuilder().addModifiers(KModifier.PUBLIC)
+    required.forEach { field ->
+        function.addParameter(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
+    }
+    val call = CodeBlock.builder()
+    required.forEach { field -> call.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    optional.forEach { field -> call.add("%LState = %T.Absent,\n", field.resolvedName, fieldState) }
+    @Suppress("UNUSED_VARIABLE")
+    val keepType = requestType
+    return function.callThisConstructor(call.build()).build()
+}
+
+private fun EmissionContext.modelBuilder(
+    model: ModelDeclaration,
+    requestType: ClassName,
+): TypeSpec {
+    val required = model.fields.filter(FieldDeclaration::required)
+    val optional = model.fields.filterNot(FieldDeclaration::required)
+    val builder = TypeSpec.classBuilder("Builder").addModifiers(KModifier.PUBLIC)
+    required.filterNot(FieldDeclaration::nullable).forEach { field ->
+        builder.addProperty(
+            PropertySpec
+                .builder(field.resolvedName, field.type.toTypeName())
+                .addModifiers(KModifier.PUBLIC, KModifier.LATEINIT)
+                .mutable()
+                .build(),
+        )
+    }
+    required.filter(FieldDeclaration::nullable).forEach { field ->
+        builder.addProperty(
+            PropertySpec
+                .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+                .addModifiers(KModifier.PRIVATE)
+                .mutable()
+                .initializer("%T.Absent", fieldState)
+                .build(),
+        )
+        builder.addProperty(nullableBuilderProperty(field, required = true))
+    }
+    optional.forEach { field ->
+        builder.addProperty(
+            PropertySpec
+                .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+                .addModifiers(KModifier.PRIVATE)
+                .mutable()
+                .initializer("%T.Absent", fieldState)
+                .build(),
+        )
+        builder.addProperty(
+            if (field.nullable) {
+                nullableBuilderProperty(
+                    field,
+                    required = false,
+                )
+            } else {
+                nonNullableBuilderProperty(field)
+            },
+        )
+        builder.addFunction(
+            FunSpec
+                .builder("unset${field.resolvedName.replaceFirstChar(Char::uppercase)}")
+                .addModifiers(KModifier.PUBLIC)
+                .addKdoc("Omits `%L` from serialized output.\n", field.wireName)
+                .addStatement("%LState = %T.Absent", field.resolvedName, fieldState)
+                .build(),
+        )
+    }
+    builder.addFunction(builderBuild(model, requestType))
+    return builder.build()
+}
+
+private fun EmissionContext.nullableBuilderProperty(
+    field: FieldDeclaration,
+    required: Boolean,
+): PropertySpec =
+    PropertySpec
+        .builder(
+            field.resolvedName,
+            field.type.toTypeName().copy(nullable = true),
+        ).addModifiers(KModifier.PUBLIC)
+        .mutable()
+        .getter(FunSpec.getterBuilder().addStatement("return %LState.valueOrNull()", field.resolvedName).build())
+        .setter(
+            FunSpec
+                .setterBuilder()
+                .addParameter("value", field.type.toTypeName().copy(nullable = true))
+                .addStatement("%LState = value.toNullableFieldState()", field.resolvedName)
+                .build(),
+        ).apply {
+            if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+        }.addKdoc(
+            if (required) {
+                "Required nullable field; assigning `null` records present-null.\n"
+            } else {
+                "Assigning `null` records present-null; use the unset function to omit the property.\n"
+            },
+        ).build()
+
+private fun EmissionContext.nonNullableBuilderProperty(field: FieldDeclaration): PropertySpec =
+    PropertySpec
+        .builder(
+            field.resolvedName,
+            field.type.toTypeName().copy(nullable = true),
+        ).addModifiers(KModifier.PUBLIC)
+        .mutable()
+        .getter(FunSpec.getterBuilder().addStatement("return %LState.valueOrNull()", field.resolvedName).build())
+        .setter(
+            FunSpec
+                .setterBuilder()
+                .addParameter("value", field.type.toTypeName().copy(nullable = true))
+                .addStatement(
+                    "val present = requireNotNull(value) { %S }",
+                    "${field.resolvedName} is not nullable; call unset${field.resolvedName.replaceFirstChar(
+                        Char::uppercase,
+                    )}() to omit it",
+                ).addStatement("%LState = %T.Value(present)", field.resolvedName, fieldState)
+                .build(),
+        ).apply {
+            if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+        }.addKdoc("Assign a non-null value, or use the unset function to omit the property.\n")
+        .build()
+
+private fun EmissionContext.builderBuild(
+    model: ModelDeclaration,
+    requestType: ClassName,
+): FunSpec {
+    val required = model.fields.filter(FieldDeclaration::required)
+    val optional = model.fields.filterNot(FieldDeclaration::required)
+    val body = CodeBlock.builder()
+    required.filterNot(FieldDeclaration::nullable).forEach { field ->
+        body.addStatement(
+            "check(::%L.isInitialized) { %S }",
+            field.resolvedName,
+            "${field.resolvedName} is required",
+        )
+    }
+    required.filter(FieldDeclaration::nullable).forEach { field ->
+        body.addStatement(
+            "check(%LState !== %T.Absent) { %S }",
+            field.resolvedName,
+            fieldState,
+            "${field.resolvedName} is required, even when null",
+        )
+    }
+    body.add("return %T(\n", requestType).indent()
+    required.forEach { field ->
+        val expression = if (field.nullable) "${field.resolvedName}State.valueOrNull()" else field.resolvedName
+        body.add("%L = %L,\n", field.resolvedName, expression)
+    }
+    optional.forEach { field -> body.add("%LState = %LState,\n", field.resolvedName, field.resolvedName) }
+    body.unindent().add(")\n")
+    return FunSpec
+        .builder("build")
+        .addModifiers(KModifier.PUBLIC)
+        .returns(requestType)
+        .addCode(body.build())
+        .build()
+}
+
+private fun modelSerializer(
+    model: ModelDeclaration,
+    requestType: ClassName,
+): TypeSpec {
+    val required = model.fields.filter(FieldDeclaration::required)
+    val optional = model.fields.filterNot(FieldDeclaration::required)
+    return TypeSpec
+        .objectBuilder("Serializer")
+        .addModifiers(KModifier.PUBLIC)
+        .addSuperinterface(K_SERIALIZER.parameterizedBy(requestType))
+        .addProperty(
+            PropertySpec
+                .builder(
+                    "descriptor",
+                    SERIAL_DESCRIPTOR,
+                ).addModifiers(KModifier.OVERRIDE)
+                .initializer("%T.serializer().descriptor", JSON_ELEMENT)
+                .build(),
+        ).addFunction(
+            FunSpec
+                .builder("deserialize")
+                .addModifiers(KModifier.OVERRIDE)
+                .addParameter("decoder", DECODER)
+                .returns(requestType)
+                .addCode(modelDeserialize(model, requestType, required, optional))
+                .build(),
+        ).addFunction(
+            FunSpec
+                .builder("serialize")
+                .addModifiers(KModifier.OVERRIDE)
+                .addParameter("encoder", ENCODER)
+                .addParameter("value", requestType)
+                .addCode(modelSerialize(model, required, optional))
+                .build(),
+        ).build()
+}
+
+private fun modelDeserialize(
+    model: ModelDeclaration,
+    requestType: ClassName,
+    required: List<FieldDeclaration>,
+    optional: List<FieldDeclaration>,
+): CodeBlock {
+    val body =
+        CodeBlock
+            .builder()
+            .addStatement("val jsonDecoder = decoder.requireJsonDecoder(%S)", model.resolvedName)
+            .addStatement("val json = jsonDecoder.json")
+            .addStatement(
+                "val raw = jsonDecoder.decodeJsonElement() as? %T ?: throw %T(%S)",
+                JSON_OBJECT,
+                SERIALIZATION_EXCEPTION,
+                "${model.resolvedName} must be a JSON object",
+            )
+    required.filterNot(FieldDeclaration::nullable).forEach { field ->
+        body.addStatement(
+            "val %L = json.decodeRequired<%T>(raw, %S)",
+            field.resolvedName,
+            field.type.toTypeName(),
+            field.wireName,
+        )
+    }
+    required.filter(FieldDeclaration::nullable).forEach { field ->
+        body
+            .beginControlFlow("if (!raw.containsKey(%S))", field.wireName)
+            .addStatement(
+                "throw %T(%S)",
+                SERIALIZATION_EXCEPTION,
+                "${model.resolvedName} is missing required property '${field.wireName}'",
+            ).endControlFlow()
+            .addStatement(
+                "val %L = raw[%S].let { element -> if (element == %T) null else json.%M<%T>(requireNotNull(element)) }",
+                field.resolvedName,
+                field.wireName,
+                JSON_NULL,
+                DECODE_FROM_JSON_ELEMENT,
+                field.type.toTypeName(),
+            )
+    }
+    body.add("return %T(\n", requestType).indent()
+    required.forEach { field -> body.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    optional.forEach { field ->
+        body.add(
+            "%LState = json.decodeOptional(raw, %S, nullable = %L),\n",
+            field.resolvedName,
+            field.wireName,
+            field.nullable,
+        )
+    }
+    body.unindent().add(")\n")
+    return body.build()
+}
+
+private fun modelSerialize(
+    model: ModelDeclaration,
+    required: List<FieldDeclaration>,
+    optional: List<FieldDeclaration>,
+): CodeBlock {
+    val body =
+        CodeBlock
+            .builder()
+            .addStatement("val jsonEncoder = encoder.requireJsonEncoder(%S)", model.resolvedName)
+            .addStatement("val json = jsonEncoder.json")
+            .add("val raw = %M {\n", BUILD_JSON_OBJECT)
+            .indent()
+    required.forEach { field ->
+        when {
+            field.nullable -> {
+                body.addStatement(
+                    "%M(%S, value.%L?.let { json.%M(it) } ?: %T)",
+                    PUT,
+                    field.wireName,
+                    field.resolvedName,
+                    ENCODE_TO_JSON_ELEMENT,
+                    JSON_NULL,
+                )
+            }
+
+            field.type.simpleName == "String" -> {
+                body.addStatement(
+                    "%M(%S, value.%L)",
+                    PUT,
+                    field.wireName,
+                    field.resolvedName,
+                )
+            }
+
+            else -> {
+                body.addStatement(
+                    "%M(%S, json.%M(value.%L))",
+                    PUT,
+                    field.wireName,
+                    ENCODE_TO_JSON_ELEMENT,
+                    field.resolvedName,
+                )
+            }
+        }
+    }
+    optional.forEach { field ->
+        body.addStatement(
+            "putState(%S, value.%LState, json::%M)",
+            field.wireName,
+            field.resolvedName,
+            ENCODE_TO_JSON_ELEMENT,
+        )
+    }
+    body.unindent().add("}\n").addStatement("jsonEncoder.encodeJsonElement(raw)")
+    return body.build()
+}
+
+private fun modelDsl(model: ModelDeclaration): FunSpec {
+    val requestType = ClassName(model.packageName, model.resolvedName)
+    return FunSpec
+        .builder(model.dslFunctionName)
+        .addModifiers(KModifier.PUBLIC)
+        .addParameter(
+            "block",
+            com.squareup.kotlinpoet.LambdaTypeName.get(
+                receiver = requestType.nestedClass("Builder"),
+                returnType = UNIT,
+            ),
+        ).returns(requestType)
+        .addStatement("return %T.build(block)", requestType)
+        .build()
+}
+
+private fun EmissionContext.toNullableFieldState(): FunSpec =
+    FunSpec
+        .builder("toNullableFieldState")
+        .addModifiers(KModifier.PRIVATE)
+        .addTypeVariable(TypeVariableName("T"))
+        .receiver(TypeVariableName("T").copy(nullable = true))
+        .returns(fieldState.parameterizedBy(TypeVariableName("T")))
+        .addStatement("return if (this == null) %T.Null else %T.Value(this)", fieldState, fieldState)
+        .build()
+
+private fun decodeRequired(modelName: String): FunSpec =
+    FunSpec
+        .builder("decodeRequired")
+        .addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+        .addTypeVariable(TypeVariableName("T").copy(reified = true))
+        .receiver(JSON)
+        .addParameter("raw", JSON_OBJECT)
+        .addParameter("name", STRING)
+        .returns(TypeVariableName("T"))
+        .addStatement(
+            "val element = raw[name] ?: throw %T(%S + name + %S)",
+            SERIALIZATION_EXCEPTION,
+            "$modelName is missing required property '",
+            "'",
+        ).addStatement("return %M(element)", DECODE_FROM_JSON_ELEMENT)
+        .build()
+
+private fun EmissionContext.decodeOptional(modelName: String): FunSpec =
+    FunSpec
+        .builder("decodeOptional")
+        .addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+        .addTypeVariable(TypeVariableName("T").copy(reified = true))
+        .receiver(JSON)
+        .addParameter("raw", JSON_OBJECT)
+        .addParameter("name", STRING)
+        .addParameter("nullable", BOOLEAN)
+        .returns(fieldState.parameterizedBy(TypeVariableName("T")))
+        .addCode(
+            "if (!raw.containsKey(name)) return %T.Absent\n" +
+                "val element = requireNotNull(raw[name])\n" +
+                "if (element == %T) {\n" +
+                "  if (!nullable) throw %T(%S + name + %S)\n" +
+                "  return %T.Null\n" +
+                "}\n" +
+                "return %T.Value(%M<T>(element))\n",
+            fieldState,
+            JSON_NULL,
+            SERIALIZATION_EXCEPTION,
+            "$modelName property '",
+            "' is not nullable",
+            fieldState,
+            fieldState,
+            DECODE_FROM_JSON_ELEMENT,
+        ).build()
+
+private fun EmissionContext.putState(): FunSpec {
+    val type = TypeVariableName("T")
+    return FunSpec
+        .builder("putState")
+        .addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+        .addTypeVariable(type)
+        .receiver(JSON_OBJECT_BUILDER)
+        .addParameter("name", STRING)
+        .addParameter("state", fieldState.parameterizedBy(type))
+        .addParameter(
+            "encode",
+            com.squareup.kotlinpoet.LambdaTypeName.get(
+                parameters = listOf(ParameterSpec.unnamed(type)),
+                returnType = JSON_ELEMENT,
+            ),
+        ).addCode(
+            "when (state) {\n" +
+                "  %T.Absent -> Unit\n" +
+                "  %T.Null -> %M(name, %T)\n" +
+                "  is %T.Value -> %M(name, encode(state.value))\n" +
+                "}\n",
+            fieldState,
+            fieldState,
+            PUT,
+            JSON_NULL,
+            fieldState,
+            PUT,
+        ).build()
+}

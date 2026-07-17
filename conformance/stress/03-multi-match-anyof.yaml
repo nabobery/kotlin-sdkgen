@@ -1,0 +1,21 @@
+# Stress: an anyOf value can validly match both branches at once.
+# Expected: preserve all wire fields losslessly; do not narrow to the first successful branch.
+openapi: 3.1.0
+info:
+  title: Multi-match anyOf
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    SearchResult:
+      type: object
+      anyOf:
+        - required: [title]
+          properties:
+            title:
+              type: string
+        - required: [score]
+          properties:
+            score:
+              type: number
+      unevaluatedProperties: false

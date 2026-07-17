@@ -1,0 +1,21 @@
+document sdkgen://source/08-free-form-object.yaml
+title "Free-form object"
+version "1.0.0"
+sourceDocument sdkgen://source/08-free-form-object.yaml sha256=e58f91749dd7025144c47052dae27fa2b50d31d67e93e5e99377110d658a3895 bytes=353 policy=LOCAL_FILE @sdkgen://source/08-free-form-object.yaml#:3:1:190
+source sdkgen://source/08-free-form-object.yaml#:3:1:190
+extensions {}
+security
+schemas 1
+schema sdkgen://source/08-free-form-object.yaml#/components/schemas/Metadata COMPONENT @sdkgen://source/08-free-form-object.yaml#/components/schemas/Metadata:11:7:307
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  additionalProperties free-form-json @sdkgen://source/08-free-form-object.yaml#/components/schemas/Metadata/additionalProperties:12:29:348
+  extensions {}
+operations 0
+diagnostics 0

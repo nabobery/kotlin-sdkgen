@@ -1,0 +1,11 @@
+overlay: 1.1.0
+info:
+  title: Canonical stress streaming metadata
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/chat']['post']"
+    update:
+      x-sdkgen-streaming:
+        mode: sse
+        requestFlag: stream
+        responseContentType: text/event-stream

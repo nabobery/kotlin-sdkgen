@@ -1,0 +1,86 @@
+document sdkgen://source/11-incomplete-discriminator-mapping.yaml
+title "Incomplete discriminator mapping"
+version "1.0.0"
+sourceDocument sdkgen://source/11-incomplete-discriminator-mapping.yaml sha256=98a8977e1b7f9dfcea157ce5a93c4da1814a59c5daedbd53e0686957658cd057 bytes=828 policy=LOCAL_FILE @sdkgen://source/11-incomplete-discriminator-mapping.yaml#:3:1:187
+source sdkgen://source/11-incomplete-discriminator-mapping.yaml#:3:1:187
+extensions {}
+security
+schemas 7
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Animal COMPONENT @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Animal:11:7:318
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  ONE_OF sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat, sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Animal/oneOf:12:9:333
+    discriminator kind mapping=cat->sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat unmapped=sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog extensions={} @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Animal/discriminator:15:9:440
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat COMPONENT @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat:19:7:533
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property kind REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/kind readOnly=false writeOnly=false deprecated=false @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/kind:23:11:618
+  property lives REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/lives readOnly=false writeOnly=false deprecated=false @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/lives:25:11:654
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/kind INLINE @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/kind:23:11:618
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {const="cat"}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/lives INLINE @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Cat/properties/lives:25:11:654
+  reference -
+  types integer nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog COMPONENT @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog:27:7:683
+  reference -
+  types object nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  property barkVolume REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/barkVolume readOnly=false writeOnly=false deprecated=false @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/barkVolume:33:11:814
+  property kind REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/kind readOnly=false writeOnly=false deprecated=false @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/kind:31:11:773
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/barkVolume INLINE @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/barkVolume:33:11:814
+  reference -
+  types integer nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {}
+  default -
+  examples []
+  extensions {}
+schema sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/kind INLINE @sdkgen://source/11-incomplete-discriminator-mapping.yaml#/components/schemas/Dog/properties/kind:31:11:773
+  reference -
+  types  nullability=NON_NULL format=-
+  nullabilityOrigins []
+  flags deprecated=false readOnly=false writeOnly=false
+  description -
+  constraints {const="dog"}
+  default -
+  examples []
+  extensions {}
+operations 0
+diagnostics 0

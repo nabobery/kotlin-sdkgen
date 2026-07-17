@@ -1,0 +1,12 @@
+# Stress: a string enum receives a future wire value not listed today.
+# Expected: generate an open enum representation that round-trips unknown values verbatim, never UNKNOWN.
+openapi: 3.1.0
+info:
+  title: Open string enum
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    DeliveryState:
+      type: string
+      enum: [queued, delivered]
