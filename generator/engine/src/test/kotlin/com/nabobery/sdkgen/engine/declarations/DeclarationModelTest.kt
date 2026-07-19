@@ -177,4 +177,9 @@ class DeclarationModelTest {
         assertFalse("*/" in sanitized)
         assertTrue("*&#47;" in sanitized)
     }
+
+    @Test
+    fun kdocSanitizationRemovesTrailingWhitespaceFromEveryLine() {
+        assertEquals("first\nsecond", sanitizeKDoc("first  \nsecond\t"))
+    }
 }

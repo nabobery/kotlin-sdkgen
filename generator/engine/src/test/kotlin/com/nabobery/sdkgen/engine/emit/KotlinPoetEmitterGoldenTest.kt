@@ -69,10 +69,11 @@ class KotlinPoetEmitterGoldenTest {
         if (System.getenv("UPDATE_COMPOSITION_GOLDEN") == "1") golden.writeText(output)
         assertEquals(golden.readText(), output)
 
-        val choice = rendered.single { it.path.endsWith("/Choice.kt") }.bytes.decodeToString()
+        val alpha = rendered.single { it.path.endsWith("/Alpha.kt") }.bytes.decodeToString()
+        val beta = rendered.single { it.path.endsWith("/Beta.kt") }.bytes.decodeToString()
         val variant = rendered.single { it.path.endsWith("/Variant.kt") }.bytes.decodeToString()
-        assertTrue(choice.contains("public data class AlphaView"))
-        assertTrue(choice.contains("public data class BetaView"))
+        assertTrue(alpha.contains("public data class AlphaView"))
+        assertTrue(beta.contains("public data class BetaView"))
         assertTrue(variant.contains("public class Cat"))
         assertTrue(variant.contains("public class Dog"))
     }

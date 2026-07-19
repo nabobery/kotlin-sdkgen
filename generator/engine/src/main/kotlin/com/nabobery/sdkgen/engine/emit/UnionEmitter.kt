@@ -539,7 +539,9 @@ internal fun EmissionContext.emitAnyOf(
         return
     }
     val wrapperType = ClassName(model.packageName, model.resolvedName)
-    model.branches.forEach { branch -> file.addType(anyOfViewType(branch)) }
+    model.branches.filter { branch -> branch.viewFileName == null }.forEach { branch ->
+        file.addType(anyOfViewType(branch))
+    }
     file.addType(
         TypeSpec
             .enumBuilder(model.branchEnumName)
@@ -557,7 +559,7 @@ internal fun EmissionContext.emitAnyOf(
     file.addFunction(isStringArrayFunction())
 }
 
-private fun anyOfViewType(branch: AnyOfBranchDeclaration): TypeSpec {
+internal fun anyOfViewType(branch: AnyOfBranchDeclaration): TypeSpec {
     val name = branch.viewTypeName
     val constructor = FunSpec.constructorBuilder()
     val type =
@@ -565,8 +567,10 @@ private fun anyOfViewType(branch: AnyOfBranchDeclaration): TypeSpec {
             .classBuilder(name)
             .addModifiers(KModifier.PUBLIC, KModifier.DATA)
             .addAnnotation(SERIALIZABLE)
-    branch.fields.forEach { field ->
-        constructor.addParameter(field.resolvedName, field.type.toTypeName())
+    branch.viewFields.forEach { field ->
+        val parameter = ParameterSpec.builder(field.resolvedName, field.type.toTypeName())
+        if (!field.required) parameter.defaultValue("null")
+        constructor.addParameter(parameter.build())
         val property =
             PropertySpec
                 .builder(field.resolvedName, field.type.toTypeName())

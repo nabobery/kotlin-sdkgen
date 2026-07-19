@@ -16,6 +16,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 
+@Serializable
+public data class AlphaView(
+  public val alpha: String,
+)
+
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Alpha.
  */
@@ -93,6 +98,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
+
+@Serializable
+public data class BetaView(
+  public val beta: String,
+)
 
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Beta.
@@ -253,16 +263,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
-
-@Serializable
-public data class AlphaView(
-  public val alpha: String,
-)
-
-@Serializable
-public data class BetaView(
-  public val beta: String,
-)
 
 public enum class ChoiceBranch {
   Alpha,

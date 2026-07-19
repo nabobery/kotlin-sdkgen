@@ -96,7 +96,7 @@ internal object SystemSdkWallClock : SdkWallClock {
 
 internal object CoroutineSdkDelayer : SdkDelayer {
     override suspend fun delay(delayMillis: Long) {
-        delay(delayMillis)
+        kotlinx.coroutines.delay(delayMillis)
     }
 }
 

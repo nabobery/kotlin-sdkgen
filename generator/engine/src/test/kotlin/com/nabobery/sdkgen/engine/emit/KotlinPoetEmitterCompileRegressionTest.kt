@@ -1293,6 +1293,160 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun referencedAnyOfBranchViewsAreEmittedOnceAndSharedAcrossUnions() {
+        val source =
+            Files.createTempFile("sdkgen-shared-anyof-view-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Shared anyOf view, version: "1" }
+                    paths: {}
+                    components:
+                      schemas:
+                        SharedTool:
+                          type: object
+                          required: [kind]
+                          properties:
+                            kind: { type: string }
+                        FirstUnion:
+                          anyOf:
+                            - ${'$'}ref: '#/components/schemas/SharedTool'
+                            - type: object
+                              required: [first]
+                              properties:
+                                first: { type: string }
+                        SecondUnion:
+                          anyOf:
+                            - type: object
+                              required: [second]
+                              properties:
+                                second: { type: string }
+                            - ${'$'}ref: '#/components/schemas/SharedTool'
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "SharedViewClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val viewDeclarations =
+            rendered.flatMap { file ->
+                file.bytes
+                    .decodeToString()
+                    .lineSequence()
+                    .filter { line -> line.startsWith("public data class SharedToolView(") }
+                    .map { file.path }
+            }
+
+        assertEquals(listOf("com/example/generated/SharedTool.kt"), viewDeclarations)
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun referencedAnyOfBranchWithOnlyOptionalPropertiesEmitsACompilableUsefulView() {
+        val source =
+            Files.createTempFile("sdkgen-optional-anyof-view-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Optional anyOf view, version: "1" }
+                    paths: {}
+                    components:
+                      schemas:
+                        OptionalCutoffs:
+                          type: object
+                          properties:
+                            p50: { type: number }
+                            label: { type: string }
+                        RoutingPreference:
+                          anyOf:
+                            - ${'$'}ref: '#/components/schemas/OptionalCutoffs'
+                            - type: object
+                              required: [mode]
+                              properties:
+                                mode: { type: string }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "OptionalViewClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val optionalCutoffs = rendered.single { it.path.endsWith("/OptionalCutoffs.kt") }.bytes.decodeToString()
+
+        compileGenerated(rendered)
+        assertTrue(optionalCutoffs.contains("public val p50: Double? = null"))
+        assertTrue(optionalCutoffs.contains("public val label: String? = null"))
+    }
+
+    @Test
+    fun transparentAllOfBranchPreservesNullablePropertyAtEveryEmissionSite() {
+        val source =
+            Files.createTempFile("sdkgen-transparent-allof-nullable-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Nullable transparent allOf, version: "1" }
+                    paths: {}
+                    components:
+                      schemas:
+                        PercentileStats:
+                          type: object
+                          required: [p50]
+                          properties:
+                            p50: { type: number }
+                        PublicEndpoint:
+                          type: object
+                          required: [throughput_last_30m]
+                          properties:
+                            throughput_last_30m:
+                              allOf:
+                                - ${'$'}ref: '#/components/schemas/PercentileStats'
+                                - nullable: true
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "NullableAllOfClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val publicEndpoint = rendered.single { it.path.endsWith("/PublicEndpoint.kt") }.bytes.decodeToString()
+
+        assertTrue(publicEndpoint.contains("throughputLast30m: PercentileStats?"))
+        compileGenerated(rendered)
+    }
+
+    @Test
     fun supportRenameLeavesCanonicalSupportNamesAndGeneratedSourcesCompilable() {
         val renamed =
             applyDeclarationAugmentations(

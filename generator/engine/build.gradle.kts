@@ -7,9 +7,15 @@ plugins {
     id("sdkgen.publishing")
 }
 
-val kotlinPoetDependencyVersion = libs.versions.kotlinpoet.get()
 tasks.processResources {
-    expand(mapOf("kotlinPoetVersion" to kotlinPoetDependencyVersion))
+    // Template only the version-metadata file: expand() on the whole resource tree would run the
+    // Groovy template engine over sdkgen-v1alpha1.schema.json, whose regex escapes it cannot parse.
+    // The version is captured as a task-local value so the action stays configuration-cache safe.
+    val kotlinPoetDependencyVersion = libs.versions.kotlinpoet.get()
+    inputs.property("kotlinPoetVersion", kotlinPoetDependencyVersion)
+    filesMatching("com/nabobery/sdkgen/engine/kotlinpoet-version.properties") {
+        expand(mapOf("kotlinPoetVersion" to kotlinPoetDependencyVersion))
+    }
 }
 
 tasks.test {

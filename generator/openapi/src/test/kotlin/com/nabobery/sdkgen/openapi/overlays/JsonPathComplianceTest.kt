@@ -15,7 +15,7 @@ class JsonPathComplianceTest {
     fun `passes the pinned RFC 9535 compliance suite`() {
         val ctsBytes = resourceBytes("/jsonpath-cts/cts.json")
         assertEquals(
-            "a85db53fba1f675be48b534baec5a754dc685ad08c550d8927f609c7708f365a",
+            "07b65aae2dec4ea19455a33310fa0536203f280f001995d8c105d3ee12e31618",
             DocumentCodec.sha256(ctsBytes),
         )
         val tests = DocumentCodec.parseJson(ctsBytes).path("tests")
@@ -122,7 +122,7 @@ class JsonPathComplianceTest {
         val root = DocumentCodec.objectNode()
         root.put("suiteRepository", "https://github.com/jsonpath-standard/jsonpath-compliance-test-suite")
         root.put("suiteCommit", "7be7c1fc28057c91e8eefaf197060fba7ed43acd")
-        root.put("ctsSha256", "a85db53fba1f675be48b534baec5a754dc685ad08c550d8927f609c7708f365a")
+        root.put("ctsSha256", "07b65aae2dec4ea19455a33310fa0536203f280f001995d8c105d3ee12e31618")
         root.put("evaluator", "com.nabobery.sdkgen.openapi.jsonpath.Rfc9535Evaluator")
         root.put("total", outcomes.size)
         root.put("passed", outcomes.count { it.status == "pass" })

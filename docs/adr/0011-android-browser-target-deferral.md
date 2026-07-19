@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted for the Phase 1 deferral. **Phase 2 re-entry criteria met** (2026-07-19); see Phase 2 re-entry below.
 
 ## Context
 
@@ -45,7 +45,34 @@ Defer both targets to Phase 2, as an explicit user decision (2026-07-17):
 
 ## Phase 2 re-entry
 
-Phase 2 re-entry is in progress as of 2026-07-17. The build now uses the Android-KMP library plugin for opted-in
-runtime and conformance modules, adds the Kotlin/JS browser target alongside Node.js, and restores Android/browser
-compile gates. This note records re-entry work only; ADR closure still requires the full Phase 2 compile matrix and CI
-results.
+Phase 2 re-entry began 2026-07-17 (W1-T1) and is complete as of Wave 6 (2026-07-19). All four re-entry criteria stated
+above are met:
+
+1. **AGP pinned in the version catalog.** `agp = "9.2.1"` in `gradle/libs.versions.toml`, consumed through the
+   `com.android.kotlin.multiplatform.library` plugin alias — the Android-KMP plugin, not the classic `com.android.library`
+    - `androidTarget()` combination (which fails to configure under Kotlin 2.3 + AGP 9).
+2. **`androidLibrary` compiles and passes shared contract tests for the runtime and a representative generated module.**
+   Two new convention plugins carry this: `sdkgen.kotlin-kmp-android` (opt-in Android target for full KMP modules:
+   `runtime:core`, `runtime:testing`, `runtime:transport-ktor`, and `conformance:openrouter:consumer` — the representative
+   generated module) and `sdkgen.kotlin-kmp-jvm-android` (JVM+Android-only modules: `runtime:transport-okhttp`).
+   `namespace`, `compileSdk = 36`, `minSdk = 21`, and `jvmTarget = 17` are set uniformly.
+3. **`js { browser() }` compiles and passes shared contract tests using a provisioned browser launcher.** Added to
+   `sdkgen.kotlin-kmp.gradle.kts` alongside the existing `nodejs()` target, with `useKarma { useChromeHeadless() }`
+   wired for the browser test task. The target passes as part of the full `build apiCheck ktlintCheck` gate;
+   `CHROME_BIN` is documented alongside the existing node-on-PATH note in `AGENTS.md`.
+4. **Both targets are covered by the compile matrix and verification commands.** Android compilation and JS-browser
+   tests are included in the standard full-build gate for every opted-in KMP module.
+
+### What remains deferred
+
+This re-entry closes only the Android and JS-browser scope named in this ADR's Decision section. The following remain
+explicitly out of scope:
+
+- **Wasm, watchOS, and tvOS targets.** Never in scope for Phase 2; no convention-plugin or catalog work was done toward
+  them. A future ADR should open this decision explicitly rather than let it expand silently, per this ADR's own
+  re-evaluation discipline.
+- **Native "secondary matrix" targets** (`linuxArm64`, `mingwX64`) are compile-gate only, not full contract-test
+  targets. This scope is separate from the Android/JS-browser re-entry this ADR tracks.
+- **iOS simulator ARM64** contract tests remain environment-gated (disabled with a loud warning, not silently skipped,
+  when the host lacks the Xcode simulator runtime) — this was already true before Phase 2 and is unrelated to the
+  Android/browser deferral this ADR covers.

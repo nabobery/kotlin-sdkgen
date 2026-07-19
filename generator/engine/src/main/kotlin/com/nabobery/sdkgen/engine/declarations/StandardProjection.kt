@@ -921,7 +921,14 @@ private class SchemaProjectionContext(
     ): KotlinTypeRef {
         val schema = dereference(schemaRef.schemaId)
         if (schema.id in failedSchemaIds) unsupported("schema ${schema.id} has no emitted declaration")
-        val nullable = schema.nullability == Nullability.NULLABLE
+        val transparentBranch = transparentAllOfBranch(schema)
+        val nullable =
+            schema.nullability == Nullability.NULLABLE ||
+                transparentAllOfAnnotationsAreNullable(schema)
+        transparentBranch?.let { branch ->
+            val branchType = typeFor(SchemaRef(branch.id, schemaRef.source), inlineName)
+            return branchType.copy(nullable = nullable || branchType.nullable)
+        }
         val named = typePlan.nameFor(schema.id)
         if (named != null) return KotlinTypeRef(request.packageName, named, nullable = nullable)
         val scalarAllOfBranches =
@@ -1068,6 +1075,7 @@ private class SchemaProjectionContext(
         effective.compositions.filter { it.kind == CompositionKind.ALL_OF }.forEach { composition ->
             composition.branches.forEach { branch ->
                 val branchSchema = dereference(branch)
+                if (isAnnotationOnly(branchSchema)) return@forEach
                 if (!isObjectLike(branchSchema)) unsupported("allOf branch ${branch.schemaId} is not an object")
                 flattenObjectProperties(branchSchema, visited).forEach(::addProperty)
             }
@@ -1085,14 +1093,19 @@ private class SchemaProjectionContext(
         val fieldNames = allocateNames(properties.map(PropertyModel::name), base = KotlinNameResolver::memberName)
         val fields =
             properties.mapIndexed { index, property ->
+                val projectedType = typeFor(property.schema, "$name ${property.name}")
+                val nullable =
+                    property.nullability == Nullability.NULLABLE ||
+                        transparentAllOfAnnotationsAreNullable(dereference(property.schema))
+                val type = projectedType.copy(nullable = projectedType.nullable || nullable)
                 FieldDeclaration(
                     symbolId = "schema:$name/property:${property.name}",
                     order = index,
                     resolvedName = fieldNames.getValue(property.name),
                     wireName = property.name,
-                    type = typeFor(property.schema, "$name ${property.name}"),
+                    type = type,
                     required = property.requiredness == Requiredness.REQUIRED,
-                    nullable = property.nullability == Nullability.NULLABLE,
+                    nullable = nullable || type.nullable,
                     kdoc = property.description.orEmpty(),
                 )
             }
@@ -1256,21 +1269,24 @@ private class SchemaProjectionContext(
                     val properties = flattenObjectProperties(target)
                     val fieldNames =
                         allocateNames(properties.map(PropertyModel::name), base = KotlinNameResolver::memberName)
+                    val viewFields =
+                        properties.map { property ->
+                            val required = property.requiredness == Requiredness.REQUIRED
+                            val type = typeFor(property.schema, "$name ${property.name}")
+                            UnionFieldDeclaration(
+                                resolvedName = fieldNames.getValue(property.name),
+                                wireName = property.name,
+                                type = if (required) type else type.copy(nullable = true),
+                                required = required,
+                            )
+                        }
                     AnyOfBranchDeclaration(
                         symbolId = branchSymbolId,
                         order = index,
                         resolvedName = branchName,
                         propertyName = KotlinNameResolver.memberName(branchName),
-                        fields =
-                            properties
-                                .filter { it.requiredness == Requiredness.REQUIRED }
-                                .map { property ->
-                                    UnionFieldDeclaration(
-                                        resolvedName = fieldNames.getValue(property.name),
-                                        wireName = property.name,
-                                        type = typeFor(property.schema, "$name ${property.name}"),
-                                    )
-                                },
+                        fields = viewFields.filter(UnionFieldDeclaration::required),
+                        viewFields = viewFields,
                         shape = AnyOfBranchShape.OBJECT,
                         type =
                             typePlan.nameFor(target.id)?.let { resolved ->
@@ -1282,6 +1298,10 @@ private class SchemaProjectionContext(
                                 )
                             } ?: KotlinTypeRef("kotlinx.serialization.json", "JsonObject"),
                         viewTypeName = "${branchName}View",
+                        viewFileName =
+                            target.id
+                                .takeIf(::isComponentSchemaId)
+                                ?.let(typePlan::nameFor),
                     )
                 } else {
                     AnyOfBranchDeclaration(
@@ -1316,6 +1336,30 @@ private class SchemaProjectionContext(
         "object" in schema.types || schema.properties.isNotEmpty() ||
             schema.compositions.any { it.kind == CompositionKind.ALL_OF }
 
+    private fun transparentAllOfBranch(schema: SchemaModel): SchemaModel? {
+        if (schema.types.isNotEmpty() || schema.properties.isNotEmpty() || schema.items != null ||
+            schema.additionalProperties != null || schema.enum != null
+        ) {
+            return null
+        }
+        val allOf =
+            schema.compositions.singleOrNull()?.takeIf { composition -> composition.kind == CompositionKind.ALL_OF }
+                ?: return null
+        return allOf.branches
+            .map(::dereference)
+            .filterNot(::isAnnotationOnly)
+            .singleOrNull()
+    }
+
+    private fun transparentAllOfAnnotationsAreNullable(schema: SchemaModel): Boolean =
+        transparentAllOfBranch(schema) != null &&
+            schema.compositions
+                .single()
+                .branches
+                .map(::dereference)
+                .filter(::isAnnotationOnly)
+                .any { annotation -> annotation.nullability == Nullability.NULLABLE }
+
     private fun isAnnotationOnly(schema: SchemaModel): Boolean =
         schema.referenceTarget == null &&
             schema.types.isEmpty() &&
@@ -1333,6 +1377,11 @@ private open class UnrepresentableOperationException(
 ) : RuntimeException(message)
 
 private fun <T> List<T>.anyNot(predicate: (T) -> Boolean): Boolean = any { item -> !predicate(item) }
+
+private fun isComponentSchemaId(schemaId: SchemaId): Boolean {
+    val suffix = schemaId.value.substringAfter("/components/schemas/", missingDelimiterValue = "")
+    return suffix.isNotEmpty() && '/' !in suffix
+}
 
 private fun branchKey(
     index: Int,

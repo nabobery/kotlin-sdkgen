@@ -202,6 +202,57 @@ class StandardProjectionTest {
     }
 
     @Test
+    fun propagatesTransparentAllOfAnnotationNullabilityThroughEveryTypeUse() {
+        val document =
+            adapt(
+                """
+                openapi: 3.0.3
+                info: { title: Transparent allOf nullability, version: "1" }
+                paths:
+                  /values:
+                    get:
+                      operationId: listValues
+                      parameters:
+                        - name: value
+                          in: query
+                          required: true
+                          schema: { ${'$'}ref: '#/components/schemas/NullableValue' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Value:
+                      type: string
+                    NullableValue:
+                      allOf:
+                        - ${'$'}ref: '#/components/schemas/Value'
+                        - nullable: true
+                    Container:
+                      type: object
+                      properties:
+                        values:
+                          type: array
+                          items: { ${'$'}ref: '#/components/schemas/NullableValue' }
+                """,
+            )
+
+        val declarations = projectMapping(document).model.files.flatMap(KotlinFileDeclaration::declarations)
+        val operation =
+            declarations
+                .filterIsInstance<OperationClientDeclaration>()
+                .single()
+                .operations
+                .single()
+        val container = declarations.filterIsInstance<ModelDeclaration>().single { it.resolvedName == "Container" }
+        val nullableString = KotlinTypeRef("kotlin", "String", nullable = true)
+
+        assertEquals(nullableString, operation.parameters.single().type)
+        assertEquals(
+            KotlinTypeRef("kotlin.collections", "List", listOf(nullableString)),
+            container.fields.single().type,
+        )
+    }
+
+    @Test
     fun emitsCompleteComponentAndInlineDeclarationGraph() {
         val document =
             adapt(
@@ -625,6 +676,47 @@ class StandardProjectionTest {
             operations.getValue("deleteThing").safety,
         )
         assertEquals(true, operations.getValue("deleteThing").retry.retryConnectionErrors)
+    }
+
+    @Test
+    fun annotationOnlyAllOfBranchIsTransparent() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Annotation allOf, version: "1" }
+                paths: {}
+                components:
+                  schemas:
+                    Base:
+                      type: object
+                      required: [value]
+                      properties:
+                        value: { type: string }
+                    Wrapper:
+                      type: object
+                      properties:
+                        base:
+                          allOf:
+                            - ${'$'}ref: '#/components/schemas/Base'
+                            - description: Field-level documentation.
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        val wrapper =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<ModelDeclaration>()
+                .single { declaration -> declaration.resolvedName == "Wrapper" }
+
+        assertTrue(mapping.diagnostics.none { diagnostic -> diagnostic.severity == DiagnosticSeverity.ERROR })
+        assertEquals(
+            "Base",
+            wrapper.fields
+                .single()
+                .type.simpleName,
+        )
     }
 
     @Test

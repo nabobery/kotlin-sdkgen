@@ -1,6 +1,7 @@
 package com.nabobery.sdkgen.generated
 
 import com.nabobery.sdkgen.runtime.SdkApiException
+import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkSerializationException
 import com.nabobery.sdkgen.runtime.SdkTransportException
@@ -9,7 +10,7 @@ import com.nabobery.sdkgen.testing.FakeTransport
 import com.nabobery.sdkgen.testing.assertClosedNormally
 import com.nabobery.sdkgen.testing.assertClosedWith
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
@@ -23,7 +24,15 @@ import kotlin.test.assertSame
 class OpenRouterRuntimeE2eTest {
     @Test
     fun generatedOperationCoversPhaseOneRuntimeExitGate() {
-        val successBody = FakeByteStream(listOf("{\"id\":\"chat-1\"}".encodeToByteArray()))
+        val successBody =
+            FakeByteStream(
+                listOf(
+                    (
+                        "{\"choices\":[],\"created\":1,\"id\":\"chat-1\",\"model\":\"test\"," +
+                            "\"object\":\"chat.completion\",\"system_fingerprint\":null}"
+                    ).encodeToByteArray(),
+                ),
+            )
         val successTransport =
             FakeTransport().enqueueResponse(
                 200,
@@ -35,24 +44,29 @@ class OpenRouterRuntimeE2eTest {
                 OpenRouterClient(
                     successTransport,
                     "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
                 ).sendChatCompletionRequest(request())
             }
-        assertEquals("chat-1", success.jsonObject["id"]?.toString()?.trim('"'))
-        assertEquals(OpenRouterClient.metadata.operationId, successTransport.capturedRequests.single().operationId)
+        assertEquals("chat-1", success.id)
+        assertEquals(
+            OpenRouterClient.sendChatCompletionRequestMetadata.operationId,
+            successTransport.capturedRequests.single().operationId,
+        )
         successBody.assertClosedNormally()
 
         val apiBody = FakeByteStream(listOf("{\"error\":\"denied\"}".encodeToByteArray()))
-        val apiTransport = FakeTransport().enqueueResponse(429, listOf(SdkHeader("X-Request-Id", "req-1")), apiBody)
+        val apiTransport = FakeTransport().enqueueResponse(400, listOf(SdkHeader("X-Request-Id", "req-1")), apiBody)
         val apiFailure =
             assertFailsWith<SdkApiException> {
                 runSuspend {
                     OpenRouterClient(
                         apiTransport,
                         "https://openrouter.test",
+                        authentication = SdkAuthentication { it },
                     ).sendChatCompletionRequest(request())
                 }
             }
-        assertEquals(429, apiFailure.statusCode)
+        assertEquals(400, apiFailure.statusCode)
         apiBody.assertClosedWith(apiFailure)
 
         val transportFailure = IllegalStateException("offline")
@@ -62,6 +76,7 @@ class OpenRouterRuntimeE2eTest {
                     OpenRouterClient(
                         FakeTransport().enqueueFailure(transportFailure),
                         "https://openrouter.test",
+                        authentication = SdkAuthentication { it },
                     ).sendChatCompletionRequest(request())
                 }
             }
@@ -73,8 +88,11 @@ class OpenRouterRuntimeE2eTest {
         val propagated =
             assertFailsWith<CancellationException> {
                 runSuspend {
-                    OpenRouterClient(cancellationTransport, "https://openrouter.test")
-                        .sendChatCompletionRequest(request())
+                    OpenRouterClient(
+                        cancellationTransport,
+                        "https://openrouter.test",
+                        authentication = SdkAuthentication { it },
+                    ).sendChatCompletionRequest(request())
                 }
             }
         assertSame(cancellation, propagated)
@@ -85,8 +103,11 @@ class OpenRouterRuntimeE2eTest {
         val serializationFailure =
             assertFailsWith<SdkSerializationException> {
                 runSuspend {
-                    OpenRouterClient(malformedTransport, "https://openrouter.test")
-                        .sendChatCompletionRequest(request())
+                    OpenRouterClient(
+                        malformedTransport,
+                        "https://openrouter.test",
+                        authentication = SdkAuthentication { it },
+                    ).sendChatCompletionRequest(request())
                 }
             }
         malformedBody.assertClosedWith(serializationFailure)
@@ -96,10 +117,12 @@ class OpenRouterRuntimeE2eTest {
         chatRequest {
             messages =
                 listOf(
-                    buildJsonObject {
-                        put("role", "user")
-                        put("content", "hello")
-                    },
+                    SdkJson.decodeFromJsonElement(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("content", "hello")
+                        },
+                    ),
                 )
         }
 }

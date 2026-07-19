@@ -12,7 +12,14 @@ group = "com.nabobery"
 
 // Plain `java-library` modules (the JVM convention plugin) do not automatically create a Maven
 // publication. KMP modules and `java-gradle-plugin` modules already register their own
-// publications, so this only fills the gap for `sdkgen.kotlin-jvm` consumers.
+// publications, so this only fills the gap for `sdkgen.kotlin-jvm` consumers. ADR-0008 requires
+// sources JARs on every published coordinate; KMP publications include them already, so only the
+// pure-JVM modules (java-library and the Gradle plugin) need `withSourcesJar()` here.
+plugins.withId("java") {
+    configure<JavaPluginExtension> {
+        withSourcesJar()
+    }
+}
 plugins.withId("java-library") {
     if (!plugins.hasPlugin("java-gradle-plugin")) {
         configure<PublishingExtension> {

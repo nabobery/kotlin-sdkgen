@@ -2,6 +2,7 @@ package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.declarations.AnyOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
+import com.nabobery.sdkgen.engine.declarations.KotlinFileDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
@@ -37,9 +38,23 @@ internal class EmissionContext(
     internal val generatedPackage: String = "com.nabobery.sdkgen.generated",
     internal val customSerializerTypes: Set<String> = emptySet(),
 ) {
-    fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile> =
-        model.normalized().files.map { file ->
+    fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile> {
+        val normalized = model.normalized()
+        val sharedViews =
+            normalized.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<AnyOfDeclaration>()
+                .flatMap(AnyOfDeclaration::branches)
+                .filter { branch -> branch.viewFileName != null }
+                .groupBy { branch -> requireNotNull(branch.viewFileName) }
+                .mapValues { (_, branches) ->
+                    branches
+                        .distinctBy { branch -> branch.viewTypeName }
+                        .sortedBy { branch -> branch.viewTypeName }
+                }
+        return normalized.files.map { file ->
             val builder = FileSpec.builder(file.packageName, file.fileName)
+            sharedViews[file.fileName].orEmpty().forEach { branch -> builder.addType(anyOfViewType(branch)) }
             file.declarations.forEach { declaration ->
                 when (declaration) {
                     is ModelDeclaration -> emitModel(builder, declaration)
@@ -52,6 +67,7 @@ internal class EmissionContext(
             }
             RenderedKotlinFile(file.path, wrapGeneratedKotlin(builder.build().toString()).encodeToByteArray())
         }
+    }
 
     internal val fieldState: ClassName = ClassName(generatedPackage, "FieldState")
     internal val fieldPresence: ClassName = ClassName(generatedPackage, "FieldPresence")
@@ -71,20 +87,40 @@ private fun wrapGeneratedKotlin(source: String): String =
         .joinToString("\n")
 
 private fun wrapGeneratedLine(line: String): List<String> {
-    if (line.length <= GENERATED_LINE_LIMIT) return listOf(line)
-    val content = line.trimStart()
-    val indent = line.substring(0, line.length - content.length)
-    if (content.startsWith("*")) return wrapGeneratedKDocLine(line, indent, content)
+    val pending = ArrayDeque<String>()
+    val wrapped = mutableListOf<String>()
+    pending.addLast(line)
+    while (pending.isNotEmpty()) {
+        val current = pending.removeFirst()
+        if (current.length <= GENERATED_LINE_LIMIT) {
+            wrapped += current
+            continue
+        }
+        val content = current.trimStart()
+        val indent = current.substring(0, current.length - content.length)
+        if (content.startsWith("*")) {
+            wrapped += wrapGeneratedKDocLine(current, indent, content)
+            continue
+        }
 
-    findGeneratedLineBreak(line)?.let { split ->
-        val left = line.substring(0, split.end).trimEnd()
-        val right = indent + "  " + line.substring(split.next).trimStart()
-        return wrapGeneratedLine(left) + wrapGeneratedLine(right)
+        val lineBreak = findGeneratedLineBreak(current)
+        if (lineBreak != null) {
+            val left = current.substring(0, lineBreak.end).trimEnd()
+            val right = indent + "  " + current.substring(lineBreak.next).trimStart()
+            if (left.isNotEmpty() && right.length < current.length) {
+                pending.addFirst(right)
+                pending.addFirst(left)
+                continue
+            }
+        }
+        val stringSplit = splitGeneratedStringLiteral(current, indent)
+        if (stringSplit != null && current !in stringSplit) {
+            stringSplit.asReversed().forEach(pending::addFirst)
+            continue
+        }
+        wrapped += current
     }
-    splitGeneratedStringLiteral(line, indent)?.let { split ->
-        return wrapGeneratedLine(split.first) + wrapGeneratedLine(split.second)
-    }
-    return listOf(line)
+    return wrapped
 }
 
 private fun wrapGeneratedKDocLine(
@@ -145,15 +181,10 @@ private fun findGeneratedLineBreak(line: String): GeneratedLineBreak? {
     return best
 }
 
-private data class GeneratedStringSplit(
-    val first: String,
-    val second: String,
-)
-
 private fun splitGeneratedStringLiteral(
     line: String,
     indent: String,
-): GeneratedStringSplit? {
+): List<String>? {
     var index = 0
     while (index < line.length) {
         if (line[index] != '"') {
@@ -172,20 +203,33 @@ private fun splitGeneratedStringLiteral(
         }
         if (index >= line.length) return null
         val literal = line.substring(start + 1, index)
-        val splitAt =
-            literal
-                .lastIndexOf(' ', GENERATED_LINE_LIMIT - line.substring(0, start + 1).length - 4)
-                .takeIf { it > 0 }
-                ?: literal.indexOf(' ')
-        if (splitAt > 0) {
-            val firstLiteral = literal.substring(0, splitAt + 1)
-            val secondLiteral = literal.substring(splitAt + 1)
-            return GeneratedStringSplit(
-                first = line.substring(0, start + 1) + firstLiteral + "\" +",
-                second = indent + "  \"" + secondLiteral + line.substring(index),
-            )
+        if (' ' !in literal) {
+            index += 1
+            continue
         }
-        index += 1
+
+        val firstPrefix = line.substring(0, start + 1)
+        val continuationPrefix = "$indent  \""
+        val suffix = line.substring(index)
+        val result = mutableListOf<String>()
+        var offset = 0
+        while (offset < literal.length) {
+            val prefix = if (offset == 0) firstPrefix else continuationPrefix
+            val finalAvailable = GENERATED_LINE_LIMIT - prefix.length - suffix.length
+            if (literal.length - offset <= finalAvailable) {
+                result += prefix + literal.substring(offset) + suffix
+                break
+            }
+            val available = (GENERATED_LINE_LIMIT - prefix.length - 3).coerceAtLeast(1)
+            val preferredEnd = (offset + available).coerceAtMost(literal.lastIndex)
+            val end =
+                literal.lastIndexOf(' ', preferredEnd).takeIf { it >= offset }?.plus(1)
+                    ?: literal.indexOf(' ', offset).takeIf { it >= offset }?.plus(1)
+                    ?: return null
+            result += prefix + literal.substring(offset, end) + "\" +"
+            offset = end
+        }
+        return result
     }
     return null
 }

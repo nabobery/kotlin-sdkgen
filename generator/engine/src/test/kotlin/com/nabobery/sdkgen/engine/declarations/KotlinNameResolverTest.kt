@@ -16,6 +16,8 @@ class KotlinNameResolverTest {
         assertEquals("FooBar2", first.names.getValue("foo_bar"))
         assertEquals("SttRequest", KotlinNameResolver.typeName("STTRequest"))
         assertEquals("ByokKey", KotlinNameResolver.typeName("BYOKKey"))
+        assertEquals("_01ai", KotlinNameResolver.typeName("01ai"))
+        assertEquals("_01ai", KotlinNameResolver.memberName("01ai"))
         assertEquals(1, first.diagnostics.size)
     }
 }

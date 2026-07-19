@@ -29,7 +29,8 @@ internal class KotlinNameResolver {
                 words(
                     raw,
                 ).joinToString("") { word -> word.replaceFirstChar { it.uppercaseChar() } }.ifEmpty { "Value" }
-            return if (candidate.lowercase(Locale.ROOT) in KOTLIN_KEYWORDS) "${candidate}Value" else candidate
+            val safe = candidate.takeUnless { it.first().isDigit() } ?: "_$candidate"
+            return if (safe.lowercase(Locale.ROOT) in KOTLIN_KEYWORDS) "${safe}Value" else safe
         }
 
         fun memberName(raw: String): String {
@@ -37,7 +38,8 @@ internal class KotlinNameResolver {
             val candidate =
                 words.firstOrNull().orEmpty().lowercase(Locale.ROOT) +
                     words.drop(1).joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
-            val safe = candidate.ifEmpty { "value" }
+            val nonEmpty = candidate.ifEmpty { "value" }
+            val safe = nonEmpty.takeUnless { it.first().isDigit() } ?: "_$nonEmpty"
             return if (safe in KOTLIN_KEYWORDS) "${safe}Value" else safe
         }
 

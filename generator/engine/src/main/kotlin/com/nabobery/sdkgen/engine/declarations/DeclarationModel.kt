@@ -233,10 +233,12 @@ internal data class AnyOfBranchDeclaration(
     val resolvedName: String,
     val propertyName: String,
     val fields: List<UnionFieldDeclaration>,
+    val viewFields: List<UnionFieldDeclaration> = fields,
     val shape: AnyOfBranchShape = AnyOfBranchShape.OBJECT,
     val type: KotlinTypeRef? = null,
     val maxItems: Int? = null,
     val viewTypeName: String = "${resolvedName}View",
+    val viewFileName: String? = null,
 )
 
 internal enum class AnyOfBranchShape {
@@ -249,6 +251,7 @@ internal data class UnionFieldDeclaration(
     val wireName: String,
     val type: KotlinTypeRef,
     val expectedStringValue: String? = null,
+    val required: Boolean = true,
 )
 
 internal data class SupportDeclaration(
@@ -632,6 +635,7 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
     fun AnyOfBranchDeclaration.rewritten(): AnyOfBranchDeclaration =
         copy(
             fields = fields.map { field -> field.rewritten() },
+            viewFields = viewFields.map { field -> field.rewritten() },
             type = type?.rewritten(),
         )
 
@@ -753,7 +757,11 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
     )
 }
 
-internal fun sanitizeKDoc(value: String): String = value.replace("*/", "*&#47;")
+internal fun sanitizeKDoc(value: String): String =
+    value
+        .lineSequence()
+        .joinToString("\n") { line -> line.trimEnd() }
+        .replace("*/", "*&#47;")
 
 private fun Declaration.canonicalText(): String =
     when (this) {
@@ -854,7 +862,8 @@ private fun Declaration.canonicalText(): String =
                         .append(branch.maxItems)
                         .append(':')
                         .append(branch.viewTypeName)
-                    branch.fields.forEach { field -> append('|').append(field.canonicalText()) }
+                    branch.fields.forEach { field -> append("|match:").append(field.canonicalText()) }
+                    branch.viewFields.forEach { field -> append("|view:").append(field.canonicalText()) }
                 }
             }
         }
@@ -1010,7 +1019,7 @@ private fun RetryDeclaration.canonicalText(): String =
     }
 
 private fun UnionFieldDeclaration.canonicalText(): String =
-    "$resolvedName:$wireName:${type.canonicalText()}:${expectedStringValue.orEmpty()}"
+    "$resolvedName:$wireName:${type.canonicalText()}:${expectedStringValue.orEmpty()}:$required"
 
 internal fun sha256Hex(bytes: ByteArray): String =
     MessageDigest
