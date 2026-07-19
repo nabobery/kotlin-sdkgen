@@ -231,6 +231,7 @@ internal class SourceRepository private constructor(
             rootPath: Path,
             trustedRoots: List<Path> = emptyList(),
             rejectOutsideTrustedRoots: Boolean = false,
+            rootCanonicalUri: String? = null,
         ): SourceRepository {
             val pending = ArrayDeque<Path>()
             val loaded = linkedMapOf<String, SourceDocument>()
@@ -240,12 +241,13 @@ internal class SourceRepository private constructor(
                 (trustedRoots.ifEmpty { listOf(sourceRoot) })
                     .map(Path::toRealPath)
                     .distinct()
-            val rootUri = logicalUri(sourceRoot, realTrustedRoots, rootRealPath)
+            val rootUri = rootCanonicalUri ?: logicalUri(sourceRoot, realTrustedRoots, rootRealPath)
             pending.add(rootRealPath)
 
             while (pending.isNotEmpty()) {
                 val path = pending.removeFirst().toRealPath()
-                val canonicalUri = logicalUri(sourceRoot, realTrustedRoots, path)
+                val canonicalUri =
+                    if (path == rootRealPath) rootUri else logicalUri(sourceRoot, realTrustedRoots, path)
                 if (canonicalUri in loaded) {
                     check(loaded.getValue(canonicalUri).path == path) { "Logical URI collision for $canonicalUri" }
                     continue

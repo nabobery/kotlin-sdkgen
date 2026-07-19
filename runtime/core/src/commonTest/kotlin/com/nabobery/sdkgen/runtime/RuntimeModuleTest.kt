@@ -107,13 +107,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<SdkSerializationException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
@@ -135,10 +138,13 @@ internal class RuntimeModuleTest {
         val result: String =
             runSuspend {
                 executor.execute(
-                    metadata = operationMetadata(),
-                    baseUri = "https://openrouter.test",
-                    requestValue = "request",
-                    requestCodecIds = listOf("json"),
+                    request =
+                        SdkExecutionRequest(
+                            metadata = operationMetadata(),
+                            baseUri = "https://openrouter.test",
+                            requestValue = "request",
+                            requestCodecIds = listOf("json"),
+                        ),
                     responseCodecIds = listOf("json"),
                     requestCodecs = codecs,
                     responseCodecs = codecs,
@@ -163,10 +169,13 @@ internal class RuntimeModuleTest {
 
         runSuspend {
             executor.execute(
-                metadata = operationMetadata(),
-                baseUri = "https://openrouter.test",
-                requestValue = "request",
-                requestCodecIds = listOf("json"),
+                request =
+                    SdkExecutionRequest(
+                        metadata = operationMetadata(),
+                        baseUri = "https://openrouter.test",
+                        requestValue = "request",
+                        requestCodecIds = listOf("json"),
+                    ),
                 responseCodecIds = listOf("json"),
                 requestCodecs = codecs,
                 responseCodecs = codecs,
@@ -183,6 +192,29 @@ internal class RuntimeModuleTest {
     }
 
     @Test
+    fun bearerAuthenticationReplacesAllAuthorizationCaseVariants() {
+        val request =
+            SdkRequest(
+                method = "GET",
+                uri = "https://openrouter.test/chat/completions",
+                headers =
+                    listOf(
+                        SdkHeader("authorization", "Bearer stale-a"),
+                        SdkHeader("AUTHORIZATION", "Bearer stale-b"),
+                    ),
+                body = null,
+                expectedResponseMode = SdkResponseMode.BUFFERED,
+                deadlines = SdkDeadlines(null, null, null),
+                operationId = "auth",
+            )
+
+        val authenticated = runSuspend { BearerTokenAuthentication { "fresh" }.apply(request) }
+
+        assertEquals(1, authenticated.headers.count { it.name.equals("Authorization", ignoreCase = true) })
+        assertEquals("Bearer fresh", authenticated.headers.firstValue("Authorization"))
+    }
+
+    @Test
     fun nonSuccessIsTypedAndClosesBody() {
         val responseBody = RecordingStream(listOf("denied".encodeToByteArray()))
         val transport = RecordingTransport(SdkResponse(401, listOf(SdkHeader("X-Request-Id", "req-1")), responseBody))
@@ -194,13 +226,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<SdkApiException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
@@ -220,13 +255,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<SdkTransportException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
@@ -246,18 +284,53 @@ internal class RuntimeModuleTest {
             assertFailsWith<CancellationException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
 
         assertSame(cancellation, thrown)
+    }
+
+    @Test
+    fun decodeCancellationWinsWhenCloseThrowsAnotherCancellation() {
+        val decodeCancellation = CancellationException("decode cancelled")
+        val closeCancellation = CancellationException("close cancelled")
+        val responseBody = RecordingStream(failure = decodeCancellation, closeFailure = closeCancellation)
+        val transport = RecordingTransport(SdkResponse(200, emptyList(), responseBody))
+        val codec = StringCodec("json", setOf("application/json"), setOf("json"))
+        val codecs = MediaTypeCodecRegistry.of(codec)
+        val executor = SdkExecutor(transport)
+
+        val thrown =
+            assertFailsWith<CancellationException> {
+                runSuspend {
+                    executor.execute(
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
+                    )
+                }
+            }
+
+        assertSame(decodeCancellation, thrown)
+        assertSame(decodeCancellation, responseBody.closeCause)
     }
 
     @Test
@@ -273,13 +346,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<CancellationException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
@@ -300,13 +376,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<SdkTransportException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }
@@ -327,13 +406,16 @@ internal class RuntimeModuleTest {
             assertFailsWith<CancellationException> {
                 runSuspend {
                     executor.execute(
-                        operationMetadata(),
-                        "https://openrouter.test",
-                        "request",
-                        listOf("json"),
-                        listOf("json"),
-                        codecs,
-                        codecs,
+                        request =
+                            SdkExecutionRequest(
+                                metadata = operationMetadata(),
+                                baseUri = "https://openrouter.test",
+                                requestValue = "request",
+                                requestCodecIds = listOf("json"),
+                            ),
+                        responseCodecIds = listOf("json"),
+                        requestCodecs = codecs,
+                        responseCodecs = codecs,
                     )
                 }
             }

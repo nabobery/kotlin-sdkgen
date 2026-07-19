@@ -1,0 +1,793 @@
+--- com/example/generated/Alpha.kt ---
+package com.example.generated
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Alpha.
+ */
+@Serializable(with = Alpha.Serializer::class)
+public class Alpha(
+  public val alpha: String,
+) {
+  public class Builder {
+    private var alphaValue: String? = null
+
+    public var alpha: String
+      get() = requireNotNull(alphaValue) { "alpha is required" }
+      set(`value`) {
+        alphaValue = value
+      }
+
+    public fun build(): Alpha {
+      check(alphaValue != null) { "alpha is required" }
+      return Alpha(
+        alpha = alpha,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): Alpha = Builder().apply(block).build()
+  }
+
+  public object Serializer : KSerializer<Alpha> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Alpha {
+      val jsonDecoder = decoder.requireJsonDecoder("Alpha")
+      val json = jsonDecoder.json
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw SerializationException("Alpha must be a JSON object")
+      val alpha = json.decodeRequired<String>(raw, "alpha")
+      return Alpha(
+        alpha = alpha,
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Alpha) {
+      val jsonEncoder = encoder.requireJsonEncoder("Alpha")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("alpha", value.alpha)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun alpha(block: Alpha.Builder.() -> Unit): Alpha = Alpha.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("Alpha is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
+
+--- com/example/generated/Beta.kt ---
+package com.example.generated
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Beta.
+ */
+@Serializable(with = Beta.Serializer::class)
+public class Beta(
+  public val beta: String,
+) {
+  public class Builder {
+    private var betaValue: String? = null
+
+    public var beta: String
+      get() = requireNotNull(betaValue) { "beta is required" }
+      set(`value`) {
+        betaValue = value
+      }
+
+    public fun build(): Beta {
+      check(betaValue != null) { "beta is required" }
+      return Beta(
+        beta = beta,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): Beta = Builder().apply(block).build()
+  }
+
+  public object Serializer : KSerializer<Beta> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Beta {
+      val jsonDecoder = decoder.requireJsonDecoder("Beta")
+      val json = jsonDecoder.json
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw SerializationException("Beta must be a JSON object")
+      val beta = json.decodeRequired<String>(raw, "beta")
+      return Beta(
+        beta = beta,
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Beta) {
+      val jsonEncoder = encoder.requireJsonEncoder("Beta")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("beta", value.beta)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun beta(block: Beta.Builder.() -> Unit): Beta = Beta.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("Beta is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
+
+--- com/example/generated/Cat.kt ---
+package com.example.generated
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Cat.
+ */
+@Serializable(with = Cat.Serializer::class)
+public class Cat(
+  public val cat: String,
+) {
+  public class Builder {
+    private var catValue: String? = null
+
+    public var cat: String
+      get() = requireNotNull(catValue) { "cat is required" }
+      set(`value`) {
+        catValue = value
+      }
+
+    public fun build(): Cat {
+      check(catValue != null) { "cat is required" }
+      return Cat(
+        cat = cat,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): Cat = Builder().apply(block).build()
+  }
+
+  public object Serializer : KSerializer<Cat> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Cat {
+      val jsonDecoder = decoder.requireJsonDecoder("Cat")
+      val json = jsonDecoder.json
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw SerializationException("Cat must be a JSON object")
+      val cat = json.decodeRequired<String>(raw, "cat")
+      return Cat(
+        cat = cat,
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Cat) {
+      val jsonEncoder = encoder.requireJsonEncoder("Cat")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("cat", value.cat)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun cat(block: Cat.Builder.() -> Unit): Cat = Cat.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("Cat is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
+
+--- com/example/generated/Choice.kt ---
+package com.example.generated
+
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.LazyThreadSafetyMode
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Set
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
+
+@Serializable
+public data class AlphaView(
+  public val alpha: String,
+)
+
+@Serializable
+public data class BetaView(
+  public val beta: String,
+)
+
+public enum class ChoiceBranch {
+  Alpha,
+  Beta,
+}
+
+public sealed class ChoiceDecodingException(
+  message: String,
+) : SerializationException(message)
+
+public class ChoiceNoMatchException(
+  message: String,
+) : ChoiceDecodingException(message)
+
+internal data class ChoiceInspection(
+  public val matchesAlpha: Boolean,
+  public val matchesBeta: Boolean,
+  public val failures: List<String>,
+) {
+  public val matchCount: Int
+    get() = listOf(matchesAlpha, matchesBeta).count { it }
+}
+
+/**
+ * Lossless anyOf wrapper for sdkgen://source/composition-golden.yaml#/components/schemas/Choice.
+ */
+@Serializable(with = Choice.Serializer::class)
+public class Choice internal constructor(
+  /**
+   * Raw JSON retained as the serialization authority.
+   */
+  public val raw: JsonElement,
+  private val json: Json,
+  private val inspection: ChoiceInspection,
+) {
+  public val alpha: AlphaView? by
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesAlpha) json
+        .decodeFromJsonElement<AlphaView>(raw) else null }
+
+  public val beta: BetaView? by
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBeta) json
+        .decodeFromJsonElement<BetaView>(raw) else null }
+
+  public val matchedBranches: Set<ChoiceBranch>
+    get() = buildSet {
+      if (inspection.matchesAlpha) add(ChoiceBranch.Alpha)
+      if (inspection.matchesBeta) add(ChoiceBranch.Beta)
+    }
+
+  public companion object {
+    /**
+     * Builds a validated wrapper around raw JSON without rewriting it.
+     */
+    public fun fromRaw(raw: JsonElement, json: Json = SdkJson): Choice {
+      val inspection = inspectChoice(raw)
+      if (inspection.matchCount == 0) {
+        throw ChoiceNoMatchException("Choice matched 0 branches: " + inspection.failures.joinToString("; "))
+      }
+      return Choice(raw, json, inspection)
+    }
+  }
+
+  public object Serializer : KSerializer<Choice> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Choice {
+      val jsonDecoder = decoder.requireJsonDecoder("Choice")
+      return fromRaw(jsonDecoder.decodeJsonElement(), jsonDecoder.json)
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Choice) {
+      encoder.requireJsonEncoder("Choice").encodeJsonElement(value.raw)
+    }
+  }
+}
+
+private fun inspectChoice(element: JsonElement): ChoiceInspection {
+  val raw = element as? JsonObject ?: return ChoiceInspection(
+    matchesAlpha = false,
+    matchesBeta = false,
+    failures = listOf("Alpha: expected JSON object", "Beta: expected JSON object"),
+  )
+  val matchesAlpha = raw["alpha"].isString()
+  val matchesBeta = raw["beta"].isString()
+  return ChoiceInspection(
+    matchesAlpha = matchesAlpha,
+    matchesBeta = matchesBeta,
+    failures = buildList {
+      if (!matchesAlpha) add("Alpha: required properties 'alpha' do not match their declared types")
+      if (!matchesBeta) add("Beta: required properties 'beta' do not match their declared types")
+    },
+  )
+}
+
+private fun JsonElement?.isString(): Boolean = this is JsonPrimitive && isString
+
+private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEmpty() && all { it is JsonPrimitive &&
+  it.isString }
+
+--- com/example/generated/CompositionClient.kt ---
+package com.example.generated
+
+import com.nabobery.sdkgen.runtime.BackoffHints
+import com.nabobery.sdkgen.runtime.CallOptions
+import com.nabobery.sdkgen.runtime.KotlinxSerializationCodec
+import com.nabobery.sdkgen.runtime.MediaTypeCodec
+import com.nabobery.sdkgen.runtime.MediaTypeCodecRegistry
+import com.nabobery.sdkgen.runtime.OperationMetadata
+import com.nabobery.sdkgen.runtime.OperationSafety
+import com.nabobery.sdkgen.runtime.ResponseAlternative
+import com.nabobery.sdkgen.runtime.ResponseSelector
+import com.nabobery.sdkgen.runtime.RetryDescriptor
+import com.nabobery.sdkgen.runtime.SdkAuthentication
+import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkDeadlines
+import com.nabobery.sdkgen.runtime.SdkExecutionRequest
+import com.nabobery.sdkgen.runtime.SdkExecutor
+import com.nabobery.sdkgen.runtime.SdkHeader
+import com.nabobery.sdkgen.runtime.SdkResponseAlternativeDecoder
+import com.nabobery.sdkgen.runtime.SdkResponseDecodeResult
+import com.nabobery.sdkgen.runtime.SdkResponseMode
+import com.nabobery.sdkgen.runtime.SdkResponseResult
+import com.nabobery.sdkgen.runtime.SdkTransport
+import com.nabobery.sdkgen.runtime.auth.CredentialProvider
+import com.nabobery.sdkgen.runtime.auth.TrustedHosts
+import kotlin.Int
+import kotlin.String
+import kotlin.Unit
+import kotlin.collections.List
+import kotlin.collections.Map
+
+public object CompositionCodecs {
+  public const val GETCHOICE_RESPONSE_CODEC_ID: String = "getChoice.response"
+
+  private val getChoiceResponseCodec: MediaTypeCodec<Choice> =
+      KotlinxSerializationCodec(GETCHOICE_RESPONSE_CODEC_ID, Choice.Serializer, SdkJson)
+
+  private val getChoiceResponseCodecAlternative0Codec: MediaTypeCodec<Choice> =
+      KotlinxSerializationCodec("getChoice.response.alternative0", Choice.Serializer, SdkJson)
+
+  public val getChoiceResponseCodecAlternative0Registry: MediaTypeCodecRegistry<Choice> =
+      MediaTypeCodecRegistry.of(getChoiceResponseCodecAlternative0Codec)
+
+  public val getChoiceRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+      MediaTypeCodecRegistry.of()
+
+  public val getChoiceResponseCodecRegistry: MediaTypeCodecRegistry<Choice> =
+      MediaTypeCodecRegistry.of(getChoiceResponseCodec)
+}
+
+/**
+ * Client for Composition golden.
+ */
+public class CompositionClient(
+  transport: SdkTransport,
+  private val baseUri: String,
+  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+  trustedHosts: TrustedHosts? = null,
+  private val authentication: SdkAuthentication? = null,
+) {
+  private val executor: SdkExecutor =
+      SdkExecutor(transport, authentication = this@CompositionClient.authentication)
+
+  /**
+   * Executes 'getChoice'.
+   *
+   * @param options Execution options.
+   * @return Buffered response body.
+   * @throws SdkApiException When the service returns a non-success response.
+   * @throws SdkSerializationException When a request or response cannot be serialized.
+   * @throws SdkTransportException When transport execution fails.
+   */
+  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit,
+    Choice>(SdkExecutionRequest(metadata, baseUri, Unit, emptyList(), emptyList()), listOf(CompositionCodecs
+      .GETCHOICE_RESPONSE_CODEC_ID), CompositionCodecs.getChoiceRequestCodecRegistry, CompositionCodecs
+        .getChoiceResponseCodecRegistry, options)
+
+  /**
+   * Executes 'getChoice'.
+   *
+   * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
+   * into success values.
+   */
+  public suspend fun getChoiceWithResponse(options: CallOptions =
+    CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit,
+      GetChoiceResponse>(SdkExecutionRequest(metadata, baseUri, Unit, emptyList(), emptyList()), CompositionCodecs
+        .getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
+
+  /**
+   * Typed response alternatives for `getChoice`. Non-success alternatives are not converted into success values.
+   */
+  public sealed interface GetChoiceResponse {
+    public class SuccessJson(
+      public val json: Choice,
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : GetChoiceResponse
+
+    public class Unknown(
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : GetChoiceResponse
+  }
+
+  private object GetChoiceResponseDecoder : SdkResponseAlternativeDecoder<GetChoiceResponse> {
+    public override suspend fun decode(
+      alternative: ResponseAlternative,
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+      mediaType: String?,
+    ): GetChoiceResponse = decodeWithBody(alternative, statusCode, headers, body, mediaType).value
+
+    public override suspend fun decodeWithBody(
+      alternative: ResponseAlternative,
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+      mediaType: String?,
+    ): SdkResponseDecodeResult<GetChoiceResponse> = when {
+      alternative.id == "getChoice.response.alternative0" -> SdkResponseDecodeResult(
+        value = GetChoiceResponse.SuccessJson(
+          json = CompositionCodecs.getChoiceResponseCodecAlternative0Registry
+            .select(listOf("getChoice.response.alternative0"), mediaType ?: "application/json").decode(body,
+              mediaType ?: "application/json"),
+          statusCode = statusCode,
+          headers = headers,
+        ),
+        transferBody = false,
+      )
+      else -> error("No generated response decoder matched the selected response alternative.")
+    }
+
+    public override suspend fun decodeUnknown(
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+    ): GetChoiceResponse = GetChoiceResponse.Unknown(statusCode = statusCode, headers = headers)
+  }
+
+  public companion object {
+    public val metadata: OperationMetadata = OperationMetadata(
+          operationId = "getChoice",
+          method = "GET",
+          path = "/choice",
+          requestMediaTypes = emptyList(),
+          responseMediaTypes = listOf("application/json"),
+          successStatusCodes = setOf(200),
+          responseMode = SdkResponseMode.BUFFERED,
+          deadlines = SdkDeadlines(60_000, 60_000, null),
+          responseAlternatives = listOf(
+            ResponseAlternative(
+              selector = ResponseSelector.ExactStatus(code = 200),
+              mediaTypes = listOf("application/json"),
+              typeTag = "Choice",
+              mode = SdkResponseMode.BUFFERED,
+              id = "getChoice.response.alternative0",
+            ),
+          ),
+          security = emptyList(),
+          safety = OperationSafety(safe = true, idempotent = true),
+          idempotency = null,
+          retry = RetryDescriptor(
+            retryableStatusCodes = emptyList(),
+            retryConnectionErrors = true,
+            maxAttempts = 3,
+            backoff = BackoffHints(baseDelayMillis = 250, multiplier = 2.0, maxDelayMillis = 5_000),
+          ),
+          pagination = null,
+          streaming = null,
+        )
+  }
+}
+
+--- com/example/generated/Dog.kt ---
+package com.example.generated
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Dog.
+ */
+@Serializable(with = Dog.Serializer::class)
+public class Dog(
+  public val dog: String,
+) {
+  public class Builder {
+    private var dogValue: String? = null
+
+    public var dog: String
+      get() = requireNotNull(dogValue) { "dog is required" }
+      set(`value`) {
+        dogValue = value
+      }
+
+    public fun build(): Dog {
+      check(dogValue != null) { "dog is required" }
+      return Dog(
+        dog = dog,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): Dog = Builder().apply(block).build()
+  }
+
+  public object Serializer : KSerializer<Dog> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Dog {
+      val jsonDecoder = decoder.requireJsonDecoder("Dog")
+      val json = jsonDecoder.json
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw SerializationException("Dog must be a JSON object")
+      val dog = json.decodeRequired<String>(raw, "dog")
+      return Dog(
+        dog = dog,
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Dog) {
+      val jsonEncoder = encoder.requireJsonEncoder("Dog")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("dog", value.dog)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun dog(block: Dog.Builder.() -> Unit): Dog = Dog.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("Dog is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
+
+--- com/example/generated/SerializationSupport.kt ---
+package com.example.generated
+
+import kotlin.String
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonEncoder
+
+/**
+ * SDK-owned JSON behavior and serializer guards.
+ */
+public val SdkJson: Json = Json {
+      ignoreUnknownKeys = true
+      explicitNulls = true
+      encodeDefaults = true
+    }
+
+internal fun Decoder.requireJsonDecoder(typeName: String): JsonDecoder = this as? JsonDecoder ?:
+  throw SerializationException("$typeName supports JSON only")
+
+internal fun Encoder.requireJsonEncoder(typeName: String): JsonEncoder = this as? JsonEncoder ?:
+  throw SerializationException("$typeName supports JSON only")
+
+--- com/example/generated/Variant.kt ---
+package com.example.generated
+
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.String
+import kotlin.collections.List
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+public sealed class VariantDecodingException(
+  message: String,
+) : SerializationException(message)
+
+public class VariantNoMatchException(
+  message: String,
+) : VariantDecodingException(message)
+
+public class VariantAmbiguityException(
+  message: String,
+) : VariantDecodingException(message)
+
+/**
+ * Closed oneOf union for sdkgen://source/composition-golden.yaml#/components/schemas/Variant.
+ */
+@Serializable(with = Variant.Serializer::class)
+public sealed interface Variant {
+  /**
+   * Raw JSON retained as the serialization authority.
+   */
+  public val raw: JsonObject
+
+  public class Cat internal constructor(
+    public val cat: String,
+    /**
+     * Raw JSON retained as the serialization authority.
+     */
+    public override val raw: JsonObject,
+  ) : Variant {
+    public companion object {
+      /**
+       * Creates this branch and its canonical raw JSON representation.
+       */
+      public fun of(cat: String): Cat = Cat(
+        cat = cat,
+        raw = buildJsonObject {
+          put("cat", cat)
+        },
+      )
+    }
+  }
+
+  public class Dog internal constructor(
+    public val dog: String,
+    /**
+     * Raw JSON retained as the serialization authority.
+     */
+    public override val raw: JsonObject,
+  ) : Variant {
+    public companion object {
+      /**
+       * Creates this branch and its canonical raw JSON representation.
+       */
+      public fun of(dog: String): Dog = Dog(
+        dog = dog,
+        raw = buildJsonObject {
+          put("dog", dog)
+        },
+      )
+    }
+  }
+
+  public object Serializer : KSerializer<Variant> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Variant {
+      val jsonDecoder = decoder.requireJsonDecoder("Variant")
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw VariantNoMatchException("Variant matched 0 branches: expected JSON object")
+      val matches = inspectVariant(raw)
+      if (matches.size == 0) {
+        throw VariantNoMatchException("Variant matched 0 branches: " + matches.failures.joinToString("; "))
+      }
+      if (matches.size > 1) {
+        throw VariantAmbiguityException("Variant matched " + matches.size + " branches; expected exactly 1: " + matches
+          .names.joinToString())
+      }
+      return when {
+        matches.catDecoded -> Cat(cat = requireNotNull(matches.cat), raw = raw)
+        matches.dogDecoded -> Dog(dog = requireNotNull(matches.dog), raw = raw)
+        else -> error("unreachable")
+      }
+    }
+
+    override fun serialize(encoder: Encoder, `value`: Variant) {
+      encoder.requireJsonEncoder("Variant").encodeJsonElement(value.raw)
+    }
+  }
+}
+
+private data class VariantInspection(
+  public val cat: String?,
+  public val catDecoded: Boolean,
+  public val dog: String?,
+  public val dogDecoded: Boolean,
+  public val failures: List<String>,
+) {
+  public val names: List<String>
+    get() = buildList {
+      if (catDecoded) add("Cat")
+      if (dogDecoded) add("Dog")
+    }
+
+  public val size: Int
+    get() = names.size
+}
+
+private fun inspectVariant(raw: JsonObject): VariantInspection {
+  val catResult = raw["cat"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+  val cat = catResult?.getOrNull()
+  val catDecoded = catResult?.isSuccess == true
+  val dogResult = raw["dog"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+  val dog = dogResult?.getOrNull()
+  val dogDecoded = dogResult?.isSuccess == true
+  return VariantInspection(
+    cat = cat,
+    catDecoded = catDecoded,
+    dog = dog,
+    dogDecoded = dogDecoded,
+    failures = buildList {
+      if (!catDecoded) add("Cat: required properties 'cat' do not match their declared types")
+      if (!dogDecoded) add("Dog: required properties 'dog' do not match their declared types")
+    },
+  )
+}
+
+private fun JsonObject.stringValue(name: String): String? {
+  val primitive = this[name] as? JsonPrimitive ?: return null
+  return primitive.takeIf { it.isString }?.content
+}

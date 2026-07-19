@@ -164,8 +164,14 @@
                     "type": "string",
                     "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
                 },
-                "modelPrefix": { "type": ["string", "null"] },
-                "operationPrefix": { "type": ["string", "null"] },
+                "modelPrefix": {
+                    "type": ["string", "null"],
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "operationPrefix": {
+                    "type": ["string", "null"],
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
                 "resourceGrouping": {
                     "enum": ["tags", "operation-id", "single-client"],
                     "default": "tags"
@@ -233,7 +239,11 @@
             "properties": {
                 "id": { "type": "string", "minLength": 1 },
                 "version": { "type": "string", "minLength": 1 },
-                "spiRange": { "type": "string", "minLength": 1 },
+                "spiRange": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^>=(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*) <(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+                },
                 "enabled": { "type": "boolean", "default": true },
                 "config": {
                     "type": "object",

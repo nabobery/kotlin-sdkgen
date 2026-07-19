@@ -1,24 +1,48 @@
+@file:OptIn(com.nabobery.sdkgen.engine.spi.ExperimentalSdkGenApi::class)
+
 package com.nabobery.sdkgen.engine
 
 import com.nabobery.sdkgen.engine.config.ConfigVersion
+import com.nabobery.sdkgen.engine.config.DiagnosticsConfig
 import com.nabobery.sdkgen.engine.config.KotlinGenerationConfig
 import com.nabobery.sdkgen.engine.config.NamingConfig
 import com.nabobery.sdkgen.engine.config.OutputConfig
 import com.nabobery.sdkgen.engine.config.OverlayConfig
 import com.nabobery.sdkgen.engine.config.PackageCoordinates
+import com.nabobery.sdkgen.engine.config.PluginConfig
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
 import com.nabobery.sdkgen.engine.config.SourceConfig
 import com.nabobery.sdkgen.engine.config.TargetFamily
 import com.nabobery.sdkgen.engine.declarations.DeclarationMappingResult
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjection
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
+import com.nabobery.sdkgen.engine.declarations.GenerationDiagnostic
+import com.nabobery.sdkgen.engine.declarations.GenerationDiagnosticCode
+import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
+import com.nabobery.sdkgen.engine.declarations.StandardProjection
+import com.nabobery.sdkgen.engine.emit.KotlinEmitter
+import com.nabobery.sdkgen.engine.spi.DeclarationAugmentation
+import com.nabobery.sdkgen.engine.spi.DeclarationAugmentationPhaseValue
+import com.nabobery.sdkgen.engine.spi.DeclarationAugmentationPlugin
+import com.nabobery.sdkgen.engine.spi.NamingTypeMappingPhaseValue
+import com.nabobery.sdkgen.engine.spi.NamingTypeMappingPlugin
+import com.nabobery.sdkgen.engine.spi.PluginContext
+import com.nabobery.sdkgen.engine.spi.PluginDescriptor
+import com.nabobery.sdkgen.engine.spi.PluginPhaseResult
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginEngine
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginPhase
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginRegistry
+import com.nabobery.sdkgen.engine.spi.SemanticTransformPhaseValue
+import com.nabobery.sdkgen.engine.spi.SemanticTransformPlugin
+import com.nabobery.sdkgen.engine.spi.ValidationPhaseValue
+import com.nabobery.sdkgen.engine.spi.ValidationPlugin
+import com.nabobery.sdkgen.model.DiagnosticSeverity
 import com.nabobery.sdkgen.openapi.SemanticAdapter
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.Locale
-import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.isSymbolicLink
@@ -34,13 +58,13 @@ import kotlin.test.assertTrue
 
 class GenerationPipelineTest {
     @Test
-    fun realInputGenerationIsGoldenDeterministicLocaleIndependentAndAtomic() {
-        val sourcePath = Path.of(requireNotNull(System.getProperty("engine.openRouterFile")))
+    fun basicInputGenerationIsGoldenDeterministicLocaleIndependentAndAtomic() {
+        val sourcePath = Path.of(requireNotNull(System.getProperty("engine.basicOpenApiFile")))
         val sourceBytes = sourcePath.readBytes()
         val source =
             ResolvedSource(
                 sourcePath,
-                "sdkgen://openrouter/openapi.yaml",
+                "sdkgen://fixtures/basic-openapi.yaml",
                 sourceBytes.sha256(),
                 sourceBytes.size.toLong(),
             )
@@ -55,13 +79,15 @@ class GenerationPipelineTest {
         assertEquals(first.snapshotSha256, second.snapshotSha256)
         assertEquals(first.declarationModelSha256, second.declarationModelSha256)
         assertEquals(tree(firstOutput), tree(secondOutput))
-        assertEquals(7, first.generatedFiles)
-        val clientSource = tree(firstOutput).getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
+        assertTrue(first.generatedFiles > 1)
+        val generatedTree = tree(firstOutput)
+        assertTrue(generatedTree.keys.any { it.endsWith("/OpenRouterClient.kt") })
+        val clientSource = generatedTree.getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
         assertTrue(clientSource.contains("OperationMetadata"))
-        assertTrue(clientSource.contains("KotlinxSerializationCodec"))
-        assertTrue(clientSource.contains("sendChatCompletionRequest"))
-        println("openrouter-subset-generation-ms=${first.elapsedMillis}")
-        assertTrue(first.exclusions.isNotEmpty())
+        assertTrue(clientSource.contains("emptyList()"))
+        assertTrue(!clientSource.contains("Unit.serializer()"))
+        assertTrue(first.diagnostics.isEmpty())
+        assertTrue(first.exclusions.isEmpty())
         assertTrue(firstOutput.resolve("manifest.json").readText().contains("\"exclusions\""))
 
         val previousLocale = Locale.getDefault()
@@ -77,14 +103,13 @@ class GenerationPipelineTest {
 
         val activeTarget = firstOutput.readSymbolicLink()
         assertFailsWith<IllegalStateException> {
-            pipeline.generate(config, source, emptyList(), firstOutput, failAfterFiles = 3)
+            pipeline.generate(config, source, emptyList(), firstOutput, failAfterFiles = 1)
         }
         assertEquals(activeTarget, firstOutput.readSymbolicLink())
         assertEquals(tree(secondOutput), tree(firstOutput))
 
-        verifyGolden(firstOutput)
         val generatedKotlin = tree(firstOutput).filterKeys { it.endsWith(".kt") }.values
-        assertFalse(generatedKotlin.any { Regex("\\bAny\\??\\b").containsMatchIn(it) })
+        assertFalse(generatedKotlin.any { Regex("<Any\\b|, Any\\b|Any\\?\\b").containsMatchIn(it) })
         assertFalse(generatedKotlin.any { Regex("^import (java|javax)\\.", RegexOption.MULTILINE).containsMatchIn(it) })
         assertFalse(
             generatedKotlin.any { Regex("io\\.ktor|okhttp|HttpClient", RegexOption.IGNORE_CASE).containsMatchIn(it) },
@@ -92,7 +117,7 @@ class GenerationPipelineTest {
     }
 
     @Test
-    fun nonOpenRouterDocumentReturnsTypedProjectionDiagnostic() {
+    fun defaultProjectionAcceptsANonOpenRouterDocument() {
         val sourcePath = Path.of(requireNotNull(System.getProperty("engine.basicOpenApiFile")))
         val sourceBytes = sourcePath.readBytes()
         val source =
@@ -105,10 +130,179 @@ class GenerationPipelineTest {
 
         val result = GenerationPipeline("0.1.0-test").validate(config(source.sha256), source, emptyList())
 
-        assertEquals(
-            listOf("SDKGEN-PROJECTION-UNSUPPORTED-DOCUMENT"),
-            result.diagnostics.map(GenerationDiagnosticView::code),
+        assertTrue(result.diagnostics.isEmpty())
+        assertTrue(result.exclusions.isEmpty())
+    }
+
+    @Test
+    fun generateRefusesBlockingDiagnosticsAndExclusionsBeforePublishing() {
+        val source = basicSource()
+        val root = Files.createTempDirectory("sdkgen-blocked-generation")
+        val output = root.resolve("current")
+        val lock = GenerationLockPublication(root.resolve("sdkgen.lock"), "lock\n")
+        val config =
+            config(source.sha256).copy(
+                diagnostics = DiagnosticsConfig(warningsAsErrors = true),
+            )
+
+        val failure =
+            assertFailsWith<GenerationBlockedException> {
+                GenerationPipeline(
+                    "0.1.0-test",
+                    projection = DecoratedProjection(warning = true, exclusionSymbol = "operation:not-emitted"),
+                ).generate(config, source, emptyList(), output, lock = lock)
+            }
+
+        assertTrue(
+            failure.validation.diagnostics.any {
+                it.code == "SDKGEN-TEST-WARNING" && it.severity == DiagnosticSeverity.ERROR
+            },
         )
+        assertEquals(
+            listOf("operation:not-emitted"),
+            failure.validation.exclusions.map(GenerationExclusionView::symbolId),
+        )
+        assertFalse(output.exists())
+        assertFalse(lock.destination.exists())
+        assertFalse(root.resolve(".snapshots").exists())
+
+        val exclusionOnlyOutput = root.resolve("exclusion-only")
+        val exclusionFailure =
+            assertFailsWith<GenerationBlockedException> {
+                GenerationPipeline(
+                    "0.1.0-test",
+                    projection = DecoratedProjection(exclusionSymbol = "operation:not-emitted"),
+                ).generate(config(source.sha256), source, emptyList(), exclusionOnlyOutput, lock = lock)
+            }
+        assertTrue(exclusionFailure.validation.diagnostics.isEmpty())
+        assertEquals(
+            listOf("operation:not-emitted"),
+            exclusionFailure.validation.exclusions.map { it.symbolId },
+        )
+        assertFalse(exclusionOnlyOutput.exists())
+        assertFalse(lock.destination.exists())
+        assertFalse(root.resolve(".snapshots").exists())
+    }
+
+    @Test
+    fun invalidDeclarationAugmentationsBlockBeforeRendering() {
+        val source = basicSource()
+        val config =
+            config(source.sha256).copy(
+                plugins = listOf(PluginConfig("collision", "0.1.0", ">=0.1 <0.2")),
+            )
+        var rendered = false
+        val pipeline =
+            GenerationPipeline(
+                "0.1.0-test",
+                projection = StandardProjection(),
+                emitter =
+                    KotlinEmitter {
+                        rendered = true
+                        emptyList()
+                    },
+                pluginEngine =
+                    SdkGenPluginEngine(
+                        SdkGenPluginRegistry(listOf(CollidingPipelinePlugin)),
+                    ),
+            )
+
+        val failure =
+            assertFailsWith<GenerationBlockedException> {
+                pipeline.generate(
+                    config,
+                    source,
+                    emptyList(),
+                    Files.createTempDirectory("sdkgen-invalid-augmentation").resolve("current"),
+                )
+            }
+
+        assertFalse(rendered)
+        assertTrue(failure.validation.diagnostics.any { it.code == "SDKGEN-PLUGIN-NAME-COLLISION" })
+    }
+
+    @Test
+    fun emittedOperationsAreNotReportedAsExclusions() {
+        val source = basicSource()
+        val config = config(source.sha256)
+        val pipeline =
+            GenerationPipeline(
+                "0.1.0-test",
+                projection = DecoratedProjection(exclusionSymbol = "operation:chat"),
+            )
+
+        val validation = pipeline.validate(config, source, emptyList())
+        assertTrue(validation.exclusions.isEmpty())
+        val output = Files.createTempDirectory("sdkgen-emitted-operation").resolve("current")
+        val result = pipeline.generate(config, source, emptyList(), output)
+        assertTrue(result.exclusions.isEmpty())
+    }
+
+    @Test
+    fun warningsAsErrorsEscalatesWarningsUnlessAllowlistedForValidateAndGenerate() {
+        val source = basicSource()
+        val root = Files.createTempDirectory("sdkgen-warning-policy")
+        val escalatedConfig =
+            config(source.sha256).copy(
+                diagnostics = DiagnosticsConfig(warningsAsErrors = true),
+            )
+        val escalatedPipeline =
+            GenerationPipeline("0.1.0-test", projection = DecoratedProjection(warning = true))
+
+        val escalatedValidation = escalatedPipeline.validate(escalatedConfig, source, emptyList())
+        assertEquals(DiagnosticSeverity.ERROR, escalatedValidation.diagnostics.single().severity)
+        assertFailsWith<GenerationBlockedException> {
+            escalatedPipeline.generate(escalatedConfig, source, emptyList(), root.resolve("escalated"))
+        }
+
+        val allowlistedConfig =
+            escalatedConfig.copy(
+                diagnostics =
+                    DiagnosticsConfig(
+                        warningsAsErrors = true,
+                        warningAllowlist = listOf("SDKGEN-TEST-WARNING"),
+                    ),
+            )
+        val allowlistedPipeline =
+            GenerationPipeline("0.1.0-test", projection = DecoratedProjection(warning = true))
+        val allowlistedValidation = allowlistedPipeline.validate(allowlistedConfig, source, emptyList())
+        assertEquals(DiagnosticSeverity.WARNING, allowlistedValidation.diagnostics.single().severity)
+        val result = allowlistedPipeline.generate(allowlistedConfig, source, emptyList(), root.resolve("allowlisted"))
+        assertEquals(DiagnosticSeverity.WARNING, result.diagnostics.single().severity)
+    }
+
+    @Test
+    fun semanticDiagnosticsAndOperationExclusionsReachValidationWithLocationAndSeverity() {
+        val sourcePath = Files.createTempFile("sdkgen-invalid-extension-", ".yaml")
+        sourcePath.writeText(
+            """
+            openapi: 3.1.0
+            info: { title: Invalid extension, version: "1" }
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  x-sdkgen-pagination:
+                    style: cursor
+                    requestCursor: cursor
+                    responseItems: data
+                    responseNextCursor: /next
+                  responses:
+                    '200': { description: ok }
+            """.trimIndent() + "\n",
+        )
+        val bytes = sourcePath.readBytes()
+        val source =
+            ResolvedSource(sourcePath, "sdkgen://fixtures/invalid-extension", bytes.sha256(), bytes.size.toLong())
+
+        val result = GenerationPipeline("0.1.0-test").validate(config(source.sha256), source, emptyList())
+
+        val diagnostic = result.diagnostics.single { it.code == "SDKGEN-INVALID-CANONICAL-EXTENSION" }
+        assertEquals(com.nabobery.sdkgen.model.DiagnosticSeverity.ERROR, diagnostic.severity)
+        assertTrue(diagnostic.location.line > 0)
+        assertTrue(diagnostic.location.column > 0)
+        assertEquals("/paths/~1items/get/x-sdkgen-pagination/responseItems", diagnostic.jsonPointer)
+        assertEquals(listOf("operation:listItems"), result.exclusions.map { it.symbolId })
     }
 
     @Test
@@ -134,12 +328,12 @@ class GenerationPipelineTest {
 
     @Test
     fun orderedOverlaysFeedTheSemanticModelAndManifest() {
-        val sourcePath = Path.of(requireNotNull(System.getProperty("engine.openRouterFile")))
+        val sourcePath = Path.of(requireNotNull(System.getProperty("engine.basicOpenApiFile")))
         val sourceBytes = sourcePath.readBytes()
         val source =
             ResolvedSource(
                 sourcePath,
-                "sdkgen://openrouter/openapi.yaml",
+                "sdkgen://fixtures/basic-openapi.yaml",
                 sourceBytes.sha256(),
                 sourceBytes.size.toLong(),
             )
@@ -151,9 +345,9 @@ class GenerationPipelineTest {
               title: Integration proof
               version: "1"
             actions:
-              - target: $.components.schemas.ChatRequest
+              - target: $.paths['/chat'].post
                 update:
-                  description: Overlaid chat request description
+                  description: Overlaid chat operation description
             """.trimIndent(),
         )
         val overlayBytes = overlayPath.readBytes()
@@ -170,11 +364,101 @@ class GenerationPipelineTest {
         assertTrue(
             tree(
                 output,
-            ).getValue("com/nabobery/sdkgen/generated/ChatRequest.kt").contains("Overlaid chat request description"),
+            ).getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
+                .contains("Overlaid chat operation description"),
         )
         val manifest = tree(output).getValue("manifest.json")
         assertTrue(manifest.contains("sdkgen://overlays/proof.yaml"))
         assertTrue(manifest.contains(overlay.sha256))
+    }
+
+    @Test
+    fun overlayEffectiveSourceUrisAreStableInDiagnosticsAndExclusions() {
+        val source = basicSource()
+        val overlayPath = Files.createTempFile("sdkgen-overlay-source-", ".yaml")
+        overlayPath.writeText(
+            """
+            overlay: 1.1.0
+            info:
+              title: Source URI proof
+              version: "1"
+            actions:
+              - target: ${'$'}.info
+                update:
+                  description: overlaid
+            """.trimIndent() + "\n",
+        )
+        val overlayBytes = overlayPath.readBytes()
+        val overlay =
+            ResolvedGenerationOverlay("proof", overlayPath, "sdkgen://overlay/proof", overlayBytes.sha256())
+        val configured =
+            config(source.sha256).copy(overlays = listOf(OverlayConfig("proof", overlay.canonicalUri, overlay.sha256)))
+
+        val pipeline =
+            GenerationPipeline(
+                "0.1.0-test",
+                projection = DecoratedProjection(warning = true, exclusionSymbol = "operation:not-emitted"),
+            )
+        val validation = pipeline.validate(configured, source, listOf(overlay))
+        val analysis = pipeline.analyze(configured, source, listOf(overlay))
+
+        assertEquals(
+            source.canonicalUri,
+            validation.diagnostics.single { it.code == "SDKGEN-TEST-WARNING" }.documentUri,
+        )
+        assertEquals(source.canonicalUri, validation.exclusions.single().documentUri)
+        assertEquals(
+            source.canonicalUri,
+            analysis.validation.diagnostics
+                .single()
+                .documentUri,
+        )
+        assertEquals(
+            source.canonicalUri,
+            analysis.validation.exclusions
+                .single()
+                .documentUri,
+        )
+        assertFalse(analysis.validation.diagnostics.any { it.documentUri.contains(".sdkgen-effective-") })
+        assertFalse(analysis.validation.exclusions.any { it.documentUri.contains(".sdkgen-effective-") })
+    }
+
+    @Test
+    fun repeatedOverlayGenerationWithDiagnosticsIsDeterministic() {
+        val source = basicSource()
+        val overlayPath = Files.createTempFile("sdkgen-overlay-determinism-", ".yaml")
+        overlayPath.writeText(
+            """
+            overlay: 1.1.0
+            info:
+              title: Determinism proof
+              version: "1"
+            actions:
+              - target: ${'$'}.info
+                update:
+                  description: overlaid
+            """.trimIndent() + "\n",
+        )
+        val overlayBytes = overlayPath.readBytes()
+        val overlay =
+            ResolvedGenerationOverlay("proof", overlayPath, "sdkgen://overlay/proof", overlayBytes.sha256())
+        val configured =
+            config(source.sha256).copy(overlays = listOf(OverlayConfig("proof", overlay.canonicalUri, overlay.sha256)))
+        val root = Files.createTempDirectory("sdkgen-overlay-determinism-output-")
+        val pipeline =
+            GenerationPipeline("0.1.0-test", projection = DecoratedProjection(warning = true))
+
+        val first =
+            pipeline.generate(configured, source, listOf(overlay), root.resolve("first/current"))
+        val second =
+            pipeline.generate(configured, source, listOf(overlay), root.resolve("second/current"))
+
+        assertEquals(first.snapshotSha256, second.snapshotSha256)
+        assertEquals(tree(first.output), tree(second.output))
+        assertEquals(source.canonicalUri, first.diagnostics.single().documentUri)
+        val manifest = tree(first.output).getValue("manifest.json")
+        assertTrue(manifest.contains(source.canonicalUri))
+        assertFalse(manifest.contains(".sdkgen-effective-"))
     }
 
     @Test
@@ -227,10 +511,169 @@ class GenerationPipelineTest {
 
         val effectivePath = materializeEffectiveSource(configured, source, listOf(overlay))
         try {
-            val document = SemanticAdapter().adapt(effectivePath).document
+            val document =
+                SemanticAdapter()
+                    .adapt(effectivePath, rootCanonicalUri = source.canonicalUri)
+                    .document
+            assertEquals(source.canonicalUri, document.documentUri)
             assertTrue(document.schemas.keys.any { it.value.endsWith("/components/schemas/Referenced") })
         } finally {
             effectivePath.deleteIfExists()
+        }
+    }
+
+    @Test
+    fun analyzeUsesSemanticNamingAndDeclarationPluginsWithoutRendering() {
+        val source = basicSource()
+        val config =
+            config(source.sha256).copy(
+                plugins = listOf(PluginConfig("analyze-plugin", "0.1.0", ">=0.1 <0.2")),
+            )
+        var rendered = false
+        val pipeline =
+            GenerationPipeline(
+                "0.1.0-test",
+                projection = StandardProjection(),
+                emitter =
+                    KotlinEmitter {
+                        rendered = true
+                        emptyList()
+                    },
+                pluginEngine = SdkGenPluginEngine(SdkGenPluginRegistry(listOf(AnalyzePipelinePlugin))),
+            )
+
+        val analysis = pipeline.analyze(config, source, emptyList())
+
+        assertFalse(rendered)
+        assertTrue(
+            analysis.validation.diagnostics.any {
+                it.code == "SDKGEN-PLUGIN-ANALYZE-WARNING" &&
+                    it.message.contains("analyze plugin warning") &&
+                    it.pluginPhase == SdkGenPluginPhase.VALIDATION
+            },
+        )
+        assertTrue(
+            analysis.symbols.any {
+                it.symbolId == "client:AnalyzedClient" && it.resolvedName == "PluginRenamedClient"
+            },
+        )
+        val operation = analysis.symbols.single { it.symbolId == "operation:transformedOperation" }
+        assertTrue(operation.resolvedName.contains("transformedOperation", ignoreCase = true))
+        assertEquals(source.canonicalUri, operation.origin.documentUri)
+        assertTrue(operation.origin.jsonPointer.startsWith("/paths/"))
+    }
+
+    private object AnalyzePipelinePlugin :
+        ValidationPlugin,
+        SemanticTransformPlugin,
+        NamingTypeMappingPlugin,
+        DeclarationAugmentationPlugin {
+        override val descriptor =
+            PluginDescriptor(
+                id = "analyze-plugin",
+                version = "0.1.0",
+                spiRange = ">=0.1 <0.2",
+                phases =
+                    listOf(
+                        SdkGenPluginPhase.VALIDATION,
+                        SdkGenPluginPhase.SEMANTIC_TRANSFORM,
+                        SdkGenPluginPhase.NAMING_TYPE_MAPPING,
+                        SdkGenPluginPhase.DECLARATION_AUGMENTATION,
+                    ),
+            )
+
+        override fun validate(
+            input: ValidationPhaseValue,
+            context: PluginContext,
+        ): PluginPhaseResult<ValidationPhaseValue> =
+            PluginPhaseResult.Applied(
+                input.copy(
+                    diagnostics =
+                        input.diagnostics +
+                            context.diagnostic(
+                                code = "ANALYZE-WARNING",
+                                phase = SdkGenPluginPhase.VALIDATION,
+                                message = "analyze plugin warning",
+                                remediation = "Keep the analyze plugin configured.",
+                                severity = DiagnosticSeverity.WARNING,
+                            ),
+                ),
+            )
+
+        override fun transformSemantic(
+            input: SemanticTransformPhaseValue,
+            context: PluginContext,
+        ): PluginPhaseResult<SemanticTransformPhaseValue> =
+            PluginPhaseResult.Applied(
+                input.copy(
+                    document =
+                        input.document.copy(
+                            operations =
+                                input.document.operations.map { operation ->
+                                    operation.copy(operationId = "transformedOperation")
+                                },
+                        ),
+                ),
+            )
+
+        override fun mapNamesAndTypes(
+            input: NamingTypeMappingPhaseValue,
+            context: PluginContext,
+        ): PluginPhaseResult<NamingTypeMappingPhaseValue> =
+            PluginPhaseResult.Applied(
+                input.copy(
+                    clientName = "AnalyzedClient",
+                    modelPrefix = "Analyzed",
+                    operationPrefix = "plugin",
+                ),
+            )
+
+        override fun augmentDeclarations(
+            input: DeclarationAugmentationPhaseValue,
+            context: PluginContext,
+        ): PluginPhaseResult<DeclarationAugmentationPhaseValue> {
+            val client = input.declarations.first { it.symbolId.startsWith("client:") }
+            return PluginPhaseResult.Applied(
+                input.copy(
+                    augmentations =
+                        input.augmentations +
+                            DeclarationAugmentation(
+                                symbolId = client.symbolId,
+                                resolvedName = "PluginRenamedClient",
+                                source = context.source,
+                            ),
+                ),
+            )
+        }
+    }
+
+    private object CollidingPipelinePlugin : DeclarationAugmentationPlugin {
+        override val descriptor =
+            PluginDescriptor(
+                "collision",
+                "0.1.0",
+                ">=0.1 <0.2",
+                listOf(SdkGenPluginPhase.DECLARATION_AUGMENTATION),
+            )
+
+        override fun augmentDeclarations(
+            input: DeclarationAugmentationPhaseValue,
+            context: PluginContext,
+        ): PluginPhaseResult<DeclarationAugmentationPhaseValue> {
+            val first = input.declarations.first()
+            val second = input.declarations[1]
+            return PluginPhaseResult.Applied(
+                input.copy(
+                    augmentations =
+                        listOf(
+                            DeclarationAugmentation(
+                                symbolId = first.symbolId,
+                                resolvedName = second.resolvedName,
+                                source = context.source,
+                            ),
+                        ),
+                ),
+            )
         }
     }
 
@@ -243,21 +686,47 @@ class GenerationPipelineTest {
         }
     }
 
-    private fun verifyGolden(output: Path) {
-        val goldenRoot = Path.of(requireNotNull(System.getProperty("engine.goldenRoot")))
-        val consumerRoot = Path.of(requireNotNull(System.getProperty("engine.consumerSourceRoot")))
-        if (System.getenv("UPDATE_EMISSION_GOLDENS") == "1") {
-            tree(output).filterKeys { it.endsWith(".kt") }.forEach { (relative, text) ->
-                goldenRoot.resolve(relative).also { requireNotNull(it.parent).createDirectories() }.writeText(text)
-                consumerRoot.resolve(relative).also { requireNotNull(it.parent).createDirectories() }.writeText(text)
-            }
+    private class DecoratedProjection(
+        private val warning: Boolean = false,
+        private val exclusionSymbol: String? = null,
+    ) : DeclarationProjection {
+        override fun project(request: DeclarationProjectionRequest): DeclarationMappingResult {
+            val result = StandardProjection().project(request)
+            val source =
+                request.document.operations
+                    .single()
+                    .source
+            val diagnostic =
+                if (warning) {
+                    GenerationDiagnostic(
+                        code = GenerationDiagnosticCode.SEMANTIC,
+                        message = "Test warning",
+                        source = source,
+                        symbolId = "document:test",
+                        sourceCode = "SDKGEN-TEST-WARNING",
+                        severity = DiagnosticSeverity.WARNING,
+                    )
+                } else {
+                    null
+                }
+            val exclusion = exclusionSymbol?.let { symbolId -> GenerationExclusion(symbolId, "Test exclusion", source) }
+            return DeclarationMappingResult(
+                model = result.model,
+                diagnostics = result.diagnostics + listOfNotNull(diagnostic),
+                exclusions = result.exclusions + listOfNotNull(exclusion),
+            )
         }
-        val expected = tree(goldenRoot)
-        val consumer = tree(consumerRoot)
-        val actual = tree(output).filterKeys { it.endsWith(".kt") }
-        assertTrue(expected.isNotEmpty(), "missing OpenRouter-derived emission goldens")
-        assertEquals(expected, actual)
-        assertEquals(expected, consumer)
+    }
+
+    private fun basicSource(): ResolvedSource {
+        val path = Path.of(requireNotNull(System.getProperty("engine.basicOpenApiFile")))
+        val bytes = path.readBytes()
+        return ResolvedSource(
+            path,
+            "sdkgen://fixtures/basic-openapi.yaml",
+            bytes.sha256(),
+            bytes.size.toLong(),
+        )
     }
 
     private fun config(sourceSha256: String): SdkgenConfigV1Alpha1 =

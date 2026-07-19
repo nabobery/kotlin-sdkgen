@@ -13,6 +13,7 @@ group = "com.nabobery.sdkgen.buildlogic"
 dependencies {
     implementation(libs.kotlin.gradle.plugin)
     implementation(libs.kotlin.serialization.gradle.plugin)
+    implementation(libs.android.gradle.plugin)
     implementation(libs.ktlint.gradle.plugin)
     implementation(libs.binary.compatibility.validator.gradle.plugin)
 }

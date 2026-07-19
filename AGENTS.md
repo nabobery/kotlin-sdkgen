@@ -19,8 +19,11 @@ kotlin-sdkgen/
 │   ├── engine/              # Core pipeline: config, declarations, emitter
 │   └── cli/                 # CLI frontend
 ├── runtime/
-│   ├── core/                # Shared runtime for generated SDKs
-│   └── testing/             # Test utilities for generated SDKs
+│   ├── core/                # Shared runtime for generated SDKs (executor, auth, retry, pagination, streaming, middleware)
+│   ├── testing/             # Test utilities + transport contract kit for generated SDKs
+│   ├── transport-ktor/      # Ktor client transport adapter (KMP)
+│   ├── transport-okhttp/    # OkHttp transport adapter (JVM)
+│   └── transport-java-http/ # java.net.http transport adapter (JVM)
 ├── integrations/
 │   └── gradle-plugin/       # Gradle plugin for code generation
 ├── conformance/
@@ -45,6 +48,10 @@ kotlin-sdkgen/
 | Runtime library                   | `runtime/core/`                                     |
 | Build convention plugins          | `build-logic/src/main/kotlin/`                      |
 | CLI entry point                   | `generator/cli/CliModule.kt`                        |
+| CLI diff/explain commands         | `generator/cli/DiffCommand.kt`, `ExplainCommand.kt` |
+| Generator plugin SPI (preview)    | `generator/engine/src/main/kotlin/engine/spi/`      |
+| Transport adapters                | `runtime/transport-{ktor,okhttp,java-http}/`        |
+| Transport contract kit            | `runtime/testing/SdkTransportContractKit.kt`        |
 | SDK conformance tests             | `conformance/openrouter/consumer/`                  |
 | ADR index                         | `docs/adr/`                                         |
 
@@ -57,7 +64,7 @@ kotlin-sdkgen/
 - **Gradle**: Configuration cache on, `org.gradle.configuration-cache.problems=fail`
 - **Ktlint**: formatting and linting enforced via convention plugins
 - **Testing**: JUnit 5 (JVM), kotlin.test (KMP), golden file tests for emitter
-- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0010)
+- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0011)
 - **Build**: Convention plugins under `build-logic/` rather than direct plugin application
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -73,7 +80,7 @@ kotlin-sdkgen/
 - Semantic model acts as the hub: OpenAPI → SemanticModel → Declarations → KotlinPoet
 - Output publishing uses `AtomicOutputPublisher` for atomic file writes
 - Golden test pattern: generate → diff against committed golden files
-- KMP targets: JVM, JS (nodejs), iOS ARM64, iOS simulator ARM64, macOS ARM64, Linux x64
+- KMP targets: JVM, JS (nodejs + browser), iOS ARM64, iOS simulator ARM64, macOS ARM64, Linux x64/ARM64, mingw x64; Android via opt-in `sdkgen.kotlin-kmp-android` convention
 
 ## COMMANDS
 
@@ -88,7 +95,9 @@ kotlin-sdkgen/
 ## NOTES
 
 - Node.js download is DISABLED in KMP builds - must have node on PATH
-- iOS simulator ARM64 tests disabled (`iosSimulatorArm64Test` - `enabled = false`)
+- JS browser tests use Karma + ChromeHeadless - Chrome must be installed (set `CHROME_BIN` if it is not auto-discoverable)
+- Android compilation requires the Android SDK (set `ANDROID_HOME`, e.g. `$HOME/Library/Android/sdk`)
+- iOS simulator ARM64 tests run only when the host has the Xcode simulator runtime; otherwise they are disabled with a loud warning (see `sdkgen.kotlin-kmp.gradle.kts`)
 - Version published via `sdkgenVersion` gradle property (currently `0.1.0-SNAPSHOT`)
 - Root `build.gradle.kts` is minimal (only `base` plugin + version propagation)
-- 122 Kotlin source files, ~17K lines of production code across all modules
+- ~101 production Kotlin source files, ~30K lines of production code across all modules (tests excluded)

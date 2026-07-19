@@ -1,5 +1,6 @@
 package com.nabobery.sdkgen.generated
 
+import kotlin.Boolean
 import kotlin.Int
 import kotlin.String
 import kotlin.collections.List
@@ -13,19 +14,20 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
 
-public sealed class UnionDecodingException(
+public sealed class ChatContentDecodingException(
   message: String,
 ) : SerializationException(message)
 
-public class OneOfNoMatchException(
+public class ChatContentNoMatchException(
   message: String,
-) : UnionDecodingException(message)
+) : ChatContentDecodingException(message)
 
-public class OneOfAmbiguityException(
+public class ChatContentAmbiguityException(
   message: String,
-) : UnionDecodingException(message)
+) : ChatContentDecodingException(message)
 
 /**
  * Closed non-discriminated oneOf. Exactly one branch must structurally match.
@@ -105,18 +107,21 @@ public sealed interface ChatContent {
 
     override fun deserialize(decoder: Decoder): ChatContent {
       val jsonDecoder = decoder.requireJsonDecoder("ChatContent")
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw OneOfNoMatchException("ChatContent matched 0 branches: expected JSON object")
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw ChatContentNoMatchException("ChatContent matched 0 branches: expected JSON object")
       val matches = inspectChatContent(raw)
       if (matches.size == 0) {
-        throw OneOfNoMatchException("ChatContent matched 0 branches: " + matches.failures.joinToString("; "))
+        throw ChatContentNoMatchException("ChatContent matched 0 branches: " + matches.failures.joinToString("; "))
       }
       if (matches.size > 1) {
-        throw OneOfAmbiguityException("ChatContent matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
+        throw ChatContentAmbiguityException("ChatContent matched " + matches.size + " branches; expected exactly 1: " +
+          matches.names.joinToString())
       }
       return when {
-        matches.text != null -> Text(text = requireNotNull(matches.text), raw = raw)
-        matches.imageUrl != null -> Image(imageUrl = requireNotNull(matches.imageUrl), raw = raw)
-        matches.audioData != null && matches.format != null -> Audio(audioData = requireNotNull(matches.audioData), format = requireNotNull(matches.format), raw = raw)
+        matches.textDecoded -> Text(text = requireNotNull(matches.text), raw = raw)
+        matches.imageUrlDecoded -> Image(imageUrl = requireNotNull(matches.imageUrl), raw = raw)
+        matches.audioDataDecoded && matches.formatDecoded -> Audio(audioData = requireNotNull(matches.audioData),
+          format = requireNotNull(matches.format), raw = raw)
         else -> error("unreachable")
       }
     }
@@ -129,16 +134,20 @@ public sealed interface ChatContent {
 
 private data class ChatContentInspection(
   public val text: String?,
+  public val textDecoded: Boolean,
   public val imageUrl: String?,
+  public val imageUrlDecoded: Boolean,
   public val audioData: String?,
+  public val audioDataDecoded: Boolean,
   public val format: String?,
+  public val formatDecoded: Boolean,
   public val failures: List<String>,
 ) {
   public val names: List<String>
     get() = buildList {
-      if (text != null) add("Text")
-      if (imageUrl != null) add("Image")
-      if (audioData != null && format != null) add("Audio")
+      if (textDecoded) add("Text")
+      if (imageUrlDecoded) add("Image")
+      if (audioDataDecoded && formatDecoded) add("Audio")
     }
 
   public val size: Int
@@ -146,19 +155,34 @@ private data class ChatContentInspection(
 }
 
 private fun inspectChatContent(raw: JsonObject): ChatContentInspection {
-  val text = raw.stringValue("text")
-  val imageUrl = raw.stringValue("image_url")
-  val audioData = raw.stringValue("audio_data")
-  val format = raw.stringValue("format")
+  val textResult = raw["text"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+  val text = textResult?.getOrNull()
+  val textDecoded = textResult?.isSuccess == true
+  val imageUrlResult = raw["image_url"]?.let { element -> runCatching { SdkJson
+    .decodeFromJsonElement<String>(element) } }
+  val imageUrl = imageUrlResult?.getOrNull()
+  val imageUrlDecoded = imageUrlResult?.isSuccess == true
+  val audioDataResult = raw["audio_data"]?.let { element -> runCatching { SdkJson
+    .decodeFromJsonElement<String>(element) } }
+  val audioData = audioDataResult?.getOrNull()
+  val audioDataDecoded = audioDataResult?.isSuccess == true
+  val formatResult = raw["format"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+  val format = formatResult?.getOrNull()
+  val formatDecoded = formatResult?.isSuccess == true
   return ChatContentInspection(
     text = text,
+    textDecoded = textDecoded,
     imageUrl = imageUrl,
+    imageUrlDecoded = imageUrlDecoded,
     audioData = audioData,
+    audioDataDecoded = audioDataDecoded,
     format = format,
+    formatDecoded = formatDecoded,
     failures = buildList {
-      if (text == null) add("Text: required properties 'text' must be strings")
-      if (imageUrl == null) add("Image: required properties 'image_url' must be strings")
-      if (audioData == null || format == null) add("Audio: required properties 'audio_data' and 'format' must be strings")
+      if (!textDecoded) add("Text: required properties 'text' do not match their declared types")
+      if (!imageUrlDecoded) add("Image: required properties 'image_url' do not match their declared types")
+      if (!audioDataDecoded ||
+        !formatDecoded) add("Audio: required properties 'audio_data' and 'format' do not match their declared types")
     },
   )
 }

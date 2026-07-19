@@ -34,6 +34,9 @@ private val adr0008ArtifactIds =
         ":generator:cli" to "kotlin-sdkgen-cli",
         ":runtime:core" to "kotlin-sdkgen-runtime",
         ":runtime:testing" to "kotlin-sdkgen-testing",
+        ":runtime:transport-ktor" to "kotlin-sdkgen-transport-ktor",
+        ":runtime:transport-okhttp" to "kotlin-sdkgen-transport-okhttp",
+        ":runtime:transport-java-http" to "kotlin-sdkgen-transport-java-http",
         ":integrations:gradle-plugin" to "kotlin-sdkgen-gradle-plugin",
     )
 

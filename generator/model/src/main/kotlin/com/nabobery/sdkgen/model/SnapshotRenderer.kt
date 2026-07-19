@@ -67,6 +67,9 @@ public object SnapshotRenderer {
                         "  security ${security.schemes.renderScopes()} anonymous=${security.anonymous} @${security.source.render()}",
                     )
                 }
+                operation.pagination?.let { appendLine("  pagination $it") }
+                operation.streaming?.let { appendLine("  streaming $it") }
+                operation.idempotency?.let { appendLine("  idempotency $it") }
                 appendLine("  extensions ${operation.extensions.renderMap()}")
             }
             appendLine("diagnostics ${document.diagnostics.size}")

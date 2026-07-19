@@ -1,0 +1,11 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-idempotency.schema.json",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "keyHeader": { "type": "string", "minLength": 1 },
+        "clientGenerated": { "const": true }
+    },
+    "required": ["keyHeader", "clientGenerated"]
+}

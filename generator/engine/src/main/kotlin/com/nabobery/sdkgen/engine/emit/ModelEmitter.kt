@@ -1,5 +1,3 @@
-@file:Suppress("ktlint:standard:max-line-length")
-
 package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
@@ -27,10 +25,14 @@ internal fun EmissionContext.emitModel(
     model.auxiliaryModels.forEach { auxiliary -> file.addType(simpleModel(model.packageName, auxiliary)) }
     file.addType(model(model))
     file.addFunction(modelDsl(model))
-    file.addFunction(toNullableFieldState())
-    file.addFunction(decodeRequired(model.resolvedName))
-    file.addFunction(decodeOptional(model.resolvedName))
-    file.addFunction(putState())
+    if (model.fields.any { field -> field.required && !field.nullable }) {
+        file.addFunction(decodeRequired(model.resolvedName))
+    }
+    if (model.usesFieldState) {
+        file.addFunction(toNullableFieldState())
+        file.addFunction(decodeOptional(model.resolvedName))
+        file.addFunction(putState())
+    }
 }
 
 private fun EmissionContext.simpleModel(
@@ -62,12 +64,26 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
     val requestType = ClassName(model.packageName, model.resolvedName)
     val required = model.fields.filter(FieldDeclaration::required)
     val optional = model.fields.filterNot(FieldDeclaration::required)
-    val primary = FunSpec.constructorBuilder().addModifiers(KModifier.INTERNAL)
+    val primary =
+        FunSpec
+            .constructorBuilder()
+            .apply {
+                if (optional.isNotEmpty() && model.usesFieldState) addModifiers(KModifier.INTERNAL)
+            }
     required.forEach { field ->
         primary.addParameter(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
     }
     optional.forEach { field ->
-        primary.addParameter("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+        if (model.usesFieldState) {
+            primary.addParameter("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+        } else {
+            primary.addParameter(
+                ParameterSpec
+                    .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+                    .defaultValue("null")
+                    .build(),
+            )
+        }
     }
     val type =
         TypeSpec
@@ -82,48 +98,64 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
                 .builder(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
                 .addModifiers(KModifier.PUBLIC)
                 .initializer(
-                    if (field.type.simpleName == "List") "%L.toList()" else "%L",
+                    if (field.type.simpleName == "List" && !field.type.nullable) "%L.toList()" else "%L",
                     field.resolvedName,
                 ).apply {
                     if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
                 }.build(),
         )
     }
-    optional.forEach { field ->
-        type.addProperty(
-            PropertySpec
-                .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
-                .addModifiers(KModifier.PRIVATE)
-                .initializer("${field.resolvedName}State")
-                .build(),
-        )
+    if (model.usesFieldState) {
+        optional.forEach { field ->
+            type.addProperty(
+                PropertySpec
+                    .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+                    .addModifiers(KModifier.PRIVATE)
+                    .initializer("${field.resolvedName}State")
+                    .build(),
+            )
+        }
+        if (optional.isNotEmpty()) type.addFunction(requiredFieldsConstructor(model, requestType))
     }
-    type.addFunction(requiredFieldsConstructor(model, requestType))
-    optional.forEach { field ->
-        type.addProperty(
-            PropertySpec
-                .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
-                .addModifiers(KModifier.PUBLIC)
-                .apply {
-                    if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
-                }.getter(
-                    FunSpec
-                        .getterBuilder()
-                        .addStatement(
-                            "return %LState.valueOrNull()",
-                            field.resolvedName,
-                        ).build(),
-                ).build(),
-        )
-        type.addFunction(
-            FunSpec
-                .builder("${field.resolvedName}Presence")
-                .addModifiers(KModifier.PUBLIC)
-                .addKdoc("Returns the wire presence of `%L`.\n", field.wireName)
-                .returns(fieldPresence)
-                .addStatement("return %LState.presence", field.resolvedName)
-                .build(),
-        )
+    if (model.usesFieldState) {
+        optional.forEach { field ->
+            type.addProperty(
+                PropertySpec
+                    .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+                    .addModifiers(KModifier.PUBLIC)
+                    .apply {
+                        if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+                    }.getter(
+                        FunSpec
+                            .getterBuilder()
+                            .addStatement(
+                                "return %LState.valueOrNull()",
+                                field.resolvedName,
+                            ).build(),
+                    ).build(),
+            )
+            type.addFunction(
+                FunSpec
+                    .builder("${field.resolvedName}Presence")
+                    .addModifiers(KModifier.PUBLIC)
+                    .addKdoc("Returns the wire presence of `%L`.\n", field.wireName)
+                    .returns(fieldPresence)
+                    .addStatement("return %LState.presence", field.resolvedName)
+                    .build(),
+            )
+        }
+    } else {
+        optional.forEach { field ->
+            type.addProperty(
+                PropertySpec
+                    .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+                    .addModifiers(KModifier.PUBLIC)
+                    .initializer(field.resolvedName)
+                    .apply {
+                        if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+                    }.build(),
+            )
+        }
     }
     type.addType(modelBuilder(model, requestType))
     type.addType(
@@ -176,10 +208,32 @@ private fun EmissionContext.modelBuilder(
     required.filterNot(FieldDeclaration::nullable).forEach { field ->
         builder.addProperty(
             PropertySpec
-                .builder(field.resolvedName, field.type.toTypeName())
-                .addModifiers(KModifier.PUBLIC, KModifier.LATEINIT)
+                .builder("${field.resolvedName}Value", field.type.toTypeName().copy(nullable = true))
+                .addModifiers(KModifier.PRIVATE)
                 .mutable()
+                .initializer("null")
                 .build(),
+        )
+        builder.addProperty(
+            PropertySpec
+                .builder(field.resolvedName, field.type.toTypeName())
+                .addModifiers(KModifier.PUBLIC)
+                .mutable()
+                .getter(
+                    FunSpec
+                        .getterBuilder()
+                        .addStatement(
+                            "return requireNotNull(%L) { %S }",
+                            "${field.resolvedName}Value",
+                            "${field.resolvedName} is required",
+                        ).build(),
+                ).setter(
+                    FunSpec
+                        .setterBuilder()
+                        .addParameter("value", field.type.toTypeName())
+                        .addStatement("%LValue = value", field.resolvedName)
+                        .build(),
+                ).build(),
         )
     }
     required.filter(FieldDeclaration::nullable).forEach { field ->
@@ -193,37 +247,51 @@ private fun EmissionContext.modelBuilder(
         )
         builder.addProperty(nullableBuilderProperty(field, required = true))
     }
-    optional.forEach { field ->
-        builder.addProperty(
-            PropertySpec
-                .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
-                .addModifiers(KModifier.PRIVATE)
-                .mutable()
-                .initializer("%T.Absent", fieldState)
-                .build(),
-        )
-        builder.addProperty(
-            if (field.nullable) {
-                nullableBuilderProperty(
-                    field,
-                    required = false,
-                )
-            } else {
-                nonNullableBuilderProperty(field)
-            },
-        )
-        builder.addFunction(
-            FunSpec
-                .builder("unset${field.resolvedName.replaceFirstChar(Char::uppercase)}")
-                .addModifiers(KModifier.PUBLIC)
-                .addKdoc("Omits `%L` from serialized output.\n", field.wireName)
-                .addStatement("%LState = %T.Absent", field.resolvedName, fieldState)
-                .build(),
-        )
+    if (model.usesFieldState) {
+        optional.forEach { field ->
+            builder.addProperty(
+                PropertySpec
+                    .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
+                    .addModifiers(KModifier.PRIVATE)
+                    .mutable()
+                    .initializer("%T.Absent", fieldState)
+                    .build(),
+            )
+            builder.addProperty(
+                if (field.nullable) {
+                    nullableBuilderProperty(
+                        field,
+                        required = false,
+                    )
+                } else {
+                    nonNullableBuilderProperty(field)
+                },
+            )
+            builder.addFunction(
+                FunSpec
+                    .builder("unset${field.resolvedName.replaceFirstChar(Char::uppercase)}")
+                    .addModifiers(KModifier.PUBLIC)
+                    .addKdoc("Omits `%L` from serialized output.\n", field.wireName)
+                    .addStatement("%LState = %T.Absent", field.resolvedName, fieldState)
+                    .build(),
+            )
+        }
+    } else {
+        optional.forEach { field -> builder.addProperty(plainOptionalBuilderProperty(field)) }
     }
     builder.addFunction(builderBuild(model, requestType))
     return builder.build()
 }
+
+private fun plainOptionalBuilderProperty(field: FieldDeclaration): PropertySpec =
+    PropertySpec
+        .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+        .addModifiers(KModifier.PUBLIC)
+        .mutable()
+        .initializer("null")
+        .apply {
+            if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+        }.build()
 
 private fun EmissionContext.nullableBuilderProperty(
     field: FieldDeclaration,
@@ -285,7 +353,7 @@ private fun EmissionContext.builderBuild(
     val body = CodeBlock.builder()
     required.filterNot(FieldDeclaration::nullable).forEach { field ->
         body.addStatement(
-            "check(::%L.isInitialized) { %S }",
+            "check(%LValue != null) { %S }",
             field.resolvedName,
             "${field.resolvedName} is required",
         )
@@ -303,7 +371,11 @@ private fun EmissionContext.builderBuild(
         val expression = if (field.nullable) "${field.resolvedName}State.valueOrNull()" else field.resolvedName
         body.add("%L = %L,\n", field.resolvedName, expression)
     }
-    optional.forEach { field -> body.add("%LState = %LState,\n", field.resolvedName, field.resolvedName) }
+    if (model.usesFieldState) {
+        optional.forEach { field -> body.add("%LState = %LState,\n", field.resolvedName, field.resolvedName) }
+    } else {
+        optional.forEach { field -> body.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    }
     body.unindent().add(")\n")
     return FunSpec
         .builder("build")
@@ -395,12 +467,31 @@ private fun modelDeserialize(
     body.add("return %T(\n", requestType).indent()
     required.forEach { field -> body.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
     optional.forEach { field ->
-        body.add(
-            "%LState = json.decodeOptional(raw, %S, nullable = %L),\n",
-            field.resolvedName,
-            field.wireName,
-            field.nullable,
-        )
+        if (model.usesFieldState) {
+            body.add(
+                "%LState = json.decodeOptional(raw, %S, nullable = %L),\n",
+                field.resolvedName,
+                field.wireName,
+                field.nullable,
+            )
+        } else if (field.nullable) {
+            body.add(
+                "%L = raw[%S]?.let { element -> if (element == %T) null else json.%M<%T>(element) },\n",
+                field.resolvedName,
+                field.wireName,
+                JSON_NULL,
+                DECODE_FROM_JSON_ELEMENT,
+                field.type.toTypeName(),
+            )
+        } else {
+            body.add(
+                "%L = raw[%S]?.let { json.%M<%T>(it) },\n",
+                field.resolvedName,
+                field.wireName,
+                DECODE_FROM_JSON_ELEMENT,
+                field.type.toTypeName(),
+            )
+        }
     }
     body.unindent().add(")\n")
     return body.build()
@@ -452,12 +543,27 @@ private fun modelSerialize(
         }
     }
     optional.forEach { field ->
-        body.addStatement(
-            "putState(%S, value.%LState, json::%M)",
-            field.wireName,
-            field.resolvedName,
-            ENCODE_TO_JSON_ELEMENT,
-        )
+        if (model.usesFieldState) {
+            body.addStatement(
+                "putState(%S, value.%LState, json::%M)",
+                field.wireName,
+                field.resolvedName,
+                ENCODE_TO_JSON_ELEMENT,
+            )
+        } else {
+            val encode =
+                if (field.type.simpleName == "String") {
+                    CodeBlock.of("%M(%S, it)", PUT, field.wireName)
+                } else {
+                    CodeBlock.of(
+                        "%M(%S, json.%M(it))",
+                        PUT,
+                        field.wireName,
+                        ENCODE_TO_JSON_ELEMENT,
+                    )
+                }
+            body.addStatement("value.%L?.let { %L }", field.resolvedName, encode)
+        }
     }
     body.unindent().add("}\n").addStatement("jsonEncoder.encodeJsonElement(raw)")
     return body.build()

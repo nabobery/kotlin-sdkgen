@@ -1,3 +1,5 @@
+@file:OptIn(com.nabobery.sdkgen.engine.spi.ExperimentalSdkGenApi::class)
+
 package com.nabobery.sdkgen.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
@@ -5,14 +7,24 @@ import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.parse
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
+import com.nabobery.sdkgen.engine.GenerationBlockedException
+import com.nabobery.sdkgen.engine.GenerationDiagnosticView
+import com.nabobery.sdkgen.engine.GenerationExclusionView
 import com.nabobery.sdkgen.engine.GenerationLockPublication
 import com.nabobery.sdkgen.engine.GenerationPipeline
+import com.nabobery.sdkgen.engine.ProjectedSymbolView
 import com.nabobery.sdkgen.engine.ResolvedGenerationOverlay
+import com.nabobery.sdkgen.engine.ResolvedReference
 import com.nabobery.sdkgen.engine.ResolvedSource
+import com.nabobery.sdkgen.engine.SdkGenDependencyVersions
+import com.nabobery.sdkgen.engine.ValidationResult
 import com.nabobery.sdkgen.engine.config.ConfigContractException
 import com.nabobery.sdkgen.engine.config.ConfigDigest
 import com.nabobery.sdkgen.engine.config.ConfigLoader
@@ -26,17 +38,37 @@ import com.nabobery.sdkgen.engine.config.LockedOverlay
 import com.nabobery.sdkgen.engine.config.LockedPlugin
 import com.nabobery.sdkgen.engine.config.LockedReference
 import com.nabobery.sdkgen.engine.config.LockedSource
+import com.nabobery.sdkgen.engine.config.LockedTool
+import com.nabobery.sdkgen.engine.config.OverlayConflictPolicy
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
 import com.nabobery.sdkgen.engine.config.SdkgenLockV1Alpha1
+import com.nabobery.sdkgen.engine.config.ZeroMatchPolicy
 import com.nabobery.sdkgen.engine.input.LocalInputResolver
 import com.nabobery.sdkgen.engine.input.ResolvedGenerationInputs
+import com.nabobery.sdkgen.engine.spi.BuiltInSdkGenPlugins
+import com.nabobery.sdkgen.model.DiagnosticSeverity
+import com.nabobery.sdkgen.openapi.overlays.ConflictPolicy
+import com.nabobery.sdkgen.openapi.overlays.OverlayApplicator
+import com.nabobery.sdkgen.openapi.overlays.OverlayInput
+import com.nabobery.sdkgen.openapi.overlays.ZeroMatchMode
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.Closeable
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.io.path.exists
 import kotlin.io.path.isSymbolicLink
@@ -63,22 +95,27 @@ public const val SDKGEN_EXIT_USAGE: Int = 2
 
 /**
  * The `sdkgen` CLI entry point: `validate` (adapt and project without writing output), `generate`
- * (write Kotlin source, optionally refusing on lock drift with `--locked`), and `check` (confirm
- * committed output matches what generation would produce today). Every diagnostic or usage
- * failure is reported through [SDKGEN_EXIT_DIAGNOSTICS]/[SDKGEN_EXIT_USAGE] rather than an
- * uncaught exception; `--format json` emits one JSON document per invocation carrying
- * [SDKGEN_CLI_CONTRACT_VERSION] and a sorted `diagnostics` array, so scripted callers never need
- * to parse free-form text.
+ * (write Kotlin source, optionally refusing on lock drift with `--locked`), `check` (confirm
+ * committed output matches what generation would produce today), `diff` (compare effective and
+ * generated contracts), and `explain` (trace a symbol or diagnostic to source). Every diagnostic
+ * or usage failure is reported through [SDKGEN_EXIT_DIAGNOSTICS]/[SDKGEN_EXIT_USAGE] rather than
+ * an uncaught exception; `--format json` emits one JSON document per invocation carrying
+ * [SDKGEN_CLI_CONTRACT_VERSION] and sorted arrays, so scripted callers never need to parse
+ * free-form text.
  */
 public fun main(args: Array<String>) {
     val command = sdkgenCommand()
     try {
         command.parse(args)
+    } catch (error: CliktError) {
+        if (sdkgenRequestedJson(args)) {
+            command.echo(sdkgenUsageDocument(error))
+        } else {
+            command.echo(sdkgenUsageMessage(error), err = true)
+        }
+        exitProcess(sdkgenExitCode(error))
     } catch (result: ProgramResult) {
         exitProcess(result.statusCode)
-    } catch (error: CliktError) {
-        command.echo(sdkgenUsageMessage(error), err = true)
-        exitProcess(sdkgenExitCode(error))
     }
 }
 
@@ -86,11 +123,22 @@ internal fun sdkgenUsageMessage(error: CliktError): String =
     error.message?.takeIf(String::isNotBlank)
         ?: "Invalid command usage (${error::class.simpleName}). Run 'sdkgen --help'."
 
+internal fun sdkgenRequestedJson(args: Array<String>): Boolean =
+    args.withIndex().any { (index, value) ->
+        value == "--format=json" || (value == "--format" && args.getOrNull(index + 1) == "json")
+    }
+
 internal fun sdkgenExitCode(error: CliktError): Int =
     if (error.statusCode == SDKGEN_EXIT_OK) SDKGEN_EXIT_OK else SDKGEN_EXIT_USAGE
 
 internal fun sdkgenCommand(): CliktCommand =
-    SdkgenCommand().subcommands(ValidateCommand(), GenerateCommand(), CheckCommand())
+    SdkgenCommand().subcommands(
+        ValidateCommand(),
+        GenerateCommand(),
+        CheckCommand(),
+        DiffCommand(),
+        ExplainCommand(),
+    )
 
 internal fun executeCliAction(
     action: () -> Unit,
@@ -111,9 +159,11 @@ private class SdkgenCommand : CliktCommand(name = "sdkgen") {
     override fun run() = Unit
 }
 
-private abstract class ConfigCommand(
+internal abstract class ConfigCommand(
     name: String,
 ) : CliktCommand(name = name) {
+    private val sdkgenCommandName = name
+
     protected val configPath: String by option(
         "--config",
         help = "Path to sdkgen.yaml or sdkgen.json",
@@ -139,6 +189,10 @@ private abstract class ConfigCommand(
 
                         is CliDiagnosticsException -> {
                             failure.diagnostics.map(Diagnostic::toCliDiagnostic)
+                        }
+
+                        is GenerationBlockedException -> {
+                            failure.validation.toCliDiagnostics()
                         }
 
                         else -> {
@@ -175,6 +229,16 @@ private abstract class ConfigCommand(
         }
     }
 
+    protected fun emitUsageError(message: String): Nothing {
+        val error = CliktError(message)
+        if (format == "json") {
+            echo(sdkgenUsageDocument(error))
+        } else {
+            echo(sdkgenUsageMessage(error), err = true)
+        }
+        throw ProgramResult(SDKGEN_EXIT_USAGE)
+    }
+
     protected fun emitDiagnostic(
         code: String,
         message: String,
@@ -195,13 +259,18 @@ private abstract class ConfigCommand(
         ),
     )
 
-    private fun emitDiagnostics(diagnostics: List<CliDiagnostic>) {
+    protected fun emitValidation(validation: ValidationResult) {
+        emitDiagnostics(validation.toCliDiagnostics())
+    }
+
+    protected fun emitDiagnostics(diagnostics: List<CliDiagnostic>) {
         val sorted =
             diagnostics.sortedWith(
                 compareBy(
                     CliDiagnostic::phase,
                     CliDiagnostic::path,
                     CliDiagnostic::pointer,
+                    CliDiagnostic::pluginPhase,
                     CliDiagnostic::code,
                     CliDiagnostic::message,
                 ),
@@ -211,6 +280,7 @@ private abstract class ConfigCommand(
                 buildJsonObject {
                     put("contractVersion", SDKGEN_CLI_CONTRACT_VERSION)
                     put("status", "diagnostics")
+                    put("command", sdkgenCommandName)
                     put(
                         "diagnostics",
                         buildJsonArray {
@@ -220,13 +290,19 @@ private abstract class ConfigCommand(
                                         put("code", diagnostic.code)
                                         put("rule", diagnostic.code)
                                         put("phase", diagnostic.phase)
+                                        diagnostic.pluginPhase?.let { put("pluginPhase", it) }
+                                        put("severity", diagnostic.severity.name.lowercase(Locale.ROOT))
                                         put("message", diagnostic.message)
                                         put("remediation", diagnostic.remediation)
+                                        diagnostic.operand?.let { put("operand", it) }
                                         put(
                                             "sourcePointer",
                                             buildJsonObject {
                                                 put("documentUri", diagnostic.path)
                                                 put("pointer", diagnostic.pointer)
+                                                diagnostic.line?.let { put("line", it) }
+                                                diagnostic.column?.let { put("column", it) }
+                                                diagnostic.byteOffset?.let { put("byteOffset", it) }
                                             },
                                         )
                                     },
@@ -237,7 +313,13 @@ private abstract class ConfigCommand(
                 }
             echo(COMPACT_JSON.encodeToString(value))
         } else {
-            sorted.forEach { diagnostic -> echo("${diagnostic.code}: ${diagnostic.message} (${diagnostic.path})") }
+            sorted.forEach { diagnostic ->
+                echo(
+                    "${diagnostic.operand?.let { "$it: " }.orEmpty()}" +
+                        "${diagnostic.code} [${diagnostic.severity.name.lowercase(Locale.ROOT)}]: " +
+                        "${diagnostic.message} (${diagnostic.path})",
+                )
+            }
         }
     }
 }
@@ -246,6 +328,11 @@ private class ValidateCommand : ConfigCommand("validate") {
     override fun run() {
         execute { inputs ->
             val validation = pipeline().validate(inputs.config, inputs.source, inputs.overlays)
+            val hasErrors = validation.diagnostics.any { it.severity == DiagnosticSeverity.ERROR }
+            if (hasErrors || validation.exclusions.isNotEmpty()) {
+                emitValidation(validation)
+                throw ProgramResult(SDKGEN_EXIT_DIAGNOSTICS)
+            }
             emitOk(
                 "validate",
                 mapOf(
@@ -267,7 +354,8 @@ private class GenerateCommand : ConfigCommand("generate") {
     override fun run() {
         execute { inputs ->
             if (locked) verifyLocked(inputs)
-            val output = outputOverride?.let(Path::of) ?: inputs.resolveOutput(inputs.config.output.sources)
+            val output =
+                outputOverride?.let(inputs::resolveOutput) ?: inputs.resolveOutput(inputs.config.output.sources)
             val lock = if (locked) null else generationLock(inputs)
             val result = pipeline().generate(inputs.config, inputs.source, inputs.overlays, output, lock = lock)
             emitOk(
@@ -284,7 +372,8 @@ private class CheckCommand : ConfigCommand("check") {
     override fun run() {
         execute { inputs ->
             verifyLocked(inputs)
-            val expectedOutput = outputOverride?.let(Path::of) ?: inputs.resolveOutput(inputs.config.output.sources)
+            val expectedOutput =
+                outputOverride?.let(inputs::resolveOutput) ?: inputs.resolveOutput(inputs.config.output.sources)
             require(expectedOutput.exists()) { "Generated output does not exist: $expectedOutput" }
             val isolatedRoot = Files.createTempDirectory("sdkgen-check-")
             try {
@@ -294,7 +383,7 @@ private class CheckCommand : ConfigCommand("check") {
                 if (drift.isNotEmpty()) {
                     emitDiagnostic(
                         "SDKGEN-CHECK-GENERATED-DRIFT",
-                        "Generated output differs: ${drift.joinToString()}",
+                        "Generated output differs: ${formatBoundedPaths(drift)}",
                         expectedOutput.toString(),
                     )
                     throw ProgramResult(SDKGEN_EXIT_DIAGNOSTICS)
@@ -307,7 +396,7 @@ private class CheckCommand : ConfigCommand("check") {
     }
 }
 
-private data class CommandInputs(
+internal data class CommandInputs(
     val configFile: Path,
     val config: SdkgenConfigV1Alpha1,
     val resolved: ResolvedGenerationInputs,
@@ -329,7 +418,7 @@ private data class CommandInputs(
     }
 }
 
-private fun loadInputs(configFile: Path): CommandInputs {
+internal fun loadInputs(configFile: Path): CommandInputs {
     val absoluteConfig = configFile.toAbsolutePath().normalize()
     val text = absoluteConfig.readText()
     val config =
@@ -342,14 +431,21 @@ private fun loadInputs(configFile: Path): CommandInputs {
     return CommandInputs(absoluteConfig, config, resolved)
 }
 
-private fun verifyLocked(inputs: CommandInputs) {
+internal fun verifyLocked(inputs: CommandInputs) {
     require(inputs.lockPath.exists()) { "Locked mode requires ${inputs.lockPath}" }
     val lock = LockCodec.decode(inputs.lockPath.readText(), inputs.lockPath.toString())
-    val diagnostics = LockedInputVerifier.verify(inputs.config, lock, inputs.source, inputs.overlays)
+    val diagnostics =
+        LockedInputVerifier.verify(
+            inputs.config,
+            lock,
+            inputs.source,
+            inputs.overlays,
+            pluginPhases = builtInPluginPhases(),
+        )
     if (diagnostics.isNotEmpty()) throw CliDiagnosticsException(diagnostics)
 }
 
-private fun generationLock(inputs: CommandInputs): GenerationLockPublication {
+internal fun generationLock(inputs: CommandInputs): GenerationLockPublication {
     val lock =
         SdkgenLockV1Alpha1(
             configDigest = ConfigDigest.sha256(inputs.config),
@@ -375,13 +471,26 @@ private fun generationLock(inputs: CommandInputs): GenerationLockPublication {
                 inputs.config.compatibilityProfiles.map { LockedCompatibilityProfile(it.id, it.version) },
             plugins =
                 inputs.config.plugins.filter { it.enabled }.map {
-                    LockedPlugin(it.id, it.version, it.spiRange, ConfigDigest.sha256(it.config))
+                    LockedPlugin(
+                        id = it.id,
+                        version = it.version,
+                        spiRange = it.spiRange,
+                        configSha256 = ConfigDigest.sha256(it.config),
+                        phases = builtInPluginPhases()[it.id].orEmpty(),
+                    )
                 },
+            tools = listOf(LockedTool(id = "kotlinpoet", version = KOTLIN_POET_VERSION)),
         )
     return GenerationLockPublication(inputs.lockPath, LockCodec.encode(lock))
 }
 
-private fun compareTrees(
+private const val MAX_PATH_REPORT = 100
+
+internal fun formatBoundedPaths(paths: List<String>): String =
+    paths.take(MAX_PATH_REPORT).joinToString() +
+        if (paths.size > MAX_PATH_REPORT) " ... (${paths.size - MAX_PATH_REPORT} more)" else ""
+
+internal fun compareTrees(
     expected: Path,
     actual: Path,
 ): List<String> {
@@ -394,7 +503,7 @@ private fun compareTrees(
     }
 }
 
-private fun tree(root: Path): Map<String, ByteArray> {
+internal fun tree(root: Path): Map<String, ByteArray> {
     val resolved = if (root.isSymbolicLink()) root.parent.resolve(root.readSymbolicLink()).normalize() else root
     return Files.walk(resolved).use { paths ->
         paths.filter(Files::isRegularFile).sorted().toList().associate { path ->
@@ -403,35 +512,89 @@ private fun tree(root: Path): Map<String, ByteArray> {
     }
 }
 
-private fun deleteRecursively(root: Path) {
+internal fun deleteRecursively(root: Path) {
     if (!root.exists()) return
     Files.walk(root).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
 }
 
-private fun pipeline(): GenerationPipeline = GenerationPipeline(GENERATOR_VERSION)
+internal fun pipeline(): GenerationPipeline =
+    GenerationPipeline(
+        generatorVersion = GENERATOR_VERSION,
+        kotlinPoetVersion = KOTLIN_POET_VERSION,
+    )
+
+internal fun builtInPluginPhases(): Map<String, List<String>> =
+    BuiltInSdkGenPlugins
+        .registry()
+        .plugins
+        .associate { plugin ->
+            plugin.descriptor.id to plugin.descriptor.phases.map { phase -> phase.name.lowercase(Locale.ROOT) }
+        }
 
 private class CliDiagnosticsException(
     val diagnostics: List<Diagnostic>,
 ) : RuntimeException(diagnostics.joinToString { diagnostic -> diagnostic.message })
 
-private data class CliDiagnostic(
+internal data class CliDiagnostic(
     val code: String,
     val message: String,
     val path: String,
+    val operand: String? = null,
     val pointer: String = "",
     val phase: String = "cli",
+    val pluginPhase: String? = null,
+    val severity: DiagnosticSeverity = DiagnosticSeverity.ERROR,
     val remediation: String = "Correct the reported input and rerun the command.",
+    val line: Int? = null,
+    val column: Int? = null,
+    val byteOffset: Long? = null,
 )
 
-private fun Diagnostic.toCliDiagnostic(): CliDiagnostic =
+internal fun ValidationResult.toCliDiagnostics(): List<CliDiagnostic> =
+    diagnostics.map(GenerationDiagnosticView::toCliDiagnostic) +
+        exclusions.map(GenerationExclusionView::toCliDiagnostic)
+
+internal fun GenerationDiagnosticView.toCliDiagnostic(): CliDiagnostic =
+    CliDiagnostic(
+        code = code,
+        message = message,
+        path = documentUri,
+        pointer = jsonPointer,
+        phase = phase.name.lowercase(Locale.ROOT),
+        pluginPhase = pluginPhase?.name?.lowercase(Locale.ROOT),
+        severity = severity,
+        remediation = remediation,
+        line = location.line,
+        column = location.column,
+        byteOffset = location.byteOffset,
+    )
+
+internal fun GenerationExclusionView.toCliDiagnostic(): CliDiagnostic =
+    CliDiagnostic(
+        code = "SDKGEN-EMIT-EXCLUDED",
+        message = "'$symbolId' was not emitted: $reason",
+        path = documentUri,
+        pointer = jsonPointer,
+        phase = "projection",
+        remediation = "Update the contract or projection so the symbol can be represented.",
+    )
+
+internal fun Diagnostic.toCliDiagnostic(): CliDiagnostic =
     CliDiagnostic(
         code = code,
         message = message,
         path = path.file,
         pointer = path.yamlPath,
-        phase = phase.name.lowercase(),
+        phase = phase.name.lowercase(Locale.ROOT),
         remediation = remediation,
     )
 
-private const val GENERATOR_VERSION = "0.1.0-alpha.1"
-private val COMPACT_JSON: Json = Json { prettyPrint = false }
+internal const val GENERATOR_VERSION = "0.1.0-alpha.1"
+internal val KOTLIN_POET_VERSION = SdkGenDependencyVersions.kotlinPoet
+internal val COMPACT_JSON: Json = Json { prettyPrint = false }
+internal val MANIFEST_JSON: Json =
+    Json {
+        prettyPrint = false
+        explicitNulls = false
+        ignoreUnknownKeys = false
+    }

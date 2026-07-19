@@ -1,6 +1,39 @@
+public abstract class com/nabobery/sdkgen/gradleplugin/GenerateSdkTask : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getConfigFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getConfigurationName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEdition ()Lorg/gradle/api/provider/Property;
+	public abstract fun getGeneratorVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getKotlinPoetVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getOutputDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getOverlayFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getPluginClasspath ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getPluginMetadata ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getSpecFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+}
+
+public class com/nabobery/sdkgen/gradleplugin/SdkGenConfiguration {
+	public final fun getConfigFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public final fun getEdition ()Lorg/gradle/api/provider/Property;
+	public final fun getGeneratorVersion ()Lorg/gradle/api/provider/Property;
+	public final fun getKotlinPoetVersion ()Lorg/gradle/api/provider/Property;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getOutputDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public final fun getOverlayFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public final fun getPluginClasspath ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public final fun getPluginMetadata ()Lorg/gradle/api/provider/MapProperty;
+	public final fun getSpecFiles ()Lorg/gradle/api/file/ConfigurableFileCollection;
+}
+
+public class com/nabobery/sdkgen/gradleplugin/SdkGenExtension {
+	public final fun configurations (Lorg/gradle/api/Action;)V
+	public final fun getConfigurations ()Lorg/gradle/api/NamedDomainObjectContainer;
+}
+
 public final class com/nabobery/sdkgen/gradleplugin/SdkGenPlugin : org/gradle/api/Plugin {
 	public fun <init> ()V
 	public synthetic fun apply (Ljava/lang/Object;)V
-	public fun apply (Lorg/gradle/api/Project;)Ljava/lang/Void;
+	public fun apply (Lorg/gradle/api/Project;)V
 }
 

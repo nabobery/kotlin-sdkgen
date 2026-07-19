@@ -52,6 +52,7 @@ public data class LockedReference(
     public val contentLength: Long,
 )
 
+/** Overlays retain configured application order; reordering them is lock drift. */
 @Serializable
 public data class LockedOverlay(
     public val id: String,
@@ -71,13 +72,25 @@ public data class LockedCompatibilityProfile(
     public val version: String,
 )
 
+/** The exact descriptor phases used by the generation, pinned in canonical phase order. */
 @Serializable
 public data class LockedPlugin(
     public val id: String,
     public val version: String,
     public val spiRange: String,
     public val configSha256: String,
-)
+    public val phases: List<String> = emptyList(),
+) {
+    init {
+        require(phases == phases.distinct()) { "Locked plugin phases must not be duplicated" }
+        require(phases.all { phase -> phase in LOCKED_PLUGIN_PHASE_ORDER }) {
+            "Locked plugin phases must use the published phase names"
+        }
+        require(phases == phases.sortedBy { phase -> LOCKED_PLUGIN_PHASE_ORDER.indexOf(phase) }) {
+            "Locked plugin phases must be listed in canonical phase order"
+        }
+    }
+}
 
 @Serializable
 public data class LockedTool(
@@ -130,6 +143,8 @@ public object LockCodec {
             json.decodeFromString(text)
         } catch (error: SerializationException) {
             throw LockDecodeException(lockDecodeDiagnostic(file, error.message.orEmpty()), error)
+        } catch (error: IllegalArgumentException) {
+            throw LockDecodeException(lockDecodeDiagnostic(file, error.message.orEmpty()), error)
         }
     }
 
@@ -175,7 +190,8 @@ public object LockCodec {
  * refuse to generate rather than silently generating from unreviewed content. Refusal reasons
  * include config drift, a digest or content-length mismatch on the root document or a reference,
  * an input present but not locked (or vice versa), a duplicated input, and a lock whose
- * references are not in canonical order.
+ * references are not in canonical order. [pluginPhases] supplies the currently registered descriptor
+ * phases so a lock cannot silently accept a plugin that moved work between phases.
  */
 public object LockedInputVerifier {
     public fun verify(
@@ -183,6 +199,7 @@ public object LockedInputVerifier {
         lock: SdkgenLockV1Alpha1,
         source: ResolvedSource,
         overlays: List<ResolvedGenerationOverlay>,
+        pluginPhases: Map<String, List<String>> = emptyMap(),
     ): List<Diagnostic> {
         val resolved =
             ResolvedInputs(
@@ -196,7 +213,7 @@ public object LockedInputVerifier {
                         ResolvedOverlay(overlay.id, overlay.canonicalUri, overlay.sha256)
                     },
             )
-        return when (val result = LockedMode.verify(config, lock, resolved)) {
+        return when (val result = LockedMode.verify(config, lock, resolved, pluginPhases)) {
             LockedModeResult.Proceed -> emptyList()
             is LockedModeResult.Refused -> result.reasons.map(LockRefusal::diagnostic)
         }
@@ -276,6 +293,13 @@ internal sealed class LockRefusal(
     data class ConfigDrift(
         override val diagnostic: Diagnostic,
     ) : LockRefusal(diagnostic)
+
+    data class PluginMetadataMismatch(
+        val pluginId: String,
+        val expected: LockedPlugin?,
+        val actual: LockedPlugin?,
+        override val diagnostic: Diagnostic,
+    ) : LockRefusal(diagnostic)
 }
 
 internal object LockedMode {
@@ -283,10 +307,15 @@ internal object LockedMode {
         config: SdkgenConfigV1Alpha1,
         lock: SdkgenLockV1Alpha1,
         resolved: ResolvedInputs,
+        pluginPhases: Map<String, List<String>> = emptyMap(),
     ): LockedModeResult {
+        val configDrift = LockDrift.check(config, lock)
         val refusals =
             buildList {
-                addAll(LockDrift.check(config, lock).map(LockRefusal::ConfigDrift))
+                addAll(configDrift.map(LockRefusal::ConfigDrift))
+                if (configDrift.isEmpty()) {
+                    comparePlugins(config, lock.plugins, pluginPhases).forEach(::add)
+                }
                 addAll(
                     compareInput(
                         inputId = lock.source.canonicalUri,
@@ -300,6 +329,56 @@ internal object LockedMode {
                 compareOverlays(lock.overlays, resolved.overlays).forEach(::add)
             }
         return if (refusals.isEmpty()) LockedModeResult.Proceed else LockedModeResult.Refused(refusals)
+    }
+
+    private fun comparePlugins(
+        config: SdkgenConfigV1Alpha1,
+        expected: List<LockedPlugin>,
+        pluginPhases: Map<String, List<String>>,
+    ): List<LockRefusal> {
+        val actual =
+            config.plugins
+                .filter { plugin -> plugin.enabled }
+                .map { plugin ->
+                    LockedPlugin(
+                        id = plugin.id,
+                        version = plugin.version,
+                        spiRange = plugin.spiRange,
+                        configSha256 = ConfigDigest.sha256(plugin.config),
+                        phases = pluginPhases[plugin.id].orEmpty(),
+                    )
+                }
+        return buildList {
+            expected
+                .groupingBy(LockedPlugin::id)
+                .eachCount()
+                .filterValues { count -> count > 1 }
+                .keys
+                .sorted()
+                .forEach { pluginId -> add(duplicateLockEntry(pluginId, "$.plugins")) }
+            actual
+                .groupingBy(LockedPlugin::id)
+                .eachCount()
+                .filterValues { count -> count > 1 }
+                .keys
+                .sorted()
+                .forEach { pluginId -> add(duplicateInput(pluginId, "$.plugins")) }
+            repeat(maxOf(expected.size, actual.size)) { index ->
+                val locked = expected.getOrNull(index)
+                val configured = actual.getOrNull(index)
+                if (locked != configured) {
+                    val pluginId = locked?.id ?: configured?.id ?: "<unknown>"
+                    add(
+                        pluginMetadataMismatch(
+                            index = index,
+                            pluginId = pluginId,
+                            expected = locked,
+                            actual = configured,
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     private fun compareReferences(
@@ -442,6 +521,42 @@ internal object LockedMode {
             }
         }
 
+    private fun pluginMetadataMismatch(
+        index: Int,
+        pluginId: String,
+        expected: LockedPlugin?,
+        actual: LockedPlugin?,
+    ): LockRefusal.PluginMetadataMismatch {
+        val message =
+            when {
+                expected == null -> {
+                    "Configured plugin '$pluginId' has no matching sdkgen.lock entry."
+                }
+
+                actual == null -> {
+                    "Locked plugin '$pluginId' is not enabled in the current configuration."
+                }
+
+                else -> {
+                    "Plugin metadata for '$pluginId' differs between sdkgen.lock and the current configuration."
+                }
+            }
+        return LockRefusal.PluginMetadataMismatch(
+            pluginId = pluginId,
+            expected = expected,
+            actual = actual,
+            diagnostic =
+                lockDiagnostic(
+                    code = "SDKGEN-LOCK-PLUGIN-MISMATCH",
+                    path = "$.plugins[$index]",
+                    message = message,
+                    remediation =
+                        "Restore the locked plugin metadata or regenerate and review sdkgen.lock " +
+                            "without --locked.",
+                ),
+        )
+    }
+
     private fun missingInput(
         inputId: String,
         path: String,
@@ -578,6 +693,15 @@ private fun lockVersionDiagnostic(
         phase = DiagnosticPhase.LOCK,
         message = message,
         remediation = remediation,
+    )
+
+private val LOCKED_PLUGIN_PHASE_ORDER =
+    listOf(
+        "validation",
+        "semantic_transform",
+        "naming_type_mapping",
+        "declaration_augmentation",
+        "output_verification",
     )
 
 private val LOCK_JSON_PATH = Regex("path: (\\$[^\\n]+)")

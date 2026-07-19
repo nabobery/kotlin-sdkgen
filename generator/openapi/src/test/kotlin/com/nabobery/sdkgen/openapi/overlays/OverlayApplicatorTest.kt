@@ -220,11 +220,15 @@ class OverlayApplicatorTest {
                 x-sdkgen-streaming:
                   mode: sse
                   responseContentType: text/event-stream
+                x-sdkgen-idempotency:
+                  keyHeader: Idempotency-Key
+                  clientGenerated: true
             """,
             )
         val result = OverlayApplicator().apply(source, listOf(valid))
         assertEquals("keep-me", result.document.at("/info/x-unrelated").asText())
         assertNotNull(result.document.at("/paths/~1chat/post/x-sdkgen-streaming"))
+        assertNotNull(result.document.at("/paths/~1chat/post/x-sdkgen-idempotency"))
 
         val unknownField =
             overlay(
@@ -258,6 +262,121 @@ class OverlayApplicatorTest {
     }
 
     @Test
+    fun `pagination pointers enforce complete RFC 6901 escaping`() {
+        listOf("/data~", "/data~2", "/data/~").forEachIndexed { index, invalidPointer ->
+            val invalid =
+                overlay(
+                    "invalid-pointer-$index",
+                    """
+                    - target: "${'$'}['paths']['/chat']['post']"
+                      update:
+                        x-sdkgen-pagination:
+                          style: cursor
+                          requestCursor: cursor
+                          responseItems: $invalidPointer
+                          responseNextCursor: /next
+                    """,
+                )
+
+            val failure =
+                assertFailsWith<ExtensionValidationException> {
+                    OverlayApplicator().apply(source, listOf(invalid))
+                }
+            assertTrue(failure.message!!.contains("/paths/~1chat/post/x-sdkgen-pagination/responseItems"))
+            assertTrue(failure.message!!.contains("valid JSON Pointer escapes"))
+        }
+
+        listOf("/data~0key", "/data~1items").forEachIndexed { index, validPointer ->
+            val valid =
+                overlay(
+                    "valid-pointer-$index",
+                    """
+                    - target: "${'$'}['paths']['/chat']['post']"
+                      update:
+                        x-sdkgen-pagination:
+                          style: cursor
+                          requestCursor: cursor
+                          responseItems: $validPointer
+                          responseNextCursor: /next
+                    """,
+                )
+
+            val result = OverlayApplicator().apply(source, listOf(valid))
+            assertEquals(
+                validPointer,
+                result.document
+                    .at("/paths/~1chat/post/x-sdkgen-pagination/responseItems")
+                    .asText(),
+            )
+        }
+    }
+
+    @Test
+    fun `canonical operation extensions reject non-operation attachments without misclassifying vendor extensions`() {
+        val attachmentSource =
+            """
+            openapi: 3.1.0
+            info: { title: Attachments, version: 1.0.0 }
+            paths:
+              /chat:
+                post:
+                  parameters:
+                    - { name: cursor, in: query, schema: { type: string } }
+                  responses:
+                    '200': { description: OK }
+            components:
+              schemas:
+                Item: { type: object }
+            """.trimIndent().toByteArray()
+        val placements =
+            listOf(
+                "${'$'}" to "/x-sdkgen-streaming",
+                "${'$'}['paths']['/chat']" to "/paths/~1chat/x-sdkgen-streaming",
+                "${'$'}['paths']['/chat']['post']['responses']['200']" to
+                    "/paths/~1chat/post/responses/200/x-sdkgen-streaming",
+                "${'$'}['paths']['/chat']['post']['parameters'][0]" to
+                    "/paths/~1chat/post/parameters/0/x-sdkgen-streaming",
+                "${'$'}['components']['schemas']['Item']" to
+                    "/components/schemas/Item/x-sdkgen-streaming",
+            )
+
+        placements.forEachIndexed { index, (target, expectedPointer) ->
+            val invalid =
+                overlay(
+                    "misplaced-$index",
+                    """
+                    - target: "$target"
+                      update:
+                        x-sdkgen-streaming:
+                          mode: sse
+                          responseContentType: text/event-stream
+                    """,
+                )
+            val failure =
+                assertFailsWith<ExtensionValidationException> {
+                    OverlayApplicator().apply(attachmentSource, listOf(invalid))
+                }
+            assertEquals(
+                "Invalid SDKGen extension at $expectedPointer: is only allowed as a direct property of an OpenAPI Operation Object",
+                failure.message,
+            )
+        }
+
+        val vendor =
+            overlay(
+                "vendor",
+                """
+                - target: "${'$'}['info']"
+                  update:
+                    x-other-vendor:
+                      x-sdkgen-streaming: untouched
+                """,
+            )
+        val result = OverlayApplicator().apply(source, listOf(vendor))
+        assertEquals("untouched", result.document.at("/info/x-other-vendor/x-sdkgen-streaming").asText())
+    }
+
+    @Test
     fun `canonical extension validation enforces required constants types and pointer syntax`() {
         val invalidExtensions =
             listOf(
@@ -282,6 +401,16 @@ class OverlayApplicatorTest {
                   requestCursor: cursor
                   responseItems: items
                   responseNextCursor: /next
+                """,
+                """
+                x-sdkgen-idempotency:
+                  keyHeader: Idempotency-Key
+                  clientGenerated: false
+                """,
+                """
+                x-sdkgen-idempotency:
+                  keyHeader: ''
+                  clientGenerated: true
                 """,
             )
 

@@ -1,5 +1,7 @@
 package com.nabobery.sdkgen.engine.config
 
+import com.nabobery.sdkgen.engine.spi.PluginSpiRange
+
 internal object ConfigValidator {
     fun validate(
         config: SdkgenConfigV1Alpha1,
@@ -115,6 +117,22 @@ internal object ConfigValidator {
             "clientName must be a valid Kotlin identifier.",
             file,
         )
+        kotlin.naming.modelPrefix?.let { prefix ->
+            requireConstraint(
+                IDENTIFIER.matches(prefix),
+                "$.kotlin.naming.modelPrefix",
+                "modelPrefix must be a valid Kotlin identifier.",
+                file,
+            )
+        }
+        kotlin.naming.operationPrefix?.let { prefix ->
+            requireConstraint(
+                IDENTIFIER.matches(prefix),
+                "$.kotlin.naming.operationPrefix",
+                "operationPrefix must be a valid Kotlin identifier.",
+                file,
+            )
+        }
         requireConstraint(
             kotlin.targets.isNotEmpty(),
             "$.kotlin.targets",
@@ -178,6 +196,33 @@ internal object ConfigValidator {
             requireNonEmpty(plugin.id, "$.plugins[$index].id", "plugin ID", file)
             requireNonEmpty(plugin.version, "$.plugins[$index].version", "plugin version", file)
             requireNonEmpty(plugin.spiRange, "$.plugins[$index].spiRange", "plugin SPI range", file)
+            when (PluginSpiRange.validate(plugin.spiRange)) {
+                PluginSpiRange.Validation.INVALID_SYNTAX -> {
+                    requireConstraint(
+                        condition = false,
+                        path = "$.plugins[$index].spiRange",
+                        message =
+                            "spiRange must use the canonical syntax '>=0.1 <0.2' with numeric major and minor " +
+                                "versions.",
+                        file = file,
+                    )
+                }
+
+                PluginSpiRange.Validation.INCOMPATIBLE -> {
+                    requireConstraint(
+                        condition = false,
+                        path = "$.plugins[$index].spiRange",
+                        message =
+                            "spiRange must include the current engine SPI version " +
+                                "${PluginSpiRange.CURRENT_ENGINE_SPI_VERSION}.",
+                        file = file,
+                    )
+                }
+
+                PluginSpiRange.Validation.VALID -> {
+                    Unit
+                }
+            }
         }
         requireUniqueBy(plugins, "$.plugins", "plugin ID", file, PluginConfig::id)
     }

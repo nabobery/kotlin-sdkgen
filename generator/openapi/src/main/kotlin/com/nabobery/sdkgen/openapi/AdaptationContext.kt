@@ -38,7 +38,8 @@ internal class AdaptationContext(
         severity: DiagnosticSeverity = DiagnosticSeverity.ERROR,
         phase: DiagnosticPhase = DiagnosticPhase.ADAPTATION,
         remediation: String = "Correct the source contract or apply an explicit overlay before retrying generation.",
+        relatedSymbolId: String? = null,
     ) {
-        diagnostics += Diagnostic(code, severity, phase, message, remediation, source)
+        diagnostics += Diagnostic(code, severity, phase, message, remediation, source, relatedSymbolId)
     }
 }

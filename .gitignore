@@ -15,7 +15,6 @@ node_modules/
 claudex*.log
 /experiments-import/
 
+# Phase docs are tracked, but heavy experiment evidence stays local
 docs/phase[0-9]/
-
 docs/plans/
-

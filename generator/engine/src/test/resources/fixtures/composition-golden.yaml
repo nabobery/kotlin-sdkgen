@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info: { title: Composition golden, version: "1" }
+paths:
+  /choice:
+    get:
+      operationId: getChoice
+      responses:
+        '200':
+          description: Choice
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Choice' }
+components:
+  schemas:
+    Choice:
+      anyOf:
+        - $ref: '#/components/schemas/Alpha'
+        - $ref: '#/components/schemas/Beta'
+    Variant:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+    Alpha:
+      type: object
+      required: [alpha]
+      properties:
+        alpha: { type: string }
+    Beta:
+      type: object
+      required: [beta]
+      properties:
+        beta: { type: string }
+    Cat:
+      type: object
+      required: [cat]
+      properties:
+        cat: { type: string }
+    Dog:
+      type: object
+      required: [dog]
+      properties:
+        dog: { type: string }

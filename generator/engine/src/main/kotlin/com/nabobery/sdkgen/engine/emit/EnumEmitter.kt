@@ -1,5 +1,3 @@
-@file:Suppress("ktlint:standard:max-line-length")
-
 package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration

@@ -7,8 +7,11 @@
         "style": { "const": "cursor" },
         "requestCursor": { "type": "string", "minLength": 1 },
         "requestLimit": { "type": "string", "minLength": 1 },
-        "responseItems": { "type": "string", "pattern": "^/" },
-        "responseNextCursor": { "type": "string", "pattern": "^/" }
+        "responseItems": { "type": "string", "pattern": "^/(?:[^~]|~[01])*$" },
+        "responseNextCursor": {
+            "type": "string",
+            "pattern": "^/(?:[^~]|~[01])*$"
+        }
     },
     "required": [
         "style",

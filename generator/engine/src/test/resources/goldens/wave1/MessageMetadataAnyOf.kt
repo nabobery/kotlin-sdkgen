@@ -9,6 +9,7 @@ import kotlin.collections.Set
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -35,9 +36,13 @@ public enum class MessageMetadataBranch {
   CacheControl,
 }
 
-public class AnyOfNoMatchException(
+public sealed class MessageMetadataAnyOfDecodingException(
   message: String,
-) : UnionDecodingException(message)
+) : SerializationException(message)
+
+public class MessageMetadataAnyOfNoMatchException(
+  message: String,
+) : MessageMetadataAnyOfDecodingException(message)
 
 internal data class MetadataInspection(
   public val matchesCitations: Boolean,
@@ -61,10 +66,12 @@ public class MessageMetadataAnyOf internal constructor(
   private val inspection: MetadataInspection,
 ) {
   public val citations: CitationMetadata? by
-      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesCitations) json.decodeFromJsonElement<CitationMetadata>(raw) else null }
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesCitations) json
+        .decodeFromJsonElement<CitationMetadata>(raw) else null }
 
   public val cache: CacheMetadata? by
-      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesCacheControl) json.decodeFromJsonElement<CacheMetadata>(raw) else null }
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesCacheControl) json
+        .decodeFromJsonElement<CacheMetadata>(raw) else null }
 
   public val matchedBranches: Set<MessageMetadataBranch>
     get() = buildSet {
@@ -79,7 +86,8 @@ public class MessageMetadataAnyOf internal constructor(
     public fun fromRaw(raw: JsonElement, json: Json = SdkJson): MessageMetadataAnyOf {
       val inspection = inspectMessageMetadataAnyOf(raw)
       if (inspection.matchCount == 0) {
-        throw AnyOfNoMatchException("MessageMetadataAnyOf matched 0 branches: " + inspection.failures.joinToString("; "))
+        throw MessageMetadataAnyOfNoMatchException("MessageMetadataAnyOf matched 0 branches: " + inspection.failures
+          .joinToString("; "))
       }
       return MessageMetadataAnyOf(raw, json, inspection)
     }
@@ -112,11 +120,13 @@ private fun inspectMessageMetadataAnyOf(element: JsonElement): MetadataInspectio
     matchesCacheControl = matchesCacheControl,
     failures = buildList {
       if (!matchesCitations) add("Citations: required properties 'citations' do not match their declared types")
-      if (!matchesCacheControl) add("CacheControl: required properties 'cache_control' do not match their declared types")
+      if (!matchesCacheControl) add("CacheControl: required properties 'cache_control' do not match their declared " +
+        "types")
     },
   )
 }
 
 private fun JsonElement?.isString(): Boolean = this is JsonPrimitive && isString
 
-private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEmpty() && all { it is JsonPrimitive && it.isString }
+private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEmpty() && all { it is JsonPrimitive &&
+  it.isString }

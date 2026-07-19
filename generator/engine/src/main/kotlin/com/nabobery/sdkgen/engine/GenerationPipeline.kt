@@ -1,3 +1,5 @@
+@file:OptIn(com.nabobery.sdkgen.engine.spi.ExperimentalSdkGenApi::class)
+
 package com.nabobery.sdkgen.engine
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -5,17 +7,42 @@ import com.nabobery.sdkgen.engine.config.ConfigDigest
 import com.nabobery.sdkgen.engine.config.OverlayConflictPolicy
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
 import com.nabobery.sdkgen.engine.config.ZeroMatchPolicy
+import com.nabobery.sdkgen.engine.declarations.DeclarationMappingResult
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjection
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
-import com.nabobery.sdkgen.engine.declarations.OpenRouterPhase1Projection
+import com.nabobery.sdkgen.engine.declarations.GenerationDiagnostic
+import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
+import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
+import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
+import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.emit.KotlinEmitter
 import com.nabobery.sdkgen.engine.emit.KotlinPoetEmitter
 import com.nabobery.sdkgen.engine.output.AtomicOutputPublisher
 import com.nabobery.sdkgen.engine.output.GenerationManifestIdentity
 import com.nabobery.sdkgen.engine.output.LockPublication
+import com.nabobery.sdkgen.engine.output.ManifestCompatibilityProfile
 import com.nabobery.sdkgen.engine.output.ManifestInput
 import com.nabobery.sdkgen.engine.output.ManifestOverlay
 import com.nabobery.sdkgen.engine.output.ManifestPlugin
+import com.nabobery.sdkgen.engine.output.ManifestTool
+import com.nabobery.sdkgen.engine.spi.DeclarationAugmentationPhaseValue
+import com.nabobery.sdkgen.engine.spi.GeneratedFileSnapshot
+import com.nabobery.sdkgen.engine.spi.NamingTypeMappingPhaseValue
+import com.nabobery.sdkgen.engine.spi.OutputVerificationPhaseValue
+import com.nabobery.sdkgen.engine.spi.PluginDiagnostic
+import com.nabobery.sdkgen.engine.spi.PluginPipelineInput
+import com.nabobery.sdkgen.engine.spi.PluginRecord
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginEngine
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginPhase
+import com.nabobery.sdkgen.engine.spi.SdkGenPluginRegistry
+import com.nabobery.sdkgen.engine.spi.applyDeclarationAugmentations
+import com.nabobery.sdkgen.engine.spi.declarationSnapshots
+import com.nabobery.sdkgen.engine.spi.toGenerationDiagnostic
+import com.nabobery.sdkgen.model.DiagnosticPhase
+import com.nabobery.sdkgen.model.DiagnosticSeverity
+import com.nabobery.sdkgen.model.SemanticDocument
+import com.nabobery.sdkgen.model.SourceLocation
+import com.nabobery.sdkgen.model.SourcePointer
 import com.nabobery.sdkgen.openapi.SemanticAdapter
 import com.nabobery.sdkgen.openapi.overlays.ConflictPolicy
 import com.nabobery.sdkgen.openapi.overlays.OverlayApplicator
@@ -24,6 +51,7 @@ import com.nabobery.sdkgen.openapi.overlays.ZeroMatchMode
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.Locale
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.readBytes
 import kotlin.io.path.writeBytes
@@ -67,6 +95,11 @@ public data class GenerationDiagnosticView(
     public val message: String,
     public val documentUri: String,
     public val jsonPointer: String,
+    public val severity: DiagnosticSeverity = DiagnosticSeverity.ERROR,
+    public val phase: DiagnosticPhase = DiagnosticPhase.ADAPTATION,
+    public val pluginPhase: SdkGenPluginPhase? = null,
+    public val remediation: String = "Correct the reported input and rerun generation.",
+    public val location: SourceLocation = SourceLocation(0, 0, 0),
 )
 
 /** A symbol (schema, operation, ...) that projection chose not to represent, and why. */
@@ -81,6 +114,28 @@ public data class ValidationResult(
     public val diagnostics: List<GenerationDiagnosticView>,
     public val exclusions: List<GenerationExclusionView>,
 )
+
+/** One projected Kotlin declaration paired with its resolved name and source origin. */
+public data class ProjectedSymbolView(
+    public val symbolId: String,
+    public val resolvedName: String,
+    public val kind: String,
+    public val origin: SourcePointer,
+)
+
+/** Read-only adaptation and projection result used by tooling such as `explain`. */
+public data class GenerationAnalysisResult(
+    public val validation: ValidationResult,
+    public val symbols: List<ProjectedSymbolView>,
+)
+
+/** Generation cannot publish because the resolved input contains blocking diagnostics or exclusions. */
+public class GenerationBlockedException(
+    public val validation: ValidationResult,
+) : IllegalStateException(
+        "Generation blocked by ${validation.diagnostics.count { it.severity == DiagnosticSeverity.ERROR }} " +
+            "blocking diagnostic(s) and ${validation.exclusions.size} exclusion(s).",
+    )
 
 /**
  * The outcome of a successful [GenerationPipeline.generate] call. [snapshotSha256] is the digest
@@ -105,9 +160,9 @@ public data class GenerationResult(
  * adapt to a [com.nabobery.sdkgen.model.SemanticDocument], project it to a declaration model
  * (via [com.nabobery.sdkgen.engine.declarations.DeclarationProjection]), and — for [generate] only
  * — render and atomically publish Kotlin source files (via
- * [com.nabobery.sdkgen.engine.emit.KotlinEmitter]). The public constructor wires the Phase 1
- * OpenRouter-only projection and the KotlinPoet emitter; the internal constructor exists so tests
- * can substitute either seam without touching pipeline logic.
+ * [com.nabobery.sdkgen.engine.emit.KotlinEmitter]). The public constructor wires the general
+ * standard projection and the KotlinPoet emitter; the internal constructor exists so tests can
+ * substitute either seam without touching pipeline logic.
  *
  * [validate] and [generate] both re-verify every input's digest before doing any work (see
  * [verifyResolvedInputs]) and share the same adapt-then-project path, so a document that fails
@@ -126,20 +181,47 @@ public class GenerationPipeline private constructor(
     private val kotlinPoetVersion: String,
     private val projection: DeclarationProjection,
     private val emitter: KotlinEmitter,
+    private val pluginEngine: SdkGenPluginEngine,
 ) {
     public constructor(
         generatorVersion: String,
         edition: String = "community",
-        kotlinPoetVersion: String = "2.3.0",
-    ) : this(generatorVersion, edition, kotlinPoetVersion, OpenRouterPhase1Projection(), KotlinPoetEmitter())
+        kotlinPoetVersion: String = SdkGenDependencyVersions.kotlinPoet,
+    ) : this(
+        generatorVersion,
+        edition,
+        kotlinPoetVersion,
+        StandardProjection(),
+        KotlinPoetEmitter(),
+        SdkGenPluginEngine(),
+    )
+
+    /**
+     * Creates a pipeline with an explicitly supplied plugin registry. Plugin discovery is never
+     * implicit; callers that opt into custom plugins must register them in deterministic order.
+     */
+    public constructor(
+        generatorVersion: String,
+        pluginRegistry: SdkGenPluginRegistry,
+        edition: String = "community",
+        kotlinPoetVersion: String = SdkGenDependencyVersions.kotlinPoet,
+    ) : this(
+        generatorVersion,
+        edition,
+        kotlinPoetVersion,
+        StandardProjection(),
+        KotlinPoetEmitter(),
+        SdkGenPluginEngine(pluginRegistry),
+    )
 
     internal constructor(
         generatorVersion: String,
         projection: DeclarationProjection,
         edition: String = "community",
-        kotlinPoetVersion: String = "2.3.0",
+        kotlinPoetVersion: String = SdkGenDependencyVersions.kotlinPoet,
         emitter: KotlinEmitter = KotlinPoetEmitter(),
-    ) : this(generatorVersion, edition, kotlinPoetVersion, projection, emitter)
+        pluginEngine: SdkGenPluginEngine = SdkGenPluginEngine(),
+    ) : this(generatorVersion, edition, kotlinPoetVersion, projection, emitter, pluginEngine)
 
     /**
      * Adapts and projects [source] (with [overlays] applied) without emitting or publishing
@@ -157,26 +239,132 @@ public class GenerationPipeline private constructor(
         verifyResolvedInputs(config, source, overlays)
         val effectivePath = materializeEffectiveSource(config, source, overlays)
         try {
-            val semantic = SemanticAdapter().adapt(effectivePath).document
+            val adaptation = SemanticAdapter().adapt(effectivePath, rootCanonicalUri = source.canonicalUri)
+            val effectiveDocumentUri = adaptation.document.documentUri
+            val semantic =
+                canonicalizeSemanticSources(
+                    adaptation.document,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val prepared = preparePlugins(config, semantic, source)
+            val preparedSemantic =
+                canonicalizeSemanticSources(
+                    prepared.semantic,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
             val mapping =
-                projection.project(
-                    DeclarationProjectionRequest(
-                        document = semantic,
-                        packageName = config.kotlin.packageName,
-                        canonicalDocumentUri = source.canonicalUri,
-                        clientName = config.kotlin.naming.clientName,
+                canonicalizeMappingSources(
+                    prepared.mapping,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val pluginDiagnostics =
+                canonicalizePluginDiagnostics(
+                    prepared.pluginDiagnostics,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val diagnostics =
+                effectiveDiagnostics(
+                    config,
+                    combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
+                )
+            val exclusions = combinedExclusions(config, preparedSemantic, mapping)
+            return ValidationResult(
+                diagnostics = diagnostics.map(::diagnosticView),
+                exclusions = exclusions.map(::exclusionView),
+            )
+        } finally {
+            if (effectivePath != source.path) effectivePath.deleteIfExists()
+        }
+    }
+
+    /**
+     * Adapts and projects [source] without rendering or publishing. Unlike [validate], this also
+     * exposes the resolved Kotlin declaration names and their source pointers for tooling.
+     */
+    public fun analyze(
+        config: SdkgenConfigV1Alpha1,
+        source: ResolvedSource,
+        overlays: List<ResolvedGenerationOverlay>,
+    ): GenerationAnalysisResult {
+        verifyResolvedInputs(config, source, overlays)
+        val effectivePath = materializeEffectiveSource(config, source, overlays)
+        try {
+            val adaptation = SemanticAdapter().adapt(effectivePath, rootCanonicalUri = source.canonicalUri)
+            val effectiveDocumentUri = adaptation.document.documentUri
+            val semantic =
+                canonicalizeSemanticSources(
+                    adaptation.document,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val prepared = preparePlugins(config, semantic, source)
+            val preparedSemantic =
+                canonicalizeSemanticSources(
+                    prepared.semantic,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val mapping =
+                canonicalizeMappingSources(
+                    prepared.mapping,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val pluginDiagnostics =
+                canonicalizePluginDiagnostics(
+                    prepared.pluginDiagnostics,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val diagnostics =
+                effectiveDiagnostics(
+                    config,
+                    combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
+                )
+            val exclusions = combinedExclusions(config, preparedSemantic, mapping)
+            val validation =
+                ValidationResult(
+                    diagnostics = diagnostics.map(::diagnosticView),
+                    exclusions = exclusions.map(::exclusionView),
+                )
+            val symbols =
+                buildList {
+                    mapping.model.files.flatMap { file -> file.declarations }.forEach { declaration ->
+                        add(
+                            ProjectedSymbolView(
+                                symbolId = declaration.symbolId,
+                                resolvedName = declaration.resolvedName,
+                                kind = declarationKind(declaration.symbolId),
+                                origin = mapping.origins[declaration.symbolId] ?: preparedSemantic.source,
+                            ),
+                        )
+                        if (declaration is OperationClientDeclaration) {
+                            declaration.operations.forEach { operation ->
+                                add(
+                                    ProjectedSymbolView(
+                                        symbolId = operation.symbolId,
+                                        resolvedName = operation.operationId,
+                                        kind = "operation",
+                                        origin = mapping.origins[operation.symbolId] ?: semantic.source,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                }.distinctBy { symbol ->
+                    "${symbol.symbolId}|${symbol.resolvedName}|${symbol.origin.documentUri}|${symbol.origin.jsonPointer}"
+                }.sortedWith(
+                    compareBy(
+                        ProjectedSymbolView::kind,
+                        ProjectedSymbolView::resolvedName,
+                        ProjectedSymbolView::symbolId,
                     ),
                 )
-            return ValidationResult(
-                diagnostics =
-                    mapping.diagnostics.map {
-                        GenerationDiagnosticView(it.code, it.message, it.source.documentUri, it.source.jsonPointer)
-                    },
-                exclusions =
-                    mapping.exclusions.map {
-                        GenerationExclusionView(it.symbolId, it.reason, it.source.documentUri, it.source.jsonPointer)
-                    },
-            )
+            return GenerationAnalysisResult(validation, symbols)
         } finally {
             if (effectivePath != source.path) effectivePath.deleteIfExists()
         }
@@ -200,6 +388,7 @@ public class GenerationPipeline private constructor(
      *
      * @throws IllegalArgumentException if any resolved input's digest does not match its recorded
      *   identity in [config] or [source]/[overlays].
+     * @throws GenerationBlockedException if blocking diagnostics or exclusions are present.
      */
     public fun generate(
         config: SdkgenConfigV1Alpha1,
@@ -213,49 +402,368 @@ public class GenerationPipeline private constructor(
         val started = System.nanoTime()
         val effectivePath = materializeEffectiveSource(config, source, overlays)
         try {
-            val semantic = SemanticAdapter().adapt(effectivePath).document
-            val mapping =
-                projection.project(
-                    DeclarationProjectionRequest(
-                        document = semantic,
-                        packageName = config.kotlin.packageName,
-                        canonicalDocumentUri = source.canonicalUri,
-                        clientName = config.kotlin.naming.clientName,
-                    ),
+            val adaptation = SemanticAdapter().adapt(effectivePath, rootCanonicalUri = source.canonicalUri)
+            val effectiveDocumentUri = adaptation.document.documentUri
+            val semantic =
+                canonicalizeSemanticSources(
+                    adaptation.document,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
                 )
+            val prepared = preparePlugins(config, semantic, source)
+            val preparedSemantic =
+                canonicalizeSemanticSources(
+                    prepared.semantic,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val mapping =
+                canonicalizeMappingSources(
+                    prepared.mapping,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val pluginDiagnostics =
+                canonicalizePluginDiagnostics(
+                    prepared.pluginDiagnostics,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val preparedDiagnostics =
+                effectiveDiagnostics(
+                    config,
+                    combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
+                )
+            val preparedExclusions = combinedExclusions(config, preparedSemantic, mapping)
+            blockIfNeeded(preparedDiagnostics, preparedExclusions)
             val files = emitter.render(mapping.model)
-            val identity = manifestIdentity(config, source, overlays)
+            val outputPlugins =
+                pluginEngine.run(
+                    config = config,
+                    input =
+                        PluginPipelineInput(
+                            source = source.sourcePointer(),
+                            document = preparedSemantic,
+                            naming = prepared.naming,
+                            declarations = prepared.declarations,
+                            output =
+                                OutputVerificationPhaseValue(
+                                    files =
+                                        files.map { file ->
+                                            GeneratedFileSnapshot(
+                                                file.path,
+                                                file.bytes.sha256(),
+                                                file.bytes.size.toLong(),
+                                            )
+                                        },
+                                ),
+                            initialDiagnostics = pluginDiagnostics,
+                        ).also { stagedInput ->
+                            stagedInput.skippedPluginIds += prepared.skippedPluginIds
+                        },
+                    from = SdkGenPluginPhase.OUTPUT_VERIFICATION,
+                )
+            val outputPluginDiagnostics =
+                canonicalizePluginDiagnostics(
+                    outputPlugins.diagnostics,
+                    effectiveDocumentUri,
+                    source.canonicalUri,
+                )
+            val diagnostics =
+                effectiveDiagnostics(
+                    config,
+                    combinedDiagnostics(preparedSemantic, mapping, outputPluginDiagnostics),
+                )
+            val exclusions = combinedExclusions(config, preparedSemantic, mapping)
+            blockIfNeeded(diagnostics, exclusions)
+            val identity = manifestIdentity(config, source, overlays, outputPlugins.records)
             val publication =
                 AtomicOutputPublisher().publish(
                     destination = destination,
-                    declarationModel = mapping.model,
+                    declarationModel = prepared.mapping.model,
                     files = files,
                     identity = identity,
-                    diagnostics = mapping.diagnostics,
-                    exclusions = mapping.exclusions,
+                    diagnostics = diagnostics,
+                    exclusions = exclusions,
                     failAfterFiles = failAfterFiles,
                     lock = lock?.let { LockPublication(it.destination, it.encodedLock.encodeToByteArray()) },
                 )
             return GenerationResult(
                 snapshotSha256 = publication.digest,
-                declarationModelSha256 = mapping.model.digest(),
+                declarationModelSha256 = prepared.mapping.model.digest(),
                 output = publication.destination,
                 generatedFiles = files.size,
                 manifestBytes = publication.manifestBytes,
-                diagnostics =
-                    mapping.diagnostics.map {
-                        GenerationDiagnosticView(it.code, it.message, it.source.documentUri, it.source.jsonPointer)
-                    },
-                exclusions =
-                    mapping.exclusions.map {
-                        GenerationExclusionView(it.symbolId, it.reason, it.source.documentUri, it.source.jsonPointer)
-                    },
+                diagnostics = diagnostics.map(::diagnosticView),
+                exclusions = exclusions.map(::exclusionView),
                 elapsedMillis = (System.nanoTime() - started) / 1_000_000,
             )
         } finally {
             if (effectivePath != source.path) effectivePath.deleteIfExists()
         }
     }
+
+    private fun project(
+        semantic: SemanticDocument,
+        config: SdkgenConfigV1Alpha1,
+        source: ResolvedSource,
+        clientName: String = config.kotlin.naming.clientName,
+        modelPrefix: String? = config.kotlin.naming.modelPrefix,
+        operationPrefix: String? = config.kotlin.naming.operationPrefix,
+    ): DeclarationMappingResult =
+        projection.project(
+            DeclarationProjectionRequest(
+                document = semantic,
+                packageName = config.kotlin.packageName,
+                canonicalDocumentUri = source.canonicalUri,
+                clientName = clientName,
+                modelPrefix = modelPrefix,
+                operationPrefix = operationPrefix,
+                runtimeDefaults = config.runtime,
+            ),
+        )
+
+    private fun canonicalizeSemanticSources(
+        semantic: SemanticDocument,
+        effectiveDocumentUri: String,
+        resolvedSourceUri: String,
+    ): SemanticDocument =
+        semantic.copy(
+            documentUri = canonicalDocumentUri(semantic.documentUri, effectiveDocumentUri, resolvedSourceUri),
+            diagnostics =
+                semantic.diagnostics.map { diagnostic ->
+                    diagnostic.copy(
+                        source = canonicalizeSourcePointer(diagnostic.source, effectiveDocumentUri, resolvedSourceUri),
+                    )
+                },
+            source = canonicalizeSourcePointer(semantic.source, effectiveDocumentUri, resolvedSourceUri),
+        )
+
+    private fun canonicalizeMappingSources(
+        mapping: DeclarationMappingResult,
+        effectiveDocumentUri: String,
+        resolvedSourceUri: String,
+    ): DeclarationMappingResult =
+        mapping.copy(
+            diagnostics =
+                mapping.diagnostics.map { diagnostic ->
+                    diagnostic.copy(
+                        source = canonicalizeSourcePointer(diagnostic.source, effectiveDocumentUri, resolvedSourceUri),
+                    )
+                },
+            exclusions =
+                mapping.exclusions.map { exclusion ->
+                    exclusion.copy(
+                        source = canonicalizeSourcePointer(exclusion.source, effectiveDocumentUri, resolvedSourceUri),
+                    )
+                },
+            origins =
+                mapping.origins.mapValues { (_, origin) ->
+                    canonicalizeSourcePointer(origin, effectiveDocumentUri, resolvedSourceUri)
+                },
+        )
+
+    private fun canonicalizePluginDiagnostics(
+        diagnostics: List<PluginDiagnostic>,
+        effectiveDocumentUri: String,
+        resolvedSourceUri: String,
+    ): List<PluginDiagnostic> =
+        diagnostics.map { diagnostic ->
+            diagnostic.copy(
+                source = canonicalizeSourcePointer(diagnostic.source, effectiveDocumentUri, resolvedSourceUri),
+            )
+        }
+
+    private fun canonicalDocumentUri(
+        documentUri: String,
+        effectiveDocumentUri: String,
+        resolvedSourceUri: String,
+    ): String = if (documentUri == effectiveDocumentUri) resolvedSourceUri else documentUri
+
+    private fun canonicalizeSourcePointer(
+        source: SourcePointer,
+        effectiveDocumentUri: String,
+        resolvedSourceUri: String,
+    ): SourcePointer =
+        if (source.documentUri == effectiveDocumentUri) {
+            source.copy(documentUri = resolvedSourceUri)
+        } else {
+            source
+        }
+
+    private fun preparePlugins(
+        config: SdkgenConfigV1Alpha1,
+        semantic: SemanticDocument,
+        source: ResolvedSource,
+    ): PreparedPluginGeneration {
+        val sourcePointer = source.sourcePointer()
+        val preProjection =
+            pluginEngine.run(
+                config = config,
+                input =
+                    PluginPipelineInput(
+                        source = sourcePointer,
+                        document = semantic,
+                        naming =
+                            NamingTypeMappingPhaseValue(
+                                clientName = config.kotlin.naming.clientName,
+                                modelPrefix = config.kotlin.naming.modelPrefix,
+                                operationPrefix = config.kotlin.naming.operationPrefix,
+                            ),
+                    ),
+                from = SdkGenPluginPhase.VALIDATION,
+            )
+        val mapping =
+            project(
+                semantic = preProjection.document,
+                config = config,
+                source = source,
+                clientName = preProjection.naming.clientName,
+                modelPrefix = preProjection.naming.modelPrefix,
+                operationPrefix = preProjection.naming.operationPrefix,
+            )
+        val postProjection =
+            pluginEngine.run(
+                config = config,
+                input =
+                    PluginPipelineInput(
+                        source = sourcePointer,
+                        document = preProjection.document,
+                        naming = preProjection.naming,
+                        declarations =
+                            DeclarationAugmentationPhaseValue(
+                                declarations = declarationSnapshots(mapping.model, sourcePointer),
+                            ),
+                        initialDiagnostics = preProjection.diagnostics,
+                    ).also { stagedInput ->
+                        stagedInput.skippedPluginIds += preProjection.skippedPluginIds
+                    },
+                from = SdkGenPluginPhase.DECLARATION_AUGMENTATION,
+            )
+        val declarations = requireNotNull(postProjection.declarations)
+        return PreparedPluginGeneration(
+            semantic = postProjection.document,
+            naming = postProjection.naming,
+            mapping = mapping.copy(model = applyDeclarationAugmentations(mapping.model, declarations.augmentations)),
+            declarations = declarations,
+            pluginDiagnostics = postProjection.diagnostics,
+            skippedPluginIds = postProjection.skippedPluginIds,
+        )
+    }
+
+    private fun combinedDiagnostics(
+        semantic: SemanticDocument,
+        mapping: DeclarationMappingResult,
+        pluginDiagnostics: List<PluginDiagnostic> = emptyList(),
+    ): List<GenerationDiagnostic> =
+        (
+            semantic.diagnostics.map(GenerationDiagnostic::fromSemantic) +
+                mapping.diagnostics +
+                pluginDiagnostics.map { diagnostic -> diagnostic.toGenerationDiagnostic() }
+        ).distinctBy { diagnostic ->
+            listOf(
+                diagnostic.wireCode,
+                diagnostic.symbolId,
+                diagnostic.source.documentUri,
+                diagnostic.source.jsonPointer,
+                diagnostic.pluginPhase,
+                diagnostic.message,
+            )
+        }.sortedWith(
+            compareBy(
+                GenerationDiagnostic::phase,
+                { diagnostic -> diagnostic.source.documentUri },
+                { diagnostic -> diagnostic.source.jsonPointer },
+                GenerationDiagnostic::wireCode,
+                { diagnostic -> diagnostic.pluginPhase },
+                GenerationDiagnostic::message,
+            ),
+        )
+
+    private fun effectiveDiagnostics(
+        config: SdkgenConfigV1Alpha1,
+        diagnostics: List<GenerationDiagnostic>,
+    ): List<GenerationDiagnostic> = diagnostics.map { diagnostic -> applyWarningPolicy(config, diagnostic) }
+
+    private fun applyWarningPolicy(
+        config: SdkgenConfigV1Alpha1,
+        diagnostic: GenerationDiagnostic,
+    ): GenerationDiagnostic =
+        if (
+            diagnostic.severity == DiagnosticSeverity.WARNING &&
+            config.diagnostics.warningsAsErrors &&
+            diagnostic.wireCode !in config.diagnostics.warningAllowlist
+        ) {
+            diagnostic.copy(severity = DiagnosticSeverity.ERROR)
+        } else {
+            diagnostic
+        }
+
+    private fun blockIfNeeded(
+        diagnostics: List<GenerationDiagnostic>,
+        exclusions: List<GenerationExclusion>,
+    ) {
+        if (diagnostics.none { it.severity == DiagnosticSeverity.ERROR } && exclusions.isEmpty()) return
+        throw GenerationBlockedException(
+            ValidationResult(
+                diagnostics = diagnostics.map(::diagnosticView),
+                exclusions = exclusions.map(::exclusionView),
+            ),
+        )
+    }
+
+    private fun combinedExclusions(
+        config: SdkgenConfigV1Alpha1,
+        semantic: SemanticDocument,
+        mapping: DeclarationMappingResult,
+    ): List<GenerationExclusion> {
+        val semanticExclusions =
+            semantic.diagnostics.mapNotNull { diagnostic ->
+                val effective = applyWarningPolicy(config, GenerationDiagnostic.fromSemantic(diagnostic))
+                diagnostic.relatedSymbolId
+                    ?.takeIf { effective.severity == DiagnosticSeverity.ERROR }
+                    ?.let { symbolId -> GenerationExclusion(symbolId, diagnostic.message, diagnostic.source) }
+            }
+        val emittedOperations =
+            mapping.model.files
+                .flatMap { file -> file.declarations }
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+                .map(OperationDeclaration::symbolId)
+                .toSet()
+        return (semanticExclusions + mapping.exclusions)
+            .filterNot { exclusion ->
+                exclusion.symbolId.startsWith("operation:") && exclusion.symbolId in emittedOperations
+            }.distinctBy { exclusion ->
+                listOf(
+                    exclusion.symbolId,
+                    exclusion.source.documentUri,
+                    exclusion.source.jsonPointer,
+                    exclusion.reason,
+                )
+            }.sortedWith(compareBy(GenerationExclusion::symbolId, { it.source.documentUri }, { it.source.jsonPointer }))
+    }
+
+    private fun diagnosticView(diagnostic: GenerationDiagnostic): GenerationDiagnosticView =
+        GenerationDiagnosticView(
+            code = diagnostic.wireCode,
+            message = diagnostic.message,
+            documentUri = diagnostic.source.documentUri,
+            jsonPointer = diagnostic.source.jsonPointer,
+            severity = diagnostic.severity,
+            phase = diagnostic.phase,
+            pluginPhase = diagnostic.pluginPhase,
+            remediation = diagnostic.remediation,
+            location = diagnostic.source.location,
+        )
+
+    private fun exclusionView(exclusion: GenerationExclusion): GenerationExclusionView =
+        GenerationExclusionView(
+            symbolId = exclusion.symbolId,
+            reason = exclusion.reason,
+            documentUri = exclusion.source.documentUri,
+            jsonPointer = exclusion.source.jsonPointer,
+        )
 
     private fun verifyResolvedInputs(
         config: SdkgenConfigV1Alpha1,
@@ -303,6 +811,7 @@ public class GenerationPipeline private constructor(
         config: SdkgenConfigV1Alpha1,
         source: ResolvedSource,
         overlays: List<ResolvedGenerationOverlay>,
+        pluginRecords: List<PluginRecord> = emptyList(),
     ): GenerationManifestIdentity =
         GenerationManifestIdentity(
             configDigest = ConfigDigest.sha256(config),
@@ -312,18 +821,51 @@ public class GenerationPipeline private constructor(
             generatorVersion = generatorVersion,
             edition = edition,
             kotlinPoetVersion = kotlinPoetVersion,
-            targets = config.kotlin.targets.map { it.name.lowercase() },
+            targets = config.kotlin.targets.map { it.name.lowercase(Locale.ROOT) },
+            compatibilityProfiles =
+                config.compatibilityProfiles.map { profile ->
+                    ManifestCompatibilityProfile(profile.id, profile.version)
+                },
             plugins =
-                config.plugins.filter { it.enabled }.map { plugin ->
+                pluginRecords.map { plugin ->
                     ManifestPlugin(
                         id = plugin.id,
                         version = plugin.version,
                         spiRange = plugin.spiRange,
-                        configSha256 = ConfigDigest.sha256(plugin.config),
+                        configSha256 = plugin.configDigest,
+                        phases = plugin.phases.map { phase -> phase.name.lowercase(Locale.ROOT) },
                     )
                 },
+            warningsAsErrors = config.diagnostics.warningsAsErrors,
+            warningAllowlist = config.diagnostics.warningAllowlist,
+            tools = listOf(ManifestTool(id = "kotlinpoet", version = kotlinPoetVersion)),
         )
 }
+
+private fun declarationKind(symbolId: String): String =
+    when {
+        symbolId.startsWith("schema:") -> "schema"
+        symbolId.startsWith("operation:") -> "operation"
+        symbolId.startsWith("client:") -> "client"
+        symbolId.startsWith("support:") -> "support"
+        else -> "declaration"
+    }
+
+private data class PreparedPluginGeneration(
+    val semantic: SemanticDocument,
+    val naming: NamingTypeMappingPhaseValue,
+    val mapping: DeclarationMappingResult,
+    val declarations: DeclarationAugmentationPhaseValue,
+    val pluginDiagnostics: List<PluginDiagnostic>,
+    val skippedPluginIds: List<String>,
+)
+
+private fun ResolvedSource.sourcePointer(): SourcePointer =
+    SourcePointer(
+        documentUri = canonicalUri,
+        jsonPointer = "/",
+        location = SourceLocation(0, 0, 0),
+    )
 
 internal fun materializeEffectiveSource(
     config: SdkgenConfigV1Alpha1,

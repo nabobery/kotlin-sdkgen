@@ -1,6 +1,7 @@
 plugins {
     application
     id("sdkgen.kotlin-jvm")
+    id("sdkgen.kotlin-serialization")
     id("sdkgen.publishing")
 }
 
@@ -10,6 +11,9 @@ application {
 
 dependencies {
     implementation(project(":generator:engine"))
+    implementation(project(":generator:model"))
+    implementation(project(":generator:openapi"))
+    implementation(libs.jackson.databind)
     implementation(libs.clikt)
     implementation(libs.kotlinx.serialization.json)
 

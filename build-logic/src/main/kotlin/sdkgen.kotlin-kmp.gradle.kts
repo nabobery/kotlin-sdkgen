@@ -33,11 +33,20 @@ kotlin {
     }
     js {
         nodejs()
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
+        }
     }
     iosArm64()
     iosSimulatorArm64()
     macosArm64()
     linuxX64()
+    linuxArm64()
+    mingwX64()
     jvmToolchain(17)
 
     sourceSets {

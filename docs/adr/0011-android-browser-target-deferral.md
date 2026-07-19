@@ -42,3 +42,10 @@ Defer both targets to Phase 2, as an explicit user decision (2026-07-17):
 - Re-open this decision only in Phase 2, when `androidTarget()` plus AGP and `js { browser() }` are added back to the KMP convention and to CI.
 - Phase 2 re-entry criteria: an Android Gradle Plugin version is pinned in the version catalog; `androidTarget()` compiles and passes shared contract tests for the runtime and a representative generated module; `js { browser() }` compiles and passes shared contract tests using a provisioned browser launcher; both targets are added to the compile-matrix and CI verification commands in the Phase 2 remediation/results record.
 - If a Phase 1-only consumer need for Android or browser emerges before Phase 2 begins (for example, an external contribution), re-evaluate this ADR explicitly rather than silently expanding scope.
+
+## Phase 2 re-entry
+
+Phase 2 re-entry is in progress as of 2026-07-17. The build now uses the Android-KMP library plugin for opted-in
+runtime and conformance modules, adds the Kotlin/JS browser target alongside Node.js, and restores Android/browser
+compile gates. This note records re-entry work only; ADR closure still requires the full Phase 2 compile matrix and CI
+results.

@@ -1,6 +1,9 @@
 package com.nabobery.sdkgen.openapi.overlays
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.nabobery.sdkgen.model.JsonPointer
+import com.nabobery.sdkgen.openapi.CANONICAL_OPERATION_EXTENSIONS
+import com.nabobery.sdkgen.openapi.isDirectOperationExtension
 
 internal class CanonicalExtensionValidator {
     fun validate(document: JsonNode) {
@@ -14,8 +17,29 @@ internal class CanonicalExtensionValidator {
         if (node.isObject) {
             node.properties().forEach { (name, value) ->
                 val childPointer = JsonPointerSupport.child(pointer, name)
-                if (name.startsWith("x-sdkgen-")) validateExtension(name, value, childPointer)
-                validateNode(value, childPointer)
+                when {
+                    name in CANONICAL_OPERATION_EXTENSIONS -> {
+                        if (!isDirectOperationExtension(childPointer)) {
+                            invalid(
+                                childPointer,
+                                "is only allowed as a direct property of an OpenAPI Operation Object",
+                            )
+                        }
+                        validateExtension(name, value, childPointer)
+                    }
+
+                    name.startsWith("x-sdkgen-") -> {
+                        validateExtension(name, value, childPointer)
+                    }
+
+                    name.startsWith("x-") -> {
+                        Unit
+                    }
+
+                    else -> {
+                        validateNode(value, childPointer)
+                    }
+                }
             }
         } else if (node.isArray) {
             node.forEachIndexed { index, value -> validateNode(value, "$pointer/$index") }
@@ -30,6 +54,7 @@ internal class CanonicalExtensionValidator {
         when (name) {
             "x-sdkgen-streaming" -> validateStreaming(value, pointer)
             "x-sdkgen-pagination" -> validatePagination(value, pointer)
+            "x-sdkgen-idempotency" -> validateIdempotency(value, pointer)
             else -> throw ExtensionValidationException("Unknown SDKGen extension '$name' at $pointer")
         }
     }
@@ -61,6 +86,20 @@ internal class CanonicalExtensionValidator {
         requireOptionalNonEmptyString(value, pointer, "requestLimit")
         requirePointer(value, pointer, "responseItems")
         requirePointer(value, pointer, "responseNextCursor")
+    }
+
+    private fun validateIdempotency(
+        value: JsonNode,
+        pointer: String,
+    ) {
+        requireObject(value, pointer)
+        requireAllowedFields(value, pointer, setOf("keyHeader", "clientGenerated"))
+        requireNonEmptyString(value, pointer, "keyHeader")
+        val fieldPointer = JsonPointerSupport.child(pointer, "clientGenerated")
+        val clientGenerated = value.get("clientGenerated") ?: invalid(fieldPointer, "is required")
+        if (!clientGenerated.isBoolean || !clientGenerated.booleanValue()) {
+            invalid(fieldPointer, "must equal true")
+        }
     }
 
     private fun requireObject(
@@ -129,6 +168,11 @@ internal class CanonicalExtensionValidator {
         val actual = value.get(field) ?: invalid(fieldPointer, "is required")
         if (!actual.isTextual || !actual.textValue().startsWith('/')) {
             invalid(fieldPointer, "must be a JSON Pointer beginning with '/'")
+        }
+        try {
+            JsonPointer(actual.textValue())
+        } catch (_: IllegalArgumentException) {
+            invalid(fieldPointer, "must contain only valid JSON Pointer escapes '~0' and '~1'")
         }
     }
 

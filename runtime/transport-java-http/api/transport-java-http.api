@@ -1,0 +1,6 @@
+public final class com/nabobery/sdkgen/transport/javahttp/JavaHttpSdkTransport : com/nabobery/sdkgen/runtime/SdkTransport {
+	public fun <init> (Ljava/net/http/HttpClient;)V
+	public fun capabilities ()Lcom/nabobery/sdkgen/runtime/TransportCapabilities;
+	public fun execute (Lcom/nabobery/sdkgen/runtime/SdkRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

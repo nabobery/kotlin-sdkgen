@@ -38,7 +38,7 @@ internal object TestFixtures {
             plugins =
                 listOf(
                     LockedPlugin(
-                        id = "com.nabobery.sdkgen.builtin.openrouter",
+                        id = "com.nabobery.sdkgen.builtin.output-verification",
                         version = "0.1.0",
                         spiRange = ">=0.1 <0.2",
                         configSha256 = ConfigDigest.sha256(config.plugins.single().config),

@@ -1,8 +1,8 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
     id("sdkgen.kotlin-kmp")
+    id("sdkgen.kotlin-kmp-android")
     id("sdkgen.kotlin-serialization")
 }
 
@@ -26,11 +26,5 @@ kotlin {
                 exceptionFormat = TestExceptionFormat.FULL
             }
         }
-    }
-}
-
-configure<KtlintExtension> {
-    filter {
-        exclude { element -> element.file.path.contains("/generated/") }
     }
 }

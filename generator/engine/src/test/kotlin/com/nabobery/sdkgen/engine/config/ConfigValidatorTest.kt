@@ -117,6 +117,16 @@ class ConfigValidatorTest {
                 config.copy(plugins = listOf(config.plugins.single().copy(id = ""))),
             ),
             InvalidCase(
+                "malformed plugin SPI range",
+                "$.plugins[0].spiRange",
+                config.copy(plugins = listOf(config.plugins.single().copy(spiRange = ">=0.1 <0.2 trailing"))),
+            ),
+            InvalidCase(
+                "incompatible plugin SPI range",
+                "$.plugins[0].spiRange",
+                config.copy(plugins = listOf(config.plugins.single().copy(spiRange = ">=0.2 <0.3"))),
+            ),
+            InvalidCase(
                 "invalid diagnostic code",
                 "$.diagnostics.warningAllowlist[0]",
                 config.copy(diagnostics = config.diagnostics.copy(warningAllowlist = listOf("not-a-code"))),

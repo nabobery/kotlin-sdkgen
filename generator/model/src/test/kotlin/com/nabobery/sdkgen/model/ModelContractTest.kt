@@ -37,4 +37,31 @@ class ModelContractTest {
 
         assertEquals(SnapshotRenderer.render(document), SnapshotRenderer.render(document.copy()))
     }
+
+    @Test
+    fun `operation extension models expose typed immutable value semantics`() {
+        val pagination =
+            PaginationModel.Cursor(
+                requestCursor = "cursor",
+                requestLimit = "limit",
+                responseItems = JsonPointer("/data"),
+                responseNextCursor = JsonPointer("/nextCursor"),
+            )
+        val streaming =
+            StreamingModel.Sse(
+                requestFlag = "stream",
+                responseContentType = "text/event-stream",
+                sentinel = "[DONE]",
+            )
+        val idempotency =
+            IdempotencyModel(
+                keyHeader = "Idempotency-Key",
+                clientGenerated = true,
+            )
+
+        assertEquals(pagination, pagination.copy())
+        assertEquals(streaming, streaming.copy())
+        assertEquals(idempotency, idempotency.copy())
+        assertEquals(listOf("data"), pagination.responseItems.segments)
+    }
 }

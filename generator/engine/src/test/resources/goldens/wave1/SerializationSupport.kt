@@ -17,6 +17,8 @@ public val SdkJson: Json = Json {
       encodeDefaults = true
     }
 
-internal fun Decoder.requireJsonDecoder(typeName: String): JsonDecoder = this as? JsonDecoder ?: throw SerializationException("$typeName supports JSON only")
+internal fun Decoder.requireJsonDecoder(typeName: String): JsonDecoder = this as? JsonDecoder ?:
+  throw SerializationException("$typeName supports JSON only")
 
-internal fun Encoder.requireJsonEncoder(typeName: String): JsonEncoder = this as? JsonEncoder ?: throw SerializationException("$typeName supports JSON only")
+internal fun Encoder.requireJsonEncoder(typeName: String): JsonEncoder = this as? JsonEncoder ?:
+  throw SerializationException("$typeName supports JSON only")

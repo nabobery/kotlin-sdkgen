@@ -7,6 +7,11 @@ plugins {
     id("sdkgen.publishing")
 }
 
+val kotlinPoetDependencyVersion = libs.versions.kotlinpoet.get()
+tasks.processResources {
+    expand(mapOf("kotlinPoetVersion" to kotlinPoetDependencyVersion))
+}
+
 tasks.test {
     val openRouterFile =
         rootProject.layout.projectDirectory
@@ -18,6 +23,9 @@ tasks.test {
         rootProject.layout.projectDirectory
             .file("generator/openapi/src/test/resources/fixtures/basic-openapi.yaml")
     val wave1GoldenRoot = layout.projectDirectory.dir("src/test/resources/goldens/wave1")
+    val standardProjectionGolden =
+        layout.projectDirectory
+            .file("src/test/resources/goldens/standard-openrouter-projection.txt")
     val emitterSource =
         layout.projectDirectory
             .file("src/main/kotlin/com/nabobery/sdkgen/engine/emit/KotlinPoetEmitter.kt")
@@ -32,6 +40,7 @@ tasks.test {
     inputs.file(basicOpenApiFile).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(consumerSourceRoot).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(wave1GoldenRoot).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(standardProjectionGolden).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(emitterSource).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(emissionContextSource).withPathSensitivity(PathSensitivity.RELATIVE)
 
@@ -39,6 +48,7 @@ tasks.test {
     systemProperty("engine.basicOpenApiFile", basicOpenApiFile.asFile.absolutePath)
     systemProperty("engine.goldenRoot", consumerSourceRoot.asFile.absolutePath)
     systemProperty("engine.wave1GoldenRoot", wave1GoldenRoot.asFile.absolutePath)
+    systemProperty("engine.standardProjectionGolden", standardProjectionGolden.asFile.absolutePath)
     systemProperty("engine.consumerSourceRoot", consumerSourceRoot.asFile.absolutePath)
     systemProperty("engine.emitterSource", emitterSource.asFile.absolutePath)
     systemProperty("engine.emissionContextSource", emissionContextSource.asFile.absolutePath)
@@ -58,6 +68,9 @@ dependencies {
     implementation(libs.kaml)
     implementation(libs.jackson.databind)
 
+    testImplementation(project(":runtime:core"))
+    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.20")
     testImplementation(libs.json.schema.validator)
+    testImplementation(libs.swagger.parser)
     testImplementation(libs.kotlin.test)
 }

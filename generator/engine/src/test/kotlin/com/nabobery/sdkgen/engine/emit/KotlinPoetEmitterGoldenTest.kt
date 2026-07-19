@@ -1,19 +1,28 @@
 package com.nabobery.sdkgen.engine.emit
 
+import com.nabobery.sdkgen.engine.config.RetryDefaults
+import com.nabobery.sdkgen.engine.config.RuntimeDefaults
+import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
+import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.KotlinFileDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
+import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationDeadlines
 import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
+import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.declarations.goldenSliceModel
+import com.nabobery.sdkgen.openapi.SemanticAdapter
 import java.nio.file.Path
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -33,12 +42,101 @@ class KotlinPoetEmitterGoldenTest {
     }
 
     @Test
+    fun standardProjectionAndEmitterGoldenCoversAnyOfAndOneOfNames() {
+        val sourceFile = Path.of(requireNotNull(javaClass.getResource("/fixtures/composition-golden.yaml")).toURI())
+        val document = SemanticAdapter().adapt(sourceFile).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = "com.example.generated",
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "CompositionClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter().render(mapping.model)
+        val output =
+            rendered
+                .sortedBy(RenderedKotlinFile::path)
+                .joinToString(separator = "\n") { file ->
+                    "--- ${file.path} ---\n${file.bytes.decodeToString()}"
+                }
+        val golden =
+            Path.of(requireNotNull(javaClass.getResource("/goldens/standard-composition-projection.txt")).toURI())
+        if (System.getenv("UPDATE_COMPOSITION_GOLDEN") == "1") golden.writeText(output)
+        assertEquals(golden.readText(), output)
+
+        val choice = rendered.single { it.path.endsWith("/Choice.kt") }.bytes.decodeToString()
+        val variant = rendered.single { it.path.endsWith("/Variant.kt") }.bytes.decodeToString()
+        assertTrue(choice.contains("public data class AlphaView"))
+        assertTrue(choice.contains("public data class BetaView"))
+        assertTrue(variant.contains("public class Cat"))
+        assertTrue(variant.contains("public class Dog"))
+    }
+
+    @Test
+    fun ordinaryOptionalModelsUseNullableConstructorDefaultsAndKeepBuilderDsl() {
+        val model =
+            ModelDeclaration(
+                symbolId = "schema:PlainModel",
+                order = 0,
+                packageName = "com.example.generated",
+                fileName = "PlainModel",
+                resolvedName = "PlainModel",
+                kdoc = "An ordinary model.",
+                fields =
+                    listOf(
+                        FieldDeclaration(
+                            symbolId = "schema:PlainModel/id",
+                            order = 0,
+                            resolvedName = "id",
+                            wireName = "id",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            required = true,
+                            nullable = false,
+                            kdoc = "Required identifier.",
+                        ),
+                        FieldDeclaration(
+                            symbolId = "schema:PlainModel/label",
+                            order = 1,
+                            resolvedName = "label",
+                            wireName = "label",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            required = false,
+                            nullable = false,
+                            kdoc = "Optional label.",
+                        ),
+                    ),
+                dslFunctionName = "plainModel",
+            )
+        val source =
+            KotlinPoetEmitter("com.example.generated")
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(KotlinFileDeclaration("com.example.generated", "PlainModel", listOf(model))),
+                    ),
+                ).single()
+                .bytes
+                .decodeToString()
+
+        assertTrue(source.contains("public val label: String? = null,"))
+        assertTrue(source.contains("public class Builder"))
+        assertTrue(source.contains("public var label: String?"))
+        assertFalse(source.contains("FieldState"))
+        assertFalse(source.contains("labelPresence"))
+    }
+
+    @Test
     fun generatedPublicModelAndUnionApisCarryContractKdoc() {
         val rendered = KotlinPoetEmitter().render(goldenSliceModel()).associate { it.path to it.bytes.decodeToString() }
         val request = rendered.getValue("com/nabobery/sdkgen/generated/ChatRequest.kt")
         val oneOf = rendered.getValue("com/nabobery/sdkgen/generated/ChatContent.kt")
         val anyOf = rendered.getValue("com/nabobery/sdkgen/generated/MessageMetadataAnyOf.kt")
         val serialization = rendered.getValue("com/nabobery/sdkgen/generated/SerializationSupport.kt")
+        val responses = rendered.getValue("com/nabobery/sdkgen/generated/ResponseShapeClient.kt")
 
         assertTrue(request.contains("Model identifier.\n   */\n  public val model"))
         assertTrue(request.contains("Returns the wire presence of `temperature`."))
@@ -47,6 +145,11 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(oneOf.contains("Creates this branch and its canonical raw JSON representation."))
         assertTrue(anyOf.contains("Builds a validated wrapper around raw JSON without rewriting it."))
         assertTrue(serialization.contains("SDK-owned JSON behavior and JSON-only serializer guards."))
+        assertTrue(responses.contains("public suspend fun jsonFirstWithResponse("))
+        assertTrue(responses.contains("public suspend fun binaryFirstWithResponse("))
+        assertFalse(responses.contains("public suspend fun jsonFirst("))
+        assertFalse(responses.contains("public suspend fun binaryFirst("))
+        assertTrue(responses.contains("public suspend fun compatibleMedia("))
     }
 
     @Test

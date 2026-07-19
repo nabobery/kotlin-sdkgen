@@ -38,7 +38,8 @@ public data class ChatMessage(
 )
 
 /**
- * Immutable chat request with exact absent, present-null, and present-value semantics. 100% generated; unsafe KDoc terminators like *&#47; are sanitized.
+ * Immutable chat request with exact absent, present-null, and present-value semantics. 100% generated; unsafe KDoc
+ * terminators like *&#47; are sanitized.
  */
 @Serializable(with = ChatRequest.Serializer::class)
 public class ChatRequest internal constructor(
@@ -93,9 +94,21 @@ public class ChatRequest internal constructor(
   public fun maxTokensPresence(): FieldPresence = maxTokensState.presence
 
   public class Builder {
-    public lateinit var model: String
+    private var modelValue: String? = null
 
-    public lateinit var messages: List<ChatMessage>
+    public var model: String
+      get() = requireNotNull(modelValue) { "model is required" }
+      set(`value`) {
+        modelValue = value
+      }
+
+    private var messagesValue: List<ChatMessage>? = null
+
+    public var messages: List<ChatMessage>
+      get() = requireNotNull(messagesValue) { "messages is required" }
+      set(`value`) {
+        messagesValue = value
+      }
 
     private var sessionIdState: FieldState<String> = FieldState.Absent
 
@@ -149,8 +162,8 @@ public class ChatRequest internal constructor(
     }
 
     public fun build(): ChatRequest {
-      check(::model.isInitialized) { "model is required" }
-      check(::messages.isInitialized) { "messages is required" }
+      check(modelValue != null) { "model is required" }
+      check(messagesValue != null) { "messages is required" }
       check(sessionIdState !== FieldState.Absent) { "sessionId is required, even when null" }
       return ChatRequest(
         model = model,
@@ -172,13 +185,15 @@ public class ChatRequest internal constructor(
     override fun deserialize(decoder: Decoder): ChatRequest {
       val jsonDecoder = decoder.requireJsonDecoder("ChatRequest")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("ChatRequest must be a JSON object")
+      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
+        throw SerializationException("ChatRequest must be a JSON object")
       val model = json.decodeRequired<String>(raw, "model")
       val messages = json.decodeRequired<List<ChatMessage>>(raw, "messages")
       if (!raw.containsKey("session_id")) {
         throw SerializationException("ChatRequest is missing required property 'session_id'")
       }
-      val sessionId = raw["session_id"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String>(requireNotNull(element)) }
+      val sessionId = raw["session_id"].let { element -> if (element == JsonNull) null else json
+        .decodeFromJsonElement<String>(requireNotNull(element)) }
       return ChatRequest(
         model = model,
         messages = messages,
@@ -205,12 +220,12 @@ public class ChatRequest internal constructor(
 
 public fun chatRequest(block: ChatRequest.Builder.() -> Unit): ChatRequest = ChatRequest.build(block)
 
-private fun <T> T?.toNullableFieldState(): FieldState<T> = if (this == null) FieldState.Null else FieldState.Value(this)
-
 private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
   val element = raw[name] ?: throw SerializationException("ChatRequest is missing required property '" + name + "'")
   return decodeFromJsonElement(element)
 }
+
+private fun <T> T?.toNullableFieldState(): FieldState<T> = if (this == null) FieldState.Null else FieldState.Value(this)
 
 private inline fun <reified T> Json.decodeOptional(
   raw: JsonObject,

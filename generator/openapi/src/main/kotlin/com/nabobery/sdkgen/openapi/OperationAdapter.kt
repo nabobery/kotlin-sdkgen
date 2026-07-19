@@ -7,15 +7,21 @@ import com.nabobery.sdkgen.model.DiagnosticCode
 import com.nabobery.sdkgen.model.DiagnosticPhase
 import com.nabobery.sdkgen.model.EncodingModel
 import com.nabobery.sdkgen.model.HeaderModel
+import com.nabobery.sdkgen.model.IdempotencyModel
+import com.nabobery.sdkgen.model.JsonPointer
 import com.nabobery.sdkgen.model.MediaTypeModel
 import com.nabobery.sdkgen.model.OperationModel
+import com.nabobery.sdkgen.model.PaginationModel
 import com.nabobery.sdkgen.model.ParameterLocation
 import com.nabobery.sdkgen.model.ParameterModel
 import com.nabobery.sdkgen.model.RequestBodyModel
 import com.nabobery.sdkgen.model.Requiredness
 import com.nabobery.sdkgen.model.ResponseModel
 import com.nabobery.sdkgen.model.SecurityRequirementModel
+import com.nabobery.sdkgen.model.SecuritySchemeKind
+import com.nabobery.sdkgen.model.SecuritySchemeModel
 import com.nabobery.sdkgen.model.StatusSelectorKind
+import com.nabobery.sdkgen.model.StreamingModel
 import java.util.TreeMap
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -28,6 +34,7 @@ private data class LocatedNode(
 )
 
 internal fun AdaptationContext.adaptOperations(root: JsonNode): List<OperationModel> {
+    diagnoseMisplacedCanonicalExtensions(root)
     val paths = root.get("paths") ?: return emptyList()
     if (!paths.isObject) return emptyList()
     val operations = mutableListOf<OperationModel>()
@@ -37,20 +44,91 @@ internal fun AdaptationContext.adaptOperations(root: JsonNode): List<OperationMo
         HTTP_METHODS.forEach { method ->
             val operationNode = pathNode.get(method) ?: return@forEach
             val operationPointer = "$pathPointer/$method"
+            val operationId =
+                operationNode.path("operationId").textOrNull() ?: synthesizedOperationId(method, pathValue)
+            val operationSymbolId = "operation:$operationId"
             try {
                 operations += adaptOperation(pathValue, method, pathNode, operationNode, operationPointer)
             } catch (cancellation: CancellationException) {
                 throw cancellation
+            } catch (failure: CanonicalExtensionAdaptationException) {
+                addDiagnostic(
+                    code = DiagnosticCode.INVALID_CANONICAL_EXTENSION,
+                    message = failure.message.orEmpty(),
+                    remediation = "Correct the canonical extension to match its published schema.",
+                    phase = DiagnosticPhase.ADAPTATION,
+                    source = rootDocument.source(failure.pointer),
+                    relatedSymbolId = operationSymbolId,
+                )
             } catch (failure: Throwable) {
                 addDiagnostic(
                     code = DiagnosticCode.OPERATION_ADAPTATION_FAILED,
                     message = "Operation ${method.uppercase()} $pathValue could not be adapted: ${failure.message}",
                     source = rootDocument.source(operationPointer),
+                    relatedSymbolId = operationSymbolId,
                 )
             }
         }
     }
     return operations
+}
+
+private fun AdaptationContext.diagnoseMisplacedCanonicalExtensions(root: JsonNode) {
+    fun visit(
+        node: JsonNode,
+        pointer: String,
+    ) {
+        when {
+            node.isObject -> {
+                node.properties().asSequence().toList().sortedBy { it.key }.forEach { (name, value) ->
+                    val childPointer = "$pointer/${escapePointerSegment(name)}"
+                    when {
+                        name in CANONICAL_OPERATION_EXTENSIONS && !isDirectOperationExtension(childPointer) -> {
+                            addDiagnostic(
+                                code = DiagnosticCode.INVALID_CANONICAL_EXTENSION,
+                                message =
+                                    "Invalid canonical extension at $childPointer: " +
+                                        "is only allowed as a direct property of an OpenAPI Operation Object",
+                                remediation = "Move the canonical extension directly onto an OpenAPI Operation Object.",
+                                phase = DiagnosticPhase.ADAPTATION,
+                                source = rootDocument.source(childPointer),
+                                relatedSymbolId = operationSymbolId(root, childPointer),
+                            )
+                        }
+
+                        name.startsWith("x-") -> {
+                            Unit
+                        }
+
+                        else -> {
+                            visit(value, childPointer)
+                        }
+                    }
+                }
+            }
+
+            node.isArray -> {
+                node.forEachIndexed { index, value -> visit(value, "$pointer/$index") }
+            }
+        }
+    }
+
+    visit(root, "")
+}
+
+private fun operationSymbolId(
+    root: JsonNode,
+    pointer: String,
+): String? {
+    val segments = pointer.split('/')
+    if (segments.size < 4 || segments[1] != "paths" || segments[3].lowercase() !in HTTP_METHODS) return null
+    val operationPointer = segments.take(4).joinToString("/")
+    val operation = root.at(operationPointer)
+    if (operation.isMissingNode || !operation.isObject) return null
+    val pathValue = segments[2]
+    val method = segments[3].lowercase()
+    val operationId = operation.path("operationId").textOrNull() ?: synthesizedOperationId(method, pathValue)
+    return "operation:$operationId"
 }
 
 private fun AdaptationContext.adaptOperation(
@@ -94,6 +172,9 @@ private fun AdaptationContext.adaptOperation(
             }
     val securityNode = if (node.has("security")) node.get("security") else rootDocument.root.get("security")
     val securityPointer = if (node.has("security")) "$pointer/security" else "/security"
+    val pagination = node.get("x-sdkgen-pagination")?.let { adaptPagination(it, "$pointer/x-sdkgen-pagination") }
+    val streaming = node.get("x-sdkgen-streaming")?.let { adaptStreaming(it, "$pointer/x-sdkgen-streaming") }
+    val idempotency = node.get("x-sdkgen-idempotency")?.let { adaptIdempotency(it, "$pointer/x-sdkgen-idempotency") }
     return OperationModel(
         operationId = node.path("operationId").textOrNull() ?: synthesizedOperationId(method, pathValue),
         method = method.uppercase(),
@@ -104,7 +185,10 @@ private fun AdaptationContext.adaptOperation(
         requestBody = requestBody,
         responses = responses,
         securityAlternatives = adaptSecurity(securityNode, rootDocument, securityPointer),
-        extensions = node.extensions(),
+        pagination = pagination,
+        streaming = streaming,
+        idempotency = idempotency,
+        extensions = node.nonCanonicalExtensions(),
         source = rootDocument.source(pointer),
     )
 }
@@ -162,7 +246,7 @@ private fun AdaptationContext.adaptParameter(
         description = resolvedNode.path("description").textOrNull(),
         deprecated = resolvedNode.path("deprecated").booleanOrFalse(),
         examples = resolvedNode.get("examples").namedJsonValues(),
-        extensions = resolvedNode.extensions(),
+        extensions = resolvedNode.nonCanonicalExtensions(),
         source = rootDocument.source(pointer),
     )
 }
@@ -186,7 +270,7 @@ private fun AdaptationContext.adaptRequestBody(
             },
         description = resolvedNode.path("description").textOrNull(),
         content = adaptContent(resolvedNode.get("content"), "${located.pointer}/content", located.document),
-        extensions = resolvedNode.extensions(),
+        extensions = resolvedNode.nonCanonicalExtensions(),
         source = rootDocument.source(pointer),
     )
 }
@@ -230,7 +314,7 @@ private fun AdaptationContext.adaptResponse(
                         },
                     description = headerNode.path("description").textOrNull(),
                     deprecated = headerNode.path("deprecated").booleanOrFalse(),
-                    extensions = headerNode.extensions(),
+                    extensions = headerNode.nonCanonicalExtensions(),
                     source = headerLocated.document.source(headerLocated.pointer),
                 )
             }
@@ -246,7 +330,7 @@ private fun AdaptationContext.adaptResponse(
         content = adaptContent(resolvedNode.get("content"), "${located.pointer}/content", located.document),
         headers = headers,
         links = resolvedNode.get("links").namedJsonValues(),
-        extensions = resolvedNode.extensions(),
+        extensions = resolvedNode.nonCanonicalExtensions(),
         source = rootDocument.source(pointer),
     )
 }
@@ -276,7 +360,7 @@ private fun AdaptationContext.adaptContent(
                         partName = partName,
                         contentType = encodingNode.path("contentType").textOrNull(),
                         headers = encodingNode.get("headers").namedJsonValues(),
-                        extensions = encodingNode.extensions(),
+                        extensions = encodingNode.nonCanonicalExtensions(),
                         source = document.source(encodingPointer),
                     )
                 }
@@ -286,7 +370,7 @@ private fun AdaptationContext.adaptContent(
             encoding = encoding,
             example = mediaNode.get("example")?.toJsonValue(),
             examples = mediaNode.get("examples").namedJsonValues(),
-            extensions = mediaNode.extensions(),
+            extensions = mediaNode.nonCanonicalExtensions(),
             streaming =
                 mediaType.equals("text/event-stream", true) ||
                     mediaType.equals("application/x-ndjson", true) ||
@@ -323,6 +407,75 @@ internal fun AdaptationContext.adaptSecurity(
     }
 }
 
+internal fun AdaptationContext.adaptSecuritySchemes(
+    node: JsonNode?,
+    document: SourceDocument,
+    pointer: String,
+): Map<String, SecuritySchemeModel> {
+    if (node == null || !node.isObject) return emptyMap()
+    return node
+        .properties()
+        .asSequence()
+        .toList()
+        .sortedBy { it.key }
+        .mapNotNull { (name, rawScheme) ->
+            val located = locateGeneric(document, "$pointer/${escapePointerSegment(name)}", rawScheme)
+            val scheme = located.node
+            val source = located.document.source(located.pointer)
+            when (scheme.path("type").asText()) {
+                "apiKey" -> {
+                    val location =
+                        when (scheme.path("in").asText()) {
+                            "header" -> ParameterLocation.HEADER
+                            "query" -> ParameterLocation.QUERY
+                            "cookie" -> ParameterLocation.COOKIE
+                            else -> null
+                        }
+                    location?.let {
+                        name to
+                            SecuritySchemeModel(
+                                kind = SecuritySchemeKind.API_KEY,
+                                parameterName = scheme.path("name").textOrNull(),
+                                location = it,
+                                source = source,
+                            )
+                    }
+                }
+
+                "http" -> {
+                    name to
+                        SecuritySchemeModel(
+                            kind = SecuritySchemeKind.HTTP,
+                            scheme = scheme.path("scheme").textOrNull(),
+                            bearerFormat = scheme.path("bearerFormat").textOrNull(),
+                            source = source,
+                        )
+                }
+
+                "oauth2" -> {
+                    name to SecuritySchemeModel(SecuritySchemeKind.OAUTH2, source = source)
+                }
+
+                "openIdConnect" -> {
+                    name to
+                        SecuritySchemeModel(
+                            kind = SecuritySchemeKind.OPEN_ID_CONNECT,
+                            openIdConnectUrl = scheme.path("openIdConnectUrl").textOrNull(),
+                            source = source,
+                        )
+                }
+
+                "mutualTLS" -> {
+                    name to SecuritySchemeModel(SecuritySchemeKind.MUTUAL_TLS, source = source)
+                }
+
+                else -> {
+                    null
+                }
+            }
+        }.toMap()
+}
+
 private fun AdaptationContext.locateGeneric(
     document: SourceDocument,
     pointer: String,
@@ -332,6 +485,127 @@ private fun AdaptationContext.locateGeneric(
     val target = repository.resolveReference(document.canonicalUri, rawReference)
     return LocatedNode(target.document, target.pointer, target.document.root.at(target.pointer))
 }
+
+private class CanonicalExtensionAdaptationException(
+    val pointer: String,
+    reason: String,
+) : IllegalArgumentException("Invalid canonical extension at $pointer: $reason")
+
+private fun adaptPagination(
+    node: JsonNode,
+    pointer: String,
+): PaginationModel.Cursor {
+    requireExtensionObject(node, pointer)
+    requireExtensionFields(
+        node,
+        pointer,
+        setOf("style", "requestCursor", "requestLimit", "responseItems", "responseNextCursor"),
+    )
+    requireExtensionConstant(node, pointer, "style", "cursor")
+    return PaginationModel.Cursor(
+        requestCursor = requireExtensionString(node, pointer, "requestCursor"),
+        requestLimit = optionalExtensionString(node, pointer, "requestLimit"),
+        responseItems = requireJsonPointer(node, pointer, "responseItems"),
+        responseNextCursor = requireJsonPointer(node, pointer, "responseNextCursor"),
+    )
+}
+
+private fun adaptStreaming(
+    node: JsonNode,
+    pointer: String,
+): StreamingModel.Sse {
+    requireExtensionObject(node, pointer)
+    requireExtensionFields(node, pointer, setOf("mode", "requestFlag", "responseContentType", "sentinel"))
+    requireExtensionConstant(node, pointer, "mode", "sse")
+    requireExtensionConstant(node, pointer, "responseContentType", "text/event-stream")
+    return StreamingModel.Sse(
+        requestFlag = optionalExtensionString(node, pointer, "requestFlag"),
+        responseContentType = "text/event-stream",
+        sentinel = optionalExtensionString(node, pointer, "sentinel"),
+    )
+}
+
+private fun adaptIdempotency(
+    node: JsonNode,
+    pointer: String,
+): IdempotencyModel {
+    requireExtensionObject(node, pointer)
+    requireExtensionFields(node, pointer, setOf("keyHeader", "clientGenerated"))
+    val clientGenerated = node.get("clientGenerated")
+    if (clientGenerated == null || !clientGenerated.isBoolean || !clientGenerated.booleanValue()) {
+        invalidExtension("$pointer/clientGenerated", "must equal true")
+    }
+    return IdempotencyModel(
+        keyHeader = requireExtensionString(node, pointer, "keyHeader"),
+        clientGenerated = true,
+    )
+}
+
+private fun requireExtensionObject(
+    node: JsonNode,
+    pointer: String,
+) {
+    if (!node.isObject) invalidExtension(pointer, "must be an object")
+}
+
+private fun requireExtensionFields(
+    node: JsonNode,
+    pointer: String,
+    allowed: Set<String>,
+) {
+    node.fieldNames().asSequence().filterNot(allowed::contains).sorted().firstOrNull()?.let { field ->
+        invalidExtension("$pointer/${escapePointerSegment(field)}", "is not a supported field")
+    }
+}
+
+private fun requireExtensionConstant(
+    node: JsonNode,
+    pointer: String,
+    field: String,
+    expected: String,
+) {
+    val value = requireExtensionString(node, pointer, field)
+    if (value != expected) invalidExtension("$pointer/$field", "must equal '$expected'")
+}
+
+private fun optionalExtensionString(
+    node: JsonNode,
+    pointer: String,
+    field: String,
+): String? = if (node.has(field)) requireExtensionString(node, pointer, field) else null
+
+private fun requireExtensionString(
+    node: JsonNode,
+    pointer: String,
+    field: String,
+): String {
+    val fieldPointer = "$pointer/$field"
+    val value = node.get(field) ?: invalidExtension(fieldPointer, "is required")
+    if (!value.isTextual || value.textValue().isEmpty()) {
+        invalidExtension(fieldPointer, "must be a non-empty string")
+    }
+    return value.textValue()
+}
+
+private fun requireJsonPointer(
+    node: JsonNode,
+    pointer: String,
+    field: String,
+): JsonPointer {
+    val fieldPointer = "$pointer/$field"
+    val value = requireExtensionString(node, pointer, field)
+    if (!value.startsWith('/')) invalidExtension(fieldPointer, "must be a JSON Pointer beginning with '/'")
+    return try {
+        JsonPointer(value)
+    } catch (_: IllegalArgumentException) {
+        invalidExtension(fieldPointer, "must contain only valid JSON Pointer escapes '~0' and '~1'")
+    }
+}
+
+private fun invalidExtension(
+    pointer: String,
+    reason: String,
+): Nothing = throw CanonicalExtensionAdaptationException(pointer, reason)
 
 private fun synthesizedOperationId(
     method: String,

@@ -103,8 +103,11 @@ public data class AdaptationResult(
  */
 public class SemanticAdapter {
     /** @throws IllegalStateException if the underlying swagger-parser cannot open [path] at all. */
-    public fun adapt(path: Path): AdaptationResult {
-        val repository = SourceRepository.load(path)
+    public fun adapt(
+        path: Path,
+        rootCanonicalUri: String? = null,
+    ): AdaptationResult {
+        val repository = SourceRepository.load(path, rootCanonicalUri = rootCanonicalUri)
         val rootDocument = repository.rootDocument()
         val unresolved = parse(path, resolve = false)
         val resolved = parse(path, resolve = true)
@@ -143,7 +146,11 @@ public class SemanticAdapter {
 
         val operations = state.adaptOperations(root)
         val totalOperations = countOperations(root)
-        val diagnosedOperations = state.diagnostics.count { it.code == DiagnosticCode.OPERATION_ADAPTATION_FAILED }
+        val diagnosedOperations =
+            state.diagnostics
+                .mapNotNull { diagnostic -> diagnostic.relatedSymbolId?.takeIf { it.startsWith("operation:") } }
+                .distinct()
+                .size
         val representedOperations = operations.size
 
         unresolved.messages.orEmpty().sorted().forEach { message ->
@@ -189,7 +196,7 @@ public class SemanticAdapter {
                         compareBy(OperationModel::path, OperationModel::method, OperationModel::operationId),
                     ),
                 securityAlternatives = state.adaptSecurity(root.get("security"), rootDocument, "/security"),
-                extensions = root.extensions(),
+                extensions = root.nonCanonicalExtensions(),
                 diagnostics =
                     state.diagnostics.sortedWith(
                         compareBy({
@@ -197,6 +204,12 @@ public class SemanticAdapter {
                         }, { it.source.jsonPointer }, Diagnostic::code),
                     ),
                 source = rootDocument.source(""),
+                securitySchemes =
+                    state.adaptSecuritySchemes(
+                        root.path("components").path("securitySchemes"),
+                        rootDocument,
+                        "/components/securitySchemes",
+                    ),
             )
         val componentTotal = componentSchemas.takeIf(JsonNode::isObject)?.size() ?: 0
         return AdaptationResult(
@@ -307,6 +320,7 @@ internal fun adaptComponentSchema(
             code = DiagnosticCode.SCHEMA_ADAPTATION_FAILED,
             message = "Component schema '$name' could not be adapted: ${failure.message}",
             source = document.source(pointer),
+            relatedSymbolId = "schema:$name",
         )
         return false
     }

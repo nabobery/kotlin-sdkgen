@@ -1,12 +1,12 @@
 document sdkgen://source/14-cursor-pagination.yaml
 title "Cursor pagination"
 version "1.0.0"
-sourceDocument sdkgen://source/14-cursor-pagination.yaml sha256=078b9f64f0e65adb344afaf5b5513e98db7a31e4d31b75e2f2311f19efb37607 bytes=1164 policy=LOCAL_FILE @sdkgen://source/14-cursor-pagination.yaml#:3:1:192
+sourceDocument sdkgen://source/14-cursor-pagination.yaml sha256=e3e59eaa9a6583377820cf95e2a89a0c5faaf711808bd5e34b321602dbf9478a bytes=1340 policy=LOCAL_FILE @sdkgen://source/14-cursor-pagination.yaml#:3:1:192
 source sdkgen://source/14-cursor-pagination.yaml#:3:1:192
 extensions {}
 security
 schemas 7
-schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item COMPONENT @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item:44:7:1077
+schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item COMPONENT @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item:50:7:1253
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -15,9 +15,9 @@ schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item COMPON
   constraints {}
   default -
   examples []
-  property id REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id:48:11:1151
+  property id REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id:54:11:1327
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id:48:11:1151
+schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/properties/id:54:11:1327
   reference -
   types string nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -27,7 +27,7 @@ schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item/proper
   default -
   examples []
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage COMPONENT @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage:34:7:843
+schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage COMPONENT @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage:40:7:1019
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -36,10 +36,10 @@ schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage CO
   constraints {}
   default -
   examples []
-  property data REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data:38:11:933
-  property nextCursor REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor:42:11:1038
+  property data REQUIRED/NON_NULL presence=VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data:44:11:1109
+  property nextCursor REQUIRED/NULLABLE presence=NULL,VALUE -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor readOnly=false writeOnly=false deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor:48:11:1214
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data:38:11:933
+schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data:44:11:1109
   reference -
   types array nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -48,19 +48,19 @@ schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/pr
   constraints {}
   default -
   examples []
-  items -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data/items:40:13:974
+  items -> sdkgen://source/14-cursor-pagination.yaml#/components/schemas/Item @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/data/items:46:13:1150
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor:42:11:1038
+schema sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor INLINE @sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor:48:11:1214
   reference -
   types string nullability=NULLABLE format=-
-  nullabilityOrigins [JSON_SCHEMA_TYPE_ARRAY@sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor/type/1:42:26:1053]
+  nullabilityOrigins [JSON_SCHEMA_TYPE_ARRAY@sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage/properties/nextCursor/type/1:48:26:1229]
   flags deprecated=false readOnly=false writeOnly=false
   description -
   constraints {}
   default -
   examples []
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema INLINE @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema:16:13:429
+schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema INLINE @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema:22:13:605
   reference -
   types string nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -70,7 +70,7 @@ schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0
   default -
   examples []
   extensions {}
-schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema INLINE @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema:21:13:540
+schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema INLINE @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema:27:13:716
   reference -
   types integer nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -83,9 +83,10 @@ schema sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1
 operations 1
 operation GET /items id=listItems deprecated=false @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get:10:7:289
   description -
-  parameter QUERY:cursor OPTIONAL/sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema style=form explode=true @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0:12:11:340
-  parameter QUERY:limit OPTIONAL/sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema style=form explode=true @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1:17:11:452
-  response EXACT:200 @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/responses/200:26:11:644
-    media application/json schema=sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage streaming=false encoding=[] @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/responses/200/content/application~1json:29:15:738
+  parameter QUERY:cursor OPTIONAL/sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0/schema style=form explode=true @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/0:18:11:516
+  parameter QUERY:limit OPTIONAL/sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1/schema style=form explode=true @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/parameters/1:23:11:628
+  response EXACT:200 @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/responses/200:32:11:820
+    media application/json schema=sdkgen://source/14-cursor-pagination.yaml#/components/schemas/ItemPage streaming=false encoding=[] @sdkgen://source/14-cursor-pagination.yaml#/paths/~1items/get/responses/200/content/application~1json:35:15:914
+  pagination Cursor(requestCursor=cursor, requestLimit=limit, responseItems=/data, responseNextCursor=/nextCursor)
   extensions {}
 diagnostics 0

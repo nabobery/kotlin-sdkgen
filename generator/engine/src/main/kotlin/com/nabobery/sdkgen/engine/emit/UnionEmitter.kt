@@ -1,10 +1,9 @@
-@file:Suppress("ktlint:standard:max-line-length")
-
 package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.declarations.AnyOfBranchDeclaration
 import com.nabobery.sdkgen.engine.declarations.AnyOfBranchShape
 import com.nabobery.sdkgen.engine.declarations.AnyOfDeclaration
+import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.OneOfCaseDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.UnionFieldDeclaration
@@ -29,17 +28,12 @@ internal fun EmissionContext.emitOneOf(
     model: OneOfDeclaration,
 ) {
     val unionType = ClassName(model.packageName, model.resolvedName)
-    file.addType(
-        TypeSpec
-            .classBuilder("UnionDecodingException")
-            .addModifiers(KModifier.PUBLIC, KModifier.SEALED)
-            .primaryConstructor(FunSpec.constructorBuilder().addParameter("message", STRING).build())
-            .superclass(SERIALIZATION_EXCEPTION)
-            .addSuperclassConstructorParameter("message")
-            .build(),
-    )
-    file.addType(exceptionType("OneOfNoMatchException", ClassName(model.packageName, "UnionDecodingException")))
-    file.addType(exceptionType("OneOfAmbiguityException", ClassName(model.packageName, "UnionDecodingException")))
+    val decodingException = ClassName(model.packageName, "${model.resolvedName}DecodingException")
+    val noMatchException = ClassName(model.packageName, "${model.resolvedName}NoMatchException")
+    val ambiguityException = ClassName(model.packageName, "${model.resolvedName}AmbiguityException")
+    file.addType(exceptionBaseType("${model.resolvedName}DecodingException"))
+    file.addType(exceptionType("${model.resolvedName}NoMatchException", decodingException))
+    file.addType(exceptionType("${model.resolvedName}AmbiguityException", decodingException))
 
     val union =
         TypeSpec
@@ -55,12 +49,143 @@ internal fun EmissionContext.emitOneOf(
                     .build(),
             )
     model.cases.forEach { case -> union.addType(oneOfCase(unionType, case)) }
-    union.addType(oneOfSerializer(model, unionType))
+    val inspectionPlan = oneOfInspectionPlan(model)
+    union.addType(oneOfSerializer(model, unionType, noMatchException, ambiguityException, inspectionPlan))
     file.addType(union.build())
-    file.addType(oneOfInspection(model))
-    file.addFunction(inspectOneOf(model))
+    file.addType(oneOfInspection(model, inspectionPlan))
+    file.addFunction(inspectOneOf(model, inspectionPlan))
     file.addFunction(stringValueFunction())
 }
+
+private data class OneOfInspectionState(
+    val field: UnionFieldDeclaration,
+    val valueName: String,
+    val resultName: String,
+    val presentName: String?,
+    val decodedName: String,
+    val matchesName: String?,
+) {
+    fun matchExpression(prefix: String = ""): String =
+        matchesName?.let { "$prefix$it" }
+            ?: presentName?.let { "$prefix$it && $prefix$decodedName" }
+            ?: "$prefix$decodedName"
+
+    fun mismatchExpression(prefix: String = ""): String =
+        matchesName?.let { "!$prefix$it" }
+            ?: presentName?.let { "!$prefix$it || !$prefix$decodedName" }
+            ?: "!$prefix$decodedName"
+}
+
+private data class OneOfInspectionPlan(
+    val states: List<OneOfInspectionState>,
+    private val statesByField: Map<UnionFieldDeclaration, OneOfInspectionState>,
+    private val valueStates: Map<UnionFieldDeclaration, OneOfInspectionState>,
+) {
+    fun state(field: UnionFieldDeclaration): OneOfInspectionState = statesByField.getValue(field)
+
+    fun valueStateName(field: UnionFieldDeclaration): String =
+        valueStates.getValue(field.copy(expectedStringValue = null)).valueName
+}
+
+private class InspectionNameAllocator(
+    initialNames: Set<String>,
+) {
+    private val usedNames = initialNames.toMutableSet()
+
+    fun allocate(preferredName: String): String {
+        if (usedNames.add(preferredName)) return preferredName
+        var suffix = 2
+        while (!usedNames.add("$preferredName$suffix")) suffix += 1
+        return "$preferredName$suffix"
+    }
+}
+
+private fun oneOfInspectionPlan(model: OneOfDeclaration): OneOfInspectionPlan {
+    val fields = model.cases.flatMap { it.matchFields }.distinct()
+    val fieldsByResolvedName = fields.groupBy { it.resolvedName }
+    val reservedStateNames = fieldsByResolvedName.keys.toMutableSet()
+    val preferredStateNames = mutableMapOf<UnionFieldDeclaration, String>()
+
+    fieldsByResolvedName.toSortedMap().forEach { (resolvedName, matchingFields) ->
+        if (matchingFields.size == 1) {
+            preferredStateNames[matchingFields.single()] = resolvedName
+        } else {
+            matchingFields
+                .sortedBy { it.inspectionShapeSortKey() }
+                .forEachIndexed { index, field ->
+                    var disambiguator = 1
+                    var stateName = "${resolvedName}State${index + 1}"
+                    while (!reservedStateNames.add(stateName)) {
+                        disambiguator += 1
+                        stateName = "${resolvedName}State${index + 1}_$disambiguator"
+                    }
+                    preferredStateNames[field] = stateName
+                }
+        }
+    }
+
+    val nameAllocator = InspectionNameAllocator(setOf("failures", "names", "raw", "size"))
+    val statesByField =
+        fields
+            .sortedBy { it.inspectionShapeSortKey() }
+            .associateWith { field ->
+                val valueName = nameAllocator.allocate(preferredStateNames.getValue(field))
+                OneOfInspectionState(
+                    field = field,
+                    valueName = valueName,
+                    resultName = nameAllocator.allocate("${valueName}Result"),
+                    presentName =
+                        if (field.type.nullable) {
+                            nameAllocator.allocate("${valueName}Present")
+                        } else {
+                            null
+                        },
+                    decodedName = nameAllocator.allocate("${valueName}Decoded"),
+                    matchesName =
+                        if (field.expectedStringValue != null) {
+                            nameAllocator.allocate("${valueName}Matches")
+                        } else {
+                            null
+                        },
+                )
+            }
+    val valueStates =
+        fields
+            .groupBy { it.copy(expectedStringValue = null) }
+            .mapValues { (_, matchingFields) ->
+                val representative = matchingFields.minBy { it.inspectionShapeSortKey() }
+                statesByField.getValue(representative)
+            }
+
+    return OneOfInspectionPlan(
+        states = fields.map(statesByField::getValue),
+        statesByField = statesByField,
+        valueStates = valueStates,
+    )
+}
+
+private fun UnionFieldDeclaration.inspectionShapeSortKey(): String =
+    buildString {
+        append(resolvedName).append('|')
+        append(wireName).append('|')
+        append(type.inspectionShapeSortKey()).append('|')
+        append(expectedStringValue != null).append('|')
+        append(expectedStringValue.orEmpty())
+    }
+
+private fun KotlinTypeRef.inspectionShapeSortKey(): String =
+    buildString {
+        append(packageName).append(':').append(simpleName)
+        if (arguments.isNotEmpty()) {
+            append('<')
+            arguments.forEachIndexed { index, argument ->
+                if (index > 0) append(',')
+                append(argument.inspectionShapeSortKey())
+            }
+            append('>')
+        }
+        append(if (nullable) '?' else '!')
+    }
 
 private fun oneOfCase(
     unionType: ClassName,
@@ -113,11 +238,35 @@ private fun oneOfFactory(
             .addKdoc("Creates this branch and its canonical raw JSON representation.\n")
             .returns(caseType)
     case.requiredFields.forEach { field -> function.addParameter(field.resolvedName, field.type.toTypeName()) }
+    val expectedValues = case.matchFields.associate { it.wireName to it.expectedStringValue }
+    val requiredWireNames = case.requiredFields.map(UnionFieldDeclaration::wireName).toSet()
     val raw = CodeBlock.builder().add("%M {\n", BUILD_JSON_OBJECT).indent()
-    case.matchFields.filter { it.expectedStringValue != null }.forEach { field ->
-        raw.add("%M(%S, %S)\n", PUT, field.wireName, field.expectedStringValue)
+    case.requiredFields.forEach { field ->
+        val expected = expectedValues[field.wireName]
+        if (expected != null) {
+            raw.add("%M(%S, %S)\n", PUT, field.wireName, expected)
+        } else if (field.type.packageName == "kotlin" && field.type.simpleName == "String") {
+            raw.add("%M(%S, %L)\n", PUT, field.wireName, field.resolvedName)
+        } else {
+            raw.add(
+                "%M(%S, SdkJson.%M(%L))\n",
+                PUT,
+                field.wireName,
+                ENCODE_TO_JSON_ELEMENT,
+                field.resolvedName,
+            )
+        }
     }
-    case.requiredFields.forEach { field -> raw.add("%M(%S, %L)\n", PUT, field.wireName, field.resolvedName) }
+    case.matchFields
+        .filter { expectedValues[it.wireName] != null && it.wireName !in requiredWireNames }
+        .forEach { field ->
+            raw.add(
+                "%M(%S, %S)\n",
+                PUT,
+                field.wireName,
+                requireNotNull(expectedValues.getValue(field.wireName)),
+            )
+        }
     raw.unindent().add("}")
     val call = CodeBlock.builder().add("return %T(\n", caseType).indent()
     case.requiredFields.forEach { field -> call.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
@@ -128,6 +277,9 @@ private fun oneOfFactory(
 private fun EmissionContext.oneOfSerializer(
     model: OneOfDeclaration,
     unionType: ClassName,
+    noMatchException: ClassName,
+    ambiguityException: ClassName,
+    inspectionPlan: OneOfInspectionPlan,
 ): TypeSpec =
     TypeSpec
         .objectBuilder("Serializer")
@@ -145,7 +297,7 @@ private fun EmissionContext.oneOfSerializer(
                 .addModifiers(KModifier.OVERRIDE)
                 .addParameter("decoder", DECODER)
                 .returns(unionType)
-                .addCode(oneOfDeserializeBody(model, unionType))
+                .addCode(oneOfDeserializeBody(model, unionType, noMatchException, ambiguityException, inspectionPlan))
                 .build(),
         ).addFunction(
             FunSpec
@@ -160,8 +312,10 @@ private fun EmissionContext.oneOfSerializer(
 private fun EmissionContext.oneOfDeserializeBody(
     model: OneOfDeclaration,
     unionType: ClassName,
+    noMatchException: ClassName,
+    ambiguityException: ClassName,
+    inspectionPlan: OneOfInspectionPlan,
 ): CodeBlock {
-    val inspection = ClassName(model.packageName, "${model.resolvedName}Inspection")
     val code =
         CodeBlock
             .builder()
@@ -169,66 +323,90 @@ private fun EmissionContext.oneOfDeserializeBody(
             .addStatement(
                 "val raw = jsonDecoder.decodeJsonElement() as? %T ?: throw %T(%S)",
                 JSON_OBJECT,
-                oneOfNoMatch,
+                noMatchException,
                 "${model.resolvedName} matched 0 branches: expected JSON object",
             ).addStatement("val matches = inspect%L(raw)", model.resolvedName)
             .beginControlFlow("if (matches.size == 0)")
             .addStatement(
                 "throw %T(%S + matches.failures.joinToString(%S))",
-                oneOfNoMatch,
+                noMatchException,
                 "${model.resolvedName} matched 0 branches: ",
                 "; ",
             ).endControlFlow()
             .beginControlFlow("if (matches.size > 1)")
             .addStatement(
                 "throw %T(%S + matches.size + %S + matches.names.joinToString())",
-                oneOfAmbiguity,
+                ambiguityException,
                 "${model.resolvedName} matched ",
                 " branches; expected exactly 1: ",
             ).endControlFlow()
             .beginControlFlow("return when")
     model.cases.forEach { case ->
         val caseType = unionType.nestedClass(case.resolvedName)
-        val checks = case.matchFields.joinToString(" && ") { it.matchExpression("matches.") }
+        val checks =
+            case.matchFields.joinToString(" && ") {
+                inspectionPlan.state(it).matchExpression("matches.")
+            }
         val args =
             case.requiredFields.joinToString(
                 ", ",
-            ) { "${it.resolvedName} = requireNotNull(matches.${it.resolvedName})" }
+            ) { field ->
+                val stateName = inspectionPlan.valueStateName(field)
+                val value =
+                    if (field.type.nullable) {
+                        "matches.$stateName"
+                    } else {
+                        "requireNotNull(matches.$stateName)"
+                    }
+                "${field.resolvedName} = $value"
+            }
         val constructorArguments = if (args.isEmpty()) "raw = raw" else "$args, raw = raw"
         code.addStatement("$checks -> %T($constructorArguments)", caseType)
     }
     code
         .addStatement("else -> error(%S)", "unreachable")
         .endControlFlow()
-    @Suppress("UNUSED_VARIABLE")
-    val retainType = inspection
     return code.build()
 }
 
-private fun oneOfInspection(model: OneOfDeclaration): TypeSpec {
+private fun oneOfInspection(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): TypeSpec {
     val constructor = FunSpec.constructorBuilder()
     val type =
         TypeSpec
             .classBuilder(
                 "${model.resolvedName}Inspection",
             ).addModifiers(KModifier.PRIVATE, KModifier.DATA)
-    model.cases.flatMap { it.matchFields }.distinctBy { it.resolvedName }.forEach { field ->
-        constructor.addParameter(field.resolvedName, field.type.toTypeName().copy(nullable = true))
+    inspectionPlan.states.forEach { state ->
+        val field = state.field
+        constructor.addParameter(state.valueName, field.type.toTypeName().copy(nullable = true))
         type.addProperty(
             PropertySpec
                 .builder(
-                    field.resolvedName,
+                    state.valueName,
                     field.type.toTypeName().copy(nullable = true),
-                ).initializer(field.resolvedName)
+                ).initializer(state.valueName)
                 .build(),
         )
+        state.presentName?.let { presentName ->
+            constructor.addParameter(presentName, BOOLEAN)
+            type.addProperty(PropertySpec.builder(presentName, BOOLEAN).initializer(presentName).build())
+        }
+        constructor.addParameter(state.decodedName, BOOLEAN)
+        type.addProperty(PropertySpec.builder(state.decodedName, BOOLEAN).initializer(state.decodedName).build())
+        state.matchesName?.let { matchesName ->
+            constructor.addParameter(matchesName, BOOLEAN)
+            type.addProperty(PropertySpec.builder(matchesName, BOOLEAN).initializer(matchesName).build())
+        }
     }
     constructor.addParameter("failures", LIST.parameterizedBy(STRING))
     type.addProperty(PropertySpec.builder("failures", LIST.parameterizedBy(STRING)).initializer("failures").build())
     type.addProperty(
         PropertySpec
             .builder("names", LIST.parameterizedBy(STRING))
-            .getter(FunSpec.getterBuilder().addCode(oneOfNamesBody(model)).build())
+            .getter(FunSpec.getterBuilder().addCode(oneOfNamesBody(model, inspectionPlan)).build())
             .build(),
     )
     type.addProperty(
@@ -240,39 +418,85 @@ private fun oneOfInspection(model: OneOfDeclaration): TypeSpec {
     return type.primaryConstructor(constructor.build()).build()
 }
 
-private fun oneOfNamesBody(model: OneOfDeclaration): CodeBlock =
+private fun oneOfNamesBody(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): CodeBlock =
     CodeBlock
         .builder()
         .add("return buildList {\n")
         .indent()
         .apply {
             model.cases.forEach { case ->
-                val check = case.matchFields.joinToString(" && ") { it.matchExpression() }
+                val check =
+                    case.matchFields.joinToString(" && ") {
+                        inspectionPlan.state(it).matchExpression()
+                    }
                 addStatement("if ($check) add(%S)", case.resolvedName)
             }
         }.unindent()
         .add("}\n")
         .build()
 
-private fun inspectOneOf(model: OneOfDeclaration): FunSpec {
-    val allFields = model.cases.flatMap { it.matchFields }.distinctBy { it.resolvedName }
+private fun inspectOneOf(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): FunSpec {
     val body = CodeBlock.builder()
-    allFields.forEach { field ->
-        body.addStatement("val %L = raw.stringValue(%S)", field.resolvedName, field.wireName)
+    inspectionPlan.states.forEach { state ->
+        val field = state.field
+        body.addStatement(
+            "val %L = raw[%S]?.let { element -> runCatching { SdkJson.%M<%T>(element) } }",
+            state.resultName,
+            field.wireName,
+            DECODE_FROM_JSON_ELEMENT,
+            field.type.toTypeName(),
+        )
+        body.addStatement(
+            "val %L = %L?.getOrNull()",
+            state.valueName,
+            state.resultName,
+        )
+        state.presentName?.let { presentName ->
+            body.addStatement("val %L = raw.containsKey(%S)", presentName, field.wireName)
+        }
+        body.addStatement(
+            "val %L = %L?.isSuccess == true",
+            state.decodedName,
+            state.resultName,
+        )
+        state.matchesName?.let { matchesName ->
+            val expected = requireNotNull(field.expectedStringValue)
+            val decoded = state.presentName?.let { "$it && ${state.decodedName}" } ?: state.decodedName
+            body.addStatement(
+                "val %L = raw.stringValue(%S) == %S && $decoded",
+                matchesName,
+                field.wireName,
+                expected,
+            )
+        }
     }
     body.add("return %T(\n", ClassName(model.packageName, "${model.resolvedName}Inspection")).indent()
-    allFields.forEach { field -> body.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    inspectionPlan.states.forEach { state ->
+        body.add("%L = %L,\n", state.valueName, state.valueName)
+        state.presentName?.let { presentName ->
+            body.add("%L = %L,\n", presentName, presentName)
+        }
+        body.add("%L = %L,\n", state.decodedName, state.decodedName)
+        state.matchesName?.let { matchesName ->
+            body.add("%L = %L,\n", matchesName, matchesName)
+        }
+    }
     body.add("failures = buildList {\n").indent()
     model.cases.forEach { case ->
         val condition =
-            case.matchFields.joinToString(" || ") { field ->
-                field.expectedStringValue?.let { "!(${field.matchExpression()})" }
-                    ?: "${field.resolvedName} == null"
+            case.matchFields.joinToString(" || ") {
+                inspectionPlan.state(it).mismatchExpression()
             }
         val names = case.matchFields.joinToString("' and '") { it.wireName }
         body.addStatement(
             "if ($condition) add(%S)",
-            "${case.resolvedName}: required properties '$names' must be strings",
+            "${case.resolvedName}: required properties '$names' do not match their declared types",
         )
     }
     body
@@ -305,12 +529,14 @@ internal fun EmissionContext.emitAnyOf(
     file: FileSpec.Builder,
     model: AnyOfDeclaration,
 ) {
-    if (model.branches.all { it.shape == AnyOfBranchShape.VALUE }) {
+    if (model.branches.all { it.shape == AnyOfBranchShape.VALUE } ||
+        model.branches.any { it.shape == AnyOfBranchShape.VALUE }
+    ) {
+        require(model.branches.all { it.type != null }) {
+            "Mixed anyOf branches require a typed value for every branch"
+        }
         emitValueAnyOf(file, model)
         return
-    }
-    require(model.branches.all { it.shape == AnyOfBranchShape.OBJECT }) {
-        "Mixed object/value anyOf branches are outside the Phase 1 emission subset"
     }
     val wrapperType = ClassName(model.packageName, model.resolvedName)
     model.branches.forEach { branch -> file.addType(anyOfViewType(branch)) }
@@ -321,7 +547,9 @@ internal fun EmissionContext.emitAnyOf(
             .apply { model.branches.forEach { addEnumConstant(it.resolvedName) } }
             .build(),
     )
-    file.addType(exceptionType("AnyOfNoMatchException", ClassName(model.packageName, "UnionDecodingException")))
+    val decodingException = ClassName(model.packageName, "${model.resolvedName}DecodingException")
+    file.addType(exceptionBaseType("${model.resolvedName}DecodingException"))
+    file.addType(exceptionType("${model.resolvedName}NoMatchException", decodingException))
     file.addType(anyOfInspection(model))
     file.addType(anyOfWrapper(model, wrapperType))
     file.addFunction(inspectAnyOf(model))
@@ -484,7 +712,7 @@ private fun EmissionContext.anyOfCompanion(
                         "}\n" +
                         "return %T(raw, json, inspection)\n",
                     model.resolvedName,
-                    anyOfNoMatch,
+                    ClassName(model.packageName, "${model.resolvedName}NoMatchException"),
                     "${model.resolvedName} matched 0 branches: ",
                     "; ",
                     wrapperType,
@@ -588,6 +816,22 @@ private fun isStringArrayFunction(): FunSpec =
             JSON_PRIMITIVE,
         ).build()
 
+private fun isJsonDecodableFunction(): FunSpec {
+    val type =
+        com.squareup.kotlinpoet
+            .TypeVariableName("T")
+            .copy(reified = true)
+    return FunSpec
+        .builder("isJsonDecodable")
+        .addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+        .addTypeVariable(type)
+        .receiver(JSON_ELEMENT.copy(nullable = true))
+        .returns(BOOLEAN)
+        .addStatement("val element = this ?: return false")
+        .addStatement("return runCatching { SdkJson.%M<%T>(element) }.isSuccess", DECODE_FROM_JSON_ELEMENT, type)
+        .build()
+}
+
 private fun emitValueAnyOf(
     file: FileSpec.Builder,
     model: AnyOfDeclaration,
@@ -602,18 +846,13 @@ private fun emitValueAnyOf(
             .apply { model.branches.forEach { addEnumConstant(it.resolvedName) } }
             .build(),
     )
-    file.addType(
-        TypeSpec
-            .classBuilder("AnyOfNoMatchException")
-            .addModifiers(KModifier.PUBLIC)
-            .primaryConstructor(FunSpec.constructorBuilder().addParameter("message", STRING).build())
-            .superclass(SERIALIZATION_EXCEPTION)
-            .addSuperclassConstructorParameter("message")
-            .build(),
-    )
+    val decodingException = ClassName(model.packageName, "${model.resolvedName}DecodingException")
+    file.addType(exceptionBaseType("${model.resolvedName}DecodingException"))
+    file.addType(exceptionType("${model.resolvedName}NoMatchException", decodingException))
     file.addType(valueAnyOfInspection(model, inspectionType))
     file.addType(valueAnyOfWrapper(model, wrapperType, branchType, inspectionType))
     file.addFunction(inspectValueAnyOf(model, inspectionType))
+    file.addFunction(isJsonDecodableFunction())
 }
 
 private fun valueAnyOfInspection(
@@ -746,7 +985,7 @@ private fun valueAnyOfWrapper(
                     .beginControlFlow("if (inspection.matchCount == 0)")
                     .addStatement(
                         "throw %T(%S + inspection.failures.joinToString(%S))",
-                        ClassName(model.packageName, "AnyOfNoMatchException"),
+                        ClassName(model.packageName, "${model.resolvedName}NoMatchException"),
                         "${model.resolvedName} matched 0 branches: ",
                         "; ",
                     ).endControlFlow()
@@ -794,35 +1033,20 @@ private fun inspectValueAnyOf(
     val body = CodeBlock.builder()
     model.branches.forEach { branch ->
         val type = requireNotNull(branch.type)
-        val expression =
-            when {
-                type.packageName == "kotlin" && type.simpleName == "String" -> {
-                    "element is %T && element.isString"
-                }
-
-                type.packageName == "kotlin.collections" && type.simpleName == "List" &&
-                    type.arguments.singleOrNull()?.let {
-                        it.packageName == "kotlin" && it.simpleName == "String"
-                    } ==
-                    true -> {
-                    "element is %T && element.all { it is %T && it.isString }%L"
-                }
-
-                else -> {
-                    error("Unsupported Phase 1 value anyOf type: $type")
-                }
-            }
-        val args =
-            if (type.simpleName == "String") {
-                arrayOf(JSON_PRIMITIVE)
+        val expression = valueAnyOfMatchExpression()
+        val args: Array<out Any> =
+            if (type.packageName == "kotlin.collections" && type.simpleName == "List") {
+                arrayOf(type.toTypeName(), JSON_ARRAY)
             } else {
-                arrayOf(
-                    JSON_ARRAY,
-                    JSON_PRIMITIVE,
-                    CodeBlock.of(" && element.size <= %L", branch.maxItems ?: Int.MAX_VALUE),
-                )
+                arrayOf(type.toTypeName())
             }
-        body.addStatement("val matches%L = $expression", branch.resolvedName, *args)
+        val maxItems =
+            if (type.packageName == "kotlin.collections" && type.simpleName == "List") {
+                " && (element as? %T)?.size?.let { it <= ${branch.maxItems ?: Int.MAX_VALUE} } == true"
+            } else {
+                ""
+            }
+        body.addStatement("val matches%L = $expression$maxItems", branch.resolvedName, *args)
     }
     body.add("return %T(\n", inspectionType).indent()
     model.branches.forEach { branch ->
@@ -850,6 +1074,8 @@ private fun inspectValueAnyOf(
         .build()
 }
 
+private fun valueAnyOfMatchExpression(): String = "element.isJsonDecodable<%T>()"
+
 private fun UnionFieldDeclaration.jsonMatchExpression(): String =
     when {
         type.simpleName == "String" -> {
@@ -861,13 +1087,9 @@ private fun UnionFieldDeclaration.jsonMatchExpression(): String =
         }
 
         else -> {
-            error("Unsupported object anyOf field type ${type.packageName}.${type.simpleName}")
+            "raw[${kotlinStringLiteral(wireName)}] != null"
         }
     }
-
-private fun UnionFieldDeclaration.matchExpression(prefix: String = ""): String =
-    expectedStringValue?.let { "$prefix$resolvedName == ${kotlinStringLiteral(it)}" }
-        ?: "$prefix$resolvedName != null"
 
 private fun kotlinStringLiteral(value: String): String =
     buildString {
@@ -884,6 +1106,15 @@ private fun kotlinStringLiteral(value: String): String =
         }
         append('"')
     }
+
+private fun exceptionBaseType(name: String): TypeSpec =
+    TypeSpec
+        .classBuilder(name)
+        .addModifiers(KModifier.PUBLIC, KModifier.SEALED)
+        .primaryConstructor(FunSpec.constructorBuilder().addParameter("message", STRING).build())
+        .superclass(SERIALIZATION_EXCEPTION)
+        .addSuperclassConstructorParameter("message")
+        .build()
 
 private fun exceptionType(
     name: String,

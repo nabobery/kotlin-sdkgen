@@ -43,6 +43,8 @@ internal class KotlinNameResolver {
 
         private fun words(raw: String): List<String> =
             raw
+                .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1 $2")
+                .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
                 .split(Regex("[^A-Za-z0-9]+"))
                 .filter(String::isNotEmpty)
                 .map { it.lowercase(Locale.ROOT) }

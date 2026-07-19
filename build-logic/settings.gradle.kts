@@ -2,6 +2,16 @@ pluginManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        exclusiveContent {
+            forRepository {
+                google()
+            }
+            filter {
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroupByRegex("androidx(\\..*)?")
+                includeGroup("com.google.testing.platform")
+            }
+        }
     }
 }
 
@@ -10,6 +20,16 @@ dependencyResolutionManagement {
     repositories {
         gradlePluginPortal()
         mavenCentral()
+        exclusiveContent {
+            forRepository {
+                google()
+            }
+            filter {
+                includeGroupByRegex("com\\.android(\\..*)?")
+                includeGroupByRegex("androidx(\\..*)?")
+                includeGroup("com.google.testing.platform")
+            }
+        }
     }
     versionCatalogs {
         create("libs") {

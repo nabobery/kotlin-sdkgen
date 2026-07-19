@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -21,6 +22,29 @@ class LockContractTest {
         assertFalse(first.contains("\r"))
         assertTrue(first.indexOf("\"version\"") < first.indexOf("\"configDigest\""))
         assertEquals(lock, LockCodec.decode(first))
+    }
+
+    @Test
+    fun `lock serialization preserves canonical plugin phases`() {
+        val base = TestFixtures.lock().plugins.single()
+        val lock =
+            TestFixtures.lock().copy(
+                plugins =
+                    listOf(
+                        base.copy(
+                            phases =
+                                listOf(
+                                    "validation",
+                                    "semantic_transform",
+                                    "naming_type_mapping",
+                                    "declaration_augmentation",
+                                    "output_verification",
+                                ),
+                        ),
+                    ),
+            )
+
+        assertEquals(lock, LockCodec.decode(LockCodec.encode(lock)))
     }
 
     @Test
@@ -96,6 +120,26 @@ class LockContractTest {
             )
 
         assertEquals(ConfigDigest.sha256(first), ConfigDigest.sha256(second))
+    }
+
+    @Test
+    fun `ordered overlays remain significant in config digests and lock encoding`() {
+        val firstOverlay = OverlayConfig("first", "sdkgen://overlay/first", "a".repeat(64))
+        val secondOverlay = OverlayConfig("second", "sdkgen://overlay/second", "b".repeat(64))
+        val firstConfig = TestFixtures.config.copy(overlays = listOf(firstOverlay, secondOverlay))
+        val reversedConfig = firstConfig.copy(overlays = listOf(secondOverlay, firstOverlay))
+        val firstLock =
+            TestFixtures.lock().copy(
+                overlays =
+                    listOf(
+                        LockedOverlay("first", "sdkgen://overlay/first", "a".repeat(64)),
+                        LockedOverlay("second", "sdkgen://overlay/second", "b".repeat(64)),
+                    ),
+            )
+        val reversedLock = firstLock.copy(overlays = firstLock.overlays.reversed())
+
+        assertNotEquals(ConfigDigest.sha256(firstConfig), ConfigDigest.sha256(reversedConfig))
+        assertNotEquals(LockCodec.encode(firstLock), LockCodec.encode(reversedLock))
     }
 
     @Test
@@ -267,6 +311,70 @@ class LockContractTest {
                 .single()
                 .diagnostic.code,
         )
+    }
+
+    @Test
+    fun `locked mode refuses plugin metadata drift even when config digest matches`() {
+        val changedLock =
+            TestFixtures.lock().copy(
+                plugins =
+                    listOf(
+                        TestFixtures
+                            .lock()
+                            .plugins
+                            .single()
+                            .copy(configSha256 = "d".repeat(64)),
+                    ),
+            )
+
+        val result = LockedMode.verify(TestFixtures.config, changedLock, TestFixtures.resolvedInputs())
+
+        val refused = assertInstanceOf(LockedModeResult.Refused::class.java, result)
+        val mismatch =
+            assertInstanceOf(
+                LockRefusal.PluginMetadataMismatch::class.java,
+                refused.reasons.single(),
+            )
+        assertEquals("com.nabobery.sdkgen.builtin.output-verification", mismatch.pluginId)
+        assertEquals("SDKGEN-LOCK-PLUGIN-MISMATCH", mismatch.diagnostic.code)
+        assertEquals("$.plugins[0]", mismatch.diagnostic.path.yamlPath)
+    }
+
+    @Test
+    fun `locked mode refuses plugin phase drift`() {
+        val plugin = TestFixtures.lock().plugins.single()
+        val changedLock =
+            TestFixtures.lock().copy(
+                plugins = listOf(plugin.copy(phases = listOf("naming_type_mapping"))),
+            )
+
+        val result =
+            LockedMode.verify(
+                TestFixtures.config,
+                changedLock,
+                TestFixtures.resolvedInputs(),
+                pluginPhases = mapOf(plugin.id to emptyList()),
+            )
+
+        val refused = assertInstanceOf(LockedModeResult.Refused::class.java, result)
+        val mismatch = assertInstanceOf(LockRefusal.PluginMetadataMismatch::class.java, refused.reasons.single())
+        assertEquals(plugin.id, mismatch.pluginId)
+    }
+
+    @Test
+    fun `locked mode refuses duplicate plugin lock entries`() {
+        val plugin = TestFixtures.lock().plugins.single()
+        val changedLock = TestFixtures.lock().copy(plugins = listOf(plugin, plugin))
+
+        val result = LockedMode.verify(TestFixtures.config, changedLock, TestFixtures.resolvedInputs())
+
+        val refused = assertInstanceOf(LockedModeResult.Refused::class.java, result)
+        val duplicate =
+            assertInstanceOf(
+                LockRefusal.DuplicateLockEntry::class.java,
+                refused.reasons.single { it is LockRefusal.DuplicateLockEntry },
+            )
+        assertEquals(plugin.id, duplicate.inputId)
     }
 
     @Test

@@ -6,15 +6,23 @@ import com.nabobery.sdkgen.model.AdditionalPropertiesModel
 import com.nabobery.sdkgen.model.CompositionKind
 import com.nabobery.sdkgen.model.DiagnosticCode
 import com.nabobery.sdkgen.model.EnumOpenness
+import com.nabobery.sdkgen.model.IdempotencyModel
+import com.nabobery.sdkgen.model.JsonPointer
 import com.nabobery.sdkgen.model.MaterialNode
 import com.nabobery.sdkgen.model.Nullability
 import com.nabobery.sdkgen.model.NullabilitySurface
+import com.nabobery.sdkgen.model.PaginationModel
 import com.nabobery.sdkgen.model.PresenceState
 import com.nabobery.sdkgen.model.Requiredness
 import com.nabobery.sdkgen.model.SchemaModel
 import com.nabobery.sdkgen.model.SemanticDocument
 import com.nabobery.sdkgen.model.SnapshotRenderer
+import com.nabobery.sdkgen.model.StreamingModel
+import com.nabobery.sdkgen.openapi.overlays.DocumentCodec
+import com.nabobery.sdkgen.openapi.overlays.OverlayApplicator
+import com.nabobery.sdkgen.openapi.overlays.OverlayInput
 import java.lang.reflect.Modifier
+import java.nio.file.Files
 import java.util.IdentityHashMap
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -231,6 +239,197 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `streaming and pagination stress fixtures carry canonical typed metadata`() {
+        val streaming = assertIs<StreamingModel.Sse>(adaptStress(12).operations.single().streaming)
+        val pagination = assertIs<PaginationModel.Cursor>(adaptStress(14).operations.single().pagination)
+
+        assertEquals("stream", streaming.requestFlag)
+        assertEquals("[DONE]", streaming.sentinel)
+        assertEquals("cursor", pagination.requestCursor)
+        assertEquals("limit", pagination.requestLimit)
+        assertEquals(listOf("data"), pagination.responseItems.segments)
+        assertEquals(listOf("nextCursor"), pagination.responseNextCursor.segments)
+    }
+
+    @Test
+    fun `canonical operation extensions adapt to typed metadata and preserve unrelated extensions`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Extensions, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-unrelated: keep-me
+                      x-sdkgen-pagination:
+                        style: cursor
+                        requestCursor: cursor
+                        requestLimit: limit
+                        responseItems: /data
+                        responseNextCursor: /nextCursor
+                      x-sdkgen-streaming:
+                        mode: sse
+                        requestFlag: stream
+                        responseContentType: text/event-stream
+                        sentinel: '[DONE]'
+                      x-sdkgen-idempotency:
+                        keyHeader: Idempotency-Key
+                        clientGenerated: true
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+        val operation = document.operations.single()
+
+        assertEquals(
+            PaginationModel.Cursor(
+                requestCursor = "cursor",
+                requestLimit = "limit",
+                responseItems = JsonPointer("/data"),
+                responseNextCursor = JsonPointer("/nextCursor"),
+            ),
+            operation.pagination,
+        )
+        assertEquals(
+            StreamingModel.Sse("stream", "text/event-stream", "[DONE]"),
+            operation.streaming,
+        )
+        assertEquals(IdempotencyModel("Idempotency-Key", true), operation.idempotency)
+        assertEquals(setOf("x-unrelated"), operation.extensions.keys)
+    }
+
+    @Test
+    fun `overlay canonical extensions adapt end to end`() {
+        val source =
+            """
+            openapi: 3.1.0
+            info: { title: Overlay extensions, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  responses:
+                    '200': { description: ok }
+            """.trimIndent().toByteArray()
+        val overlay =
+            OverlayInput(
+                identity = "extensions",
+                content =
+                    """
+                    overlay: 1.1.0
+                    info: { title: extensions, version: 1.0.0 }
+                    actions:
+                      - target: "${'$'}['paths']['/items']['get']"
+                        update:
+                          x-sdkgen-pagination:
+                            style: cursor
+                            requestCursor: cursor
+                            responseItems: /data~1items
+                            responseNextCursor: /next~0cursor
+                    """.trimIndent().toByteArray(),
+            )
+        val applied = OverlayApplicator().apply(source, listOf(overlay))
+        val document = adaptYaml(DocumentCodec.prettyJson(applied.document))
+        val pagination = assertIs<PaginationModel.Cursor>(document.operations.single().pagination)
+
+        assertEquals(listOf("data/items"), pagination.responseItems.segments)
+        assertEquals(listOf("next~cursor"), pagination.responseNextCursor.segments)
+        assertTrue(document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION })
+    }
+
+    @Test
+    fun `direct source rejects canonical extensions outside operation objects with exact diagnostics`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Misplaced extensions, version: 1.0.0 }
+                x-sdkgen-streaming: { mode: sse, responseContentType: text/event-stream }
+                paths:
+                  /items:
+                    x-sdkgen-pagination:
+                      style: cursor
+                      requestCursor: cursor
+                      responseItems: /data
+                      responseNextCursor: /next
+                    get:
+                      operationId: listItems
+                      x-sdkgen-other: keep-me
+                      parameters:
+                        - name: cursor
+                          in: query
+                          schema: { type: string }
+                          x-sdkgen-idempotency: { keyHeader: Idempotency-Key, clientGenerated: true }
+                      responses:
+                        '200':
+                          description: ok
+                          x-sdkgen-streaming: { mode: sse, responseContentType: text/event-stream }
+                components:
+                  schemas:
+                    Item:
+                      type: object
+                      x-sdkgen-pagination:
+                        style: cursor
+                        requestCursor: cursor
+                        responseItems: /data
+                        responseNextCursor: /next
+                """.trimIndent(),
+            )
+        val diagnostics = result.document.diagnostics.filter { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION }
+
+        assertEquals(
+            listOf(
+                "/x-sdkgen-streaming",
+                "/paths/~1items/x-sdkgen-pagination",
+                "/paths/~1items/get/parameters/0/x-sdkgen-idempotency",
+                "/paths/~1items/get/responses/200/x-sdkgen-streaming",
+                "/components/schemas/Item/x-sdkgen-pagination",
+            ).sorted(),
+            diagnostics.map { it.source.jsonPointer }.sorted(),
+        )
+        diagnostics.forEach { diagnostic ->
+            assertTrue(diagnostic.source.location.line > 0)
+            assertTrue(diagnostic.message.contains("direct property of an OpenAPI Operation Object"))
+        }
+        val operation = result.document.operations.single()
+        assertEquals(setOf("x-sdkgen-other"), operation.extensions.keys)
+        assertTrue("x-sdkgen-streaming" !in operation.responses.single().extensions)
+        assertTrue("x-sdkgen-idempotency" !in operation.parameters.single().extensions)
+    }
+
+    @Test
+    fun `malformed canonical operation extension emits source linked typed diagnostic`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Invalid extension, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: cursor
+                        requestCursor: cursor
+                        responseItems: data
+                        responseNextCursor: /nextCursor
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+        val document = result.document
+        val diagnostic = document.diagnostics.single { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION }
+
+        assertEquals(0, result.metrics.silentOperationOmissions)
+        assertTrue(document.operations.isEmpty())
+        assertEquals("/paths/~1items/get/x-sdkgen-pagination/responseItems", diagnostic.source.jsonPointer)
+        assertTrue(diagnostic.source.location.line > 0)
+        assertTrue(diagnostic.message.contains("JSON Pointer"))
+    }
+
+    @Test
     fun `vendor extensions defaults examples security and closed enum survive adaptation`() {
         val document = adapter.adapt(ExperimentSupport.fixtureRoot.resolve("source-map/root.yaml")).document
         val shared = document.schema("Shared")
@@ -335,6 +534,18 @@ class SemanticModelTest {
 
     private fun adaptStress(index: Int): SemanticDocument =
         adapter.adapt(ExperimentSupport.stressFixtures[index - 1]).document
+
+    private fun adaptYaml(yaml: String): SemanticDocument = adaptYamlResult(yaml).document
+
+    private fun adaptYamlResult(yaml: String): AdaptationResult {
+        val source = Files.createTempFile("sdkgen-extension-", ".yaml")
+        return try {
+            source.writeText(yaml)
+            adapter.adapt(source)
+        } finally {
+            Files.deleteIfExists(source)
+        }
+    }
 }
 
 private fun SemanticDocument.schema(name: String): SchemaModel =

@@ -1,0 +1,6 @@
+public final class com/nabobery/sdkgen/transport/okhttp/OkHttpSdkTransport : com/nabobery/sdkgen/runtime/SdkTransport {
+	public fun <init> (Lokhttp3/OkHttpClient;)V
+	public fun capabilities ()Lcom/nabobery/sdkgen/runtime/TransportCapabilities;
+	public fun execute (Lcom/nabobery/sdkgen/runtime/SdkRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

@@ -1,16 +1,45 @@
+public final class com/nabobery/sdkgen/engine/GenerationAnalysisResult {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/GenerationAnalysisResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationAnalysisResult;Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationAnalysisResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSymbols ()Ljava/util/List;
+	public final fun getValidation ()Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/GenerationBlockedException : java/lang/IllegalStateException {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/ValidationResult;)V
+	public final fun getValidation ()Lcom/nabobery/sdkgen/engine/ValidationResult;
+}
+
 public final class com/nabobery/sdkgen/engine/GenerationDiagnosticView {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public final fun component6 ()Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public final fun component7 ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Lcom/nabobery/sdkgen/model/SourceLocation;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationDiagnosticView;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getDocumentUri ()Ljava/lang/String;
 	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getLocation ()Lcom/nabobery/sdkgen/model/SourceLocation;
 	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPhase ()Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public final fun getPluginPhase ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public final fun getRemediation ()Ljava/lang/String;
+	public final fun getSeverity ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -46,8 +75,11 @@ public final class com/nabobery/sdkgen/engine/GenerationLockPublication {
 }
 
 public final class com/nabobery/sdkgen/engine/GenerationPipeline {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun analyze (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/GenerationAnalysisResult;
 	public final fun generate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;)Lcom/nabobery/sdkgen/engine/GenerationResult;
 	public static synthetic fun generate$default (Lcom/nabobery/sdkgen/engine/GenerationPipeline;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
 	public final fun validate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
@@ -74,6 +106,23 @@ public final class com/nabobery/sdkgen/engine/GenerationResult {
 	public final fun getManifestBytes ()J
 	public final fun getOutput ()Ljava/nio/file/Path;
 	public final fun getSnapshotSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/ProjectedSymbolView {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/engine/ProjectedSymbolView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ProjectedSymbolView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ProjectedSymbolView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getOrigin ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getResolvedName ()Ljava/lang/String;
+	public final fun getSymbolId ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -128,6 +177,11 @@ public final class com/nabobery/sdkgen/engine/ResolvedSource {
 	public final fun getSha256 ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/SdkGenDependencyVersions {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/SdkGenDependencyVersions;
+	public final fun getKotlinPoet ()Ljava/lang/String;
 }
 
 public final class com/nabobery/sdkgen/engine/ValidationResult {
@@ -549,7 +603,8 @@ public final class com/nabobery/sdkgen/engine/config/LockedGenerator$Companion {
 
 public final class com/nabobery/sdkgen/engine/config/LockedInputVerifier {
 	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/LockedInputVerifier;
-	public final fun verify (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Ljava/util/List;
+	public final fun verify (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/util/Map;)Ljava/util/List;
+	public static synthetic fun verify$default (Lcom/nabobery/sdkgen/engine/config/LockedInputVerifier;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/SdkgenLockV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Ljava/util/List;
 }
 
 public final class com/nabobery/sdkgen/engine/config/LockedOverlay {
@@ -585,16 +640,19 @@ public final class com/nabobery/sdkgen/engine/config/LockedOverlay$Companion {
 
 public final class com/nabobery/sdkgen/engine/config/LockedPlugin {
 	public static final field Companion Lcom/nabobery/sdkgen/engine/config/LockedPlugin$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedPlugin;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
+	public final fun component5 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/LockedPlugin;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/LockedPlugin;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getConfigSha256 ()Ljava/lang/String;
 	public final fun getId ()Ljava/lang/String;
+	public final fun getPhases ()Ljava/util/List;
 	public final fun getSpiRange ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/String;
 	public fun hashCode ()I
@@ -1240,5 +1298,297 @@ public final class com/nabobery/sdkgen/engine/input/ResolvedGenerationInputs : j
 	public fun close ()V
 	public final fun getOverlays ()Ljava/util/List;
 	public final fun getSource ()Lcom/nabobery/sdkgen/engine/ResolvedSource;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/BuiltInSdkGenPlugins {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/spi/BuiltInSdkGenPlugins;
+	public static final field NAMING_OVERRIDE_ID Ljava/lang/String;
+	public static final field OUTPUT_VERIFICATION_ID Ljava/lang/String;
+	public final fun registry ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/DeclarationAugmentation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentation;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKdoc ()Ljava/lang/String;
+	public final fun getResolvedName ()Ljava/lang/String;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getSymbolId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue {
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAugmentations ()Ljava/util/List;
+	public final fun getDeclarations ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/DeclarationAugmentationPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun augmentDeclarations (Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/DeclarationSnapshot {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/engine/spi/DeclarationSnapshot;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/DeclarationSnapshot;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/DeclarationSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFileName ()Ljava/lang/String;
+	public final fun getPackageName ()Ljava/lang/String;
+	public final fun getResolvedName ()Ljava/lang/String;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getSymbolId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface annotation class com/nabobery/sdkgen/engine/spi/ExperimentalSdkGenApi : java/lang/annotation/Annotation {
+}
+
+public final class com/nabobery/sdkgen/engine/spi/GeneratedFileSnapshot {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;J)Lcom/nabobery/sdkgen/engine/spi/GeneratedFileSnapshot;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/GeneratedFileSnapshot;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/GeneratedFileSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getByteCount ()J
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/NamingOverride {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/engine/spi/NamingOverride;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/NamingOverride;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/NamingOverride;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/NamingOverridePlugin : com/nabobery/sdkgen/engine/spi/NamingTypeMappingPlugin {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/spi/NamingOverridePlugin;
+	public fun getDescriptor ()Lcom/nabobery/sdkgen/engine/spi/PluginDescriptor;
+	public fun mapNamesAndTypes (Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientName ()Ljava/lang/String;
+	public final fun getModelPrefix ()Ljava/lang/String;
+	public final fun getOperationPrefix ()Ljava/lang/String;
+	public final fun getOverrides ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/NamingTypeMappingPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun mapNamesAndTypes (Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue {
+	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getFiles ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/OutputVerificationPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun verifyOutput (Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginContext {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/spi/PluginDescriptor;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun diagnostic (Ljava/lang/String;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;)Lcom/nabobery/sdkgen/engine/spi/PluginDiagnostic;
+	public static synthetic fun diagnostic$default (Lcom/nabobery/sdkgen/engine/spi/PluginContext;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/PluginDiagnostic;
+	public final fun getConfig ()Ljava/util/Map;
+	public final fun getDescriptor ()Lcom/nabobery/sdkgen/engine/spi/PluginDescriptor;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginDescriptor {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPhases ()Ljava/util/List;
+	public final fun getSpiRange ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginDiagnostic {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/spi/PluginDiagnostic;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/PluginDiagnostic;Ljava/lang/String;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/PluginDiagnostic;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPhase ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public final fun getPluginId ()Ljava/lang/String;
+	public final fun getRemediation ()Ljava/lang/String;
+	public final fun getSeverity ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/PluginPhaseResult {
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginPhaseResult$Applied : com/nabobery/sdkgen/engine/spi/PluginPhaseResult {
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult$Applied;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult$Applied;Ljava/lang/Object;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult$Applied;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginPhaseResult$Rejected : com/nabobery/sdkgen/engine/spi/PluginPhaseResult {
+	public fun <init> (Ljava/util/List;)V
+	public final fun getDiagnostics ()Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginPipelineInput {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SourcePointer;Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/model/SourcePointer;Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getDeclarations ()Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;
+	public final fun getDocument ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public final fun getInitialDiagnostics ()Ljava/util/List;
+	public final fun getNaming ()Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;
+	public final fun getOutput ()Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;
+	public final fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginPipelineResult {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public final fun getDeclarations ()Lcom/nabobery/sdkgen/engine/spi/DeclarationAugmentationPhaseValue;
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getDocument ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public final fun getExecutionOrder ()Ljava/util/List;
+	public final fun getNaming ()Lcom/nabobery/sdkgen/engine/spi/NamingTypeMappingPhaseValue;
+	public final fun getOutput ()Lcom/nabobery/sdkgen/engine/spi/OutputVerificationPhaseValue;
+	public final fun getRecords ()Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/PluginRecord {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfigDigest ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getPhases ()Ljava/util/List;
+	public final fun getSpiRange ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun getDescriptor ()Lcom/nabobery/sdkgen/engine/spi/PluginDescriptor;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/SdkGenPluginEngine {
+	public fun <init> ()V
+	public fun <init> (Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getRegistry ()Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry;
+	public final fun run (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/spi/PluginPipelineInput;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;)Lcom/nabobery/sdkgen/engine/spi/PluginPipelineResult;
+	public static synthetic fun run$default (Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginEngine;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/spi/PluginPipelineInput;Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/PluginPipelineResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/SdkGenPluginPhase : java/lang/Enum {
+	public static final field DECLARATION_AUGMENTATION Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static final field NAMING_TYPE_MAPPING Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static final field OUTPUT_VERIFICATION Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static final field SEMANTIC_TRANSFORM Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static final field VALIDATION Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/spi/SdkGenPluginPhase;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/SdkGenPluginRegistry {
+	public fun <init> (Ljava/util/List;)V
+	public final fun find (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/spi/SdkGenPlugin;
+	public final fun getPlugins ()Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/SemanticTransformPhaseValue {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SemanticDocument;)V
+	public final fun copy (Lcom/nabobery/sdkgen/model/SemanticDocument;)Lcom/nabobery/sdkgen/engine/spi/SemanticTransformPhaseValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/SemanticTransformPhaseValue;Lcom/nabobery/sdkgen/model/SemanticDocument;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/SemanticTransformPhaseValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocument ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/SemanticTransformPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun transformSemantic (Lcom/nabobery/sdkgen/engine/spi/SemanticTransformPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/engine/spi/ValidationPhaseValue {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SemanticDocument;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/model/SemanticDocument;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Lcom/nabobery/sdkgen/model/SemanticDocument;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/spi/ValidationPhaseValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/spi/ValidationPhaseValue;Lcom/nabobery/sdkgen/model/SemanticDocument;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/spi/ValidationPhaseValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getDocument ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/engine/spi/ValidationPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
+	public abstract fun validate (Lcom/nabobery/sdkgen/engine/spi/ValidationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
 }
 

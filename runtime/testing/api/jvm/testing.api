@@ -1,0 +1,271 @@
+public final class com/nabobery/sdkgen/testing/ChunkGate {
+	public fun <init> ()V
+	public final fun awaitProduced (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun awaitRelease (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun markProduced (I)V
+	public final fun release (I)V
+}
+
+public final class com/nabobery/sdkgen/testing/ChunkedByteStream : com/nabobery/sdkgen/runtime/SdkByteStream {
+	public fun <init> ([BLjava/util/List;Ljava/lang/Integer;Ljava/lang/Throwable;)V
+	public synthetic fun <init> ([BLjava/util/List;Ljava/lang/Integer;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close (Ljava/lang/Throwable;)V
+	public final fun getCloseCause ()Ljava/lang/Throwable;
+	public final fun getClosed ()Z
+	public fun readChunk (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/nabobery/sdkgen/testing/ConnectionFailure {
+	public fun <init> (Ljava/lang/Throwable;Z)V
+	public final fun component1 ()Ljava/lang/Throwable;
+	public final fun component2 ()Z
+	public final fun copy (Ljava/lang/Throwable;Z)Lcom/nabobery/sdkgen/testing/ConnectionFailure;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/testing/ConnectionFailure;Ljava/lang/Throwable;ZILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/ConnectionFailure;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getRequestMayHaveReachedServer ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/ContractCapability : java/lang/Enum {
+	public static final field ATTEMPT_DEADLINE Lcom/nabobery/sdkgen/testing/ContractCapability;
+	public static final field CALLER_OWNED_ENGINE Lcom/nabobery/sdkgen/testing/ContractCapability;
+	public static final field STREAMING Lcom/nabobery/sdkgen/testing/ContractCapability;
+	public static final field STREAM_IDLE_DEADLINE Lcom/nabobery/sdkgen/testing/ContractCapability;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/testing/ContractCapability;
+	public static fun values ()[Lcom/nabobery/sdkgen/testing/ContractCapability;
+}
+
+public final class com/nabobery/sdkgen/testing/ContractRequestVerification {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/testing/ContractRequestVerification;
+	public final fun verify (Lcom/nabobery/sdkgen/testing/RequestExpectation;Lcom/nabobery/sdkgen/runtime/SdkRequest;[B)V
+}
+
+public abstract interface class com/nabobery/sdkgen/testing/ContractServer {
+	public abstract fun assertResponseClosed (ILjava/lang/Throwable;)V
+	public abstract fun close ()V
+	public abstract fun enqueue (Lcom/nabobery/sdkgen/testing/ScriptedExchange;)V
+	public abstract fun url (Ljava/lang/String;)Ljava/lang/String;
+	public static synthetic fun url$default (Lcom/nabobery/sdkgen/testing/ContractServer;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/ContractServer$DefaultImpls {
+	public static synthetic fun url$default (Lcom/nabobery/sdkgen/testing/ContractServer;Ljava/lang/String;ILjava/lang/Object;)Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/testing/EngineOwnershipProbe {
+	public abstract fun assertUnchanged (Ljava/lang/Object;)V
+	public abstract fun snapshot ()Ljava/lang/Object;
+}
+
+public final class com/nabobery/sdkgen/testing/FakeByteStream : com/nabobery/sdkgen/runtime/SdkByteStream {
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/lang/Throwable;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/lang/Throwable;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun close (Ljava/lang/Throwable;)V
+	public final fun getCloseCause ()Ljava/lang/Throwable;
+	public final fun getClosed ()Z
+	public fun readChunk (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class com/nabobery/sdkgen/testing/FakeContractServer : com/nabobery/sdkgen/testing/ContractServer {
+	public fun <init> ()V
+	public fun <init> (Lcom/nabobery/sdkgen/runtime/TransportCapabilities;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/runtime/TransportCapabilities;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun assertExhausted ()V
+	public fun assertResponseClosed (ILjava/lang/Throwable;)V
+	public fun close ()V
+	public fun enqueue (Lcom/nabobery/sdkgen/testing/ScriptedExchange;)V
+	public final fun getCapabilities ()Lcom/nabobery/sdkgen/runtime/TransportCapabilities;
+	public final fun getExchanges ()Ljava/util/List;
+	public final fun getTransport ()Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public fun url (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/FakeTransport : com/nabobery/sdkgen/runtime/SdkTransport {
+	public fun <init> ()V
+	public fun <init> (Lcom/nabobery/sdkgen/runtime/TransportCapabilities;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/runtime/TransportCapabilities;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun capabilities ()Lcom/nabobery/sdkgen/runtime/TransportCapabilities;
+	public final fun enqueueExchange (Lkotlin/jvm/functions/Function2;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public final fun enqueueFailure (Ljava/lang/Throwable;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public final fun enqueueResponse (ILjava/util/List;Lcom/nabobery/sdkgen/testing/FakeByteStream;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public static synthetic fun enqueueResponse$default (Lcom/nabobery/sdkgen/testing/FakeTransport;ILjava/util/List;Lcom/nabobery/sdkgen/testing/FakeByteStream;ILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/FakeTransport;
+	public fun execute (Lcom/nabobery/sdkgen/runtime/SdkRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getCapturedRequests ()Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/testing/RecordedExchange {
+	public final fun getRequest ()Lcom/nabobery/sdkgen/runtime/SdkRequest;
+	public final fun getRequestBody ()[B
+}
+
+public final class com/nabobery/sdkgen/testing/RecordedTransferCallback {
+	public fun <init> (Lcom/nabobery/sdkgen/testing/TransferCallbackKind;Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/testing/TransferCallbackKind;Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public final fun component2 ()Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;
+	public final fun component3 ()Ljava/lang/Throwable;
+	public final fun copy (Lcom/nabobery/sdkgen/testing/TransferCallbackKind;Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;Ljava/lang/Throwable;)Lcom/nabobery/sdkgen/testing/RecordedTransferCallback;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/testing/RecordedTransferCallback;Lcom/nabobery/sdkgen/testing/TransferCallbackKind;Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;Ljava/lang/Throwable;ILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/RecordedTransferCallback;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEvent ()Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;
+	public final fun getFailure ()Ljava/lang/Throwable;
+	public final fun getKind ()Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/RecordingTransferObserver : com/nabobery/sdkgen/runtime/bodies/TransferObserver {
+	public fun <init> ()V
+	public final fun getEvents ()Ljava/util/List;
+	public fun onCompletion (Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;)V
+	public fun onFailure (Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;Ljava/lang/Throwable;)V
+	public fun onProgress (Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;)V
+	public fun onStart (Lcom/nabobery/sdkgen/runtime/bodies/TransferEvent;)V
+}
+
+public final class com/nabobery/sdkgen/testing/RequestExpectation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;[B)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;[BILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getBody ()[B
+	public final fun getHeaders ()Ljava/util/List;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getUri ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/testing/ResponseBodyScript {
+}
+
+public final class com/nabobery/sdkgen/testing/ResponseBodyScript$Chunks : com/nabobery/sdkgen/testing/ResponseBodyScript {
+	public fun <init> (Ljava/util/List;Lcom/nabobery/sdkgen/testing/ChunkGate;Ljava/lang/Integer;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/util/List;Lcom/nabobery/sdkgen/testing/ChunkGate;Ljava/lang/Integer;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getChunks ()Ljava/util/List;
+	public final fun getFailure ()Ljava/lang/Throwable;
+	public final fun getFailureAfterChunk ()Ljava/lang/Integer;
+	public final fun getGate ()Lcom/nabobery/sdkgen/testing/ChunkGate;
+}
+
+public final class com/nabobery/sdkgen/testing/ResponseBodyScript$Empty : com/nabobery/sdkgen/testing/ResponseBodyScript {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/testing/ResponseBodyScript$Empty;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/ResponseScript {
+	public fun <init> ()V
+	public fun <init> (ILjava/util/List;Lcom/nabobery/sdkgen/testing/ResponseBodyScript;Lcom/nabobery/sdkgen/testing/ConnectionFailure;)V
+	public synthetic fun <init> (ILjava/util/List;Lcom/nabobery/sdkgen/testing/ResponseBodyScript;Lcom/nabobery/sdkgen/testing/ConnectionFailure;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Lcom/nabobery/sdkgen/testing/ResponseBodyScript;
+	public final fun component4 ()Lcom/nabobery/sdkgen/testing/ConnectionFailure;
+	public final fun copy (ILjava/util/List;Lcom/nabobery/sdkgen/testing/ResponseBodyScript;Lcom/nabobery/sdkgen/testing/ConnectionFailure;)Lcom/nabobery/sdkgen/testing/ResponseScript;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/testing/ResponseScript;ILjava/util/List;Lcom/nabobery/sdkgen/testing/ResponseBodyScript;Lcom/nabobery/sdkgen/testing/ConnectionFailure;ILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/ResponseScript;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBody ()Lcom/nabobery/sdkgen/testing/ResponseBodyScript;
+	public final fun getFailure ()Lcom/nabobery/sdkgen/testing/ConnectionFailure;
+	public final fun getHeaders ()Ljava/util/List;
+	public final fun getStatusCode ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/ScriptedExchange {
+	public fun <init> (Lcom/nabobery/sdkgen/testing/RequestExpectation;Lcom/nabobery/sdkgen/testing/ResponseScript;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/testing/RequestExpectation;
+	public final fun component2 ()Lcom/nabobery/sdkgen/testing/ResponseScript;
+	public final fun copy (Lcom/nabobery/sdkgen/testing/RequestExpectation;Lcom/nabobery/sdkgen/testing/ResponseScript;)Lcom/nabobery/sdkgen/testing/ScriptedExchange;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/testing/ScriptedExchange;Lcom/nabobery/sdkgen/testing/RequestExpectation;Lcom/nabobery/sdkgen/testing/ResponseScript;ILjava/lang/Object;)Lcom/nabobery/sdkgen/testing/ScriptedExchange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequest ()Lcom/nabobery/sdkgen/testing/RequestExpectation;
+	public final fun getResponse ()Lcom/nabobery/sdkgen/testing/ResponseScript;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/testing/ScriptedPageFetcher {
+	public fun <init> ()V
+	public final fun enqueueEnvelope (Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;)Lcom/nabobery/sdkgen/testing/ScriptedPageFetcher;
+	public final fun enqueueFailure (Ljava/lang/Throwable;)Lcom/nabobery/sdkgen/testing/ScriptedPageFetcher;
+	public final fun enqueueSuspending (Lkotlin/jvm/functions/Function1;)Lcom/nabobery/sdkgen/testing/ScriptedPageFetcher;
+	public final fun getFetch ()Lkotlin/jvm/functions/Function2;
+	public final fun getRequests ()Ljava/util/List;
+}
+
+public abstract class com/nabobery/sdkgen/testing/SdkTransportContractKit {
+	public fun <init> ()V
+	public fun abruptMidStreamFailureIsTypedAndCloseCauseIsRecorded ()V
+	public fun bufferedResponseDoesNotReadAheadBeforeConsumerDemand ()V
+	public fun bufferedRoundTripPreservesRequestAndRepeatedHeaders ()V
+	public fun bytesAndReplayFactoryAreIdenticalAcrossAttempts ()V
+	public fun callerOwnedEngineRemainsUnchanged ()V
+	public fun cancellationIdentityIsPreservedMidBody ()V
+	public fun capabilitiesMatchExpectations ()V
+	public fun closingStreamMidBodyCancelsExchange ()V
+	public fun connectionFailureBeforeSendIsTypedAndPreservesCause ()V
+	public fun contractSkipReportIsConsistent ()V
+	protected abstract fun createServer ()Lcom/nabobery/sdkgen/testing/ContractServer;
+	protected abstract fun createTransport (Lcom/nabobery/sdkgen/testing/ContractServer;)Lcom/nabobery/sdkgen/runtime/SdkTransport;
+	public fun declaredAttemptDeadlineIsHonored ()V
+	public fun declaredIdleDeadlineRejectsSlowLorisBody ()V
+	public fun emptyResponseBodyReachesEof ()V
+	protected fun engineOwnershipProbe ()Lcom/nabobery/sdkgen/testing/EngineOwnershipProbe;
+	public fun executorAttemptDeadlineIsHonored ()V
+	public abstract fun getCapabilitySkipReasons ()Ljava/util/Map;
+	public abstract fun getExpectedCapabilities ()Lcom/nabobery/sdkgen/runtime/TransportCapabilities;
+	public final fun getSkippedRows ()Ljava/util/Map;
+	public fun hostileChunkSizesPreserveBytes ()V
+	public fun multipartBodyExecutesWithExactBytesAndReplays ()V
+	public fun nonSuccessResponseBodyIsAvailable ()V
+	public fun oneMiBResponseBodyIsByteFaithful ()V
+	public fun oneShotBodyIsConsumedExactlyOnce ()V
+	public fun redirectsAreSurfacedWithoutAutomaticFollowing ()V
+	public fun responseClosePreservesNormalAndFailureCauses ()V
+	protected abstract fun runTest (Lkotlin/jvm/functions/Function1;)V
+	public fun sseBytesAreIncrementalAndUnmodified ()V
+	public fun streamingChunksArriveIncrementally ()V
+	protected fun tearDownTransport (Lcom/nabobery/sdkgen/runtime/SdkTransport;)V
+	public fun unsupportedStreamingIsDeclaredForRuntimePreflight ()V
+}
+
+public final class com/nabobery/sdkgen/testing/StreamingFixturesKt {
+	public static final fun sseCommentFixture (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun sseEventFixture (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Ljava/lang/String;
+	public static synthetic fun sseEventFixture$default (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Ljava/lang/String;
+	public static final fun sseStreamFixture ([Ljava/lang/String;ZLjava/lang/String;)[B
+	public static synthetic fun sseStreamFixture$default ([Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)[B
+}
+
+public final class com/nabobery/sdkgen/testing/TestClock : com/nabobery/sdkgen/runtime/resilience/SdkClock, com/nabobery/sdkgen/runtime/resilience/SdkDelayer, com/nabobery/sdkgen/runtime/resilience/SdkTimeoutGuard, com/nabobery/sdkgen/runtime/resilience/SdkWallClock {
+	public fun <init> ()V
+	public fun <init> (JJ)V
+	public synthetic fun <init> (JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun advanceBy (J)V
+	public fun delay (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun epochMillis ()J
+	public final fun getDelays ()Ljava/util/List;
+	public final fun getTimeoutGuards ()Ljava/util/List;
+	public fun monotonicMillis ()J
+	public fun runWithTimeout (JLkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun timeoutNextGuard ()V
+}
+
+public final class com/nabobery/sdkgen/testing/TestingModuleKt {
+	public static final fun assertClosedNormally (Lcom/nabobery/sdkgen/testing/FakeByteStream;)V
+	public static final fun assertClosedWith (Lcom/nabobery/sdkgen/testing/FakeByteStream;Ljava/lang/Throwable;)V
+}
+
+public final class com/nabobery/sdkgen/testing/TransferCallbackKind : java/lang/Enum {
+	public static final field COMPLETION Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public static final field FAILURE Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public static final field PROGRESS Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public static final field START Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/testing/TransferCallbackKind;
+}
+

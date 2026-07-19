@@ -14,6 +14,47 @@ internal fun goldenSliceModel(): KotlinDeclarationModel {
             "List",
             listOf(KotlinTypeRef(GENERATED_PACKAGE, "ChatMessage")),
         )
+    val binary = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+    val jsonSuccess =
+        OperationResponseAlternative(
+            ResponseSelectorDeclaration.ExactStatus(200),
+            listOf("application/json"),
+            string,
+        )
+    val binarySuccess =
+        OperationResponseAlternative(
+            ResponseSelectorDeclaration.ExactStatus(200),
+            listOf("application/octet-stream"),
+            binary,
+        )
+
+    fun responseOperation(
+        operationId: String,
+        order: Int,
+        alternatives: List<OperationResponseAlternative>,
+    ): OperationDeclaration =
+        OperationDeclaration(
+            symbolId = "operation:$operationId",
+            order = order,
+            operationId = operationId,
+            method = "GET",
+            path = "/$operationId",
+            requestMediaTypes = emptyList(),
+            responseMediaTypes = alternatives.flatMap(OperationResponseAlternative::mediaTypes),
+            successStatusCodes = setOf(200),
+            requestType = KotlinTypeRef("kotlin", "Unit"),
+            responseType = alternatives.first().type,
+            requestCodecPropertyName = "${operationId}RequestCodec",
+            responseCodecPropertyName = "${operationId}ResponseCodec",
+            requestCodecConstantName = "${operationId.uppercase()}_REQUEST_CODEC_ID",
+            responseCodecConstantName = "${operationId.uppercase()}_RESPONSE_CODEC_ID",
+            requestCodecId = "$operationId.request",
+            responseCodecId = "$operationId.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(null, null, null),
+            methodKdoc = "Golden response-shape regression for '$operationId'.",
+            responseAlternatives = alternatives,
+        )
     return KotlinDeclarationModel(
         files =
             listOf(
@@ -225,6 +266,7 @@ internal fun goldenSliceModel(): KotlinDeclarationModel {
                                 ),
                             ),
                             dslFunctionName = "chatRequest",
+                            usesFieldState = true,
                             auxiliaryModels =
                                 listOf(
                                     SimpleModelDeclaration(
@@ -240,6 +282,38 @@ internal fun goldenSliceModel(): KotlinDeclarationModel {
                                                     "Message content.",
                                                 ),
                                             ),
+                                    ),
+                                ),
+                        ),
+                    ),
+                ),
+                KotlinFileDeclaration(
+                    GENERATED_PACKAGE,
+                    "ResponseShapeClient",
+                    listOf(
+                        OperationClientDeclaration(
+                            symbolId = "client:ResponseShapeClient",
+                            order = 0,
+                            packageName = GENERATED_PACKAGE,
+                            fileName = "ResponseShapeClient",
+                            resolvedName = "ResponseShapeClient",
+                            kdoc = "Golden client for compatible and incompatible successful response shapes.",
+                            codecsObjectName = "ResponseShapeCodecs",
+                            operations =
+                                listOf(
+                                    responseOperation("jsonFirst", 0, listOf(jsonSuccess, binarySuccess)),
+                                    responseOperation("binaryFirst", 1, listOf(binarySuccess, jsonSuccess)),
+                                    responseOperation(
+                                        "compatibleMedia",
+                                        2,
+                                        listOf(
+                                            jsonSuccess,
+                                            OperationResponseAlternative(
+                                                ResponseSelectorDeclaration.ExactStatus(200),
+                                                listOf("application/vnd.value+json"),
+                                                string,
+                                            ),
+                                        ),
                                     ),
                                 ),
                         ),

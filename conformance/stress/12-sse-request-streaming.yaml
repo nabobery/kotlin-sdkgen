@@ -8,6 +8,11 @@ paths:
   /chat:
     post:
       operationId: streamChat
+      x-sdkgen-streaming:
+        mode: sse
+        requestFlag: stream
+        responseContentType: text/event-stream
+        sentinel: '[DONE]'
       requestBody:
         required: true
         content:

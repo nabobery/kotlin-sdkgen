@@ -1,4 +1,5 @@
 @file:Suppress("ktlint:standard:max-line-length")
+@file:OptIn(com.nabobery.sdkgen.engine.spi.ExperimentalSdkGenApi::class)
 
 package com.nabobery.sdkgen.engine.output
 
@@ -15,12 +16,16 @@ import kotlinx.serialization.json.put
 import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.DirectoryNotEmptyException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.nio.file.StandardOpenOption.CREATE
 import java.nio.file.StandardOpenOption.WRITE
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -50,6 +55,17 @@ internal data class ManifestPlugin(
     val version: String,
     val spiRange: String,
     val configSha256: String,
+    val phases: List<String> = emptyList(),
+)
+
+internal data class ManifestTool(
+    val id: String,
+    val version: String,
+)
+
+internal data class ManifestCompatibilityProfile(
+    val id: String,
+    val version: String,
 )
 
 internal data class GenerationManifestIdentity(
@@ -61,10 +77,15 @@ internal data class GenerationManifestIdentity(
     val edition: String,
     val kotlinPoetVersion: String,
     val targets: List<String>,
+    val compatibilityProfiles: List<ManifestCompatibilityProfile>,
     val plugins: List<ManifestPlugin>,
+    val warningsAsErrors: Boolean,
+    val warningAllowlist: List<String>,
+    val tools: List<ManifestTool> = emptyList(),
 )
 
 internal class AtomicOutputPublisher(
+    private val symbolicLinkOperation: ((Path, Path) -> Unit)? = null,
     private val moveOperation: ((Path, Path, Boolean) -> Unit)? = null,
 ) {
     fun publish(
@@ -80,12 +101,17 @@ internal class AtomicOutputPublisher(
     ): PublicationResult {
         val parent = requireNotNull(destination.parent) { "destination must have a parent" }
         parent.createDirectories()
-        val snapshots = parent.resolve(".snapshots").also(Path::createDirectories)
+        val snapshots = parent.resolve(".snapshots")
+        require(!Files.isSymbolicLink(snapshots)) {
+            "generated snapshot directory must not be a symbolic link: $snapshots"
+        }
+        snapshots.createDirectories()
         val temp = Files.createTempDirectory(parent, ".sdkgen-")
         try {
             val sortedFiles = files.sortedBy(RenderedKotlinFile::path)
+            validateFiles(sortedFiles)
             sortedFiles.forEachIndexed { index, file ->
-                val target = temp.resolve(file.path)
+                val target = stagedFile(temp, file.path)
                 requireNotNull(target.parent).createDirectories()
                 target.writeBytes(file.bytes)
                 if (failAfterFiles != null && index + 1 == failAfterFiles) {
@@ -98,13 +124,95 @@ internal class AtomicOutputPublisher(
             temp.resolve("manifest.json").writeBytes(manifest)
             val snapshotDigest = directoryDigest(sortedFiles, manifest)
             val snapshot = snapshots.resolve(snapshotDigest)
-            if (snapshot.exists()) deleteRecursively(temp) else atomicMove(temp, snapshot)
+            materializeOrVerifySnapshot(snapshot, temp, sortedFiles, manifest)
             val prepared = PreparedPublication(snapshotDigest, snapshot, destination, manifest.size.toLong())
             commit(prepared, lock)
             return PublicationResult(snapshotDigest, snapshot, destination, manifest.size.toLong())
         } catch (failure: Throwable) {
             if (temp.exists()) deleteRecursively(temp)
             throw failure
+        }
+    }
+
+    private fun materializeOrVerifySnapshot(
+        snapshot: Path,
+        temp: Path,
+        files: List<RenderedKotlinFile>,
+        manifest: ByteArray,
+    ) {
+        while (true) {
+            if (Files.isSymbolicLink(snapshot)) {
+                throw IllegalStateException("generated snapshot must not be a symbolic link: $snapshot")
+            }
+            if (!Files.exists(snapshot, NOFOLLOW_LINKS)) {
+                try {
+                    atomicMove(temp, snapshot)
+                    return
+                } catch (_: FileAlreadyExistsException) {
+                    // Another publisher won the no-replace move; verify its complete snapshot below.
+                    continue
+                } catch (_: DirectoryNotEmptyException) {
+                    // Another publisher won the no-replace move; verify its complete snapshot below.
+                    continue
+                }
+            }
+            check(Files.isDirectory(snapshot, NOFOLLOW_LINKS)) {
+                "existing generated snapshot is not a directory: $snapshot"
+            }
+            check(snapshotMatches(snapshot, files, manifest)) {
+                "existing generated snapshot does not match freshly staged content: $snapshot"
+            }
+            deleteRecursively(temp)
+            return
+        }
+    }
+
+    private fun snapshotMatches(
+        snapshot: Path,
+        files: List<RenderedKotlinFile>,
+        manifest: ByteArray,
+    ): Boolean {
+        val expected = linkedMapOf<String, ByteArray>()
+        files.forEach { file -> expected[file.path] = file.bytes }
+        expected["manifest.json"] = manifest
+
+        val entries =
+            Files.walk(snapshot).use { paths ->
+                paths.filter { path -> path != snapshot }.toList()
+            }
+        if (entries.any { path -> Files.isSymbolicLink(path) }) {
+            throw IllegalStateException("generated snapshot contains a symbolic link: $snapshot")
+        }
+        if (entries.any { path ->
+                !Files.isDirectory(path, NOFOLLOW_LINKS) &&
+                    !Files.isRegularFile(path, NOFOLLOW_LINKS)
+            }
+        ) {
+            return false
+        }
+        val actual =
+            entries
+                .filter { path -> Files.isRegularFile(path, NOFOLLOW_LINKS) }
+                .associate { path ->
+                    snapshot.relativize(path).toString().replace('\\', '/') to Files.readAllBytes(path)
+                }
+        return actual.keys == expected.keys &&
+            expected.all { (path, bytes) -> actual.getValue(path).contentEquals(bytes) }
+    }
+
+    private fun requireSafeSnapshot(snapshot: Path) {
+        require(!Files.isSymbolicLink(snapshot)) {
+            "generated snapshot must not be a symbolic link: $snapshot"
+        }
+        require(Files.isDirectory(snapshot, NOFOLLOW_LINKS)) {
+            "generated snapshot must be a directory: $snapshot"
+        }
+        Files.walk(snapshot).use { paths ->
+            paths.filter { path -> path != snapshot }.forEach { path ->
+                require(!Files.isSymbolicLink(path)) {
+                    "generated snapshot contains a symbolic link: $path"
+                }
+            }
         }
     }
 
@@ -115,37 +223,37 @@ internal class AtomicOutputPublisher(
     ) {
         val lockParent = lock?.destination?.parent?.also(Path::createDirectories)
         return withPublicationLock(prepared.destination, lock?.destination) {
+            requireSafeSnapshot(prepared.snapshot)
             if (lock == null) {
-                publishPointer(requireNotNull(prepared.destination.parent), prepared.destination, prepared.digest)
+                val previousDestination = preserveDestination(prepared.destination)
+                try {
+                    publishPointerTarget(
+                        requireNotNull(prepared.destination.parent),
+                        prepared.destination,
+                        Path.of(".snapshots", prepared.digest),
+                    )
+                    previousDestination?.let(::deleteRecursively)
+                } catch (failure: Throwable) {
+                    rollbackDestination(prepared.destination, previousDestination, failure)
+                    throw failure
+                }
                 return@withPublicationLock
             }
 
             val stagedLock = Files.createTempFile(requireNotNull(lockParent), ".sdkgen-lock-", ".tmp")
             stagedLock.writeBytes(lock.bytes)
-            val destinationExisted = prepared.destination.exists() || prepared.destination.isSymbolicLink()
-            val previousTarget =
-                if (destinationExisted) {
-                    require(
-                        prepared.destination.isSymbolicLink(),
-                    ) { "existing generated output must be a symbolic link" }
-                    prepared.destination.readSymbolicLink()
-                } else {
-                    null
-                }
-            var outputCommitted = false
+            val previousDestination = preserveDestination(prepared.destination)
             try {
-                publishPointer(requireNotNull(prepared.destination.parent), prepared.destination, prepared.digest)
-                outputCommitted = true
+                publishPointerTarget(
+                    requireNotNull(prepared.destination.parent),
+                    prepared.destination,
+                    Path.of(".snapshots", prepared.digest),
+                )
                 beforeLockCommit(stagedLock)
                 atomicMove(stagedLock, lock.destination, replace = true)
+                previousDestination?.let(::deleteRecursively)
             } catch (failure: Throwable) {
-                if (outputCommitted) {
-                    try {
-                        restorePointer(prepared.destination, destinationExisted, previousTarget)
-                    } catch (rollbackFailure: Throwable) {
-                        failure.addSuppressed(rollbackFailure)
-                    }
-                }
+                rollbackDestination(prepared.destination, previousDestination, failure)
                 throw failure
             } finally {
                 Files.deleteIfExists(stagedLock)
@@ -189,6 +297,17 @@ internal class AtomicOutputPublisher(
         }
     }
 
+    private fun stagedFile(
+        temp: Path,
+        relativePath: String,
+    ): Path {
+        val path = temp.resolve(relativePath).normalize()
+        require(path != temp && path.startsWith(temp)) {
+            "emitted file path escapes the publication staging directory: $relativePath"
+        }
+        return path
+    }
+
     private fun canonicalPath(path: Path): Path {
         val normalized = path.toAbsolutePath().normalize()
         val parent = requireNotNull(normalized.parent) { "publication destination must have a parent" }.toRealPath()
@@ -200,23 +319,54 @@ internal class AtomicOutputPublisher(
             path.parent,
         ).resolve(".sdkgen-publish-${sha256Hex(path.toString().encodeToByteArray()).take(16)}.lock")
 
-    private fun restorePointer(
-        destination: Path,
-        existed: Boolean,
-        previousTarget: Path?,
-    ) {
+    private fun preserveDestination(destination: Path): Path? {
+        if (!Files.exists(destination, NOFOLLOW_LINKS) && !Files.isSymbolicLink(destination)) return null
         val parent = requireNotNull(destination.parent)
-        if (existed) {
-            publishPointerTarget(parent, destination, requireNotNull(previousTarget))
-        } else if (destination.exists() || destination.isSymbolicLink()) {
-            val removed = Files.createTempFile(parent, ".${destination.name}-rollback-", ".tmp")
-            Files.deleteIfExists(removed)
-            try {
-                atomicMove(destination, removed)
-            } finally {
-                Files.deleteIfExists(removed)
-            }
+        val backup = Files.createTempDirectory(parent, ".${destination.name}-rollback-")
+        deleteRecursively(backup)
+        atomicMove(destination, backup)
+        return backup
+    }
+
+    private fun rollbackDestination(
+        destination: Path,
+        backup: Path?,
+        failure: Throwable,
+    ) {
+        runCatching {
+            deleteRecursively(destination)
+            backup?.let { atomicMove(it, destination) }
+        }.onFailure(failure::addSuppressed)
+    }
+
+    private fun validateFiles(files: List<RenderedKotlinFile>) {
+        require(files.size <= MAX_MANIFEST_FILES) {
+            "emission produced too many files (${files.size}); maximum is $MAX_MANIFEST_FILES"
         }
+        val paths =
+            files.map { file ->
+                val value = file.path
+                require(value.isNotBlank()) { "emitted file path must not be empty" }
+                require(value.length <= MAX_MANIFEST_PATH_LENGTH) {
+                    "emitted file path exceeds the maximum length of $MAX_MANIFEST_PATH_LENGTH: $value"
+                }
+                require(value.none { character -> character.code == 0 }) {
+                    "emitted file path must not contain NUL: $value"
+                }
+                require(!value.startsWith('/') && !value.startsWith('\\')) {
+                    "emitted file path must be relative: $value"
+                }
+                require(!(value.length >= 2 && value[1] == ':')) {
+                    "emitted file path must be relative: $value"
+                }
+                require('\\' !in value) { "emitted file path must use '/' separators: $value" }
+                val segments = value.split('/')
+                require(segments.none { it.isEmpty() || it == "." || it == ".." }) {
+                    "emitted file path is not canonical: $value"
+                }
+                value
+            }
+        require(paths.distinct().size == paths.size) { "emitted file paths must be unique" }
     }
 
     private fun verify(
@@ -227,7 +377,7 @@ internal class AtomicOutputPublisher(
         require(files.isNotEmpty()) { "emission produced no files" }
         val packages = model.files.map { it.packageName }.toSet()
         files.forEach { file ->
-            val path = temp.resolve(file.path)
+            val path = stagedFile(temp, file.path)
             check(path.exists()) { "missing emitted file ${file.path}" }
             check(Files.size(path) > 0) { "empty emitted file ${file.path}" }
             val text = Files.readString(path)
@@ -273,18 +423,63 @@ internal class AtomicOutputPublisher(
                 )
                 put("targets", buildJsonArray { identity.targets.sorted().forEach { add(JsonPrimitive(it)) } })
                 put(
+                    "compatibilityProfiles",
+                    buildJsonArray {
+                        identity.compatibilityProfiles
+                            .sortedWith(
+                                compareBy(ManifestCompatibilityProfile::id, ManifestCompatibilityProfile::version),
+                            ).forEach { profile ->
+                                add(
+                                    buildJsonObject {
+                                        put("id", profile.id)
+                                        put("version", profile.version)
+                                    },
+                                )
+                            }
+                    },
+                )
+                put(
                     "plugins",
                     buildJsonArray {
-                        identity.plugins.forEach { plugin ->
+                        identity.plugins.forEachIndexed { order, plugin ->
                             add(
                                 buildJsonObject {
+                                    put("order", order)
                                     put("id", plugin.id)
                                     put("version", plugin.version)
                                     put("spiRange", plugin.spiRange)
                                     put("configSha256", plugin.configSha256)
+                                    put(
+                                        "phases",
+                                        buildJsonArray {
+                                            plugin.phases.forEach { phase -> add(JsonPrimitive(phase)) }
+                                        },
+                                    )
                                 },
                             )
                         }
+                    },
+                )
+                put(
+                    "tools",
+                    buildJsonArray {
+                        identity.tools
+                            .sortedWith(compareBy(ManifestTool::id, ManifestTool::version))
+                            .forEach { tool ->
+                                add(
+                                    buildJsonObject {
+                                        put("id", tool.id)
+                                        put("version", tool.version)
+                                    },
+                                )
+                            }
+                    },
+                )
+                put("warningsAsErrors", identity.warningsAsErrors)
+                put(
+                    "warningAllowlist",
+                    buildJsonArray {
+                        identity.warningAllowlist.sorted().forEach { add(JsonPrimitive(it)) }
                     },
                 )
                 put(
@@ -293,7 +488,12 @@ internal class AtomicOutputPublisher(
                         diagnostics.forEach { diagnostic ->
                             add(
                                 buildJsonObject {
-                                    put("code", diagnostic.code)
+                                    put("code", diagnostic.wireCode)
+                                    put("severity", diagnostic.severity.name.lowercase(Locale.ROOT))
+                                    put("phase", diagnostic.phase.name.lowercase(Locale.ROOT))
+                                    diagnostic.pluginPhase?.let { phase ->
+                                        put("pluginPhase", phase.name.lowercase(Locale.ROOT))
+                                    }
                                     put("message", diagnostic.message)
                                     put(
                                         "source",
@@ -371,14 +571,6 @@ internal class AtomicOutputPublisher(
             }.fold(ByteArray(0)) { accumulated, bytes -> accumulated + bytes },
         )
 
-    private fun publishPointer(
-        parent: Path,
-        destination: Path,
-        snapshotDigest: String,
-    ) {
-        publishPointerTarget(parent, destination, Path.of(".snapshots", snapshotDigest))
-    }
-
     private fun publishPointerTarget(
         parent: Path,
         destination: Path,
@@ -387,10 +579,62 @@ internal class AtomicOutputPublisher(
         val pointer = Files.createTempFile(parent, ".${destination.name}-", ".next")
         pointer.deleteExisting()
         try {
-            pointer.createSymbolicLinkPointingTo(target)
+            try {
+                symbolicLinkOperation?.invoke(pointer, target) ?: pointer.createSymbolicLinkPointingTo(target)
+            } catch (_: Exception) {
+                materializeTarget(parent, destination, target)
+                return
+            }
             atomicMove(pointer, destination, replace = true)
         } finally {
             Files.deleteIfExists(pointer)
+        }
+    }
+
+    private fun materializeTarget(
+        parent: Path,
+        destination: Path,
+        target: Path,
+    ) {
+        val source = parent.resolve(target).normalize()
+        require(source.startsWith(parent) && source != parent) {
+            "generated publication target must remain under its output directory: $target"
+        }
+        requireSafeSnapshot(source)
+        val staged = Files.createTempDirectory(parent, ".${destination.name}-materialized-")
+        try {
+            copyDirectory(source, staged)
+            val previousDestination = preserveDestination(destination)
+            try {
+                atomicMove(staged, destination)
+                previousDestination?.let(::deleteRecursively)
+            } catch (failure: Throwable) {
+                rollbackDestination(destination, previousDestination, failure)
+                throw failure
+            }
+        } finally {
+            deleteRecursively(staged)
+        }
+    }
+
+    private fun copyDirectory(
+        source: Path,
+        destination: Path,
+    ) {
+        Files.walk(source).use { paths ->
+            paths.forEach { path ->
+                val relative = source.relativize(path)
+                if (relative.toString().isEmpty()) return@forEach
+                val target = destination.resolve(relative.toString()).normalize()
+                require(target.startsWith(destination)) {
+                    "generated snapshot entry escapes the materialized output: $relative"
+                }
+                if (Files.isDirectory(path, NOFOLLOW_LINKS)) {
+                    target.createDirectories()
+                } else {
+                    Files.copy(path, target)
+                }
+            }
         }
     }
 
@@ -412,10 +656,17 @@ internal class AtomicOutputPublisher(
     }
 
     private fun deleteRecursively(root: Path) {
+        if (root.isSymbolicLink()) {
+            Files.deleteIfExists(root)
+            return
+        }
+        if (!Files.exists(root, NOFOLLOW_LINKS)) return
         Files.walk(root).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
     }
 
     private companion object {
+        const val MAX_MANIFEST_FILES = 10_000
+        const val MAX_MANIFEST_PATH_LENGTH = 4096
         val MANIFEST_JSON: Json = Json { prettyPrint = true }
         val PUBLICATION_LOCKS = ConcurrentHashMap<Path, ReentrantLock>()
     }

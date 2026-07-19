@@ -270,7 +270,7 @@ internal fun AdaptationContext.adaptSchema(
                 additionalProperties = adaptAdditionalProperties(document, pointer, node),
                 compositions = compositions,
                 allOfPropertyOwnership = allOfOwnership(compositions),
-                extensions = node.extensions(),
+                extensions = node.nonCanonicalExtensions(),
                 source = source,
             )
         schemas[requestedId] = schema
@@ -338,7 +338,7 @@ private fun AdaptationContext.adaptProperties(
             deprecated = propertyNode.path("deprecated").booleanOrFalse(),
             defaultValue = propertyNode.get("default")?.toJsonValue(),
             examples = propertyNode.examples(),
-            extensions = propertyNode.extensions(),
+            extensions = propertyNode.nonCanonicalExtensions(),
             source = document.source(propertyPointer),
         )
     }
@@ -475,7 +475,7 @@ private fun AdaptationContext.adaptDiscriminator(
             }
         }
     }
-    val mappingExtensions = mappingNode?.extensions().orEmpty().mapKeys { (name, _) -> "mapping.$name" }
+    val mappingExtensions = mappingNode?.nonCanonicalExtensions().orEmpty().mapKeys { (name, _) -> "mapping.$name" }
     val mappedIds = mapping.values.toSet()
     return DiscriminatorModel(
         propertyName = node.path("propertyName").asText(),
@@ -486,7 +486,7 @@ private fun AdaptationContext.adaptDiscriminator(
                 .filterNot(mappedIds::contains)
                 .distinct()
                 .sorted(),
-        extensions = (node.extensions() + mappingExtensions).toSortedMap(),
+        extensions = (node.nonCanonicalExtensions() + mappingExtensions).toSortedMap(),
         source = document.source(pointer),
     )
 }

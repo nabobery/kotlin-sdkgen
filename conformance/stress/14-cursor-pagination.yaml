@@ -8,6 +8,12 @@ paths:
   /items:
     get:
       operationId: listItems
+      x-sdkgen-pagination:
+        style: cursor
+        requestCursor: cursor
+        requestLimit: limit
+        responseItems: /data
+        responseNextCursor: /nextCursor
       parameters:
         - name: cursor
           in: query

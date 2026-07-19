@@ -3,6 +3,7 @@ package com.nabobery.sdkgen.testing
 import com.nabobery.sdkgen.runtime.SdkDeadlines
 import com.nabobery.sdkgen.runtime.SdkRequest
 import com.nabobery.sdkgen.runtime.SdkResponseMode
+import com.nabobery.sdkgen.runtime.resilience.RetryBudget
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
@@ -50,6 +51,41 @@ internal class TestingModuleTest {
             )
         assertContentEquals("partial".encodeToByteArray(), runSuspend { afterPartial.readChunk() })
         assertFailsWith<IllegalStateException> { runSuspend { afterPartial.readChunk() } }
+    }
+
+    @Test
+    fun testClockProvidesDeterministicMonotonicWallAndDelayTime() {
+        val clock = TestClock(monotonicMillis = 100, epochMillis = 1_700_000_000_000)
+
+        runSuspend { clock.delay(250) }
+
+        assertEquals(350, clock.monotonicMillis())
+        assertEquals(1_700_000_000_250, clock.epochMillis())
+        assertEquals(listOf(250L), clock.delays)
+    }
+
+    @Test
+    fun testClockCanDeterministicallyExpireTheNextTimeoutGuard() {
+        val clock = TestClock()
+        clock.timeoutNextGuard()
+        var ran = false
+
+        val completed = runSuspend { clock.runWithTimeout(25) { ran = true } }
+
+        assertEquals(false, completed)
+        assertEquals(false, ran)
+        assertEquals(listOf(25L), clock.timeoutGuards)
+    }
+
+    @Test
+    fun retryBudgetConsumesRetriesAndRefillsOneTokenOnSuccess() {
+        val budget = RetryBudget(capacity = 2)
+
+        assertTrue(runSuspend { budget.tryConsumeRetry() })
+        assertTrue(runSuspend { budget.tryConsumeRetry() })
+        assertEquals(false, runSuspend { budget.tryConsumeRetry() })
+        runSuspend { budget.recordSuccess() }
+        assertTrue(runSuspend { budget.tryConsumeRetry() })
     }
 
     @Test

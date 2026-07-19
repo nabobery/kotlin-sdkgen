@@ -183,6 +183,7 @@ public enum class DiagnosticPhase {
  */
 public enum class DiagnosticCode {
     AMBIGUOUS_PARAMETER_SCHEMA_AND_CONTENT,
+    INVALID_CANONICAL_EXTENSION,
     INVALID_DISCRIMINATOR_MAPPING,
     LEGACY_NULLABLE_COMPOSITION,
     ONE_OF_NULL_AMBIGUOUS,
@@ -391,6 +392,74 @@ public data class SecurityRequirementModel(
     public override val source: SourcePointer,
 ) : MaterialNode
 
+/** The OpenAPI security-scheme kind retained by the adapter for contract-owned client configuration. */
+public enum class SecuritySchemeKind {
+    API_KEY,
+    HTTP,
+    OAUTH2,
+    OPEN_ID_CONNECT,
+    MUTUAL_TLS,
+}
+
+/**
+ * One contract-owned OpenAPI security scheme. Credential material never enters this model; it is supplied at runtime
+ * through a generated client's credential-provider map.
+ */
+public data class SecuritySchemeModel(
+    public val kind: SecuritySchemeKind,
+    public val parameterName: String? = null,
+    public val location: ParameterLocation? = null,
+    public val scheme: String? = null,
+    public val bearerFormat: String? = null,
+    public val openIdConnectUrl: String? = null,
+    public override val source: SourcePointer,
+) : MaterialNode
+
+/** An immutable RFC 6901 JSON Pointer with decoded property-name [segments]. */
+public data class JsonPointer(
+    public val value: String,
+) {
+    init {
+        require(value.startsWith('/')) { "JSON Pointer must begin with '/'" }
+        require(!Regex("~(?![01])").containsMatchIn(value)) {
+            "JSON Pointer must contain only valid escapes '~0' and '~1'"
+        }
+    }
+
+    public val segments: List<String>
+        get() =
+            value.drop(1).split('/').map { encoded ->
+                encoded.replace("~1", "/").replace("~0", "~")
+            }
+
+    public override fun toString(): String = value
+}
+
+/** Canonical operation pagination metadata adapted from `x-sdkgen-pagination`. */
+public sealed interface PaginationModel {
+    public data class Cursor(
+        public val requestCursor: String,
+        public val requestLimit: String?,
+        public val responseItems: JsonPointer,
+        public val responseNextCursor: JsonPointer,
+    ) : PaginationModel
+}
+
+/** Canonical operation streaming metadata adapted from `x-sdkgen-streaming`. */
+public sealed interface StreamingModel {
+    public data class Sse(
+        public val requestFlag: String?,
+        public val responseContentType: String,
+        public val sentinel: String?,
+    ) : StreamingModel
+}
+
+/** Canonical client-generated idempotency-key metadata adapted from `x-sdkgen-idempotency`. */
+public data class IdempotencyModel(
+    public val keyHeader: String,
+    public val clientGenerated: Boolean,
+)
+
 public data class OperationModel(
     public val operationId: String,
     public val method: String,
@@ -401,6 +470,9 @@ public data class OperationModel(
     public val requestBody: RequestBodyModel?,
     public val responses: List<ResponseModel>,
     public val securityAlternatives: List<SecurityRequirementModel>,
+    public val pagination: PaginationModel?,
+    public val streaming: StreamingModel?,
+    public val idempotency: IdempotencyModel?,
     public val extensions: Map<String, JsonValue>,
     public override val source: SourcePointer,
 ) : MaterialNode
@@ -419,6 +491,8 @@ public data class Diagnostic(
     public val message: String,
     public val remediation: String,
     public override val source: SourcePointer,
+    /** Stable semantic symbol identity when the diagnostic can be tied to one operation or schema. */
+    public val relatedSymbolId: String? = null,
 ) : MaterialNode
 
 /**
@@ -440,4 +514,5 @@ public data class SemanticDocument(
     public val extensions: Map<String, JsonValue>,
     public val diagnostics: List<Diagnostic>,
     public override val source: SourcePointer,
+    public val securitySchemes: Map<String, SecuritySchemeModel> = emptyMap(),
 ) : MaterialNode
