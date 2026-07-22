@@ -18,10 +18,18 @@ import java.util.TreeMap
  * ([OperationAdapter.kt]), and JSON value conversion ([JsonValueAdapter.kt]) are implemented as
  * extension functions over this one context so state is never duplicated across the split.
  */
+internal enum class OpenApiNormalizationMode {
+    OPENAPI_3_0,
+    NATIVE,
+}
+
 internal class AdaptationContext(
     internal val repository: SourceRepository,
     internal val rootDocument: SourceDocument,
+    internal val normalizationMode: OpenApiNormalizationMode = OpenApiNormalizationMode.NATIVE,
 ) {
+    internal val normalizesOpenApi30: Boolean
+        get() = normalizationMode == OpenApiNormalizationMode.OPENAPI_3_0
     val schemas = TreeMap<SchemaId, SchemaModel>()
     val diagnostics = mutableListOf<Diagnostic>()
     internal val schemasInProgress = mutableSetOf<SchemaId>()

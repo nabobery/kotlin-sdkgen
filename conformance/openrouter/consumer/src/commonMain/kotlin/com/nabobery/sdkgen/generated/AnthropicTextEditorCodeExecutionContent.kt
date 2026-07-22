@@ -305,128 +305,12 @@ private data class AnthropicTextEditorCodeExecutionContentInspection(
 
 private fun inspectAnthropicTextEditorCodeExecutionContent(raw: JsonObject): AnthropicTextEditorCodeExecutionContentInspection {
   val typeState3Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionToolResultErrorPropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionToolResultErrorPropertiesType>(element) } }
   val typeState3 = typeState3Result?.getOrNull()
   val typeState3Decoded = typeState3Result?.isSuccess == true
   val typeState3Matches = raw.stringValue("type") == "text_editor_code_execution_tool_result_error" && typeState3Decoded
   val errorCodeResult = raw["error_code"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionToolResultErrorPropertiesErrorCode>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionToolResultErrorPropertiesErrorCode>(element) } }
   val errorCode = errorCodeResult?.getOrNull()
   val errorCodeDecoded = errorCodeResult?.isSuccess == true
   val errorMessageResult = raw["error_message"]?.let { element -> runCatching { SdkJson
@@ -443,65 +327,7 @@ private fun inspectAnthropicTextEditorCodeExecutionContent(raw: JsonObject): Ant
   val content = contentResult?.getOrNull()
   val contentDecoded = contentResult?.isSuccess == true
   val fileTypeResult = raw["file_type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionViewResultPropertiesFileType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionViewResultPropertiesFileType>(element) } }
   val fileType = fileTypeResult?.getOrNull()
   val fileTypeDecoded = fileTypeResult?.isSuccess == true
   val numLinesResult = raw["num_lines"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<Int?>(element) } }
@@ -519,65 +345,7 @@ private fun inspectAnthropicTextEditorCodeExecutionContent(raw: JsonObject): Ant
   val totalLinesPresent = raw.containsKey("total_lines")
   val totalLinesDecoded = totalLinesResult?.isSuccess == true
   val typeState1Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionCreateResultPropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionCreateResultPropertiesType>(element) } }
   val typeState1 = typeState1Result?.getOrNull()
   val typeState1Decoded = typeState1Result?.isSuccess == true
   val typeState1Matches = raw.stringValue("type") == "text_editor_code_execution_create_result" && typeState1Decoded
@@ -586,65 +354,7 @@ private fun inspectAnthropicTextEditorCodeExecutionContent(raw: JsonObject): Ant
   val isFileUpdate = isFileUpdateResult?.getOrNull()
   val isFileUpdateDecoded = isFileUpdateResult?.isSuccess == true
   val typeState2Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionStrReplaceResultPropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicTextEditorCodeExecutionStrReplaceResultPropertiesType>(element) } }
   val typeState2 = typeState2Result?.getOrNull()
   val typeState2Decoded = typeState2Result?.isSuccess == true
   val typeState2Matches = raw.stringValue("type") == "text_editor_code_execution_str_replace_result" &&

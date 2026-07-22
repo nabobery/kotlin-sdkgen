@@ -238,63 +238,7 @@ public class InlineComponentsSchemasMessagesDeltaEventPropertiesUsage internal c
           "property 'server_tool_use'")
       }
       val serverToolUse = raw["server_tool_use"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesDeltaEventPropertiesUsagePropertiesServerToolUse?>(requireNotNull(element)) }
+        .decodeFromJsonElement<InlineComponentsSchemasMessagesDeltaEventPropertiesUsagePropertiesServerToolUse?>(requireNotNull(element)) }
       return InlineComponentsSchemasMessagesDeltaEventPropertiesUsage(
         cacheCreationInputTokens = cacheCreationInputTokens,
         cacheReadInputTokens = cacheReadInputTokens,

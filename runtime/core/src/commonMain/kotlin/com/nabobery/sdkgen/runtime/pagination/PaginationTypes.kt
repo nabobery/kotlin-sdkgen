@@ -1,5 +1,8 @@
 package com.nabobery.sdkgen.runtime.pagination
 
+import com.nabobery.sdkgen.runtime.SdkHeader
+import kotlin.jvm.JvmOverloads
+
 /**
  * What the pagination engine asks the caller-supplied fetch function to retrieve next.
  *
@@ -67,46 +70,89 @@ public sealed interface PageRequest {
  *   `responseTotalPath` is declared; `null` when undeclared or unavailable.
  * @property totalPages the total page count, for [PaginationDescriptor.PageSize] when `responseTotalPagesPath` is
  *   declared; `null` when undeclared or unavailable.
+ * @property responseHeaders the physical response's headers, for [PaginationDescriptor.HeaderNextUrl] (which reads
+ *   its next-page target from the `Link` header rather than any body field); empty for every other strategy, which
+ *   never inspect it.
+ * @property requestUri the URI of the request that produced this page, for [PaginationDescriptor.HeaderNextUrl]'s
+ *   next-page target resolution (a `Link` header's target is resolved against the page that returned it, not a
+ *   fixed operation base URI); `null` for every other strategy, which never inspect it.
  */
-public class PageEnvelope<T, I>(
-    public val value: T,
-    items: List<I> = emptyList(),
-    public val nextCursor: String? = null,
-    public val nextUrl: String? = null,
-    public val nextToken: String? = null,
-    public val totalCount: Long? = null,
-    public val totalPages: Int? = null,
-) {
-    /** Defensive copy of the items supplied at construction; later mutation of the input has no effect. */
-    public val items: List<I> = items.toList()
+public class PageEnvelope<T, I>
+    @JvmOverloads
+    constructor(
+        public val value: T,
+        items: List<I> = emptyList(),
+        public val nextCursor: String? = null,
+        public val nextUrl: String? = null,
+        public val nextToken: String? = null,
+        public val totalCount: Long? = null,
+        public val totalPages: Int? = null,
+        responseHeaders: List<SdkHeader> = emptyList(),
+        public val requestUri: String? = null,
+    ) {
+        /** Defensive copy of the items supplied at construction; later mutation of the input has no effect. */
+        public val items: List<I> = items.toList()
 
-    public fun copy(
-        value: T = this.value,
-        items: List<I> = this.items,
-        nextCursor: String? = this.nextCursor,
-        nextUrl: String? = this.nextUrl,
-        nextToken: String? = this.nextToken,
-        totalCount: Long? = this.totalCount,
-        totalPages: Int? = this.totalPages,
-    ): PageEnvelope<T, I> = PageEnvelope(value, items, nextCursor, nextUrl, nextToken, totalCount, totalPages)
+        /** Defensive copy of the headers supplied at construction; later mutation of the input has no effect. */
+        public val responseHeaders: List<SdkHeader> = responseHeaders.toList()
 
-    override fun equals(other: Any?): Boolean =
-        other is PageEnvelope<*, *> &&
-            value == other.value &&
-            items == other.items &&
-            nextCursor == other.nextCursor &&
-            nextUrl == other.nextUrl &&
-            nextToken == other.nextToken &&
-            totalCount == other.totalCount &&
-            totalPages == other.totalPages
+        public fun copy(
+            value: T = this.value,
+            items: List<I> = this.items,
+            nextCursor: String? = this.nextCursor,
+            nextUrl: String? = this.nextUrl,
+            nextToken: String? = this.nextToken,
+            totalCount: Long? = this.totalCount,
+            totalPages: Int? = this.totalPages,
+            responseHeaders: List<SdkHeader> = this.responseHeaders,
+            requestUri: String? = this.requestUri,
+        ): PageEnvelope<T, I> =
+            PageEnvelope(
+                value,
+                items,
+                nextCursor,
+                nextUrl,
+                nextToken,
+                totalCount,
+                totalPages,
+                responseHeaders,
+                requestUri,
+            )
 
-    override fun hashCode(): Int =
-        arrayOf<Any?>(value, items, nextCursor, nextUrl, nextToken, totalCount, totalPages).contentHashCode()
+        override fun equals(other: Any?): Boolean =
+            other is PageEnvelope<*, *> &&
+                value == other.value &&
+                items == other.items &&
+                nextCursor == other.nextCursor &&
+                nextUrl == other.nextUrl &&
+                nextToken == other.nextToken &&
+                totalCount == other.totalCount &&
+                totalPages == other.totalPages &&
+                responseHeaders == other.responseHeaders &&
+                requestUri == other.requestUri
 
-    override fun toString(): String =
-        "PageEnvelope(value=$value, items=$items, nextCursor=$nextCursor, nextUrl=$nextUrl, " +
-            "nextToken=$nextToken, totalCount=$totalCount, totalPages=$totalPages)"
-}
+        override fun hashCode(): Int =
+            arrayOf<Any?>(
+                value,
+                items,
+                nextCursor,
+                nextUrl,
+                nextToken,
+                totalCount,
+                totalPages,
+                responseHeaders,
+                requestUri,
+            ).contentHashCode()
+
+        override fun toString(): String =
+            "PageEnvelope(value=$value, items=$items, nextCursor=$nextCursor, nextUrl=$nextUrl, " +
+                "nextToken=$nextToken, totalCount=$totalCount, totalPages=$totalPages, " +
+                "responseHeaders=$responseHeaders, " +
+                "requestUri=${requestUri?.let {
+                    com.nabobery.sdkgen.runtime
+                        .redactedUriForDisplay(it)
+                }})"
+    }
 
 /**
  * One page as surfaced to SDK consumers by [com.nabobery.sdkgen.runtime.pagination.PaginationEngine]'s `pages()`

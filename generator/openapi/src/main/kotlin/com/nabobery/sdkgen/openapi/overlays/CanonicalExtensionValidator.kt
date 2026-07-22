@@ -76,6 +76,19 @@ internal class CanonicalExtensionValidator {
         pointer: String,
     ) {
         requireObject(value, pointer)
+        val stylePointer = JsonPointerSupport.child(pointer, "style")
+        val style = value.get("style") ?: invalid(stylePointer, "is required")
+        when (style.takeIf(JsonNode::isTextual)?.textValue()) {
+            "cursor" -> validateCursorPagination(value, pointer)
+            "headerNextUrl" -> validateHeaderNextUrlPagination(value, pointer)
+            else -> invalid(stylePointer, "must equal 'cursor' or 'headerNextUrl'")
+        }
+    }
+
+    private fun validateCursorPagination(
+        value: JsonNode,
+        pointer: String,
+    ) {
         requireAllowedFields(
             value,
             pointer,
@@ -86,6 +99,15 @@ internal class CanonicalExtensionValidator {
         requireOptionalNonEmptyString(value, pointer, "requestLimit")
         requirePointer(value, pointer, "responseItems")
         requirePointer(value, pointer, "responseNextCursor")
+    }
+
+    private fun validateHeaderNextUrlPagination(
+        value: JsonNode,
+        pointer: String,
+    ) {
+        requireAllowedFields(value, pointer, setOf("style", "responseItems"))
+        requireConstant(value, pointer, "style", "headerNextUrl")
+        requirePointer(value, pointer, "responseItems")
     }
 
     private fun validateIdempotency(

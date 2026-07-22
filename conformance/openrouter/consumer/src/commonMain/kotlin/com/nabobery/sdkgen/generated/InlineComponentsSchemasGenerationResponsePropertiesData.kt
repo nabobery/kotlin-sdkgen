@@ -958,63 +958,7 @@ public class InlineComponentsSchemasGenerationResponsePropertiesData internal co
           "property 'api_type'")
       }
       val apiType = raw["api_type"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasGenerationResponsePropertiesDataPropertiesApiType?>(requireNotNull(element)) }
+        .decodeFromJsonElement<InlineComponentsSchemasGenerationResponsePropertiesDataPropertiesApiType?>(requireNotNull(element)) }
       if (!raw.containsKey("app_id")) {
         throw SerializationException("InlineComponentsSchemasGenerationResponsePropertiesData is missing required " +
           "property 'app_id'")

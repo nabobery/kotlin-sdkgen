@@ -76,10 +76,10 @@ class OpenRouterAdapterConformanceTest {
     ) = runBlocking {
         val client = OpenRouterClient(transport, baseUri, authentication = SdkAuthentication { it })
 
-        val chat = client.sendChatCompletionRequest(chatRequest())
+        val chat = client.chat.sendChatCompletionRequest(chatRequest())
         assertEquals("adapter-chat", chat.id)
 
-        val binary = client.downloadFileContent("fixture")
+        val binary = client.files.downloadFileContent("fixture")
         assertContentEquals(byteArrayOf(0, 1, 2, 3), consumeAdapterStream(binary))
 
         val multipart =

@@ -63,7 +63,7 @@ class OpenRouterFixtureConformanceTest {
                     transport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).sendChatCompletionRequest(chatRequest())
+                ).chat.sendChatCompletionRequest(chatRequest())
 
             assertEquals("chat-fixture", result.id)
             assertEquals("sendChatCompletionRequest", transport.capturedRequests.single().operationId)
@@ -146,7 +146,7 @@ class OpenRouterFixtureConformanceTest {
                     normalTransport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).downloadFileContent("file-1")
+                ).files.downloadFileContent("file-1")
 
             assertContentEquals(bytes, consume(downloaded))
             assertTrue(normal.closed)
@@ -159,7 +159,7 @@ class OpenRouterFixtureConformanceTest {
                     cancelledTransport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).downloadFileContent("file-2")
+                ).files.downloadFileContent("file-2")
             assertContentEquals(byteArrayOf(0), stream.readChunk())
             val thrown = assertFailsWith<CancellationException> { stream.readChunk() }
             stream.close(thrown)
@@ -195,7 +195,7 @@ class OpenRouterFixtureConformanceTest {
                     transport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).downloadFileContent("file-retry", options = options)
+                ).files.downloadFileContent("file-retry", options = options)
 
             assertContentEquals(byteArrayOf(1, 2, 3), consume(stream))
             assertEquals(2, transport.capturedRequests.size)
@@ -225,7 +225,7 @@ class OpenRouterFixtureConformanceTest {
                     transport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).downloadFileContent("file-observer", options = options)
+                ).files.downloadFileContent("file-observer", options = options)
 
             assertContentEquals(byteArrayOf(4, 5, 6), consume(stream))
             assertTrue(body.closed)

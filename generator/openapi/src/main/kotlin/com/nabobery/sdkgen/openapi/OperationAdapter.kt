@@ -175,6 +175,13 @@ private fun AdaptationContext.adaptOperation(
     val pagination = node.get("x-sdkgen-pagination")?.let { adaptPagination(it, "$pointer/x-sdkgen-pagination") }
     val streaming = node.get("x-sdkgen-streaming")?.let { adaptStreaming(it, "$pointer/x-sdkgen-streaming") }
     val idempotency = node.get("x-sdkgen-idempotency")?.let { adaptIdempotency(it, "$pointer/x-sdkgen-idempotency") }
+    val tags =
+        node
+            .get("tags")
+            ?.takeIf(JsonNode::isArray)
+            ?.mapNotNull(JsonNode::textOrNull)
+            ?.filter(String::isNotBlank)
+            .orEmpty()
     return OperationModel(
         operationId = node.path("operationId").textOrNull() ?: synthesizedOperationId(method, pathValue),
         method = method.uppercase(),
@@ -190,6 +197,7 @@ private fun AdaptationContext.adaptOperation(
         idempotency = idempotency,
         extensions = node.nonCanonicalExtensions(),
         source = rootDocument.source(pointer),
+        tags = tags,
     )
 }
 
@@ -362,6 +370,10 @@ private fun AdaptationContext.adaptContent(
                         headers = encodingNode.get("headers").namedJsonValues(),
                         extensions = encodingNode.nonCanonicalExtensions(),
                         source = document.source(encodingPointer),
+                        style = encodingNode.path("style").textOrNull(),
+                        explode = encodingNode.get("explode")?.takeIf(JsonNode::isBoolean)?.booleanValue(),
+                        allowReserved =
+                            encodingNode.get("allowReserved")?.takeIf(JsonNode::isBoolean)?.booleanValue(),
                     )
                 }
         MediaTypeModel(
@@ -494,8 +506,19 @@ private class CanonicalExtensionAdaptationException(
 private fun adaptPagination(
     node: JsonNode,
     pointer: String,
-): PaginationModel.Cursor {
+): PaginationModel {
     requireExtensionObject(node, pointer)
+    return when (val style = requireExtensionString(node, pointer, "style")) {
+        "cursor" -> adaptCursorPagination(node, pointer)
+        "headerNextUrl" -> adaptHeaderNextUrlPagination(node, pointer)
+        else -> invalidExtension("$pointer/style", "must equal 'cursor' or 'headerNextUrl', was '$style'")
+    }
+}
+
+private fun adaptCursorPagination(
+    node: JsonNode,
+    pointer: String,
+): PaginationModel.Cursor {
     requireExtensionFields(
         node,
         pointer,
@@ -507,6 +530,17 @@ private fun adaptPagination(
         requestLimit = optionalExtensionString(node, pointer, "requestLimit"),
         responseItems = requireJsonPointer(node, pointer, "responseItems"),
         responseNextCursor = requireJsonPointer(node, pointer, "responseNextCursor"),
+    )
+}
+
+private fun adaptHeaderNextUrlPagination(
+    node: JsonNode,
+    pointer: String,
+): PaginationModel.HeaderNextUrl {
+    requireExtensionFields(node, pointer, setOf("style", "responseItems"))
+    requireExtensionConstant(node, pointer, "style", "headerNextUrl")
+    return PaginationModel.HeaderNextUrl(
+        responseItems = requireJsonPointer(node, pointer, "responseItems"),
     )
 }
 

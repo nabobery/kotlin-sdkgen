@@ -3,15 +3,19 @@
 package com.nabobery.sdkgen.engine
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig
 import com.nabobery.sdkgen.engine.config.ConfigDigest
 import com.nabobery.sdkgen.engine.config.OverlayConflictPolicy
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
+import com.nabobery.sdkgen.engine.config.WaivedSymbolKind
 import com.nabobery.sdkgen.engine.config.ZeroMatchPolicy
 import com.nabobery.sdkgen.engine.declarations.DeclarationMappingResult
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjection
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
 import com.nabobery.sdkgen.engine.declarations.GenerationDiagnostic
+import com.nabobery.sdkgen.engine.declarations.GenerationDiagnosticCode
 import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
+import com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
@@ -108,12 +112,64 @@ public data class GenerationExclusionView(
     public val reason: String,
     public val documentUri: String,
     public val jsonPointer: String,
+    public val kind: WaivedSymbolKind = WaivedSymbolKind.SCHEMA,
+    public val diagnosticCode: String = "",
+    public val reasonSha256: String = "",
+) {
+    /** Retains the pre-waiver JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        symbolId: String,
+        reason: String,
+        documentUri: String,
+        jsonPointer: String,
+    ) : this(symbolId, reason, documentUri, jsonPointer, WaivedSymbolKind.SCHEMA, "", "")
+
+    /** Retains the waiver-era JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        waiverEraKind: WaivedSymbolKind,
+        waiverEraSymbolId: String,
+        waiverEraDiagnosticCode: String,
+        waiverEraReason: String,
+        waiverEraReasonSha256: String,
+        waiverEraDocumentUri: String,
+        waiverEraJsonPointer: String,
+    ) : this(
+        symbolId = waiverEraSymbolId,
+        reason = waiverEraReason,
+        documentUri = waiverEraDocumentUri,
+        jsonPointer = waiverEraJsonPointer,
+        kind = waiverEraKind,
+        diagnosticCode = waiverEraDiagnosticCode,
+        reasonSha256 = waiverEraReasonSha256,
+    )
+}
+
+public data class AcceptedWaiverView(
+    public val id: String,
+    public val category: String,
+    public val kind: WaivedSymbolKind,
+    public val symbolId: String,
+    public val diagnosticCode: String,
+    public val documentUri: String,
+    public val jsonPointer: String,
+    public val reason: String,
+    public val reasonSha256: String,
+    public val rationale: String,
+    public val owner: String,
+    public val disposition: String,
 )
 
 public data class ValidationResult(
     public val diagnostics: List<GenerationDiagnosticView>,
     public val exclusions: List<GenerationExclusionView>,
-)
+    public val acceptedWaivers: List<AcceptedWaiverView> = emptyList(),
+) {
+    /** Retains the v1alpha1 JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        diagnostics: List<GenerationDiagnosticView>,
+        exclusions: List<GenerationExclusionView>,
+    ) : this(diagnostics, exclusions, emptyList())
+}
 
 /** One projected Kotlin declaration paired with its resolved name and source origin. */
 public data class ProjectedSymbolView(
@@ -153,7 +209,53 @@ public data class GenerationResult(
     public val diagnostics: List<GenerationDiagnosticView>,
     public val exclusions: List<GenerationExclusionView>,
     public val elapsedMillis: Long,
-)
+    public val acceptedWaivers: List<AcceptedWaiverView> = emptyList(),
+) {
+    /** Retains the pre-waiver JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        snapshotSha256: String,
+        declarationModelSha256: String,
+        output: Path,
+        generatedFiles: Int,
+        manifestBytes: Long,
+        diagnostics: List<GenerationDiagnosticView>,
+        exclusions: List<GenerationExclusionView>,
+        elapsedMillis: Long,
+    ) : this(
+        snapshotSha256,
+        declarationModelSha256,
+        output,
+        generatedFiles,
+        manifestBytes,
+        diagnostics,
+        exclusions,
+        elapsedMillis,
+        emptyList(),
+    )
+
+    /** Retains the waiver-era JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        waiverEraSnapshotSha256: String,
+        waiverEraDeclarationModelSha256: String,
+        waiverEraOutput: Path,
+        waiverEraGeneratedFiles: Int,
+        waiverEraManifestBytes: Long,
+        waiverEraDiagnostics: List<GenerationDiagnosticView>,
+        waiverEraExclusions: List<GenerationExclusionView>,
+        waiverEraAcceptedWaivers: List<AcceptedWaiverView>,
+        waiverEraElapsedMillis: Long,
+    ) : this(
+        snapshotSha256 = waiverEraSnapshotSha256,
+        declarationModelSha256 = waiverEraDeclarationModelSha256,
+        output = waiverEraOutput,
+        generatedFiles = waiverEraGeneratedFiles,
+        manifestBytes = waiverEraManifestBytes,
+        diagnostics = waiverEraDiagnostics,
+        exclusions = waiverEraExclusions,
+        elapsedMillis = waiverEraElapsedMillis,
+        acceptedWaivers = waiverEraAcceptedWaivers,
+    )
+}
 
 /**
  * Drives one OpenAPI-document-to-Kotlin-source generation from resolved, already-staged inputs:
@@ -272,9 +374,17 @@ public class GenerationPipeline private constructor(
                     combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
                 )
             val exclusions = combinedExclusions(config, preparedSemantic, mapping)
+            val waivers = resolveWaivers(config, exclusions, source.sourcePointer())
             return ValidationResult(
-                diagnostics = diagnostics.map(::diagnosticView),
-                exclusions = exclusions.map(::exclusionView),
+                diagnostics =
+                    (
+                        withoutAcceptedDiagnostics(
+                            diagnostics,
+                            waivers.accepted,
+                        ) + waivers.diagnostics
+                    ).map(::diagnosticView),
+                exclusions = waivers.activeExclusions.map(::exclusionView),
+                acceptedWaivers = waivers.accepted,
             )
         } finally {
             if (effectivePath != source.path) effectivePath.deleteIfExists()
@@ -326,10 +436,18 @@ public class GenerationPipeline private constructor(
                     combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
                 )
             val exclusions = combinedExclusions(config, preparedSemantic, mapping)
+            val waivers = resolveWaivers(config, exclusions, source.sourcePointer())
             val validation =
                 ValidationResult(
-                    diagnostics = diagnostics.map(::diagnosticView),
-                    exclusions = exclusions.map(::exclusionView),
+                    diagnostics =
+                        (
+                            withoutAcceptedDiagnostics(
+                                diagnostics,
+                                waivers.accepted,
+                            ) + waivers.diagnostics
+                        ).map(::diagnosticView),
+                    exclusions = waivers.activeExclusions.map(::exclusionView),
+                    acceptedWaivers = waivers.accepted,
                 )
             val symbols =
                 buildList {
@@ -435,7 +553,12 @@ public class GenerationPipeline private constructor(
                     combinedDiagnostics(preparedSemantic, mapping, pluginDiagnostics),
                 )
             val preparedExclusions = combinedExclusions(config, preparedSemantic, mapping)
-            blockIfNeeded(preparedDiagnostics, preparedExclusions)
+            val preparedWaivers = resolveWaivers(config, preparedExclusions, source.sourcePointer())
+            blockIfNeeded(
+                withoutAcceptedDiagnostics(preparedDiagnostics, preparedWaivers.accepted) + preparedWaivers.diagnostics,
+                preparedWaivers.activeExclusions,
+                preparedWaivers.accepted,
+            )
             val files = emitter.render(mapping.model)
             val outputPlugins =
                 pluginEngine.run(
@@ -475,7 +598,9 @@ public class GenerationPipeline private constructor(
                     combinedDiagnostics(preparedSemantic, mapping, outputPluginDiagnostics),
                 )
             val exclusions = combinedExclusions(config, preparedSemantic, mapping)
-            blockIfNeeded(diagnostics, exclusions)
+            val waivers = resolveWaivers(config, exclusions, source.sourcePointer())
+            val activeDiagnostics = withoutAcceptedDiagnostics(diagnostics, waivers.accepted) + waivers.diagnostics
+            blockIfNeeded(activeDiagnostics, waivers.activeExclusions, waivers.accepted)
             val identity = manifestIdentity(config, source, overlays, outputPlugins.records)
             val publication =
                 AtomicOutputPublisher().publish(
@@ -483,8 +608,9 @@ public class GenerationPipeline private constructor(
                     declarationModel = prepared.mapping.model,
                     files = files,
                     identity = identity,
-                    diagnostics = diagnostics,
-                    exclusions = exclusions,
+                    diagnostics = activeDiagnostics,
+                    exclusions = waivers.activeExclusions,
+                    acceptedWaivers = waivers.accepted,
                     failAfterFiles = failAfterFiles,
                     lock = lock?.let { LockPublication(it.destination, it.encodedLock.encodeToByteArray()) },
                 )
@@ -494,8 +620,9 @@ public class GenerationPipeline private constructor(
                 output = publication.destination,
                 generatedFiles = files.size,
                 manifestBytes = publication.manifestBytes,
-                diagnostics = diagnostics.map(::diagnosticView),
-                exclusions = exclusions.map(::exclusionView),
+                diagnostics = activeDiagnostics.map(::diagnosticView),
+                exclusions = waivers.activeExclusions.map(::exclusionView),
+                acceptedWaivers = waivers.accepted,
                 elapsedMillis = (System.nanoTime() - started) / 1_000_000,
             )
         } finally {
@@ -699,15 +826,143 @@ public class GenerationPipeline private constructor(
             diagnostic
         }
 
+    private data class WaiverResolution(
+        val activeExclusions: List<GenerationExclusion>,
+        val accepted: List<AcceptedWaiverView>,
+        val diagnostics: List<GenerationDiagnostic>,
+    )
+
+    private fun resolveWaivers(
+        config: SdkgenConfigV1Alpha1,
+        exclusions: List<GenerationExclusion>,
+        source: SourcePointer,
+    ): WaiverResolution {
+        val accepted = mutableListOf<AcceptedWaiverView>()
+        val diagnostics = mutableListOf<GenerationDiagnostic>()
+        val acceptedKeys = mutableSetOf<List<String>>()
+        config.acceptedWaivers.sortedBy(AcceptedWaiverConfig::id).forEach { waiver ->
+            val matches = exclusions.filter { exclusion -> exclusion.matches(waiver) }
+            when (matches.size) {
+                0 -> {
+                    diagnostics +=
+                        waiverDiagnostic("SDKGEN-WAIVER-STALE", "Waiver '${waiver.id}' matched no exclusion.", source)
+                }
+
+                1 -> {
+                    val exclusion = matches.single()
+                    val key = exclusion.waiverIdentity()
+                    if (!acceptedKeys.add(key)) {
+                        diagnostics +=
+                            waiverDiagnostic(
+                                "SDKGEN-WAIVER-DUPLICATE-MATCH",
+                                "Waiver '${waiver.id}' duplicates an accepted exclusion.",
+                                source,
+                            )
+                    } else {
+                        accepted += exclusion.acceptedView(waiver)
+                    }
+                }
+
+                else -> {
+                    diagnostics +=
+                        waiverDiagnostic(
+                            "SDKGEN-WAIVER-AMBIGUOUS",
+                            "Waiver '${waiver.id}' matched ${matches.size} exclusions.",
+                            source,
+                        )
+                }
+            }
+        }
+        return WaiverResolution(
+            activeExclusions = exclusions.filterNot { exclusion -> exclusion.waiverIdentity() in acceptedKeys },
+            accepted = accepted.sortedBy(AcceptedWaiverView::id),
+            diagnostics = diagnostics,
+        )
+    }
+
+    private fun GenerationExclusion.matches(waiver: AcceptedWaiverConfig): Boolean =
+        kind.toWaivedSymbolKind() == waiver.match.kind &&
+            symbolId == waiver.match.symbolId &&
+            diagnosticCode == waiver.match.diagnosticCode &&
+            source.documentUri == waiver.match.documentUri &&
+            source.jsonPointer == waiver.match.jsonPointer &&
+            reason.sha256() == waiver.match.reasonSha256
+
+    private fun GenerationExclusion.waiverIdentity(): List<String> =
+        listOf(kind.name, symbolId, diagnosticCode, source.documentUri, source.jsonPointer, reason.sha256())
+
+    private fun GenerationExclusion.acceptedView(waiver: AcceptedWaiverConfig): AcceptedWaiverView =
+        AcceptedWaiverView(
+            id = waiver.id,
+            category = waiver.category,
+            kind = kind.toWaivedSymbolKind(),
+            symbolId = symbolId,
+            diagnosticCode = diagnosticCode,
+            documentUri = source.documentUri,
+            jsonPointer = source.jsonPointer,
+            reason = reason,
+            reasonSha256 = reason.sha256(),
+            rationale = waiver.rationale,
+            owner = waiver.owner,
+            disposition = waiver.disposition.name.lowercase(),
+        )
+
+    private fun com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind.toWaivedSymbolKind(): WaivedSymbolKind =
+        when (this) {
+            com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind.SCHEMA -> WaivedSymbolKind.SCHEMA
+            com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind.OPERATION -> WaivedSymbolKind.OPERATION
+        }
+
+    private fun waiverDiagnostic(
+        code: String,
+        message: String,
+        source: SourcePointer,
+    ): GenerationDiagnostic =
+        GenerationDiagnostic(
+            code = GenerationDiagnosticCode.PROJECTION_FAILED,
+            message = message,
+            source = source,
+            symbolId = "waiver:$code",
+            sourceCode = code,
+        )
+
+    private fun withoutAcceptedDiagnostics(
+        diagnostics: List<GenerationDiagnostic>,
+        accepted: List<AcceptedWaiverView>,
+    ): List<GenerationDiagnostic> {
+        val acceptedIdentities =
+            accepted
+                .map { waiver ->
+                    listOf(
+                        waiver.symbolId,
+                        waiver.diagnosticCode,
+                        waiver.documentUri,
+                        waiver.jsonPointer,
+                        waiver.reasonSha256,
+                    )
+                }.toSet()
+        return diagnostics.filterNot { diagnostic ->
+            listOf(
+                diagnostic.symbolId,
+                diagnostic.wireCode,
+                diagnostic.source.documentUri,
+                diagnostic.source.jsonPointer,
+                diagnostic.message.sha256(),
+            ) in acceptedIdentities
+        }
+    }
+
     private fun blockIfNeeded(
         diagnostics: List<GenerationDiagnostic>,
         exclusions: List<GenerationExclusion>,
+        acceptedWaivers: List<AcceptedWaiverView> = emptyList(),
     ) {
         if (diagnostics.none { it.severity == DiagnosticSeverity.ERROR } && exclusions.isEmpty()) return
         throw GenerationBlockedException(
             ValidationResult(
                 diagnostics = diagnostics.map(::diagnosticView),
                 exclusions = exclusions.map(::exclusionView),
+                acceptedWaivers = acceptedWaivers,
             ),
         )
     }
@@ -722,7 +977,20 @@ public class GenerationPipeline private constructor(
                 val effective = applyWarningPolicy(config, GenerationDiagnostic.fromSemantic(diagnostic))
                 diagnostic.relatedSymbolId
                     ?.takeIf { effective.severity == DiagnosticSeverity.ERROR }
-                    ?.let { symbolId -> GenerationExclusion(symbolId, diagnostic.message, diagnostic.source) }
+                    ?.let { symbolId ->
+                        GenerationExclusion(
+                            kind =
+                                if (symbolId.startsWith("operation:")) {
+                                    com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind.OPERATION
+                                } else {
+                                    com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind.SCHEMA
+                                },
+                            symbolId = symbolId,
+                            diagnosticCode = effective.wireCode,
+                            reason = diagnostic.message,
+                            source = diagnostic.source,
+                        )
+                    }
             }
         val emittedOperations =
             mapping.model.files
@@ -741,7 +1009,13 @@ public class GenerationPipeline private constructor(
                     exclusion.source.jsonPointer,
                     exclusion.reason,
                 )
-            }.sortedWith(compareBy(GenerationExclusion::symbolId, { it.source.documentUri }, { it.source.jsonPointer }))
+            }.sortedWith(
+                compareBy(
+                    GenerationExclusion::symbolId,
+                    { exclusion -> exclusion.source.documentUri },
+                    { exclusion -> exclusion.source.jsonPointer },
+                ),
+            )
     }
 
     private fun diagnosticView(diagnostic: GenerationDiagnostic): GenerationDiagnosticView =
@@ -759,11 +1033,25 @@ public class GenerationPipeline private constructor(
 
     private fun exclusionView(exclusion: GenerationExclusion): GenerationExclusionView =
         GenerationExclusionView(
+            kind =
+                when (exclusion.kind) {
+                    GenerationExclusionKind.SCHEMA -> WaivedSymbolKind.SCHEMA
+                    GenerationExclusionKind.OPERATION -> WaivedSymbolKind.OPERATION
+                },
             symbolId = exclusion.symbolId,
+            diagnosticCode = exclusion.diagnosticCode,
             reason = exclusion.reason,
+            reasonSha256 = exclusion.reason.sha256(),
             documentUri = exclusion.source.documentUri,
             jsonPointer = exclusion.source.jsonPointer,
         )
+
+    private fun String.sha256(): String =
+        MessageDigest
+            .getInstance(
+                "SHA-256",
+            ).digest(encodeToByteArray())
+            .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun verifyResolvedInputs(
         config: SdkgenConfigV1Alpha1,

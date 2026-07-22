@@ -155,6 +155,7 @@ public enum class StatusSelectorKind {
 public enum class DiagnosticSeverity {
     ERROR,
     WARNING,
+    INFO,
 }
 
 /** The adaptation stage a [Diagnostic] was raised in, from raw bytes toward the semantic model. */
@@ -180,13 +181,44 @@ public enum class DiagnosticPhase {
  *   `AdaptationMetrics.silentSchemaOmissions` in the `openapi` module).
  * - [PARSER_RESOLVED_MESSAGE] / [PARSER_UNRESOLVED_MESSAGE]: warnings surfaced verbatim from the
  *   underlying swagger-parser's resolved and unresolved parse passes, respectively.
+ * - [OPENAPI_3_0_DOCUMENT_NORMALIZED]: the document declares `openapi: 3.0.x`; SDKGen normalizes
+ *   its 3.0-only constructs (`nullable`, boolean `exclusiveMinimum`/`exclusiveMaximum`, nullable
+ *   `$ref` siblings, nullable enums, nullable compositions) to OpenAPI 3.1 semantics at the
+ *   ingestion seam. A 3.1 document never raises this code.
+ * - [NULLABLE_REFERENCE_SIBLING]: `nullable: true` sits alongside a `$ref` (invalid in OpenAPI
+ *   3.0, where sibling keywords next to `$ref` are ignored by the spec). SDKGen never drops this
+ *   silently: it wraps the reference so the use site is nullable while the referenced schema
+ *   itself is untouched, equivalent to `allOf: [{ $ref }]` with `nullable: true` on the wrapper.
+ * - [NULLABLE_ENUM_NULL_INJECTED]: `nullable: true` sits alongside `enum`, but the enum's value
+ *   set does not already list `null`. SDKGen injects `null` into the allowed value set instead of
+ *   leaving the schema nullable while its own enum would reject the null value.
+ * - [NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE]: `nullable: true` sits on a schema whose only content
+ *   is `oneOf`/`anyOf`/`allOf` (no own `type`). There is no lossless 3.1 mapping: for
+ *   `oneOf`/`anyOf`, SDKGen's policy is to add an explicit `type: "null"` branch to the
+ *   composition; for `allOf`, no branch can be added without making the composition
+ *   unsatisfiable, so only the schema-level nullability flag is preserved. Either way this code
+ *   is raised so the widened validation is never silent.
+ * - [EXCLUSIVE_BOUND_NORMALIZED]: a boolean `exclusiveMinimum`/`exclusiveMaximum` (OpenAPI 3.0)
+ *   was normalized to the OpenAPI 3.1 numeric form, or a boolean `false` marker was normalized
+ *   away as a no-op. Numeric (3.1-native) exclusive bounds never raise this code.
+ * - [NULLABLE_TYPE_NORMALIZED]: a typed OpenAPI 3.0 schema's `nullable: true` was mapped to the
+ *   semantic equivalent of a 3.1 type union containing `null`.
+ * - [CONTENT_KEYWORD_NORMALIZED]: OpenAPI 3.0 `format: byte` or `format: binary` was mapped to
+ *   JSON Schema 2020-12 `contentEncoding` or `contentMediaType` semantics.
  */
 public enum class DiagnosticCode {
     AMBIGUOUS_PARAMETER_SCHEMA_AND_CONTENT,
+    EXCLUSIVE_BOUND_NORMALIZED,
     INVALID_CANONICAL_EXTENSION,
     INVALID_DISCRIMINATOR_MAPPING,
     LEGACY_NULLABLE_COMPOSITION,
+    NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE,
+    NULLABLE_ENUM_NULL_INJECTED,
+    NULLABLE_REFERENCE_SIBLING,
+    NULLABLE_TYPE_NORMALIZED,
+    CONTENT_KEYWORD_NORMALIZED,
     ONE_OF_NULL_AMBIGUOUS,
+    OPENAPI_3_0_DOCUMENT_NORMALIZED,
     OPERATION_ADAPTATION_FAILED,
     PARSER_RESOLVED_MESSAGE,
     PARSER_UNRESOLVED_MESSAGE,
@@ -293,10 +325,10 @@ public sealed interface AdditionalPropertiesModel : MaterialNode {
 /**
  * The normalized representation of one OpenAPI/JSON Schema schema node. [id] is stable per
  * [IdentityKind] (see [IdentityKind] for how identity is assigned); [referenceTarget] is non-null
- * exactly when this node is itself nothing more than a `$ref` — in that case every other field
- * describes an empty/absent schema and callers should resolve through [referenceTarget] rather
- * than reading this node's own fields. [nullability] is the single normalized verdict; the
- * syntactic evidence behind it is preserved separately in [nullabilityOrigins] for diagnostics.
+ * when this node wraps a `$ref`. Callers resolve structural shape through [referenceTarget], but
+ * must accumulate annotation semantics such as [nullability] across the wrapper chain — notably
+ * for normalized OpenAPI 3.0 nullable `$ref` siblings. [nullability] is the single normalized
+ * verdict; the syntactic evidence behind it is preserved separately in [nullabilityOrigins].
  */
 public data class SchemaModel(
     public val id: SchemaId,
@@ -321,6 +353,14 @@ public data class SchemaModel(
     public val allOfPropertyOwnership: List<PropertyOwnership>,
     public val extensions: Map<String, JsonValue>,
     public override val source: SourcePointer,
+    /** True only for the JSON Schema `type: "null"` assertion; distinct from an unconstrained `{}` schema. */
+    public val acceptsOnlyNull: Boolean = false,
+    /** JSON Schema 2020-12 content encoding, including normalized OpenAPI 3.0 `format: byte` as `base64`. */
+    public val contentEncoding: String? = null,
+    /** JSON Schema 2020-12 content media type, including normalized OpenAPI 3.0 binary string schemas. */
+    public val contentMediaType: String? = null,
+    /** Property names asserted by this schema's own `required` keyword, including inherited-only constraints. */
+    public val requiredPropertyNames: List<String> = emptyList(),
 ) : MaterialNode
 
 public data class EncodingModel(
@@ -329,6 +369,9 @@ public data class EncodingModel(
     public val headers: Map<String, JsonValue>,
     public val extensions: Map<String, JsonValue>,
     public override val source: SourcePointer,
+    public val style: String? = null,
+    public val explode: Boolean? = null,
+    public val allowReserved: Boolean? = null,
 ) : MaterialNode
 
 public data class MediaTypeModel(
@@ -443,6 +486,15 @@ public sealed interface PaginationModel {
         public val responseItems: JsonPointer,
         public val responseNextCursor: JsonPointer,
     ) : PaginationModel
+
+    /**
+     * The next page is sourced from the RFC 8288 `Link` response header's `rel="next"` target rather than any
+     * body field, so — unlike [Cursor] — there is no request cursor/limit parameter and no response next-value
+     * pointer: only [responseItems] locates the item list in the decoded body.
+     */
+    public data class HeaderNextUrl(
+        public val responseItems: JsonPointer,
+    ) : PaginationModel
 }
 
 /** Canonical operation streaming metadata adapted from `x-sdkgen-streaming`. */
@@ -475,6 +527,8 @@ public data class OperationModel(
     public val idempotency: IdempotencyModel?,
     public val extensions: Map<String, JsonValue>,
     public override val source: SourcePointer,
+    /** OpenAPI `tags` declared on this operation, in document order. Empty when the operation is untagged. */
+    public val tags: List<String> = emptyList(),
 ) : MaterialNode
 
 /**

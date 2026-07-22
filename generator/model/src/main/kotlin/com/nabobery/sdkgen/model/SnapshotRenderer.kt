@@ -91,6 +91,13 @@ public object SnapshotRenderer {
                 ",",
             )} nullability=${schema.nullability} format=${schema.format ?: "-"}",
         )
+        val syntheticNullBranch = schema.acceptsOnlyNull && "x-sdkgen-normalized-null-branch" in schema.id.value
+        if (syntheticNullBranch || schema.contentEncoding != null || schema.contentMediaType != null) {
+            appendLine(
+                "  normalized nullOnly=${schema.acceptsOnlyNull} contentEncoding=${schema.contentEncoding ?: "-"} " +
+                    "contentMediaType=${schema.contentMediaType ?: "-"}",
+            )
+        }
         appendLine(
             "  nullabilityOrigins " +
                 schema.nullabilityOrigins.joinToString(prefix = "[", postfix = "]") {
@@ -151,8 +158,10 @@ public object SnapshotRenderer {
 
     private fun MediaTypeModel.render(): String =
         "media $mediaType schema=${schema?.schemaId} streaming=$streaming encoding=" +
-            encoding.joinToString(prefix = "[", postfix = "]") { "${it.partName}:${it.contentType ?: "-"}" } +
-            " @${source.render()}"
+            encoding.joinToString(prefix = "[", postfix = "]") {
+                "${it.partName}:${it.contentType ?: "-"}:style=${it.style ?: "-"}:" +
+                    "explode=${it.explode ?: "-"}:allowReserved=${it.allowReserved ?: "-"}"
+            } + " @${source.render()}"
 
     private fun SourcePointer.render(): String =
         "$documentUri#$jsonPointer:${location.line}:${location.column}:${location.byteOffset}"

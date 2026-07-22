@@ -272,7 +272,14 @@ public class SdkAuthenticationException(
     cause: Throwable? = null,
 ) : SdkException(message, operationId, cause)
 
-public class SdkApiException(
+/**
+ * Raised for a declared non-success API response.
+ *
+ * Generated operation-specific subclasses may add a typed decoded error payload while preserving this stable base
+ * contract for callers that catch [SdkApiException]. The message and inherited diagnostic rendering contain only safe
+ * response metadata; decoded bodies are never included.
+ */
+public open class SdkApiException(
     public val statusCode: Int,
     headers: List<SdkHeader>,
     operationId: String,

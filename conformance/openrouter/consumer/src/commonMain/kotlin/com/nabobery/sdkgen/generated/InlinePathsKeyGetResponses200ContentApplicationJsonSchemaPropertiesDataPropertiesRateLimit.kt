@@ -84,63 +84,7 @@ public class InlinePathsKeyGetResponses200ContentApplicationJsonSchemaProperties
 
     override fun deserialize(decoder: Decoder): InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit")
+        .requireJsonDecoder("InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit " +
@@ -158,63 +102,7 @@ public class InlinePathsKeyGetResponses200ContentApplicationJsonSchemaProperties
     override fun serialize(encoder: Encoder,
       `value`: InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit")
+        .requireJsonEncoder("InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         put("interval", value.interval)

@@ -47,6 +47,54 @@ class DeclarationModelTest {
     }
 
     @Test
+    fun nestedFormDeclarationsAffectDigestRewriteTypesAndDefensivelyCopyFields() {
+        val nestedFields =
+            mutableListOf(
+                FormFieldDeclaration(
+                    wireName = "child",
+                    accessorName = "child",
+                    type = KotlinTypeRef("com.example", "Nested"),
+                    required = true,
+                    value = FormValueDeclaration.Scalar(FormScalarKind.STRING),
+                ),
+            )
+        val formValue = FormValueDeclaration.Object(nestedFields)
+        nestedFields.clear()
+        val baseline = formOperationModel(formValue)
+        val changed = formOperationModel(FormValueDeclaration.Object(emptyList()))
+        val rewritten = baseline.rewriteTypeReferences(mapOf(("com.example" to "Nested") to "RenamedNested"))
+        val rewrittenField =
+            rewritten.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .single()
+                .operations
+                .single()
+                .requestBodyAlternatives
+                .single()
+                .formFields
+                .single()
+                .value
+                .let { it as FormValueDeclaration.Object }
+                .fields
+                .single()
+
+        assertEquals(1, formValue.fields.size)
+        assertNotEquals(baseline.digest(), changed.digest())
+        assertEquals("RenamedNested", rewrittenField.type.simpleName)
+    }
+
+    @Test
+    fun nestedFormFieldsParticipateInShuffleAndNormalizeDeterministically() {
+        val baseline = formOperationModel(nestedFormObject("a", "b", "c", "d", "e", "f"))
+        val shuffled = baseline.shuffled(41)
+        val shuffledNames = shuffled.nestedFormFieldNames()
+
+        assertNotEquals(listOf("a", "b", "c", "d", "e", "f"), shuffledNames)
+        assertEquals(baseline.normalized().digest(), shuffled.normalized().digest())
+    }
+
+    @Test
     fun operationClientDefensivelyCopiesOperationLists() {
         val operation = operation(KotlinTypeRef("com.example", "Widget"))
         val mutableOperations = mutableListOf(operation)
@@ -55,6 +103,49 @@ class DeclarationModelTest {
         mutableOperations.clear()
 
         assertEquals(listOf(operation), client.operations)
+    }
+
+    private fun KotlinDeclarationModel.nestedFormFieldNames(): List<String> =
+        files
+            .flatMap(KotlinFileDeclaration::declarations)
+            .filterIsInstance<OperationClientDeclaration>()
+            .single()
+            .operations
+            .single()
+            .requestBodyAlternatives
+            .single()
+            .formFields
+            .single()
+            .value
+            .let { it as FormValueDeclaration.Object }
+            .fields
+            .map(FormFieldDeclaration::wireName)
+
+    private fun nestedFormObject(vararg names: String): FormValueDeclaration.Object =
+        FormValueDeclaration.Object(
+            names.map { name ->
+                FormFieldDeclaration(
+                    wireName = name,
+                    accessorName = name,
+                    type = KotlinTypeRef("kotlin", "String"),
+                    required = true,
+                    value = FormValueDeclaration.Scalar(FormScalarKind.STRING),
+                )
+            },
+        )
+
+    private fun formOperationModel(value: FormValueDeclaration): KotlinDeclarationModel {
+        val operation =
+            operation(KotlinTypeRef("kotlin", "Unit"), value)
+        return KotlinDeclarationModel(
+            listOf(
+                KotlinFileDeclaration(
+                    packageName = "com.example",
+                    fileName = "WidgetClient",
+                    declarations = listOf(operationClient(listOf(operation))),
+                ),
+            ),
+        )
     }
 
     private fun operationModel(alternativeType: KotlinTypeRef): KotlinDeclarationModel {
@@ -82,7 +173,10 @@ class DeclarationModelTest {
             operations = operations,
         )
 
-    private fun operation(alternativeType: KotlinTypeRef): OperationDeclaration =
+    private fun operation(
+        alternativeType: KotlinTypeRef,
+        formValue: FormValueDeclaration? = null,
+    ): OperationDeclaration =
         OperationDeclaration(
             symbolId = "operation:getWidget",
             order = 0,
@@ -103,6 +197,26 @@ class DeclarationModelTest {
             responseMode = OperationResponseMode.BUFFERED,
             deadlines = OperationDeadlines(1_000, 1_000, null),
             methodKdoc = "Gets a widget.",
+            requestBodyAlternatives =
+                formValue
+                    ?.let { value ->
+                        listOf(
+                            OperationRequestBodyAlternative(
+                                mediaType = "application/x-www-form-urlencoded",
+                                type = KotlinTypeRef("com.example", "Request"),
+                                formFields =
+                                    listOf(
+                                        FormFieldDeclaration(
+                                            wireName = "root",
+                                            accessorName = "root",
+                                            type = KotlinTypeRef("com.example", "Nested"),
+                                            required = true,
+                                            value = value,
+                                        ),
+                                    ),
+                            ),
+                        )
+                    }.orEmpty(),
             responseAlternatives =
                 listOf(
                     OperationResponseAlternative(

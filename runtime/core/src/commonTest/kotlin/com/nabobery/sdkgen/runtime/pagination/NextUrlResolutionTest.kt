@@ -2,6 +2,7 @@ package com.nabobery.sdkgen.runtime.pagination
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
@@ -80,5 +81,65 @@ internal class NextUrlResolutionTest {
         assertNull(resolveNextUrl("not-a-uri", "/x"))
         assertNull(resolveNextUrl("not-a-uri", "?x=1"))
         assertNull(resolveNextUrl("not-a-uri", "x"))
+    }
+
+    @Test
+    fun rejectsRawControlCharactersAndUriForbiddenWhitespace() {
+        listOf('\r', '\n', 0.toChar(), '\t', ' ').forEach { forbidden ->
+            assertNull(resolveNextUrl(base, "https://api.example.test/a${forbidden}b"))
+            assertNull(resolveNextUrl(base, "/a${forbidden}b"))
+        }
+    }
+
+    @Test
+    fun allowsPercentEncodedControlCharactersAndWhitespace() {
+        assertEquals(
+            "https://api.example.test/a%0Db%0Ab%00b%09b%20b",
+            resolveNextUrl(base, "https://api.example.test/a%0Db%0Ab%00b%09b%20b"),
+        )
+    }
+
+    @Test
+    fun rejectsAbsoluteAndSchemeRelativeUrlsWithInvalidAuthorities() {
+        listOf(
+            "https:///missing-host",
+            "https://?query-only",
+            "https://#fragment-only",
+            "https://user@:443/path",
+            "//:443/path",
+        ).forEach { invalid -> assertNull(resolveNextUrl(base, invalid)) }
+    }
+}
+
+internal class SplitResolvedUrlTest {
+    @Test
+    fun splitsOriginFromPathQueryAndFragment() {
+        assertEquals(
+            "https://api.example.test" to "/repos/o/r/issues?page=2",
+            splitResolvedUrl("https://api.example.test/repos/o/r/issues?page=2"),
+        )
+    }
+
+    @Test
+    fun preservesExplicitPortInOrigin() {
+        assertEquals(
+            "https://api.example.test:8443" to "/x",
+            splitResolvedUrl("https://api.example.test:8443/x"),
+        )
+    }
+
+    @Test
+    fun bareOriginWithNoPathYieldsRootPath() {
+        assertEquals("https://api.example.test" to "/", splitResolvedUrl("https://api.example.test"))
+    }
+
+    @Test
+    fun httpSchemeIsSupportedToo() {
+        assertEquals("http://api.example.test" to "/x", splitResolvedUrl("http://api.example.test/x"))
+    }
+
+    @Test
+    fun rejectsANonAbsoluteUrl() {
+        assertFailsWith<IllegalArgumentException> { splitResolvedUrl("/relative/only") }
     }
 }

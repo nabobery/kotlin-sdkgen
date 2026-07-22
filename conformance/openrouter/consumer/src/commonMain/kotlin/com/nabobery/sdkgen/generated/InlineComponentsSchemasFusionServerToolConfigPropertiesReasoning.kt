@@ -68,62 +68,7 @@ public class InlineComponentsSchemasFusionServerToolConfigPropertiesReasoning(
           "object")
       return InlineComponentsSchemasFusionServerToolConfigPropertiesReasoning(
         effort = raw["effort"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasFusionServerToolConfigPropertiesReasoningPropertiesEffort>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasFusionServerToolConfigPropertiesReasoningPropertiesEffort>(it) },
         maxTokens = raw["max_tokens"]?.let { json.decodeFromJsonElement<Int>(it) },
       )
     }

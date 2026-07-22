@@ -73,62 +73,7 @@ public class InlineComponentsSchemasObservabilityWebhookDestinationPropertiesCon
         url = url,
         headers = raw["headers"]?.let { json.decodeFromJsonElement<Map<String, String>>(it) },
         method = raw["method"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasObservabilityWebhookDestinationPropertiesConfigPropertiesMethod>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasObservabilityWebhookDestinationPropertiesConfigPropertiesMethod>(it) },
       )
     }
 

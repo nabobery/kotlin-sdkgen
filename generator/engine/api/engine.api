@@ -1,3 +1,36 @@
+public final class com/nabobery/sdkgen/engine/AcceptedWaiverView {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/lang/String;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/AcceptedWaiverView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/AcceptedWaiverView;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/AcceptedWaiverView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCategory ()Ljava/lang/String;
+	public final fun getDiagnosticCode ()Ljava/lang/String;
+	public final fun getDisposition ()Ljava/lang/String;
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getKind ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public final fun getOwner ()Ljava/lang/String;
+	public final fun getRationale ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getReasonSha256 ()Ljava/lang/String;
+	public final fun getSymbolId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/nabobery/sdkgen/engine/GenerationAnalysisResult {
 	public fun <init> (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;)V
 	public final fun component1 ()Lcom/nabobery/sdkgen/engine/ValidationResult;
@@ -45,17 +78,26 @@ public final class com/nabobery/sdkgen/engine/GenerationDiagnosticView {
 }
 
 public final class com/nabobery/sdkgen/engine/GenerationExclusionView {
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationExclusionView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
+	public final fun component5 ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationExclusionView;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationExclusionView;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnosticCode ()Ljava/lang/String;
 	public final fun getDocumentUri ()Ljava/lang/String;
 	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getKind ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
 	public final fun getReason ()Ljava/lang/String;
+	public final fun getReasonSha256 ()Ljava/lang/String;
 	public final fun getSymbolId ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -87,6 +129,9 @@ public final class com/nabobery/sdkgen/engine/GenerationPipeline {
 
 public final class com/nabobery/sdkgen/engine/GenerationResult {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;J)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JLjava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JLjava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;Ljava/util/List;J)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/nio/file/Path;
@@ -95,9 +140,11 @@ public final class com/nabobery/sdkgen/engine/GenerationResult {
 	public final fun component6 ()Ljava/util/List;
 	public final fun component7 ()Ljava/util/List;
 	public final fun component8 ()J
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;J)Lcom/nabobery/sdkgen/engine/GenerationResult;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationResult;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JLjava/util/List;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/GenerationResult;Ljava/lang/String;Ljava/lang/String;Ljava/nio/file/Path;IJLjava/util/List;Ljava/util/List;JLjava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcceptedWaivers ()Ljava/util/List;
 	public final fun getDeclarationModelSha256 ()Ljava/lang/String;
 	public final fun getDiagnostics ()Ljava/util/List;
 	public final fun getElapsedMillis ()J
@@ -186,15 +233,56 @@ public final class com/nabobery/sdkgen/engine/SdkGenDependencyVersions {
 
 public final class com/nabobery/sdkgen/engine/ValidationResult {
 	public fun <init> (Ljava/util/List;Ljava/util/List;)V
+	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/util/List;
 	public final fun component2 ()Ljava/util/List;
-	public final fun copy (Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public final fun component3 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/ValidationResult;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/ValidationResult;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcceptedWaivers ()Ljava/util/List;
 	public final fun getDiagnostics ()Ljava/util/List;
 	public final fun getExclusions ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcceptedWaiverConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;)Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCategory ()Ljava/lang/String;
+	public final fun getDisposition ()Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getMatch ()Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;
+	public final fun getOwner ()Ljava/lang/String;
+	public final fun getRationale ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/AcceptedWaiverConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/AcceptedWaiverConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/AcceptedWaiverConfig$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
 public final class com/nabobery/sdkgen/engine/config/AcquisitionException : com/nabobery/sdkgen/engine/config/ConfigContractException {
@@ -1081,10 +1169,13 @@ public final class com/nabobery/sdkgen/engine/config/RuntimeDefaults$Companion {
 public final class com/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1 {
 	public static final field Companion Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1$Companion;
 	public fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)V
-	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)V
 	public final fun component1 ()Lcom/nabobery/sdkgen/engine/config/ConfigVersion;
 	public final fun component10 ()Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
 	public final fun component11 ()Lcom/nabobery/sdkgen/engine/config/VerificationConfig;
+	public final fun component12 ()Ljava/util/List;
 	public final fun component2 ()Lcom/nabobery/sdkgen/engine/config/SourceConfig;
 	public final fun component3 ()Ljava/util/List;
 	public final fun component4 ()Ljava/util/List;
@@ -1093,9 +1184,10 @@ public final class com/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1 {
 	public final fun component7 ()Ljava/util/List;
 	public final fun component8 ()Ljava/util/List;
 	public final fun component9 ()Lcom/nabobery/sdkgen/engine/config/OutputConfig;
-	public final fun copy (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/config/ConfigVersion;Lcom/nabobery/sdkgen/engine/config/SourceConfig;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;Lcom/nabobery/sdkgen/engine/config/RuntimeDefaults;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/engine/config/OutputConfig;Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;Lcom/nabobery/sdkgen/engine/config/VerificationConfig;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcceptedWaivers ()Ljava/util/List;
 	public final fun getCompatibilityProfiles ()Ljava/util/List;
 	public final fun getDiagnostics ()Lcom/nabobery/sdkgen/engine/config/DiagnosticsConfig;
 	public final fun getKotlin ()Lcom/nabobery/sdkgen/engine/config/KotlinGenerationConfig;
@@ -1271,6 +1363,68 @@ public final class com/nabobery/sdkgen/engine/config/VerificationGate : java/lan
 }
 
 public final class com/nabobery/sdkgen/engine/config/VerificationGate$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaivedSymbolKind : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind$Companion;
+	public static final field OPERATION Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public static final field SCHEMA Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaivedSymbolKind$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaiverDisposition : java/lang/Enum {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/WaiverDisposition$Companion;
+	public static final field OMIT Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;
+	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/WaiverDisposition;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaiverDisposition$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaiverMatchConfig {
+	public static final field Companion Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig$Companion;
+	public fun <init> (Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnosticCode ()Ljava/lang/String;
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getKind ()Lcom/nabobery/sdkgen/engine/config/WaivedSymbolKind;
+	public final fun getReasonSha256 ()Ljava/lang/String;
+	public final fun getSymbolId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class com/nabobery/sdkgen/engine/config/WaiverMatchConfig$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lcom/nabobery/sdkgen/engine/config/WaiverMatchConfig;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class com/nabobery/sdkgen/engine/config/WaiverMatchConfig$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 

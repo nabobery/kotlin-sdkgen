@@ -8,6 +8,7 @@ import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.SupportDeclaration
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.BOOLEAN
@@ -39,7 +40,7 @@ internal class EmissionContext(
     internal val customSerializerTypes: Set<String> = emptySet(),
 ) {
     fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile> {
-        val normalized = model.normalized()
+        val normalized = model.normalized().withUniqueInlineAnyOfViewNames()
         val sharedViews =
             normalized.files
                 .flatMap(KotlinFileDeclaration::declarations)
@@ -52,14 +53,40 @@ internal class EmissionContext(
                         .distinctBy { branch -> branch.viewTypeName }
                         .sortedBy { branch -> branch.viewTypeName }
                 }
+        val numericSupportPackages =
+            normalized.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .mapNotNull { declaration ->
+                    when (declaration) {
+                        is PrimitiveOneOfDeclaration -> {
+                            declaration.packageName
+                        }
+
+                        is OneOfDeclaration -> {
+                            declaration
+                                .takeIf { model ->
+                                    model.cases.any { it.predicate != null }
+                                }?.packageName
+                        }
+
+                        else -> {
+                            null
+                        }
+                    }
+                }.toSet()
+        val emittedNumericSupportPackages = mutableSetOf<String>()
         return normalized.files.map { file ->
             val builder = FileSpec.builder(file.packageName, file.fileName)
+            if (file.packageName in numericSupportPackages && emittedNumericSupportPackages.add(file.packageName)) {
+                schemaNumericSupportTypes(file.packageName).forEach(builder::addType)
+            }
             sharedViews[file.fileName].orEmpty().forEach { branch -> builder.addType(anyOfViewType(branch)) }
             file.declarations.forEach { declaration ->
                 when (declaration) {
                     is ModelDeclaration -> emitModel(builder, declaration)
                     is OpenEnumDeclaration -> builder.addType(openEnum(declaration))
                     is OneOfDeclaration -> emitOneOf(builder, declaration)
+                    is PrimitiveOneOfDeclaration -> emitPrimitiveOneOf(builder, declaration)
                     is AnyOfDeclaration -> emitAnyOf(builder, declaration)
                     is SupportDeclaration -> emitSupport(builder, declaration)
                     is OperationClientDeclaration -> emitOperationClient(builder, declaration)
@@ -71,57 +98,76 @@ internal class EmissionContext(
 
     internal val fieldState: ClassName = ClassName(generatedPackage, "FieldState")
     internal val fieldPresence: ClassName = ClassName(generatedPackage, "FieldPresence")
+
+    /**
+     * The generated `SdkJson` serializer instance always lives in [generatedPackage] (see
+     * `SupportEmitter.kt`), but partitioned sub-clients (task T3) live in sub-packages. Referencing it
+     * through a [MemberName] rather than as a bare identifier lets KotlinPoet resolve the cross-package
+     * import instead of emitting an unresolved reference.
+     */
+    internal val sdkJson: MemberName = MemberName(generatedPackage, "SdkJson")
+}
+
+private fun KotlinDeclarationModel.withUniqueInlineAnyOfViewNames(): KotlinDeclarationModel {
+    val usedNames = mutableSetOf<String>()
+    return copy(
+        files =
+            files.map { file ->
+                file.copy(
+                    declarations =
+                        file.declarations.map { declaration ->
+                            if (declaration !is AnyOfDeclaration) {
+                                declaration
+                            } else {
+                                declaration.copy(
+                                    branches =
+                                        declaration.branches.map { branch ->
+                                            if (branch.viewFileName != null) {
+                                                branch
+                                            } else {
+                                                branch.copy(
+                                                    viewTypeName = uniqueAnyOfViewName(branch.viewTypeName, usedNames),
+                                                )
+                                            }
+                                        },
+                                )
+                            }
+                        },
+                )
+            },
+    )
+}
+
+private fun uniqueAnyOfViewName(
+    base: String,
+    usedNames: MutableSet<String>,
+): String {
+    if (usedNames.add(base)) return base
+    var suffix = 2
+    while (!usedNames.add("$base$suffix")) suffix += 1
+    return "$base$suffix"
 }
 
 private const val GENERATED_LINE_LIMIT = 120
 
-private data class GeneratedLineBreak(
-    val end: Int,
-    val next: Int,
-)
-
 private fun wrapGeneratedKotlin(source: String): String =
     source
-        .split('\n')
-        .flatMap(::wrapGeneratedLine)
-        .joinToString("\n")
-
-private fun wrapGeneratedLine(line: String): List<String> {
-    val pending = ArrayDeque<String>()
-    val wrapped = mutableListOf<String>()
-    pending.addLast(line)
-    while (pending.isNotEmpty()) {
-        val current = pending.removeFirst()
-        if (current.length <= GENERATED_LINE_LIMIT) {
-            wrapped += current
-            continue
-        }
-        val content = current.trimStart()
-        val indent = current.substring(0, current.length - content.length)
-        if (content.startsWith("*")) {
-            wrapped += wrapGeneratedKDocLine(current, indent, content)
-            continue
-        }
-
-        val lineBreak = findGeneratedLineBreak(current)
-        if (lineBreak != null) {
-            val left = current.substring(0, lineBreak.end).trimEnd()
-            val right = indent + "  " + current.substring(lineBreak.next).trimStart()
-            if (left.isNotEmpty() && right.length < current.length) {
-                pending.addFirst(right)
-                pending.addFirst(left)
-                continue
+        .lineSequence()
+        .flatMap { line ->
+            val content = line.trimStart()
+            val indent = line.substring(0, line.length - content.length)
+            if (content.isKDocContentLine()) {
+                wrapGeneratedKDocLine(
+                    line,
+                    indent,
+                    content,
+                ).asSequence()
+            } else {
+                sequenceOf(line)
             }
-        }
-        val stringSplit = splitGeneratedStringLiteral(current, indent)
-        if (stringSplit != null && current !in stringSplit) {
-            stringSplit.asReversed().forEach(pending::addFirst)
-            continue
-        }
-        wrapped += current
-    }
-    return wrapped
-}
+        }.joinToString("\n")
+
+private fun String.isKDocContentLine(): Boolean = startsWith("* ") && removePrefix("*").trim().isNotEmpty()
 
 private fun wrapGeneratedKDocLine(
     line: String,
@@ -144,94 +190,6 @@ private fun wrapGeneratedKDocLine(
         remaining = remaining.substring(splitAt).trimStart()
     }
     return lines
-}
-
-private fun findGeneratedLineBreak(line: String): GeneratedLineBreak? {
-    val tokens = listOf(", ", " = ", " + ", " ?: ", " && ", " || ", " -> ", " { ", ".")
-    var inString = false
-    var escaped = false
-    var best: GeneratedLineBreak? = null
-    var index = 0
-    while (index < line.length) {
-        val character = line[index]
-        if (character == '"' && !escaped) inString = !inString
-        if (!inString) {
-            tokens.forEach { token ->
-                val numericDot =
-                    token == "." &&
-                        index > 0 &&
-                        index + 1 < line.length &&
-                        line[index - 1].isDigit() &&
-                        line[index + 1].isDigit()
-                val chainedSafeCallDot = token == "." && index > 0 && line[index - 1] == '?'
-                if (!numericDot && !chainedSafeCallDot &&
-                    line.startsWith(token, index) && index + token.length <= GENERATED_LINE_LIMIT
-                ) {
-                    val end = if (token == ".") index else index + token.length
-                    val next = if (token == ".") index else index + token.length
-                    val candidate = GeneratedLineBreak(end, next)
-                    if (best == null || candidate.end > best.end) best = candidate
-                }
-            }
-        }
-        escaped = character == '\\' && !escaped
-        if (character != '\\') escaped = false
-        index += 1
-    }
-    return best
-}
-
-private fun splitGeneratedStringLiteral(
-    line: String,
-    indent: String,
-): List<String>? {
-    var index = 0
-    while (index < line.length) {
-        if (line[index] != '"') {
-            index += 1
-            continue
-        }
-        val start = index
-        index += 1
-        var escaped = false
-        while (index < line.length) {
-            val character = line[index]
-            if (character == '"' && !escaped) break
-            escaped = character == '\\' && !escaped
-            if (character != '\\') escaped = false
-            index += 1
-        }
-        if (index >= line.length) return null
-        val literal = line.substring(start + 1, index)
-        if (' ' !in literal) {
-            index += 1
-            continue
-        }
-
-        val firstPrefix = line.substring(0, start + 1)
-        val continuationPrefix = "$indent  \""
-        val suffix = line.substring(index)
-        val result = mutableListOf<String>()
-        var offset = 0
-        while (offset < literal.length) {
-            val prefix = if (offset == 0) firstPrefix else continuationPrefix
-            val finalAvailable = GENERATED_LINE_LIMIT - prefix.length - suffix.length
-            if (literal.length - offset <= finalAvailable) {
-                result += prefix + literal.substring(offset) + suffix
-                break
-            }
-            val available = (GENERATED_LINE_LIMIT - prefix.length - 3).coerceAtLeast(1)
-            val preferredEnd = (offset + available).coerceAtMost(literal.lastIndex)
-            val end =
-                literal.lastIndexOf(' ', preferredEnd).takeIf { it >= offset }?.plus(1)
-                    ?: literal.indexOf(' ', offset).takeIf { it >= offset }?.plus(1)
-                    ?: return null
-            result += prefix + literal.substring(offset, end) + "\" +"
-            offset = end
-        }
-        return result
-    }
-    return null
 }
 
 internal fun serializableWith(serializer: ClassName): AnnotationSpec =
@@ -299,6 +257,7 @@ internal val PROPERTY_PATH = ClassName("com.nabobery.sdkgen.runtime", "PropertyP
 internal val STREAMING_DESCRIPTOR = ClassName("com.nabobery.sdkgen.runtime", "StreamingDescriptor")
 internal val SDK_DEADLINES = ClassName("com.nabobery.sdkgen.runtime", "SdkDeadlines")
 internal val SDK_EXECUTOR = ClassName("com.nabobery.sdkgen.runtime", "SdkExecutor")
+internal val SDK_API_EXCEPTION = ClassName("com.nabobery.sdkgen.runtime", "SdkApiException")
 internal val SDK_AUTHENTICATION = ClassName("com.nabobery.sdkgen.runtime", "SdkAuthentication")
 internal val SDK_RESPONSE_RESULT = ClassName("com.nabobery.sdkgen.runtime", "SdkResponseResult")
 internal val SDK_RESPONSE_DECODE_RESULT = ClassName("com.nabobery.sdkgen.runtime", "SdkResponseDecodeResult")
@@ -322,11 +281,14 @@ internal val PAGINATION_ENGINE = ClassName("com.nabobery.sdkgen.runtime.paginati
 internal val PAGE = ClassName("com.nabobery.sdkgen.runtime.pagination", "Page")
 internal val PAGE_ENVELOPE = ClassName("com.nabobery.sdkgen.runtime.pagination", "PageEnvelope")
 internal val PAGE_REQUEST = ClassName("com.nabobery.sdkgen.runtime.pagination", "PageRequest")
+internal val SPLIT_RESOLVED_URL = MemberName("com.nabobery.sdkgen.runtime.pagination", "splitResolvedUrl")
+internal val BUILD_REQUEST_URI = MemberName("com.nabobery.sdkgen.runtime", "buildRequestUri")
 internal val SDK_HEADER = ClassName("com.nabobery.sdkgen.runtime", "SdkHeader")
 internal val SDK_REQUEST_PARAMETER = ClassName("com.nabobery.sdkgen.runtime", "SdkRequestParameter")
 internal val SDK_PARAMETER_LOCATION = ClassName("com.nabobery.sdkgen.runtime", "SdkParameterLocation")
 internal val SDK_TRANSPORT = ClassName("com.nabobery.sdkgen.runtime", "SdkTransport")
 internal val MULTIPART_BODY = ClassName("com.nabobery.sdkgen.runtime.bodies", "MultipartBody")
+internal val FORM_URL_ENCODED_BODY = ClassName("com.nabobery.sdkgen.runtime.bodies", "FormUrlEncodedBody")
 internal val BUILD_JSON_OBJECT = MemberName("kotlinx.serialization.json", "buildJsonObject")
 internal val PUT = MemberName("kotlinx.serialization.json", "put")
 internal val DECODE_FROM_JSON_ELEMENT = MemberName("kotlinx.serialization.json", "decodeFromJsonElement")

@@ -147,63 +147,7 @@ public class InlineComponentsSchemasUpsertWorkspaceBudgetResponsePropertiesData(
           "required property 'reset_interval'")
       }
       val resetInterval = raw["reset_interval"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasWorkspaceBudgetPropertiesResetInterval?>(requireNotNull(element)) }
+        .decodeFromJsonElement<InlineComponentsSchemasWorkspaceBudgetPropertiesResetInterval?>(requireNotNull(element)) }
       return InlineComponentsSchemasUpsertWorkspaceBudgetResponsePropertiesData(
         createdAt = createdAt,
         id = id,

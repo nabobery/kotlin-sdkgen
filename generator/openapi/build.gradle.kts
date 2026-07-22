@@ -20,6 +20,7 @@ tasks.test {
     val snapshotRoot = layout.projectDirectory.dir("src/test/resources/snapshots")
     val stressRoot = rootProject.layout.projectDirectory.dir("conformance/stress")
     val openRouterFile = rootProject.layout.projectDirectory.file("conformance/openrouter/openapi.yaml")
+    val stripeFile = rootProject.layout.projectDirectory.file("conformance/stripe/openapi.json")
     val modelSource =
         rootProject.layout.projectDirectory
             .file("generator/model/src/main/kotlin/com/nabobery/sdkgen/model/SemanticModel.kt")
@@ -32,9 +33,10 @@ tasks.test {
     inputs.dir(snapshotRoot).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
     inputs.dir(stressRoot).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
     inputs.file(openRouterFile).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
+    inputs.file(stripeFile).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
     inputs.file(modelSource).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.RELATIVE)
     // corpus.root itself is intentionally NOT declared as an input directory: the tests only read
-    // conformance/openrouter/openapi.yaml and conformance/stress/** (declared above), and declaring
+    // conformance/openrouter/openapi.yaml, conformance/stripe/openapi.json, and conformance/stress/** (declared above), and declaring
     // the whole conformance/ tree would create an implicit dependency on the consumer module's
     // build outputs.
 

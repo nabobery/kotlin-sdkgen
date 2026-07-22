@@ -83,63 +83,7 @@ public class InlinePathsOrganizationMembersGetResponses200ContentApplicationJson
         throw SerializationException("InlinePathsOrganizationMembersGetResponses200ContentApplicationJsonSchema must " +
           "be a JSON object")
       val data = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlinePathsOrganizationMembersGetResponses200ContentApplicationJsonSchemaPropert43d6a724>>(raw, "data")
+        .decodeRequired<List<InlinePathsOrganizationMembersGetResponses200ContentApplicationJsonSchemaPropert43d6a724>>(raw, "data")
       val totalCount = json.decodeRequired<Int>(raw, "total_count")
       return InlinePathsOrganizationMembersGetResponses200ContentApplicationJsonSchema(
         data = data,

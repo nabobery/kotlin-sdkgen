@@ -1,0 +1,70 @@
+# Stress: OpenAPI 3.0.x -> 3.1 normalization at the ingestion seam (Phase 3 T2).
+# Expected: nullable scalars/enums/refs/oneOf, boolean exclusive bounds, and format binary/byte
+# all adapt losslessly, each leaving a traceable diagnostic for the applied mapping.
+openapi: 3.0.3
+info:
+  title: OpenAPI 3.0 normalization stress
+  version: 1.0.0
+paths:
+  /uploads:
+    post:
+      operationId: uploadAsset
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                checksum:
+                  type: string
+                  format: byte
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    NullableName:
+      type: string
+      nullable: true
+      maxLength: 40
+    NullableStatus:
+      type: string
+      nullable: true
+      enum: [active, inactive]
+    Address:
+      type: object
+      properties:
+        city:
+          type: string
+    Person:
+      type: object
+      properties:
+        name:
+          type: string
+        homeAddress:
+          $ref: '#/components/schemas/Address'
+          nullable: true
+    Cat:
+      type: object
+      properties:
+        meow:
+          type: boolean
+    Dog:
+      type: object
+      properties:
+        bark:
+          type: boolean
+    Pet:
+      nullable: true
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+    BoundedScore:
+      type: number
+      minimum: 0
+      maximum: 100
+      exclusiveMinimum: true
+      exclusiveMaximum: false

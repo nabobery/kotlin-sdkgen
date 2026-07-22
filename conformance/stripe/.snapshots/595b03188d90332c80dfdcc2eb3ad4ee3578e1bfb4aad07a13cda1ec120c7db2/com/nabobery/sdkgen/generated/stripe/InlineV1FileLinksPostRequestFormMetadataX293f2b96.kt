@@ -1,0 +1,150 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.LazyThreadSafetyMode
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Set
+
+public enum class InlineV1FileLinksPostRequestFormMetadataX293f2b96Branch {
+    Branch1,
+    InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f,
+}
+
+public sealed class InlineV1FileLinksPostRequestFormMetadataX293f2b96DecodingException(
+    message: String,
+) : SerializationException(message)
+
+public class InlineV1FileLinksPostRequestFormMetadataX293f2b96NoMatchException(
+    message: String,
+) : InlineV1FileLinksPostRequestFormMetadataX293f2b96DecodingException(message)
+
+internal data class InlineV1FileLinksPostRequestFormMetadataX293f2b96Inspection(
+    public val matchesBranch1: Boolean,
+    public val matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f: Boolean,
+    public val failures: List<String>,
+) {
+    public val matchCount: Int
+        get() = listOf(matchesBranch1, matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f).count { it }
+}
+
+/**
+ * Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object. This can be useful
+ * for storing additional information about the object in a structured format. Individual keys can be unset by posting
+ * an empty value to them. All keys can be unset by posting an empty value to `metadata`.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1file_links~1{link}/post/requestBody/content/application~1x-www-form-urlenco
+ * ded/schema/properties/metadata
+ */
+@Serializable(with = InlineV1FileLinksPostRequestFormMetadataX293f2b96.Serializer::class)
+public class InlineV1FileLinksPostRequestFormMetadataX293f2b96 internal constructor(
+    /**
+     * Raw JSON retained as the serialization authority.
+     */
+    public val raw: JsonElement,
+    private val json: Json,
+    private val inspection: InlineV1FileLinksPostRequestFormMetadataX293f2b96Inspection,
+) {
+    public val branch1: JsonObject? by
+        lazy(
+            LazyThreadSafetyMode.NONE,
+        ) { if (inspection.matchesBranch1) json.decodeFromJsonElement<JsonObject>(raw) else null }
+
+    public val inlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f:
+        InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            if (inspection.matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f) {
+                json
+                    .decodeFromJsonElement<InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f>(
+                        raw,
+                    )
+            } else {
+                null
+            }
+        }
+
+    public val matchedBranches: Set<InlineV1FileLinksPostRequestFormMetadataX293f2b96Branch>
+        get() =
+            buildSet {
+                if (inspection.matchesBranch1) add(InlineV1FileLinksPostRequestFormMetadataX293f2b96Branch.Branch1)
+                if (inspection.matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f) {
+                    add(
+                        InlineV1FileLinksPostRequestFormMetadataX293f2b96Branch.InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f,
+                    )
+                }
+            }
+
+    public companion object {
+        /**
+         * Builds a validated wrapper around raw JSON without rewriting it.
+         */
+        public fun fromRaw(
+            raw: JsonElement,
+            json: Json = SdkJson,
+        ): InlineV1FileLinksPostRequestFormMetadataX293f2b96 {
+            val inspection = inspectInlineV1FileLinksPostRequestFormMetadataX293f2b96(raw)
+            if (inspection.matchCount == 0) {
+                throw InlineV1FileLinksPostRequestFormMetadataX293f2b96NoMatchException(
+                    "InlineV1FileLinksPostRequestFormMetadataX293f2b96 matched 0 branches: " +
+                        inspection.failures.joinToString("; "),
+                )
+            }
+            return InlineV1FileLinksPostRequestFormMetadataX293f2b96(raw, json, inspection)
+        }
+    }
+
+    public object Serializer : KSerializer<InlineV1FileLinksPostRequestFormMetadataX293f2b96> {
+        override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+        override fun deserialize(decoder: Decoder): InlineV1FileLinksPostRequestFormMetadataX293f2b96 {
+            val jsonDecoder = decoder.requireJsonDecoder("InlineV1FileLinksPostRequestFormMetadataX293f2b96")
+            return fromRaw(jsonDecoder.decodeJsonElement(), jsonDecoder.json)
+        }
+
+        override fun serialize(
+            encoder: Encoder,
+            `value`: InlineV1FileLinksPostRequestFormMetadataX293f2b96,
+        ) {
+            encoder.requireJsonEncoder("InlineV1FileLinksPostRequestFormMetadataX293f2b96").encodeJsonElement(value.raw)
+        }
+    }
+}
+
+private fun inspectInlineV1FileLinksPostRequestFormMetadataX293f2b96(
+    element: JsonElement,
+): InlineV1FileLinksPostRequestFormMetadataX293f2b96Inspection {
+    val matchesBranch1 = element.isJsonDecodable<JsonObject>()
+    val matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f =
+        element
+            .isJsonDecodable<InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f>()
+    return InlineV1FileLinksPostRequestFormMetadataX293f2b96Inspection(
+        matchesBranch1 = matchesBranch1,
+        matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f = matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f,
+        failures =
+            buildList {
+                if (!matchesBranch1) add("Branch1: value does not match JsonObject")
+                if (!matchesInlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f) {
+                    add(
+                        "InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f: value does not match InlineV1FileLinksPostRequestFormMetadataAnyOf2Xf4d0177f",
+                    )
+                }
+            },
+    )
+}
+
+private inline fun <reified T> JsonElement?.isJsonDecodable(): Boolean {
+    val element = this ?: return false
+    return runCatching { SdkJson.decodeFromJsonElement<T>(element) }.isSuccess
+}

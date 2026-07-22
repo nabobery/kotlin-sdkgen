@@ -13,6 +13,7 @@ import com.nabobery.sdkgen.model.DiscriminatorModel
 import com.nabobery.sdkgen.model.EnumModel
 import com.nabobery.sdkgen.model.EnumOpenness
 import com.nabobery.sdkgen.model.IdentityKind
+import com.nabobery.sdkgen.model.JsonValue
 import com.nabobery.sdkgen.model.Nullability
 import com.nabobery.sdkgen.model.NullabilityOrigin
 import com.nabobery.sdkgen.model.NullabilitySurface
@@ -23,6 +24,7 @@ import com.nabobery.sdkgen.model.Requiredness
 import com.nabobery.sdkgen.model.SchemaId
 import com.nabobery.sdkgen.model.SchemaModel
 import com.nabobery.sdkgen.model.SchemaRef
+import com.nabobery.sdkgen.model.SourcePointer
 import java.util.TreeMap
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -56,12 +58,25 @@ private fun AdaptationContext.normalizeNullability(
     val origins =
         buildList {
             if (node.path("nullable").booleanOrFalse()) {
+                val nullablePointer = "$pointer/nullable"
                 add(
                     NullabilityOrigin(
                         NullabilitySurface.OPENAPI_3_0_NULLABLE,
-                        document.source("$pointer/nullable"),
+                        document.source(nullablePointer),
                     ),
                 )
+                if (normalizesOpenApi30 && node.has("type")) {
+                    addDiagnostic(
+                        code = DiagnosticCode.NULLABLE_TYPE_NORMALIZED,
+                        message =
+                            "'nullable: true' on a typed OpenAPI 3.0 schema was normalized to nullable " +
+                                "OpenAPI 3.1 type-union semantics.",
+                        remediation = "Replace 'nullable: true' with a type array containing 'null' in OpenAPI 3.1.",
+                        phase = DiagnosticPhase.NORMALIZATION,
+                        source = document.source(nullablePointer),
+                        severity = DiagnosticSeverity.INFO,
+                    )
+                }
             }
             node.get("type")?.takeIf(JsonNode::isArray)?.forEachIndexed { index, typeNode ->
                 if (typeNode.textOrNull() == "null") {
@@ -148,6 +163,7 @@ private fun AdaptationContext.normalizeOneOfNullability(
             if (!standardNullBranch && !legacyNullBranch && !unconstrainedBranch) return@mapIndexedNotNull null
             val sourcePointer =
                 when {
+                    branch.has("\$ref") -> "$pointer/oneOf/$index/\$ref"
                     standardNullBranch -> "$pointer/oneOf/$index/type"
                     legacyNullBranch -> "$pointer/oneOf/$index/nullable"
                     else -> "$pointer/oneOf/$index"
@@ -207,11 +223,19 @@ private fun AdaptationContext.normalizeOneOfNullability(
 private fun AdaptationContext.resolveOneOfBranchForNullCheck(
     document: SourceDocument,
     branch: JsonNode,
+    visited: MutableSet<String> = mutableSetOf(),
 ): JsonNode {
     val rawReference = branch.get("\$ref")?.textOrNull() ?: return branch
+    val key = "${document.canonicalUri}#$rawReference"
+    if (!visited.add(key)) return branch
     return try {
         val target = repository.resolveReference(document.canonicalUri, rawReference)
-        target.document.root.at(target.pointer)
+        val targetNode = target.document.root.at(target.pointer)
+        if (normalizesOpenApi30) {
+            resolveOneOfBranchForNullCheck(target.document, targetNode, visited)
+        } else {
+            targetNode
+        }
     } catch (cancellation: CancellationException) {
         throw cancellation
     } catch (failure: Throwable) {
@@ -236,15 +260,23 @@ internal fun AdaptationContext.adaptSchema(
             node.get("\$ref")?.textOrNull()?.let { rawReference ->
                 resolveSchemaReference(document, pointer, rawReference)
             }
-        val types = node.get("type").typeNames().filterNot { it == "null" }
+        if (referenceTarget != null && node.path("nullable").booleanOrFalse() && normalizesOpenApi30) {
+            diagnoseNullableReferenceSibling(document, pointer)
+        }
+        val rawTypes = node.get("type").typeNames()
+        val types = rawTypes.filterNot { it == "null" }
+        val acceptsOnlyNull = rawTypes == listOf("null")
+        val contentKeywords = normalizeContentKeywords(document, pointer, node)
         val normalizedNullability = normalizeNullability(document, pointer, node)
         val properties = adaptProperties(document, pointer, node)
-        val compositions =
+        val rawCompositions =
             buildList {
                 adaptComposition(document, pointer, node, "oneOf", CompositionKind.ONE_OF)?.let(::add)
                 adaptComposition(document, pointer, node, "anyOf", CompositionKind.ANY_OF)?.let(::add)
                 adaptComposition(document, pointer, node, "allOf", CompositionKind.ALL_OF)?.let(::add)
             }
+        val compositions =
+            applyNullableCompositionPolicy(document, pointer, node, rawCompositions)
         val schema =
             SchemaModel(
                 id = requestedId,
@@ -258,7 +290,7 @@ internal fun AdaptationContext.adaptSchema(
                 deprecated = node.path("deprecated").booleanOrFalse(),
                 readOnly = node.path("readOnly").booleanOrFalse(),
                 writeOnly = node.path("writeOnly").booleanOrFalse(),
-                constraints = node.constraints(),
+                constraints = normalizeConstraints(document, pointer, node),
                 defaultValue = node.get("default")?.toJsonValue(),
                 examples = node.examples(),
                 enum = adaptEnum(document, pointer, node),
@@ -272,6 +304,16 @@ internal fun AdaptationContext.adaptSchema(
                 allOfPropertyOwnership = allOfOwnership(compositions),
                 extensions = node.nonCanonicalExtensions(),
                 source = source,
+                acceptsOnlyNull = acceptsOnlyNull,
+                contentEncoding = contentKeywords.encoding,
+                contentMediaType = contentKeywords.mediaType,
+                requiredPropertyNames =
+                    node
+                        .get("required")
+                        ?.mapNotNull(JsonNode::textOrNull)
+                        ?.distinct()
+                        ?.sorted()
+                        .orEmpty(),
             )
         schemas[requestedId] = schema
         return requestedId
@@ -279,6 +321,267 @@ internal fun AdaptationContext.adaptSchema(
         schemasInProgress.remove(requestedId)
     }
 }
+
+private data class ContentKeywords(
+    val encoding: String?,
+    val mediaType: String?,
+)
+
+/** Maps OpenAPI 3.0 string formats to their OpenAPI 3.1 JSON Schema content-keyword equivalents. */
+private fun AdaptationContext.normalizeContentKeywords(
+    document: SourceDocument,
+    pointer: String,
+    node: JsonNode,
+): ContentKeywords {
+    val nativeEncoding = node.path("contentEncoding").textOrNull()
+    val nativeMediaType = node.path("contentMediaType").textOrNull()
+    if (!normalizesOpenApi30 || node.path("type").textOrNull() != "string") {
+        return ContentKeywords(nativeEncoding, nativeMediaType)
+    }
+    val format = node.path("format").textOrNull()
+    val normalized =
+        when (format) {
+            "byte" -> ContentKeywords(nativeEncoding ?: "base64", nativeMediaType)
+            "binary" -> ContentKeywords(nativeEncoding, nativeMediaType ?: "application/octet-stream")
+            else -> return ContentKeywords(nativeEncoding, nativeMediaType)
+        }
+    addDiagnostic(
+        code = DiagnosticCode.CONTENT_KEYWORD_NORMALIZED,
+        message =
+            "OpenAPI 3.0 'format: $format' was normalized to OpenAPI 3.1 content-keyword semantics " +
+                "(contentEncoding=${normalized.encoding ?: "-"}, contentMediaType=${normalized.mediaType ?: "-"}).",
+        remediation = "Use the corresponding contentEncoding/contentMediaType keyword directly in OpenAPI 3.1.",
+        phase = DiagnosticPhase.NORMALIZATION,
+        source = document.source("$pointer/format"),
+        severity = DiagnosticSeverity.INFO,
+    )
+    return normalized
+}
+
+/**
+ * Builds a schema's constraint map, normalizing OpenAPI 3.0's boolean `exclusiveMinimum`/
+ * `exclusiveMaximum` forms to the OpenAPI 3.1 JSON Schema 2020-12 numeric forms (see the OAI
+ * migration guide). Every other constraint keyword passes through unchanged.
+ */
+private fun AdaptationContext.normalizeConstraints(
+    document: SourceDocument,
+    pointer: String,
+    node: JsonNode,
+): Map<String, JsonValue> {
+    if (!normalizesOpenApi30) return node.constraints()
+    val values = sortedMapOf<String, JsonValue>()
+    val exclusiveBoundFields = setOf("exclusiveMinimum", "exclusiveMaximum", "minimum", "maximum")
+    CONSTRAINT_FIELDS
+        .filterNot { it in exclusiveBoundFields }
+        .forEach { field -> node.get(field)?.let { values[field] = it.toJsonValue() } }
+    normalizeExclusiveBound(document, pointer, node, bound = "minimum", exclusiveField = "exclusiveMinimum", values)
+    normalizeExclusiveBound(document, pointer, node, bound = "maximum", exclusiveField = "exclusiveMaximum", values)
+    return values
+}
+
+/**
+ * Normalizes one exclusive-bound pair (`minimum`/`exclusiveMinimum` or `maximum`/`exclusiveMaximum`).
+ * A numeric [exclusiveField] is already OpenAPI 3.1-native and passes through untouched with no
+ * diagnostic. A boolean [exclusiveField] is OpenAPI 3.0 syntax and is normalized:
+ * - `true` with a [bound] sibling -> the numeric 3.1 form `exclusiveField: <bound value>` ([bound]
+ *   itself is dropped, since it described the same edge the boolean was modifying).
+ * - `true` without a [bound] sibling -> invalid input with no numeric value to derive; the boolean
+ *   marker is dropped and a warning records the loss rather than guessing a bound.
+ * - `false` -> a no-op in OpenAPI 3.0 (the bound stays inclusive); the boolean marker is dropped
+ *   and [bound], if present, passes through unchanged.
+ */
+private fun AdaptationContext.normalizeExclusiveBound(
+    document: SourceDocument,
+    pointer: String,
+    node: JsonNode,
+    bound: String,
+    exclusiveField: String,
+    values: MutableMap<String, JsonValue>,
+) {
+    val exclusiveNode = node.get(exclusiveField)
+    val boundNode = node.get(bound)
+    val exclusivePointer = "$pointer/${escapePointerSegment(exclusiveField)}"
+    when {
+        exclusiveNode == null -> {
+            boundNode?.let { values[bound] = it.toJsonValue() }
+        }
+
+        !exclusiveNode.isBoolean -> {
+            values[exclusiveField] = exclusiveNode.toJsonValue()
+            boundNode?.let { values[bound] = it.toJsonValue() }
+        }
+
+        exclusiveNode.booleanValue() && boundNode != null -> {
+            values[exclusiveField] = boundNode.toJsonValue()
+            addDiagnostic(
+                code = DiagnosticCode.EXCLUSIVE_BOUND_NORMALIZED,
+                message =
+                    "Boolean '$exclusiveField: true' with '$bound: ${boundNode.asText()}' (OpenAPI 3.0) was " +
+                        "normalized to the OpenAPI 3.1 numeric form '$exclusiveField: ${boundNode.asText()}'.",
+                remediation = "No action required; this is a lossless, well-defined migration-guide mapping.",
+                phase = DiagnosticPhase.NORMALIZATION,
+                source = document.source(exclusivePointer),
+                severity = DiagnosticSeverity.INFO,
+            )
+        }
+
+        exclusiveNode.booleanValue() -> {
+            addDiagnostic(
+                code = DiagnosticCode.EXCLUSIVE_BOUND_NORMALIZED,
+                message =
+                    "'$exclusiveField: true' has no '$bound' sibling to derive a numeric bound from; the " +
+                        "boolean marker was dropped rather than guessing a value.",
+                remediation = "Add an explicit '$bound' alongside '$exclusiveField', or use the OpenAPI 3.1 numeric form directly.",
+                phase = DiagnosticPhase.NORMALIZATION,
+                source = document.source(exclusivePointer),
+                severity = DiagnosticSeverity.WARNING,
+            )
+        }
+
+        else -> {
+            boundNode?.let { values[bound] = it.toJsonValue() }
+            addDiagnostic(
+                code = DiagnosticCode.EXCLUSIVE_BOUND_NORMALIZED,
+                message = "'$exclusiveField: false' (OpenAPI 3.0) is a no-op and was normalized away; '$bound' remains inclusive.",
+                remediation = "No action required.",
+                phase = DiagnosticPhase.NORMALIZATION,
+                source = document.source(exclusivePointer),
+                severity = DiagnosticSeverity.INFO,
+            )
+        }
+    }
+}
+
+/**
+ * Applies the SDKGen policy for `nullable: true` set directly on a schema whose only content is
+ * one or more compositions (`oneOf`/`anyOf`/`allOf`) and that carries no own `type`: there is no
+ * lossless OpenAPI 3.1 mapping for this shape (see [DiagnosticCode.NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE]).
+ * For `oneOf`/`anyOf`, an explicit `type: "null"`-equivalent branch is added so downstream
+ * consumers that walk composition branches see the null option explicitly, unless a null-accepting
+ * branch is already present. For `allOf`, no branch is added (doing so would make every allOf
+ * branch's constraints jointly unsatisfiable by `null`); only the diagnostic is raised.
+ */
+private fun AdaptationContext.applyNullableCompositionPolicy(
+    document: SourceDocument,
+    pointer: String,
+    node: JsonNode,
+    compositions: List<CompositionModel>,
+): List<CompositionModel> {
+    val ownNullable = node.path("nullable").booleanOrFalse()
+    val hasOwnType = node.get("type") != null
+    if (!normalizesOpenApi30 || !ownNullable || hasOwnType || compositions.isEmpty()) return compositions
+    val nullablePointer = "$pointer/nullable"
+    return compositions.map { composition ->
+        when (composition.kind) {
+            CompositionKind.ONE_OF, CompositionKind.ANY_OF -> {
+                val field = if (composition.kind == CompositionKind.ONE_OF) "oneOf" else "anyOf"
+                val alreadyHasNullBranch = hasExplicitNullBranch(document, node, field)
+                addDiagnostic(
+                    code = DiagnosticCode.NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE,
+                    message =
+                        "'nullable: true' alongside '$field' (with no own 'type') has no clean OpenAPI 3.1 " +
+                            if (alreadyHasNullBranch) {
+                                "mapping; the existing explicit null branch is retained."
+                            } else {
+                                "mapping; SDKGen's policy adds an explicit null-only branch to '$field'."
+                            },
+                    remediation = "Use an explicit null branch without the legacy nullable keyword in OpenAPI 3.1.",
+                    phase = DiagnosticPhase.NORMALIZATION,
+                    source = document.source(nullablePointer),
+                    severity = DiagnosticSeverity.WARNING,
+                )
+                if (alreadyHasNullBranch) {
+                    composition
+                } else {
+                    composition.copy(
+                        branches =
+                            composition.branches +
+                                syntheticNullBranch(
+                                    document,
+                                    pointer,
+                                    field,
+                                    nullablePointer,
+                                ),
+                    )
+                }
+            }
+
+            CompositionKind.ALL_OF -> {
+                addDiagnostic(
+                    code = DiagnosticCode.NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE,
+                    message =
+                        "'nullable: true' alongside 'allOf' (with no own 'type') has no clean OpenAPI 3.1 mapping: " +
+                            "a null branch cannot be added to 'allOf' without making it unsatisfiable. Nullability " +
+                            "is preserved only at the schema level; 'allOf' itself is left unchanged.",
+                    remediation = "Wrap the allOf composition in an explicit nullable union outside allOf, or apply a reviewed overlay.",
+                    phase = DiagnosticPhase.NORMALIZATION,
+                    source = document.source(nullablePointer),
+                    severity = DiagnosticSeverity.WARNING,
+                )
+                composition
+            }
+        }
+    }
+}
+
+/** Whether [field] (`oneOf`/`anyOf`) on [node] already contains a recognized null-accepting branch. */
+private fun AdaptationContext.hasExplicitNullBranch(
+    document: SourceDocument,
+    node: JsonNode,
+    field: String,
+): Boolean {
+    val branches = node.get(field)?.takeIf(JsonNode::isArray) ?: return false
+    return branches.any { branch ->
+        val resolved = resolveOneOfBranchForNullCheck(document, branch)
+        resolved.get("type").typeNames() == listOf("null") ||
+            (resolved.isObject && resolved.size() == 1 && resolved.path("nullable").booleanOrFalse())
+    }
+}
+
+/** Registers (idempotently) and returns a reference to a synthetic `type: "null"`-equivalent branch schema. */
+private fun AdaptationContext.syntheticNullBranch(
+    document: SourceDocument,
+    pointer: String,
+    field: String,
+    nullablePointer: String,
+): SchemaRef {
+    val branchPointer = "$pointer/$field/x-sdkgen-normalized-null-branch"
+    val branchId = canonicalSchemaId(document, branchPointer)
+    val branchSource = document.source(nullablePointer)
+    schemas.putIfAbsent(branchId, nullOnlySchema(branchId, branchSource))
+    return SchemaRef(branchId, branchSource)
+}
+
+/** A true null-only [SchemaModel], kept distinct from an unconstrained empty schema. */
+private fun nullOnlySchema(
+    id: SchemaId,
+    source: SourcePointer,
+): SchemaModel =
+    SchemaModel(
+        id = id,
+        identityKind = IdentityKind.INLINE,
+        referenceTarget = null,
+        types = emptyList(),
+        format = null,
+        nullability = Nullability.NON_NULL,
+        nullabilityOrigins = emptyList(),
+        description = null,
+        deprecated = false,
+        readOnly = false,
+        writeOnly = false,
+        constraints = emptyMap(),
+        defaultValue = null,
+        examples = emptyList(),
+        enum = null,
+        properties = emptyList(),
+        items = null,
+        additionalProperties = null,
+        compositions = emptyList(),
+        allOfPropertyOwnership = emptyList(),
+        extensions = emptyMap(),
+        source = source,
+        acceptsOnlyNull = true,
+    )
 
 private fun AdaptationContext.diagnoseUnsupportedSchemaConstructs(
     document: SourceDocument,
@@ -325,7 +628,12 @@ private fun AdaptationContext.adaptProperties(
         val schemaRef = adaptSchemaUse(document, propertyPointer, propertyNode)
         val target = schemas[schemaRef.schemaId]
         val requiredness = if (name in required) Requiredness.REQUIRED else Requiredness.OPTIONAL
-        val nullability = target?.nullability ?: normalizeNullability(document, propertyPointer, propertyNode).value
+        val nullability =
+            if (target != null && referenceChainIsNullable(target)) {
+                Nullability.NULLABLE
+            } else {
+                target?.nullability ?: normalizeNullability(document, propertyPointer, propertyNode).value
+            }
         PropertyModel(
             name = name,
             schema = schemaRef,
@@ -342,6 +650,17 @@ private fun AdaptationContext.adaptProperties(
             source = document.source(propertyPointer),
         )
     }
+}
+
+private fun AdaptationContext.referenceChainIsNullable(schema: SchemaModel): Boolean {
+    var current = schema
+    val visited = mutableSetOf<SchemaId>()
+    while (visited.add(current.id)) {
+        if (current.nullability == Nullability.NULLABLE) return true
+        val targetId = current.referenceTarget ?: return false
+        current = schemas[targetId] ?: return false
+    }
+    return false
 }
 
 internal fun AdaptationContext.adaptSchemaUse(
@@ -393,12 +712,36 @@ internal fun AdaptationContext.adaptSchemaUse(
                 )
                 diagnosticId
             }
+        if (normalizesOpenApi30 && node.path("nullable").booleanOrFalse()) {
+            val wrapperId = canonicalSchemaId(document, pointer)
+            adaptSchema(document, pointer, node, wrapperId, IdentityKind.INLINE)
+            return SchemaRef(wrapperId, source)
+        }
         return SchemaRef(targetId, source)
     }
 
     val id = canonicalSchemaId(document, pointer)
     adaptSchema(document, pointer, node, id, IdentityKind.INLINE)
     return SchemaRef(id, source)
+}
+
+/** Emits the required warning for the invalid-but-common OpenAPI 3.0 nullable `$ref` sibling. */
+private fun AdaptationContext.diagnoseNullableReferenceSibling(
+    document: SourceDocument,
+    pointer: String,
+) {
+    addDiagnostic(
+        code = DiagnosticCode.NULLABLE_REFERENCE_SIBLING,
+        message =
+            "'nullable: true' alongside '\$ref' is invalid in OpenAPI 3.0 (sibling keywords next to '\$ref' " +
+                "are ignored); SDKGen treats it as a nullable reference wrapper instead of dropping it silently.",
+        remediation =
+            "Rewrite as 'allOf: [{ \$ref: ... }]' with 'nullable: true' on the wrapper, " +
+                "or use OpenAPI 3.1's type/null union directly.",
+        phase = DiagnosticPhase.NORMALIZATION,
+        source = document.source("$pointer/nullable"),
+        severity = DiagnosticSeverity.WARNING,
+    )
 }
 
 private fun AdaptationContext.resolveSchemaReference(
@@ -491,7 +834,15 @@ private fun AdaptationContext.adaptDiscriminator(
     )
 }
 
-private fun adaptEnum(
+/**
+ * Adapts an `enum` keyword. In OpenAPI 3.0 normalization mode, when the containing schema uses
+ * `nullable: true` but its wire value set does not already list `null`, `null` is injected and
+ * [DiagnosticCode.NULLABLE_ENUM_NULL_INJECTED] records the change - `nullable: true` combined
+ * with an `enum` that omits `null` is a common generator bug (the schema claims to accept `null`
+ * but its own enum constraint would reject it), so SDKGen fixes the value set instead of leaving
+ * the two keywords in silent contradiction.
+ */
+private fun AdaptationContext.adaptEnum(
     document: SourceDocument,
     pointer: String,
     node: JsonNode,
@@ -499,10 +850,28 @@ private fun adaptEnum(
     val enumNode = node.get("enum") ?: return null
     if (!enumNode.isArray) return null
     val explicitlyClosed = node.path("x-sdkgen-enum-open").takeIf(JsonNode::isBoolean)?.booleanValue() == false
+    val values = enumNode.map(JsonNode::toJsonValue)
+    val enumPointer = "$pointer/enum"
+    val withNull =
+        if (normalizesOpenApi30 && node.path("nullable").booleanOrFalse() && JsonValue.Null !in values) {
+            addDiagnostic(
+                code = DiagnosticCode.NULLABLE_ENUM_NULL_INJECTED,
+                message =
+                    "'nullable: true' is set but 'enum' does not list 'null'; SDKGen injects 'null' into the " +
+                        "allowed value set instead of leaving the schema nullable while its own enum rejects null.",
+                remediation = "Add 'null' to the 'enum' array explicitly, matching OpenAPI 3.1 JSON Schema semantics.",
+                phase = DiagnosticPhase.NORMALIZATION,
+                source = document.source(enumPointer),
+                severity = DiagnosticSeverity.INFO,
+            )
+            values + JsonValue.Null
+        } else {
+            values
+        }
     return EnumModel(
-        values = enumNode.map(JsonNode::toJsonValue),
+        values = withNull,
         openness = if (explicitlyClosed) EnumOpenness.CLOSED else EnumOpenness.OPEN,
-        source = document.source("$pointer/enum"),
+        source = document.source(enumPointer),
     )
 }
 

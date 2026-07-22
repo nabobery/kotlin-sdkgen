@@ -54,9 +54,10 @@ internal data class TransitionState(
  * public `pages()`/`items()` Flow surface alone (e.g. a contrived non-advancing offset can only occur from a
  * hand-crafted [TransitionState], never from this engine's own arithmetic), so tests call this directly.
  *
- * @param resolveUrl resolves and trust-checks a raw `NextUrl` response value; only invoked for
- *   [PaginationDescriptor.NextUrl]. Threaded in rather than called directly so this function stays a pure decision
- *   over its arguments, independently testable without a real [TrustedHosts] configuration.
+ * @param resolveUrl resolves and trust-checks a raw `NextUrl`/`HeaderNextUrl` response value; only invoked for
+ *   [PaginationDescriptor.NextUrl] and [PaginationDescriptor.HeaderNextUrl]. Threaded in rather than called directly
+ *   so this function stays a pure decision over its arguments, independently testable without a real
+ *   [TrustedHosts] configuration.
  * @throws SdkPaginationException when the same continuation value would be reused (loop detection), or when a
  *   computed offset/page fails to advance past its previous value.
  */
@@ -85,6 +86,15 @@ internal fun computeTransition(
             }
         }
 
+        is PaginationDescriptor.HeaderNextUrl -> {
+            val raw = firstNextLinkTarget(envelope.linkHeaderValues())
+            if (raw.isNullOrBlank()) {
+                PageOutcome.Terminate to state
+            } else {
+                continuationTransition(resolveUrl(raw), state, operationId, PageRequest::NextUrl)
+            }
+        }
+
         is PaginationDescriptor.OffsetLimit -> {
             offsetTransition(envelope, state, operationId)
         }
@@ -93,6 +103,10 @@ internal fun computeTransition(
             pageNumberTransition(envelope, state, operationId)
         }
     }
+
+/** Every `Link` response header's raw value (RFC 8288 §3 allows repeated `Link` headers), name-matched case-insensitively. */
+private fun PageEnvelope<*, *>.linkHeaderValues(): List<String> =
+    responseHeaders.filter { header -> header.name.equals("Link", ignoreCase = true) }.map { it.value }
 
 /**
  * Shared arithmetic for the three continuation-value strategies (cursor, token, next-URL): stop when the value is
@@ -221,6 +235,9 @@ public class PaginationEngine<T, I>(
             requireNotNull(baseUri) { "baseUri is required for a NextUrl pagination descriptor" }
             requireNotNull(trustedHosts) { "trustedHosts is required for a NextUrl pagination descriptor" }
         }
+        if (descriptor is PaginationDescriptor.HeaderNextUrl) {
+            requireNotNull(trustedHosts) { "trustedHosts is required for a HeaderNextUrl pagination descriptor" }
+        }
         require(requestedPageSize == null || requestedPageSize > 0) { "requestedPageSize must be positive" }
         require(initialOffset >= 0) { "initialOffset must not be negative" }
         require(initialPage >= 1) { "initialPage must be at least 1" }
@@ -245,6 +262,15 @@ public class PaginationEngine<T, I>(
      * the *raw*, unresolved next-URL value for [PaginationDescriptor.NextUrl] (still safe, already-server-issued
      * metadata) rather than the resolved-and-trusted URL [pages] produces. A caller that goes on to call [pages] or
      * [items] to actually continue still goes through full resolution, trust-checking, and loop detection there.
+     *
+     * [PaginationDescriptor.HeaderNextUrl] is the one exception to the paragraph above: because its raw `Link`
+     * header target is untrusted transport-layer input (not a body-declared value the caller could otherwise
+     * inspect), and resolving/trust-checking it here requires no extra fetch, [Page.continuationUrl] for that
+     * strategy is already the resolved, trusted URL — and an untrusted target throws [SdkPaginationException] from
+     * this method itself. See [toFirstPage]'s KDoc for the full rationale.
+     *
+     * @throws SdkPaginationException when [descriptor] is [PaginationDescriptor.HeaderNextUrl] and the first page's
+     *   `Link` header names a next-page target outside [trustedHosts].
      */
     public suspend fun firstPage(fetch: suspend (PageRequest) -> PageEnvelope<T, I>): Page<T, I> =
         fetch(PageRequest.First).toFirstPage()
@@ -306,7 +332,9 @@ public class PaginationEngine<T, I>(
                 }
                 val envelope = fetch(request)
                 val (outcome, nextState) =
-                    computeTransition(descriptor, envelope, state, operationId, ::resolveTrustedUrl)
+                    computeTransition(descriptor, envelope, state, operationId) { rawNextUrl ->
+                        resolveTrustedUrl(rawNextUrl, envelope)
+                    }
                 state = nextState
                 cumulativeItems += envelope.items.size
 
@@ -351,12 +379,31 @@ public class PaginationEngine<T, I>(
             }
         }
 
-    private fun resolveTrustedUrl(rawNextUrl: String): String {
+    /**
+     * The resolution base for a raw next-URL value: [PaginationDescriptor.HeaderNextUrl] resolves against the URI of
+     * the request that actually returned the `Link` header ([PageEnvelope.requestUri]), since that may drift from
+     * the operation's static [baseUri] across a multi-hop walk; every other next-URL-bearing strategy resolves
+     * against the fixed [baseUri], matching this engine's pre-existing behavior.
+     */
+    private fun resolutionBase(envelope: PageEnvelope<T, I>): String =
+        if (descriptor is PaginationDescriptor.HeaderNextUrl) {
+            requireNotNull(envelope.requestUri) {
+                "requestUri is required on a PageEnvelope for a HeaderNextUrl pagination descriptor"
+            }
+        } else {
+            requireNotNull(baseUri)
+        }
+
+    private fun resolveTrustedUrl(
+        rawNextUrl: String,
+        envelope: PageEnvelope<T, I>,
+    ): String {
+        val base = resolutionBase(envelope)
         val resolved =
-            resolveNextUrl(requireNotNull(baseUri), rawNextUrl)
+            resolveNextUrl(base, rawNextUrl)
                 ?: throw SdkPaginationException(
-                    "Pagination next-URL '$rawNextUrl' could not be resolved against baseUri '$baseUri' " +
-                        "(fragment-only references are never resolvable, and baseUri itself must be an absolute " +
+                    "Pagination next-URL '$rawNextUrl' could not be resolved against '$base' " +
+                        "(fragment-only references are never resolvable, and the base itself must be an absolute " +
                         "http(s) URI).",
                     operationId,
                 )
@@ -387,8 +434,17 @@ public class PaginationEngine<T, I>(
         }
 
     /**
-     * [firstPage]'s dedicated projection: derives [Page.hasNext] from raw envelope fields only, never resolving or
-     * trust-checking a next-URL and never running loop detection (see [firstPage]'s KDoc for why).
+     * [firstPage]'s dedicated projection: derives [Page.hasNext] from raw envelope fields only and never runs loop
+     * detection (see [firstPage]'s KDoc for why), matching this engine's pre-existing behavior for every strategy
+     * except [PaginationDescriptor.HeaderNextUrl].
+     *
+     * [PaginationDescriptor.HeaderNextUrl] is the one exception: unlike a body-declared `NextUrl`, its raw `Link`
+     * header target is untrusted transport-layer input the caller cannot otherwise validate before deciding whether
+     * to act on [Page.continuationUrl] — resolving and trust-checking it here costs no extra fetch (every input,
+     * [trustedHosts] and this page's own [PageEnvelope.requestUri], is already in hand), so [Page.continuationUrl]
+     * is the same resolved, trusted URL [pages] would use to continue, and an untrusted target throws
+     * [SdkPaginationException] from [firstPage] itself rather than silently handing back a URL a caller might
+     * otherwise dereference unchecked.
      */
     private fun PageEnvelope<T, I>.toFirstPage(): Page<T, I> =
         when (descriptor) {
@@ -405,6 +461,12 @@ public class PaginationEngine<T, I>(
             is PaginationDescriptor.NextUrl -> {
                 val url = nextUrl?.takeUnless(String::isBlank)
                 Page(value, items, pageIndex = 1, hasNext = url != null, continuationUrl = url)
+            }
+
+            is PaginationDescriptor.HeaderNextUrl -> {
+                val raw = firstNextLinkTarget(linkHeaderValues())?.takeUnless(String::isBlank)
+                val resolved = raw?.let { resolveTrustedUrl(it, this) }
+                Page(value, items, pageIndex = 1, hasNext = resolved != null, continuationUrl = resolved)
             }
 
             is PaginationDescriptor.OffsetLimit -> {

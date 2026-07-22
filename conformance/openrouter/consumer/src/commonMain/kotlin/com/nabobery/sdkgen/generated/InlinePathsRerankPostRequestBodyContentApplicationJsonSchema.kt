@@ -111,63 +111,7 @@ public class InlinePathsRerankPostRequestBodyContentApplicationJsonSchema(
         throw SerializationException("InlinePathsRerankPostRequestBodyContentApplicationJsonSchema must be a JSON " +
           "object")
       val documents = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItems>>(raw, "documents")
+        .decodeRequired<List<InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItems>>(raw, "documents")
       val model = json.decodeRequired<String>(raw, "model")
       val query = json.decodeRequired<String>(raw, "query")
       return InlinePathsRerankPostRequestBodyContentApplicationJsonSchema(

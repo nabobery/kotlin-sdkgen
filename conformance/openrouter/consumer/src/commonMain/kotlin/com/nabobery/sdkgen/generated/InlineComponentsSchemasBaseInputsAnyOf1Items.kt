@@ -125,63 +125,7 @@ public class InlineComponentsSchemasBaseInputsAnyOf1Items internal constructor(
   public val matchedBranches: Set<InlineComponentsSchemasBaseInputsAnyOf1ItemsBranch>
     get() = buildSet {
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0) add(InlineComponentsSchemasBaseInputsAnyOf1ItemsBranch.InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0)
+        .matchesInlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0) add(InlineComponentsSchemasBaseInputsAnyOf1ItemsBranch.InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0)
       if (inspection.matchesOpenAiResponseInputMessageItem) add(InlineComponentsSchemasBaseInputsAnyOf1ItemsBranch
         .OpenAiResponseInputMessageItem)
       if (inspection

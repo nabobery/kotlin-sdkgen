@@ -7,13 +7,22 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.yaml.snakeyaml.LoaderOptions
 import java.security.MessageDigest
 
 internal object DocumentCodec {
+    private const val MAX_YAML_DOCUMENT_LENGTH = 16_777_216
+
     private val jsonMapper =
         ObjectMapper(JsonFactory())
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-    private val yamlMapper = ObjectMapper(YAMLFactory())
+    private val yamlMapper =
+        ObjectMapper(
+            YAMLFactory
+                .builder()
+                .loaderOptions(LoaderOptions().apply { setCodePointLimit(MAX_YAML_DOCUMENT_LENGTH) })
+                .build(),
+        )
 
     fun parse(content: ByteArray): JsonNode =
         try {

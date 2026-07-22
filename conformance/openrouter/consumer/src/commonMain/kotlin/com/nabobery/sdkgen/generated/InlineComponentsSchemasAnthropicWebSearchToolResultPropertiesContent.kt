@@ -67,63 +67,7 @@ public class InlineComponentsSchemasAnthropicWebSearchToolResultPropertiesConten
       if (inspection.matchesBranch1) add(InlineComponentsSchemasAnthropicWebSearchToolResultPropertiesContentBranch
         .Branch1)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesAnthropicWebSearchToolResultError) add(InlineComponentsSchemasAnthropicWebSearchToolResultPropertiesContentBranch.AnthropicWebSearchToolResultError)
+        .matchesAnthropicWebSearchToolResultError) add(InlineComponentsSchemasAnthropicWebSearchToolResultPropertiesContentBranch.AnthropicWebSearchToolResultError)
     }
 
   public companion object {

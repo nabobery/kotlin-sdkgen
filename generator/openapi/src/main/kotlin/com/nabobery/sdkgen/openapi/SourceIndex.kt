@@ -334,7 +334,7 @@ internal object SourceMapIndexer {
             if (realPath.fileName.toString().endsWith(".json", ignoreCase = true)) {
                 JsonFactory()
             } else {
-                YAMLFactory()
+                YAMLFactory.builder().loaderOptions(largeDocumentLoaderOptions()).build()
             }
         val mapper = ObjectMapper(factory)
         val root = mapper.readTree(bytes)

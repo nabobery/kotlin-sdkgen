@@ -43,6 +43,7 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.parser.OpenAPIV3Parser
 import io.swagger.v3.parser.core.models.ParseOptions
+import io.swagger.v3.parser.core.models.SwaggerParseResult
 import java.nio.file.Path
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -118,8 +119,10 @@ public class SemanticAdapter {
             "swagger-parser resolved view failed: ${resolved.messages.orEmpty().joinToString(" | ")}"
         }
 
-        val state = AdaptationContext(repository, rootDocument)
         val root = rootDocument.root
+        val normalizationMode = classifyOpenApiVersion(root.path("openapi").textOrNull())
+        val state = AdaptationContext(repository, rootDocument, normalizationMode)
+        diagnoseDeclaredSpecVersion(state, rootDocument, root)
         val componentSchemas = root.path("components").path("schemas")
         var representedComponents = 0
         var diagnosedComponents = 0
@@ -234,15 +237,18 @@ public class SemanticAdapter {
     private fun parse(
         path: Path,
         resolve: Boolean,
-    ) = OpenAPIV3Parser().readLocation(
-        path.toRealPath().toUri().toString(),
-        null,
-        ParseOptions().apply {
-            setResolve(resolve)
-            setResolveFully(resolve)
-            setResolveCombinators(false)
-        },
-    )
+    ): SwaggerParseResult {
+        configureSwaggerParserYamlLimit()
+        return OpenAPIV3Parser().readLocation(
+            path.toRealPath().toUri().toString(),
+            null,
+            ParseOptions().apply {
+                setResolve(resolve)
+                setResolveFully(resolve)
+                setResolveCombinators(false)
+            },
+        )
+    }
 
     private fun countSharedResolvedIdentityTargets(openApi: OpenAPI): Int {
         val components =
@@ -287,6 +293,37 @@ public class SemanticAdapter {
             pathItem.fieldNames().asSequence().count { it.lowercase() in methods }
         }
     }
+}
+
+/** Classifies only complete numeric OpenAPI 3.0 patch versions; near-miss prefixes stay native. */
+internal fun classifyOpenApiVersion(declared: String?): OpenApiNormalizationMode =
+    if (declared != null && OPENAPI_30_VERSION.matches(declared)) {
+        OpenApiNormalizationMode.OPENAPI_3_0
+    } else {
+        OpenApiNormalizationMode.NATIVE
+    }
+
+private val OPENAPI_30_VERSION = Regex("3\\.0\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?")
+
+/** Records exact OpenAPI 3.0.x classification at the document's `/openapi` source pointer. */
+private fun diagnoseDeclaredSpecVersion(
+    state: AdaptationContext,
+    document: SourceDocument,
+    root: JsonNode,
+) {
+    if (!state.normalizesOpenApi30) return
+    val declared = root.path("openapi").textOrNull() ?: return
+    state.addDiagnostic(
+        code = DiagnosticCode.OPENAPI_3_0_DOCUMENT_NORMALIZED,
+        message =
+            "Document declares 'openapi: $declared'; SDKGen normalizes its OpenAPI 3.0.x constructs " +
+                "(nullable, boolean exclusive bounds, nullable \$ref siblings, nullable enums, nullable " +
+                "compositions) to OpenAPI 3.1 semantics at the ingestion seam.",
+        source = document.source("/openapi"),
+        severity = DiagnosticSeverity.INFO,
+        phase = DiagnosticPhase.NORMALIZATION,
+        remediation = "No action required; this is an informational record of the applied normalization.",
+    )
 }
 
 /**

@@ -72,63 +72,7 @@ public class InlineComponentsSchemasMcpServerToolPropertiesAllowedTools internal
     get() = buildSet {
       if (inspection.matchesBranch1) add(InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsBranch.Branch1)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlineComponentsSchemasMcpServerToolPropertiesAllowedToolsAnyOf1) add(InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsBranch.InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsAnyOf1)
+        .matchesInlineComponentsSchemasMcpServerToolPropertiesAllowedToolsAnyOf1) add(InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsBranch.InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsAnyOf1)
       if (inspection.matchesBranch3) add(InlineComponentsSchemasMcpServerToolPropertiesAllowedToolsBranch.Branch3)
     }
 

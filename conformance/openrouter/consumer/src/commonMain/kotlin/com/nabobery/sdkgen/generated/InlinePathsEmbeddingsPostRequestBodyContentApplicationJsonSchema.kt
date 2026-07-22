@@ -130,62 +130,7 @@ public class InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchema(
         model = model,
         dimensions = raw["dimensions"]?.let { json.decodeFromJsonElement<Int>(it) },
         encodingFormat = raw["encoding_format"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesEncodingFormat>(it) },
+          .decodeFromJsonElement<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesEncodingFormat>(it) },
         inputType = raw["input_type"]?.let { json.decodeFromJsonElement<String>(it) },
         provider = raw["provider"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<ProviderPreferences?>(element) },

@@ -236,124 +236,12 @@ public class InlineComponentsSchemasResponsesRequestPropertiesToolsItems interna
   public val matchedBranches: Set<InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch>
     get() = buildSet {
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlineComponentsSchemasResponsesRequestPropertiesToolsItemsAnyOf0) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.InlineComponentsSchemasResponsesRequestPropertiesToolsItemsAnyOf0)
+        .matchesInlineComponentsSchemasResponsesRequestPropertiesToolsItemsAnyOf0) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.InlineComponentsSchemasResponsesRequestPropertiesToolsItemsAnyOf0)
       if (inspection
         .matchesPreviewWebSearchServerTool) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch
           .PreviewWebSearchServerTool)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesPreview20250311WebSearchServerTool) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.Preview20250311WebSearchServerTool)
+        .matchesPreview20250311WebSearchServerTool) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.Preview20250311WebSearchServerTool)
       if (inspection
         .matchesLegacyWebSearchServerTool) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch
           .LegacyWebSearchServerTool)
@@ -396,63 +284,7 @@ public class InlineComponentsSchemasResponsesRequestPropertiesToolsItems interna
         .matchesFusionServerToolOpenRouter) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch
           .FusionServerToolOpenRouter)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesImageGenerationServerToolOpenRouter) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.ImageGenerationServerToolOpenRouter)
+        .matchesImageGenerationServerToolOpenRouter) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch.ImageGenerationServerToolOpenRouter)
       if (inspection
         .matchesSearchModelsServerToolOpenRouter) add(InlineComponentsSchemasResponsesRequestPropertiesToolsItemsBranch
           .SearchModelsServerToolOpenRouter)

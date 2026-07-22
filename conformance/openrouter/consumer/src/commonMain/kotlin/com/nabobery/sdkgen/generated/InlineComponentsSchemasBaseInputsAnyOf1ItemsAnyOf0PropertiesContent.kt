@@ -56,63 +56,7 @@ public class InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0PropertiesContent
   public val branch1:
       List<InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0PropertiesContentAnyOf0Items>? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch1) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0PropertiesContentAnyOf0Items>>(raw) else null }
+        .decodeFromJsonElement<List<InlineComponentsSchemasBaseInputsAnyOf1ItemsAnyOf0PropertiesContentAnyOf0Items>>(raw) else null }
 
   public val branch2: String? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch2) json

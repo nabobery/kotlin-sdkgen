@@ -62,62 +62,7 @@ public class InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropert
       InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection
         .matchesInlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1>(raw) else null }
+          .decodeFromJsonElement<InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1>(raw) else null }
 
   public val matchedBranches:
       Set<InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsBranch>
@@ -126,63 +71,7 @@ public class InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropert
         .matchesBranch1) add(InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsBranch
           .Branch1)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1) add(InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsBranch.InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1)
+        .matchesInlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1) add(InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsBranch.InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1)
     }
 
   public companion object {

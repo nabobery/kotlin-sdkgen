@@ -1,0 +1,54 @@
+{
+    "schemaVersion": "v1alpha1",
+    "generatorVersion": "fixture-verification",
+    "edition": "community",
+    "kotlinPoetVersion": "2.3.0",
+    "configDigest": "496cff39d035fd85a3bd53784199722a902baac9784377a045bba6a3291058ec",
+    "declarationModelSha256": "29f2531892657a43a9505c2b1ac38153f065e9f4b81f69878c1ca6b7dbf4e2f0",
+    "source": {
+        "canonicalUri": "sdkgen://pagination-fixture/openapi.yaml",
+        "sha256": "ac0da4229f07e40bcb9b19d468cc7be26591e0ec10283dedee2300396a66e102",
+        "contentLength": 2237
+    },
+    "references": [],
+    "overlays": [],
+    "targets": ["jvm"],
+    "compatibilityProfiles": [],
+    "plugins": [],
+    "tools": [
+        {
+            "id": "kotlinpoet",
+            "version": "2.3.0"
+        }
+    ],
+    "warningsAsErrors": false,
+    "warningAllowlist": [],
+    "diagnostics": [],
+    "exclusions": [],
+    "files": [
+        {
+            "path": "com/nabobery/sdkgen/generated/ErrorResponse.kt",
+            "sha256": "cf58dbd0381cbd8566cc15a2c0f57de392e4dea10a8962b5c54290d9dd38c68e"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/Issue.kt",
+            "sha256": "fafef49e9fa482b2e930a8f4e3d81b542970990adf417461bce6776cc2a1775b"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/IssuePage.kt",
+            "sha256": "90f95c8854d8ed15864327e168d34d986e699cf544214615281c17a2ef3a91ea"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/PaginationFixtureClient.kt",
+            "sha256": "ee190ac62759bce847268c31df17c8789fed473282ccd2604746ae7bf4613c4e"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/SerializationSupport.kt",
+            "sha256": "5f6b2671ad717cf0bc77fb836f7a2138f4d5d145178f136b136085d559b43190"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/repos/ReposClient.kt",
+            "sha256": "fa0cd9733f4ea48f6b835b2ede7e99d8ff8c2c93b48117078053cb0edb6f0842"
+        }
+    ]
+}

@@ -1,0 +1,98 @@
+openapi: 3.1.0
+info:
+  title: Streaming Fixture
+  description: >
+    A small, purpose-built OpenRouter-shaped spec proving dual JSON+SSE response mode generation (task T7):
+    one operation whose success response is available either as a single buffered JSON body or as a
+    text/event-stream of incrementally-decoded deltas, selected by explicit content type and x-sdkgen-streaming
+    metadata only.
+  version: "1"
+servers:
+  - url: https://api.streaming-fixture.test
+paths:
+  /chat/completions:
+    post:
+      operationId: sendChatCompletion
+      summary: Sends a chat completion request, buffered or streamed.
+      x-sdkgen-streaming:
+        mode: sse
+        responseContentType: text/event-stream
+        sentinel: "[DONE]"
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: Chat completion, buffered or streamed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResult"
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/ChatDelta"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+  schemas:
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - prompt
+      properties:
+        model:
+          type: string
+        prompt:
+          type: string
+    ChatResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - content
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+    ChatDelta:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - content
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - message
+      properties:
+        message:
+          type: string

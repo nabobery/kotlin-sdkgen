@@ -16,6 +16,7 @@ internal object ConfigValidator {
         validateRuntime(config.runtime, file)
         validateRules(config.rules, file)
         validatePlugins(config.plugins, file)
+        validateAcceptedWaivers(config.acceptedWaivers, file)
         validateOutput(config.output, file)
         validateDiagnostics(config.diagnostics, file)
         requireUnique(config.verification.gates, "$.verification.gates", "verification gate", file)
@@ -227,6 +228,58 @@ internal object ConfigValidator {
         requireUniqueBy(plugins, "$.plugins", "plugin ID", file, PluginConfig::id)
     }
 
+    private fun validateAcceptedWaivers(
+        waivers: List<AcceptedWaiverConfig>,
+        file: String,
+    ) {
+        val identities = mutableSetOf<WaiverMatchConfig>()
+        waivers.forEachIndexed { index, waiver ->
+            val path = "$.acceptedWaivers[$index]"
+            requireConstraint(
+                LOWER_KEBAB.matches(waiver.id),
+                "$path.id",
+                "Waiver IDs must be stable lower-kebab-case.",
+                file,
+            )
+            requireConstraint(
+                LOWER_KEBAB.matches(waiver.category),
+                "$path.category",
+                "Waiver categories must be stable lower-kebab-case.",
+                file,
+            )
+            requireNonEmpty(waiver.rationale, "$path.rationale", "waiver rationale", file)
+            requireNonEmpty(waiver.owner, "$path.owner", "waiver owner", file)
+            requireNonEmpty(waiver.match.symbolId, "$path.match.symbolId", "waiver symbol ID", file)
+            requireConstraint(
+                DIAGNOSTIC_CODE.matches(waiver.match.diagnosticCode),
+                "$path.match.diagnosticCode",
+                "Waiver diagnostic codes must use the SDKGEN-... code format.",
+                file,
+            )
+            requireNonEmpty(waiver.match.documentUri, "$path.match.documentUri", "waiver document URI", file)
+            requireConstraint(
+                waiver.match.jsonPointer.startsWith('/'),
+                "$path.match.jsonPointer",
+                "Waiver JSON Pointers must start with '/'.",
+                file,
+            )
+            requireSha256(waiver.match.reasonSha256, "$path.match.reasonSha256", file)
+            requireConstraint(
+                waiver.match.symbolId.startsWith("${waiver.match.kind.name.lowercase()}:"),
+                "$path.match.symbolId",
+                "Waiver symbol ID must agree with waiver kind.",
+                file,
+            )
+            requireConstraint(
+                identities.add(waiver.match),
+                "$path.match",
+                "Duplicate waiver match tuple.",
+                file,
+            )
+        }
+        requireUniqueBy(waivers, "$.acceptedWaivers", "waiver ID", file, AcceptedWaiverConfig::id)
+    }
+
     private fun validateOutput(
         output: OutputConfig,
         file: String,
@@ -333,6 +386,7 @@ internal object ConfigValidator {
         )
     }
 
+    private val LOWER_KEBAB = Regex("^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
     private val SHA_256 = Regex("^[0-9a-f]{64}$")
     private val IDENTIFIER = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
     private val PACKAGE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$")

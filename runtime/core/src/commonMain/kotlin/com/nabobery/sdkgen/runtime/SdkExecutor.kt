@@ -233,11 +233,12 @@ public class SdkExecutor(
                     }
                 }
             val deadlines = resolveDeadlines(metadata.deadlines, options.deadlines)
+            val requestHeaders = buildRequestHeaders(options.headers, parameters)
             var logicalRequest =
                 SdkRequest(
                     method = metadata.method,
                     uri = buildRequestUri(baseUri, metadata.path, parameters),
-                    headers = buildRequestHeaders(options.headers, parameters),
+                    headers = addStreamingAcceptHeader(requestHeaders, metadata.streaming),
                     body = encodedBody,
                     expectedResponseMode = metadata.responseMode,
                     deadlines = deadlines,
@@ -351,6 +352,57 @@ public class SdkExecutor(
             parameters = request.parameters,
         )
 
+    /**
+     * Executes an operation exactly like [execute], but also returns the physical response's headers alongside the
+     * decoded success value.
+     *
+     * For [com.nabobery.sdkgen.runtime.pagination.PaginationDescriptor.HeaderNextUrl] pagination, generated code
+     * needs the response headers to locate the `Link` header's continuation target — information [execute] discards
+     * once decoding succeeds. This entry point shares every other stage of [execute] (status classification, typed
+     * error mapping, retries, cancellation) unchanged; it only additionally captures [SdkResponse.headers] from the
+     * same physical response [execute] already decodes.
+     */
+    public suspend fun <Request, Response> executeWithHeaders(
+        request: SdkExecutionRequest<Request>,
+        responseCodecIds: List<String>,
+        requestCodecs: MediaTypeCodecRegistry<Request>,
+        responseCodecs: MediaTypeCodecRegistry<Response>,
+        options: CallOptions = CallOptions(),
+    ): SdkHeaderedResponse<Response> =
+        executeInternal(
+            metadata = request.metadata,
+            baseUri = request.baseUri,
+            requestValue = request.requestValue,
+            requestCodecIds = request.requestCodecIds,
+            responseCodecIds = responseCodecIds,
+            requestCodecs = requestCodecs,
+            decodeResponse =
+                object : ResponseDecoder<SdkHeaderedResponse<Response>> {
+                    override suspend fun decode(
+                        metadata: OperationMetadata,
+                        transportResponse: SdkResponse,
+                        transferObserver: TransferObserver?,
+                        logicalCallId: String,
+                        attemptNumber: Int,
+                    ): SdkHeaderedResponse<Response> {
+                        val headers = transportResponse.headers
+                        val value =
+                            decodeAttemptResponse(
+                                metadata,
+                                transportResponse,
+                                responseCodecIds,
+                                responseCodecs,
+                                transferObserver,
+                                logicalCallId,
+                                attemptNumber,
+                            )
+                        return SdkHeaderedResponse(value, headers)
+                    }
+                },
+            options = options,
+            parameters = request.parameters,
+        )
+
     /** Executes an operation that declares no response body and closes the transport body before returning. */
     public suspend fun <Request> executeBodyless(
         request: SdkExecutionRequest<Request>,
@@ -420,6 +472,52 @@ public class SdkExecutor(
             parameters = request.parameters,
         )
 
+    /**
+     * Executes an SSE operation as a raw stream on success while preserving generated typed errors on non-success.
+     *
+     * A successful response transfers its body only after its `Content-Type` matches the operation's declared
+     * [StreamingDescriptor.ServerSentEvents.responseContentType]. A declared non-success response is decoded through
+     * [responseDecoder] and converted by [mapError]. Unknown statuses retain the bounded, redacted
+     * [UnknownApiException] path. Every body is closed on failure or cancellation; ownership transfers only for a
+     * validated SSE success.
+     */
+    public suspend fun <Request, Response> executeRawWithTypedErrors(
+        request: SdkExecutionRequest<Request>,
+        requestCodecs: MediaTypeCodecRegistry<Request>,
+        responseDecoder: SdkResponseAlternativeDecoder<Response>,
+        mapError: (Response, Int, List<SdkHeader>) -> SdkApiException,
+        options: CallOptions = CallOptions(),
+    ): SdkByteStream =
+        executeInternal(
+            metadata = request.metadata,
+            baseUri = request.baseUri,
+            requestValue = request.requestValue,
+            requestCodecIds = request.requestCodecIds,
+            responseCodecIds = emptyList(),
+            requestCodecs = requestCodecs,
+            decodeResponse =
+                object : ResponseDecoder<SdkByteStream> {
+                    override suspend fun decode(
+                        metadata: OperationMetadata,
+                        transportResponse: SdkResponse,
+                        transferObserver: TransferObserver?,
+                        logicalCallId: String,
+                        attemptNumber: Int,
+                    ): SdkByteStream =
+                        decodeRawTypedErrorAttemptResponse(
+                            metadata = metadata,
+                            transportResponse = transportResponse,
+                            decoder = responseDecoder,
+                            mapError = mapError,
+                            transferObserver = transferObserver,
+                            logicalCallId = logicalCallId,
+                            attemptNumber = attemptNumber,
+                        )
+                },
+            options = options,
+            parameters = request.parameters,
+        )
+
     /** Executes an operation while preserving each declared response alternative as a typed result. */
     public suspend fun <Request, Response> executeWithResponse(
         request: SdkExecutionRequest<Request>,
@@ -450,6 +548,53 @@ public class SdkExecutor(
                             transferObserver,
                             logicalCallId,
                             attemptNumber,
+                        )
+                },
+            options = options,
+            parameters = request.parameters,
+        )
+
+    /**
+     * Executes a generated ergonomic operation using its typed response-alternative decoder.
+     *
+     * A matched success is converted by [mapSuccess]. A matched non-success is decoded exactly once and converted by
+     * [mapError] into an operation-specific [SdkApiException] subtype. Unmatched responses retain the bounded, redacted
+     * [UnknownApiException] path. The runtime closes every buffered and error body before it escapes; only an explicitly
+     * transferred matched success body may remain open.
+     */
+    public suspend fun <Request, Response, Success> executeWithTypedErrors(
+        request: SdkExecutionRequest<Request>,
+        requestCodecs: MediaTypeCodecRegistry<Request>,
+        responseDecoder: SdkResponseAlternativeDecoder<Response>,
+        mapSuccess: (Response) -> Success,
+        mapError: (Response, Int, List<SdkHeader>) -> SdkApiException,
+        options: CallOptions = CallOptions(),
+    ): Success =
+        executeInternal(
+            metadata = request.metadata,
+            baseUri = request.baseUri,
+            requestValue = request.requestValue,
+            requestCodecIds = request.requestCodecIds,
+            responseCodecIds = emptyList(),
+            requestCodecs = requestCodecs,
+            decodeResponse =
+                object : ResponseDecoder<Success> {
+                    override suspend fun decode(
+                        metadata: OperationMetadata,
+                        transportResponse: SdkResponse,
+                        transferObserver: TransferObserver?,
+                        logicalCallId: String,
+                        attemptNumber: Int,
+                    ): Success =
+                        decodeTypedErrorAttemptResponse(
+                            metadata = metadata,
+                            transportResponse = transportResponse,
+                            decoder = responseDecoder,
+                            mapSuccess = mapSuccess,
+                            mapError = mapError,
+                            transferObserver = transferObserver,
+                            logicalCallId = logicalCallId,
+                            attemptNumber = attemptNumber,
                         )
                 },
             options = options,
@@ -710,6 +855,7 @@ public class SdkExecutor(
         var transferBody = false
         try {
             classifyStatus(metadata, response)
+            validateStreamingContentType(metadata, response)
             transferBody = true
             return response.body
         } catch (failure: Throwable) {
@@ -763,6 +909,73 @@ public class SdkExecutor(
             throw failure
         } finally {
             closeResponseBody(response.body, closeCause, metadata.operationId)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    private suspend fun <Response> decodeRawTypedErrorAttemptResponse(
+        metadata: OperationMetadata,
+        transportResponse: SdkResponse,
+        decoder: SdkResponseAlternativeDecoder<Response>,
+        mapError: (Response, Int, List<SdkHeader>) -> SdkApiException,
+        transferObserver: TransferObserver?,
+        logicalCallId: String,
+        attemptNumber: Int,
+    ): SdkByteStream {
+        val response = observeResponse(transportResponse, transferObserver, logicalCallId, attemptNumber)
+        var closeCause: Throwable? = null
+        var transferBody = false
+        try {
+            if (isSuccessStatus(metadata, response.statusCode)) {
+                validateStreamingContentType(metadata, response)
+                transferBody = true
+                return response.body
+            }
+            val headerContentType = response.headers.firstValue(CONTENT_TYPE_HEADER)
+            val alternative =
+                matchAlternative(metadata.responseAlternatives, response.statusCode, headerContentType) ?: run {
+                    val capturedBody = captureUnknownBody(response.body)
+                    throw UnknownApiException(
+                        statusCode = response.statusCode,
+                        headers = response.headers,
+                        redactedBodyPreview = capturedBody.redactedText,
+                        operationId = metadata.operationId,
+                        bodyPreviewTruncated = capturedBody.truncated,
+                    )
+                }
+            val contentType =
+                headerContentType
+                    ?: alternative.mediaTypes.firstOrNull()
+                    ?: metadata.responseMediaTypes.firstOrNull()
+            val decoded =
+                try {
+                    decoder.decodeWithBody(
+                        alternative,
+                        response.statusCode,
+                        response.headers,
+                        response.body,
+                        contentType,
+                    )
+                } catch (cancellation: CancellationException) {
+                    closeCause = cancellation
+                    throw cancellation
+                } catch (failure: SdkException) {
+                    closeCause = failure
+                    throw failure
+                } catch (failure: Throwable) {
+                    closeCause = failure
+                    throw SdkSerializationException(
+                        "Failed to decode '${metadata.operationId}'.",
+                        metadata.operationId,
+                        failure,
+                    )
+                }
+            throw mapError(decoded.value, response.statusCode, response.headers)
+        } catch (failure: Throwable) {
+            closeCause = failure
+            throw failure
+        } finally {
+            if (!transferBody) closeResponseBody(response.body, closeCause, metadata.operationId)
         }
     }
 
@@ -828,6 +1041,78 @@ public class SdkExecutor(
             } else {
                 SdkResponseResult.Matched(alternative, response.statusCode, response.headers, decoded.value)
             }
+        } catch (failure: Throwable) {
+            closeCause = failure
+            throw failure
+        } finally {
+            if (!transferBody) closeResponseBody(response.body, closeCause, metadata.operationId)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    private suspend fun <Response, Success> decodeTypedErrorAttemptResponse(
+        metadata: OperationMetadata,
+        transportResponse: SdkResponse,
+        decoder: SdkResponseAlternativeDecoder<Response>,
+        mapSuccess: (Response) -> Success,
+        mapError: (Response, Int, List<SdkHeader>) -> SdkApiException,
+        transferObserver: TransferObserver?,
+        logicalCallId: String,
+        attemptNumber: Int,
+    ): Success {
+        val response = observeResponse(transportResponse, transferObserver, logicalCallId, attemptNumber)
+        var closeCause: Throwable? = null
+        var transferBody = false
+        try {
+            val headerContentType = response.headers.firstValue("Content-Type")
+            val alternative =
+                matchAlternative(
+                    metadata.responseAlternatives,
+                    response.statusCode,
+                    headerContentType,
+                ) ?: run {
+                    val capturedBody = captureUnknownBody(response.body)
+                    throw UnknownApiException(
+                        statusCode = response.statusCode,
+                        headers = response.headers,
+                        redactedBodyPreview = capturedBody.redactedText,
+                        operationId = metadata.operationId,
+                        bodyPreviewTruncated = capturedBody.truncated,
+                    )
+                }
+            val contentType =
+                headerContentType
+                    ?: alternative.mediaTypes.firstOrNull()
+                    ?: metadata.responseMediaTypes.firstOrNull()
+            val decoded =
+                try {
+                    decoder.decodeWithBody(
+                        alternative,
+                        response.statusCode,
+                        response.headers,
+                        response.body,
+                        contentType,
+                    )
+                } catch (cancellation: CancellationException) {
+                    closeCause = cancellation
+                    throw cancellation
+                } catch (failure: SdkException) {
+                    closeCause = failure
+                    throw failure
+                } catch (failure: Throwable) {
+                    closeCause = failure
+                    throw SdkSerializationException(
+                        "Failed to decode '${metadata.operationId}'.",
+                        metadata.operationId,
+                        failure,
+                    )
+                }
+            if (!isSuccessStatus(metadata, response.statusCode)) {
+                throw mapError(decoded.value, response.statusCode, response.headers)
+            }
+            val success = mapSuccess(decoded.value)
+            transferBody = decoded.transferBody
+            return success
         } catch (failure: Throwable) {
             closeCause = failure
             throw failure
@@ -1104,6 +1389,31 @@ public class SdkExecutor(
             ?.lowercase()
             ?.takeIf(String::isNotEmpty)
 
+    private fun addStreamingAcceptHeader(
+        headers: List<SdkHeader>,
+        streaming: StreamingDescriptor?,
+    ): List<SdkHeader> {
+        val descriptor = streaming as? StreamingDescriptor.ServerSentEvents ?: return headers
+        if (headers.firstValue(ACCEPT_HEADER) != null) return headers
+        return headers + SdkHeader(ACCEPT_HEADER, descriptor.responseContentType)
+    }
+
+    private fun validateStreamingContentType(
+        metadata: OperationMetadata,
+        response: SdkResponse,
+    ) {
+        val descriptor = metadata.streaming as? StreamingDescriptor.ServerSentEvents ?: return
+        val expected = normalizeMediaType(descriptor.responseContentType)
+        val actual = normalizeMediaType(response.headers.firstValue(CONTENT_TYPE_HEADER))
+        if (expected == null || actual != expected) {
+            throw SdkStreamingException(
+                "Streaming response for '${metadata.operationId}' must have Content-Type " +
+                    "'${descriptor.responseContentType}', but received '${actual ?: "<missing>"}'.",
+                metadata.operationId,
+            )
+        }
+    }
+
     /**
      * Rejects a request the configured [transport] has declared, via [SdkTransport.capabilities], that it cannot
      * carry out — before [transport].[SdkTransport.execute] is ever called, so a request never partially starts on
@@ -1175,6 +1485,8 @@ public class SdkExecutor(
         public const val DEFAULT_PRODUCT_TOKEN: String = "kotlin-sdkgen/0.1.0-SNAPSHOT"
 
         internal const val USER_AGENT_HEADER: String = "User-Agent"
+        internal const val ACCEPT_HEADER: String = "Accept"
+        internal const val CONTENT_TYPE_HEADER: String = "Content-Type"
         internal const val HUNDRED: Int = 100
 
         private const val EXACT_MEDIA_PRECEDENCE: Int = 0

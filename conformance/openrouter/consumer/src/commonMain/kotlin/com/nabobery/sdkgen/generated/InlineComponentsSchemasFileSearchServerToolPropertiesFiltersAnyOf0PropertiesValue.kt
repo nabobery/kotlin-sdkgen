@@ -75,63 +75,7 @@ public class InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0P
       List<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValu7f6a38aa>?
       by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch4) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValu7f6a38aa>>(raw) else null }
+        .decodeFromJsonElement<List<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValu7f6a38aa>>(raw) else null }
 
   public val matchedBranches:
       Set<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValueBranch>
@@ -187,65 +131,7 @@ private fun inspectInlineComponentsSchemasFileSearchServerToolPropertiesFiltersA
   val matchesBranch2 = element.isJsonDecodable<Double>()
   val matchesBranch3 = element.isJsonDecodable<Boolean>()
   val matchesBranch4 = element
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .isJsonDecodable<List<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValu7f6a38aa>>() && (element as? JsonArray)?.size?.let { it <= 2147483647 } == true
+    .isJsonDecodable<List<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValu7f6a38aa>>() && (element as? JsonArray)?.size?.let { it <= 2147483647 } == true
   return InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0PropertiesValueInspection(
     matchesBranch1 = matchesBranch1,
     matchesBranch2 = matchesBranch2,

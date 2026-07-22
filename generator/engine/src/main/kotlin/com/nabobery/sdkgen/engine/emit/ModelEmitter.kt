@@ -428,38 +428,51 @@ private fun modelDeserialize(
     required: List<FieldDeclaration>,
     optional: List<FieldDeclaration>,
 ): CodeBlock {
+    val locals =
+        ModelSerializerLocalNameAllocator(
+            model.fields.mapTo(mutableSetOf(), FieldDeclaration::resolvedName),
+        )
+    val jsonDecoder = locals.allocate("jsonDecoder")
+    val json = locals.allocate("json")
+    val rawObject = locals.allocate("rawObject")
     val body =
         CodeBlock
             .builder()
-            .addStatement("val jsonDecoder = decoder.requireJsonDecoder(%S)", model.resolvedName)
-            .addStatement("val json = jsonDecoder.json")
+            .addStatement("val %L = decoder.requireJsonDecoder(%S)", jsonDecoder, model.resolvedName)
+            .addStatement("val %L = %L.json", json, jsonDecoder)
             .addStatement(
-                "val raw = jsonDecoder.decodeJsonElement() as? %T ?: throw %T(%S)",
+                "val %L = %L.decodeJsonElement() as? %T ?: throw %T(%S)",
+                rawObject,
+                jsonDecoder,
                 JSON_OBJECT,
                 SERIALIZATION_EXCEPTION,
                 "${model.resolvedName} must be a JSON object",
             )
     required.filterNot(FieldDeclaration::nullable).forEach { field ->
         body.addStatement(
-            "val %L = json.decodeRequired<%T>(raw, %S)",
+            "val %L = %L.decodeRequired<%T>(%L, %S)",
             field.resolvedName,
+            json,
             field.type.toTypeName(),
+            rawObject,
             field.wireName,
         )
     }
     required.filter(FieldDeclaration::nullable).forEach { field ->
         body
-            .beginControlFlow("if (!raw.containsKey(%S))", field.wireName)
+            .beginControlFlow("if (!%L.containsKey(%S))", rawObject, field.wireName)
             .addStatement(
                 "throw %T(%S)",
                 SERIALIZATION_EXCEPTION,
                 "${model.resolvedName} is missing required property '${field.wireName}'",
             ).endControlFlow()
             .addStatement(
-                "val %L = raw[%S].let { element -> if (element == %T) null else json.%M<%T>(requireNotNull(element)) }",
+                "val %L = %L[%S].let { element -> if (element == %T) null else %L.%M<%T>(requireNotNull(element)) }",
                 field.resolvedName,
+                rawObject,
                 field.wireName,
                 JSON_NULL,
+                json,
                 DECODE_FROM_JSON_ELEMENT,
                 field.type.toTypeName(),
             )
@@ -469,25 +482,31 @@ private fun modelDeserialize(
     optional.forEach { field ->
         if (model.usesFieldState) {
             body.add(
-                "%LState = json.decodeOptional(raw, %S, nullable = %L),\n",
+                "%LState = %L.decodeOptional(%L, %S, nullable = %L),\n",
                 field.resolvedName,
+                json,
+                rawObject,
                 field.wireName,
                 field.nullable,
             )
         } else if (field.nullable) {
             body.add(
-                "%L = raw[%S]?.let { element -> if (element == %T) null else json.%M<%T>(element) },\n",
+                "%L = %L[%S]?.let { element -> if (element == %T) null else %L.%M<%T>(element) },\n",
                 field.resolvedName,
+                rawObject,
                 field.wireName,
                 JSON_NULL,
+                json,
                 DECODE_FROM_JSON_ELEMENT,
                 field.type.toTypeName(),
             )
         } else {
             body.add(
-                "%L = raw[%S]?.let { json.%M<%T>(it) },\n",
+                "%L = %L[%S]?.let { %L.%M<%T>(it) },\n",
                 field.resolvedName,
+                rawObject,
                 field.wireName,
+                json,
                 DECODE_FROM_JSON_ELEMENT,
                 field.type.toTypeName(),
             )
@@ -495,6 +514,19 @@ private fun modelDeserialize(
     }
     body.unindent().add(")\n")
     return body.build()
+}
+
+private class ModelSerializerLocalNameAllocator(
+    initialNames: Set<String>,
+) {
+    private val usedNames = initialNames.toMutableSet()
+
+    fun allocate(preferredName: String): String {
+        if (usedNames.add(preferredName)) return preferredName
+        var suffix = 2
+        while (!usedNames.add("$preferredName$suffix")) suffix += 1
+        return "$preferredName$suffix"
+    }
 }
 
 private fun modelSerialize(

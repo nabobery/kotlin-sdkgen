@@ -23,6 +23,8 @@ public data class AlphaView(
 
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Alpha.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Alpha
  */
 @Serializable(with = Alpha.Serializer::class)
 public class Alpha(
@@ -106,6 +108,8 @@ public data class BetaView(
 
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Beta.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Beta
  */
 @Serializable(with = Beta.Serializer::class)
 public class Beta(
@@ -184,6 +188,8 @@ import kotlinx.serialization.json.put
 
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Cat.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Cat
  */
 @Serializable(with = Cat.Serializer::class)
 public class Cat(
@@ -288,6 +294,8 @@ internal data class ChoiceInspection(
 
 /**
  * Lossless anyOf wrapper for sdkgen://source/composition-golden.yaml#/components/schemas/Choice.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Choice
  */
 @Serializable(with = Choice.Serializer::class)
 public class Choice internal constructor(
@@ -365,176 +373,31 @@ private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEm
 --- com/example/generated/CompositionClient.kt ---
 package com.example.generated
 
-import com.nabobery.sdkgen.runtime.BackoffHints
-import com.nabobery.sdkgen.runtime.CallOptions
-import com.nabobery.sdkgen.runtime.KotlinxSerializationCodec
-import com.nabobery.sdkgen.runtime.MediaTypeCodec
-import com.nabobery.sdkgen.runtime.MediaTypeCodecRegistry
-import com.nabobery.sdkgen.runtime.OperationMetadata
-import com.nabobery.sdkgen.runtime.OperationSafety
-import com.nabobery.sdkgen.runtime.ResponseAlternative
-import com.nabobery.sdkgen.runtime.ResponseSelector
-import com.nabobery.sdkgen.runtime.RetryDescriptor
+import com.example.generated.choice.ChoiceClient
 import com.nabobery.sdkgen.runtime.SdkAuthentication
-import com.nabobery.sdkgen.runtime.SdkByteStream
-import com.nabobery.sdkgen.runtime.SdkDeadlines
-import com.nabobery.sdkgen.runtime.SdkExecutionRequest
-import com.nabobery.sdkgen.runtime.SdkExecutor
-import com.nabobery.sdkgen.runtime.SdkHeader
-import com.nabobery.sdkgen.runtime.SdkResponseAlternativeDecoder
-import com.nabobery.sdkgen.runtime.SdkResponseDecodeResult
-import com.nabobery.sdkgen.runtime.SdkResponseMode
-import com.nabobery.sdkgen.runtime.SdkResponseResult
 import com.nabobery.sdkgen.runtime.SdkTransport
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.TrustedHosts
-import kotlin.Int
+import kotlin.LazyThreadSafetyMode
 import kotlin.String
-import kotlin.Unit
-import kotlin.collections.List
 import kotlin.collections.Map
-
-public object CompositionCodecs {
-  public const val GETCHOICE_RESPONSE_CODEC_ID: String = "getChoice.response"
-
-  private val getChoiceResponseCodec: MediaTypeCodec<Choice> =
-      KotlinxSerializationCodec(GETCHOICE_RESPONSE_CODEC_ID, Choice.Serializer, SdkJson)
-
-  private val getChoiceResponseCodecAlternative0Codec: MediaTypeCodec<Choice> =
-      KotlinxSerializationCodec("getChoice.response.alternative0", Choice.Serializer, SdkJson)
-
-  public val getChoiceResponseCodecAlternative0Registry: MediaTypeCodecRegistry<Choice> =
-      MediaTypeCodecRegistry.of(getChoiceResponseCodecAlternative0Codec)
-
-  public val getChoiceRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
-      MediaTypeCodecRegistry.of()
-
-  public val getChoiceResponseCodecRegistry: MediaTypeCodecRegistry<Choice> =
-      MediaTypeCodecRegistry.of(getChoiceResponseCodec)
-}
 
 /**
  * Client for Composition golden.
  */
 public class CompositionClient(
   transport: SdkTransport,
-  private val baseUri: String,
+  baseUri: String,
   credentialProviders: Map<String, CredentialProvider> = emptyMap(),
   trustedHosts: TrustedHosts? = null,
-  private val authentication: SdkAuthentication? = null,
+  authentication: SdkAuthentication? = null,
 ) {
-  private val executor: SdkExecutor =
-      SdkExecutor(transport, authentication = this@CompositionClient.authentication)
-
   /**
-   * Executes 'getChoice'.
-   *
-   * @param options Execution options.
-   * @return Buffered response body.
-   * @throws SdkApiException When the service returns a non-success response.
-   * @throws SdkSerializationException When a request or response cannot be serialized.
-   * @throws SdkTransportException When transport execution fails.
+   * Operations tagged/grouped under 'choice'.
    */
-  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit,
-    Choice>(SdkExecutionRequest(metadata, baseUri, Unit, emptyList(), emptyList()), listOf(CompositionCodecs
-      .GETCHOICE_RESPONSE_CODEC_ID), CompositionCodecs.getChoiceRequestCodecRegistry, CompositionCodecs
-        .getChoiceResponseCodecRegistry, options)
-
-  /**
-   * Executes 'getChoice'.
-   *
-   * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
-   * into success values.
-   */
-  public suspend fun getChoiceWithResponse(options: CallOptions =
-    CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit,
-      GetChoiceResponse>(SdkExecutionRequest(metadata, baseUri, Unit, emptyList(), emptyList()), CompositionCodecs
-        .getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
-
-  /**
-   * Typed response alternatives for `getChoice`. Non-success alternatives are not converted into success values.
-   */
-  public sealed interface GetChoiceResponse {
-    public class SuccessJson(
-      public val json: Choice,
-      public val statusCode: Int,
-      public val headers: List<SdkHeader>,
-    ) : GetChoiceResponse
-
-    public class Unknown(
-      public val statusCode: Int,
-      public val headers: List<SdkHeader>,
-    ) : GetChoiceResponse
-  }
-
-  private object GetChoiceResponseDecoder : SdkResponseAlternativeDecoder<GetChoiceResponse> {
-    public override suspend fun decode(
-      alternative: ResponseAlternative,
-      statusCode: Int,
-      headers: List<SdkHeader>,
-      body: SdkByteStream,
-      mediaType: String?,
-    ): GetChoiceResponse = decodeWithBody(alternative, statusCode, headers, body, mediaType).value
-
-    public override suspend fun decodeWithBody(
-      alternative: ResponseAlternative,
-      statusCode: Int,
-      headers: List<SdkHeader>,
-      body: SdkByteStream,
-      mediaType: String?,
-    ): SdkResponseDecodeResult<GetChoiceResponse> = when {
-      alternative.id == "getChoice.response.alternative0" -> SdkResponseDecodeResult(
-        value = GetChoiceResponse.SuccessJson(
-          json = CompositionCodecs.getChoiceResponseCodecAlternative0Registry
-            .select(listOf("getChoice.response.alternative0"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
-          statusCode = statusCode,
-          headers = headers,
-        ),
-        transferBody = false,
-      )
-      else -> error("No generated response decoder matched the selected response alternative.")
-    }
-
-    public override suspend fun decodeUnknown(
-      statusCode: Int,
-      headers: List<SdkHeader>,
-      body: SdkByteStream,
-    ): GetChoiceResponse = GetChoiceResponse.Unknown(statusCode = statusCode, headers = headers)
-  }
-
-  public companion object {
-    public val metadata: OperationMetadata = OperationMetadata(
-          operationId = "getChoice",
-          method = "GET",
-          path = "/choice",
-          requestMediaTypes = emptyList(),
-          responseMediaTypes = listOf("application/json"),
-          successStatusCodes = setOf(200),
-          responseMode = SdkResponseMode.BUFFERED,
-          deadlines = SdkDeadlines(60_000, 60_000, null),
-          responseAlternatives = listOf(
-            ResponseAlternative(
-              selector = ResponseSelector.ExactStatus(code = 200),
-              mediaTypes = listOf("application/json"),
-              typeTag = "Choice",
-              mode = SdkResponseMode.BUFFERED,
-              id = "getChoice.response.alternative0",
-            ),
-          ),
-          security = emptyList(),
-          safety = OperationSafety(safe = true, idempotent = true),
-          idempotency = null,
-          retry = RetryDescriptor(
-            retryableStatusCodes = emptyList(),
-            retryConnectionErrors = true,
-            maxAttempts = 3,
-            backoff = BackoffHints(baseDelayMillis = 250, multiplier = 2.0, maxDelayMillis = 5_000),
-          ),
-          pagination = null,
-          streaming = null,
-        )
-  }
+  public val choice: ChoiceClient by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        ChoiceClient(transport, baseUri, credentialProviders, trustedHosts, authentication)
+      }
 }
 
 --- com/example/generated/Dog.kt ---
@@ -557,6 +420,8 @@ import kotlinx.serialization.json.put
 
 /**
  * Generated model for sdkgen://source/composition-golden.yaml#/components/schemas/Dog.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Dog
  */
 @Serializable(with = Dog.Serializer::class)
 public class Dog(
@@ -675,6 +540,8 @@ public class VariantAmbiguityException(
 
 /**
  * Closed oneOf union for sdkgen://source/composition-golden.yaml#/components/schemas/Variant.
+ *
+ * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Variant
  */
 @Serializable(with = Variant.Serializer::class)
 public sealed interface Variant {
@@ -790,4 +657,181 @@ private fun inspectVariant(raw: JsonObject): VariantInspection {
 private fun JsonObject.stringValue(name: String): String? {
   val primitive = this[name] as? JsonPrimitive ?: return null
   return primitive.takeIf { it.isString }?.content
+}
+
+--- com/example/generated/choice/ChoiceClient.kt ---
+package com.example.generated.choice
+
+import com.example.generated.Choice
+import com.example.generated.SdkJson
+import com.nabobery.sdkgen.runtime.BackoffHints
+import com.nabobery.sdkgen.runtime.CallOptions
+import com.nabobery.sdkgen.runtime.KotlinxSerializationCodec
+import com.nabobery.sdkgen.runtime.MediaTypeCodec
+import com.nabobery.sdkgen.runtime.MediaTypeCodecRegistry
+import com.nabobery.sdkgen.runtime.OperationMetadata
+import com.nabobery.sdkgen.runtime.OperationSafety
+import com.nabobery.sdkgen.runtime.ResponseAlternative
+import com.nabobery.sdkgen.runtime.ResponseSelector
+import com.nabobery.sdkgen.runtime.RetryDescriptor
+import com.nabobery.sdkgen.runtime.SdkAuthentication
+import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkDeadlines
+import com.nabobery.sdkgen.runtime.SdkExecutionRequest
+import com.nabobery.sdkgen.runtime.SdkExecutor
+import com.nabobery.sdkgen.runtime.SdkHeader
+import com.nabobery.sdkgen.runtime.SdkResponseAlternativeDecoder
+import com.nabobery.sdkgen.runtime.SdkResponseDecodeResult
+import com.nabobery.sdkgen.runtime.SdkResponseMode
+import com.nabobery.sdkgen.runtime.SdkResponseResult
+import com.nabobery.sdkgen.runtime.SdkTransport
+import com.nabobery.sdkgen.runtime.auth.CredentialProvider
+import com.nabobery.sdkgen.runtime.auth.TrustedHosts
+import kotlin.Int
+import kotlin.String
+import kotlin.Unit
+import kotlin.collections.List
+import kotlin.collections.Map
+
+public object ChoiceCodecs {
+  public const val GETCHOICE_RESPONSE_CODEC_ID: String = "getChoice.response"
+
+  private val getChoiceResponseCodec: MediaTypeCodec<Choice> =
+      KotlinxSerializationCodec(GETCHOICE_RESPONSE_CODEC_ID, Choice.Serializer, SdkJson)
+
+  private val getChoiceResponseCodecAlternative0Codec: MediaTypeCodec<Choice> =
+      KotlinxSerializationCodec("getChoice.response.alternative0", Choice.Serializer, SdkJson)
+
+  public val getChoiceResponseCodecAlternative0Registry: MediaTypeCodecRegistry<Choice> =
+      MediaTypeCodecRegistry.of(getChoiceResponseCodecAlternative0Codec)
+
+  public val getChoiceRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+      MediaTypeCodecRegistry.of()
+
+  public val getChoiceResponseCodecRegistry: MediaTypeCodecRegistry<Choice> =
+      MediaTypeCodecRegistry.of(getChoiceResponseCodec)
+}
+
+/**
+ * Client for the 'choice' group of Composition golden.
+ */
+public class ChoiceClient(
+  transport: SdkTransport,
+  private val baseUri: String,
+  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+  trustedHosts: TrustedHosts? = null,
+  private val authentication: SdkAuthentication? = null,
+) {
+  private val executor: SdkExecutor =
+      SdkExecutor(transport, authentication = this@ChoiceClient.authentication)
+
+  /**
+   * Executes 'getChoice'.
+   *
+   * @param options Execution options.
+   * @return Buffered response body.
+   * @throws SdkApiException When the service returns a non-success response.
+   * @throws SdkSerializationException When a request or response cannot be serialized.
+   * @throws SdkTransportException When transport execution fails.
+   */
+  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit,
+    Choice>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), listOf(ChoiceCodecs
+      .GETCHOICE_RESPONSE_CODEC_ID), ChoiceCodecs.getChoiceRequestCodecRegistry, ChoiceCodecs
+        .getChoiceResponseCodecRegistry, options)
+
+  /**
+   * Executes 'getChoice'.
+   *
+   * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
+   * into success values.
+   */
+  public suspend fun getChoiceWithResponse(options: CallOptions =
+    CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit,
+      GetChoiceResponse>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), ChoiceCodecs
+        .getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
+
+  /**
+   * Typed response alternatives for `getChoice`. Non-success alternatives are not converted into success values.
+   */
+  public sealed interface GetChoiceResponse {
+    public class SuccessJson(
+      public val json: Choice,
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : GetChoiceResponse
+
+    public class Unknown(
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : GetChoiceResponse
+  }
+
+  private object GetChoiceResponseDecoder : SdkResponseAlternativeDecoder<GetChoiceResponse> {
+    public override suspend fun decode(
+      alternative: ResponseAlternative,
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+      mediaType: String?,
+    ): GetChoiceResponse = decodeWithBody(alternative, statusCode, headers, body, mediaType).value
+
+    public override suspend fun decodeWithBody(
+      alternative: ResponseAlternative,
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+      mediaType: String?,
+    ): SdkResponseDecodeResult<GetChoiceResponse> = when {
+      alternative.id == "getChoice.response.alternative0" -> SdkResponseDecodeResult(
+        value = GetChoiceResponse.SuccessJson(
+          json = ChoiceCodecs.getChoiceResponseCodecAlternative0Registry
+            .select(listOf("getChoice.response.alternative0"), mediaType ?: "application/json").decode(body,
+              mediaType ?: "application/json"),
+          statusCode = statusCode,
+          headers = headers,
+        ),
+        transferBody = false,
+      )
+      else -> error("No generated response decoder matched the selected response alternative.")
+    }
+
+    public override suspend fun decodeUnknown(
+      statusCode: Int,
+      headers: List<SdkHeader>,
+      body: SdkByteStream,
+    ): GetChoiceResponse = GetChoiceResponse.Unknown(statusCode = statusCode, headers = headers)
+  }
+
+  public companion object {
+    public val getChoiceMetadata: OperationMetadata = OperationMetadata(
+          operationId = "getChoice",
+          method = "GET",
+          path = "/choice",
+          requestMediaTypes = emptyList(),
+          responseMediaTypes = listOf("application/json"),
+          successStatusCodes = setOf(200),
+          responseMode = SdkResponseMode.BUFFERED,
+          deadlines = SdkDeadlines(60_000, 60_000, null),
+          responseAlternatives = listOf(
+            ResponseAlternative(
+              selector = ResponseSelector.ExactStatus(code = 200),
+              mediaTypes = listOf("application/json"),
+              typeTag = "Choice",
+              mode = SdkResponseMode.BUFFERED,
+              id = "getChoice.response.alternative0",
+            ),
+          ),
+          security = emptyList(),
+          safety = OperationSafety(safe = true, idempotent = true),
+          idempotency = null,
+          retry = RetryDescriptor(
+            retryableStatusCodes = emptyList(),
+            retryConnectionErrors = true,
+            maxAttempts = 3,
+            backoff = BackoffHints(baseDelayMillis = 250, multiplier = 2.0, maxDelayMillis = 5_000),
+          ),
+          pagination = null,
+          streaming = null,
+        )
+  }
 }

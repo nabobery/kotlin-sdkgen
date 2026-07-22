@@ -99,122 +99,12 @@ public class InlineComponentsSchemasMessagesRequestPropertiesContextManagementPr
         clearAtLeast = raw["clear_at_least"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<AnthropicInputTokensClearAtLeast?>(element) },
         clearToolInputs = raw["clear_tool_inputs"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEdits878b025b?>(element) },
+          .decodeFromJsonElement<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEdits878b025b?>(element) },
         excludeTools = raw["exclude_tools"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<List<String>?>(element) },
         keep = raw["keep"]?.let { json.decodeFromJsonElement<AnthropicToolUsesKeep>(it) },
         trigger = raw["trigger"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEdits9c378f3f>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEdits9c378f3f>(it) },
       )
     }
 

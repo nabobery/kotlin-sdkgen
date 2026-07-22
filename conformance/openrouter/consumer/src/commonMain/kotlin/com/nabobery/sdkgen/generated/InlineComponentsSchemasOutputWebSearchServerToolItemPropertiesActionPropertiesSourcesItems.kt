@@ -69,63 +69,7 @@ public class InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActio
 
     override fun deserialize(decoder: Decoder): InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems")
+        .requireJsonDecoder("InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems " +
@@ -143,63 +87,7 @@ public class InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActio
     override fun serialize(encoder: Encoder,
       `value`: InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems")
+        .requireJsonEncoder("InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         put("type", json.encodeToJsonElement(value.type))

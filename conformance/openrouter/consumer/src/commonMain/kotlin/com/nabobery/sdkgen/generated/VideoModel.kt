@@ -406,62 +406,7 @@ public class VideoModel internal constructor(
       }
       val supportedAspectRatios = raw["supported_aspect_ratios"].let { element ->
         if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedAspectRatiosItems>?>(requireNotNull(element)) }
+          .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedAspectRatiosItems>?>(requireNotNull(element)) }
       if (!raw.containsKey("supported_durations")) {
         throw SerializationException("VideoModel is missing required property 'supported_durations'")
       }
@@ -471,185 +416,17 @@ public class VideoModel internal constructor(
         throw SerializationException("VideoModel is missing required property 'supported_frame_images'")
       }
       val supportedFrameImages = raw["supported_frame_images"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedFrameImagesItems>?>(requireNotNull(element)) }
+        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedFrameImagesItems>?>(requireNotNull(element)) }
       if (!raw.containsKey("supported_resolutions")) {
         throw SerializationException("VideoModel is missing required property 'supported_resolutions'")
       }
       val supportedResolutions = raw["supported_resolutions"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedResolutionsItems>?>(requireNotNull(element)) }
+        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedResolutionsItems>?>(requireNotNull(element)) }
       if (!raw.containsKey("supported_sizes")) {
         throw SerializationException("VideoModel is missing required property 'supported_sizes'")
       }
       val supportedSizes = raw["supported_sizes"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedSizesItems>?>(requireNotNull(element)) }
+        .decodeFromJsonElement<List<InlineComponentsSchemasVideoModelPropertiesSupportedSizesItems>?>(requireNotNull(element)) }
       return VideoModel(
         allowedPassthroughParameters = allowedPassthroughParameters,
         canonicalSlug = canonicalSlug,

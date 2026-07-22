@@ -64,8 +64,7 @@ class KotlinPoetEmitterGoldenTest {
                 .joinToString(separator = "\n") { file ->
                     "--- ${file.path} ---\n${file.bytes.decodeToString()}"
                 }
-        val golden =
-            Path.of(requireNotNull(javaClass.getResource("/goldens/standard-composition-projection.txt")).toURI())
+        val golden = Path.of(requireNotNull(System.getProperty("engine.compositionProjectionGolden")))
         if (System.getenv("UPDATE_COMPOSITION_GOLDEN") == "1") golden.writeText(output)
         assertEquals(golden.readText(), output)
 
@@ -76,6 +75,9 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(beta.contains("public data class BetaView"))
         assertTrue(variant.contains("public class Cat"))
         assertTrue(variant.contains("public class Dog"))
+        listOf(alpha, beta, variant).forEach { source ->
+            assertTrue(source.contains("Source: sdkgen://source/composition-golden.yaml#"), source)
+        }
     }
 
     @Test
@@ -151,6 +153,11 @@ class KotlinPoetEmitterGoldenTest {
         assertFalse(responses.contains("public suspend fun jsonFirst("))
         assertFalse(responses.contains("public suspend fun binaryFirst("))
         assertTrue(responses.contains("public suspend fun compatibleMedia("))
+        assertTrue(responses.contains("public sealed interface CompatibleMediaError"))
+        assertTrue(responses.contains("public class CompatibleMediaApiException("))
+        assertTrue(responses.contains("@throws CompatibleMediaApiException"))
+        assertTrue(responses.contains("public class Http400Json("))
+        assertTrue(responses.contains("public class Http422NoContent("))
     }
 
     @Test
@@ -211,7 +218,59 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(source.contains("@throws SdkApiException"))
         assertTrue(source.contains("@throws SdkSerializationException"))
         assertTrue(source.contains("@throws SdkTransportException"))
+        assertTrue(source.contains("public val metadata: OperationMetadata"))
         assertFalse(source.contains("streaming support", ignoreCase = true))
+    }
+
+    @Test
+    fun partitionedSingleOperationClientPreservesOperationDerivedMetadataName() {
+        val packageName = "com.example.generated.widgets"
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:createWidget",
+                order = 0,
+                operationId = "createWidget",
+                method = "POST",
+                path = "/widgets",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = emptyList(),
+                successStatusCodes = setOf(204),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = KotlinTypeRef("kotlin", "Unit"),
+                requestCodecPropertyName = "createWidgetRequestCodec",
+                responseCodecPropertyName = "createWidgetResponseCodec",
+                requestCodecConstantName = "CREATE_WIDGET_REQUEST_CODEC_ID",
+                responseCodecConstantName = "CREATE_WIDGET_RESPONSE_CODEC_ID",
+                requestCodecId = "createWidget.request",
+                responseCodecId = "createWidget.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(10_000, 5_000, null),
+                methodKdoc = "Creates one widget.",
+            )
+        val declaration =
+            OperationClientDeclaration(
+                symbolId = "client:$packageName.WidgetClient",
+                order = 0,
+                packageName = packageName,
+                fileName = "WidgetClient",
+                resolvedName = "WidgetClient",
+                kdoc = "Partitioned widget client.",
+                codecsObjectName = "WidgetCodecs",
+                operations = listOf(operation),
+                preserveOperationMetadataNames = true,
+            )
+        val source =
+            KotlinPoetEmitter("com.example.generated")
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(KotlinFileDeclaration(packageName, "WidgetClient", listOf(declaration))),
+                    ),
+                ).single()
+                .bytes
+                .decodeToString()
+
+        assertTrue(source.contains("public val createWidgetMetadata: OperationMetadata"))
+        assertFalse(source.contains("public val metadata: OperationMetadata"))
     }
 
     @Test

@@ -1,0 +1,71 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * The default value for a squash merge commit message:
+ *
+ * - `PR_BODY` - default to the pull request's body.
+ * - `COMMIT_MESSAGES` - default to the branch's commit messages.
+ * - `BLANK` - default to a blank commit message.
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/paths/~1repos~1{owner}~1{repo}/patch/requestBody/content/application~1json/schema/prope
+ * rties/squash_merge_commit_message
+ */
+@Serializable(with = InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2.Serializer::class)
+public sealed class InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2 {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `PR_BODY`.
+   */
+  public data object PrBody : InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2() {
+    public override val `value`: String = "PR_BODY"
+  }
+
+  /**
+   * Documented value. Wire value: `COMMIT_MESSAGES`.
+   */
+  public data object CommitMessages : InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2() {
+    public override val `value`: String = "COMMIT_MESSAGES"
+  }
+
+  /**
+   * Documented value. Wire value: `BLANK`.
+   */
+  public data object Blank : InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2() {
+    public override val `value`: String = "BLANK"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2 = when (value) {
+      PrBody.value -> PrBody
+      CommitMessages.value -> CommitMessages
+      Blank.value -> Blank
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2 = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineReposPatchRequestJsonSquashMergeCommitMessageX921e72c2) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

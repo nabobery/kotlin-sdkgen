@@ -144,63 +144,7 @@ public class WorkspaceBudget(
         throw SerializationException("WorkspaceBudget is missing required property 'reset_interval'")
       }
       val resetInterval = raw["reset_interval"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasWorkspaceBudgetPropertiesResetInterval?>(requireNotNull(element)) }
+        .decodeFromJsonElement<InlineComponentsSchemasWorkspaceBudgetPropertiesResetInterval?>(requireNotNull(element)) }
       return WorkspaceBudget(
         createdAt = createdAt,
         id = id,

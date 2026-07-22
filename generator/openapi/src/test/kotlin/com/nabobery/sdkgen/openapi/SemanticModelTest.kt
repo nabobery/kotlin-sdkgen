@@ -40,7 +40,7 @@ class SemanticModelTest {
     private val adapter = SemanticAdapter()
 
     @Test
-    fun `all sixteen stress fixtures adapt into deterministic snapshots`() {
+    fun `all seventeen stress fixtures adapt into deterministic snapshots`() {
         ExperimentSupport.snapshotRoot.createDirectories()
         ExperimentSupport.stressFixtures.forEach { fixture ->
             val first = adapter.adapt(fixture)
@@ -53,7 +53,9 @@ class SemanticModelTest {
             assertEquals(0, first.metrics.silentOperationOmissions, fixture.name)
             assertEquals(firstSnapshot, secondSnapshot, "snapshot changed across two adaptations for ${fixture.name}")
 
-            if (System.getenv("UPDATE_SNAPSHOTS") == "1") {
+            val snapshotUpdateFilter = System.getenv("SNAPSHOT_FIXTURE")
+            val updatesThisFixture = snapshotUpdateFilter == null || snapshotUpdateFilter == fixture.name
+            if (System.getenv("UPDATE_SNAPSHOTS") == "1" && updatesThisFixture) {
                 snapshotPath.writeText(firstSnapshot)
             } else {
                 assertTrue(snapshotPath.exists(), "missing snapshot $snapshotPath")
@@ -301,6 +303,59 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `headerNextUrl pagination adapts to typed metadata without cursor fields`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Header pagination, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: headerNextUrl
+                        responseItems: /items
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+        val operation = document.operations.single()
+
+        assertEquals(
+            PaginationModel.HeaderNextUrl(responseItems = JsonPointer("/items")),
+            operation.pagination,
+        )
+    }
+
+    @Test
+    fun `headerNextUrl pagination rejects cursor-only fields`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Header pagination, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: headerNextUrl
+                        responseItems: /items
+                        requestCursor: cursor
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+
+        val diagnostic = result.document.diagnostics.single { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION }
+        assertEquals(
+            "/paths/~1items/get/x-sdkgen-pagination/requestCursor",
+            diagnostic.source.jsonPointer,
+        )
+    }
+
+    @Test
     fun `overlay canonical extensions adapt end to end`() {
         val source =
             """
@@ -530,6 +585,66 @@ class SemanticModelTest {
         assertEquals(Nullability.NON_NULL, schema.nullability)
         assertTrue(schema.nullabilityOrigins.isEmpty())
         assertTrue(result.document.diagnostics.any { it.code == DiagnosticCode.ONE_OF_NULL_AMBIGUOUS })
+    }
+
+    @Test
+    fun `operation tags preserve declared order`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Tags, version: "1" }
+                paths:
+                  /tagged:
+                    get:
+                      operationId: tagged
+                      tags: [first tag, second-tag, ThirdTag]
+                      responses: { '204': { description: ok } }
+                """.trimIndent(),
+            )
+
+        assertEquals(listOf("first tag", "second-tag", "ThirdTag"), document.operations.single().tags)
+    }
+
+    @Test
+    fun `form Encoding Object semantics and source remain explicit`() {
+        val form =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Form, version: "1" }
+                paths:
+                  /forms:
+                    post:
+                      operationId: createForm
+                      requestBody:
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema:
+                              type: object
+                              properties:
+                                details:
+                                  type: object
+                                  properties:
+                                    note: { type: string }
+                            encoding:
+                              details:
+                                style: deepObject
+                                explode: true
+                                allowReserved: false
+                      responses: { '204': { description: ok } }
+                """.trimIndent(),
+            ).operations.single().requestBody!!.content.single()
+        val encoding = form.encoding.single()
+
+        assertEquals("details", encoding.partName)
+        assertEquals("deepObject", encoding.style)
+        assertEquals(true, encoding.explode)
+        assertEquals(false, encoding.allowReserved)
+        assertEquals(
+            "/paths/~1forms/post/requestBody/content/application~1x-www-form-urlencoded/encoding/details",
+            encoding.source.jsonPointer,
+        )
     }
 
     private fun adaptStress(index: Int): SemanticDocument =

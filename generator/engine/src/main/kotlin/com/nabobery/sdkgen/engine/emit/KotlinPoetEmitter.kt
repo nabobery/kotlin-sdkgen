@@ -5,6 +5,7 @@ import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
 
 internal fun interface KotlinEmitter {
     fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile>
@@ -25,6 +26,7 @@ internal class KotlinPoetEmitter(
                             declaration is ModelDeclaration ||
                                 declaration is OpenEnumDeclaration ||
                                 declaration is OneOfDeclaration ||
+                                declaration is PrimitiveOneOfDeclaration ||
                                 declaration is AnyOfDeclaration
                         }.map { declaration -> "${declaration.packageName}.${declaration.resolvedName}" }
                 }.toSet()

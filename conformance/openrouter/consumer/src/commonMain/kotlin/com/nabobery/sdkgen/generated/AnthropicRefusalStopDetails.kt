@@ -90,63 +90,7 @@ public class AnthropicRefusalStopDetails(
         throw SerializationException("AnthropicRefusalStopDetails is missing required property 'category'")
       }
       val category = raw["category"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicRefusalStopDetailsPropertiesCategory?>(requireNotNull(element)) }
+        .decodeFromJsonElement<InlineComponentsSchemasAnthropicRefusalStopDetailsPropertiesCategory?>(requireNotNull(element)) }
       if (!raw.containsKey("explanation")) {
         throw SerializationException("AnthropicRefusalStopDetails is missing required property 'explanation'")
       }

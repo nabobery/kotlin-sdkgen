@@ -198,65 +198,7 @@ private fun inspectInlineComponentsSchemasAgentMessageItemPropertiesContentItems
   val encryptedContent = encryptedContentResult?.getOrNull()
   val encryptedContentDecoded = encryptedContentResult?.isSuccess == true
   val typeState1Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAgentMessageItemPropertiesContentItemsOneOf2PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAgentMessageItemPropertiesContentItemsOneOf2PropertiesType>(element) } }
   val typeState1 = typeState1Result?.getOrNull()
   val typeState1Decoded = typeState1Result?.isSuccess == true
   return InlineComponentsSchemasAgentMessageItemPropertiesContentItemsInspection(

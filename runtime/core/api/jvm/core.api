@@ -239,6 +239,17 @@ public final class com/nabobery/sdkgen/runtime/PaginationDescriptor$CursorToken 
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/nabobery/sdkgen/runtime/PaginationDescriptor$HeaderNextUrl : com/nabobery/sdkgen/runtime/PaginationDescriptor {
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-HEHU25Q ()Ljava/lang/String;
+	public final fun copy-XauDjvQ (Ljava/lang/String;)Lcom/nabobery/sdkgen/runtime/PaginationDescriptor$HeaderNextUrl;
+	public static synthetic fun copy-XauDjvQ$default (Lcom/nabobery/sdkgen/runtime/PaginationDescriptor$HeaderNextUrl;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/PaginationDescriptor$HeaderNextUrl;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getResponseItemsPath-HEHU25Q ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/nabobery/sdkgen/runtime/PaginationDescriptor$NextToken : com/nabobery/sdkgen/runtime/PaginationDescriptor {
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -354,6 +365,7 @@ public final class com/nabobery/sdkgen/runtime/RedirectCapability : java/lang/En
 }
 
 public final class com/nabobery/sdkgen/runtime/RequestParametersKt {
+	public static final fun buildRequestUri (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 	public static final fun sdkUriEncode (Ljava/lang/String;)Ljava/lang/String;
 }
 
@@ -425,7 +437,7 @@ public final class com/nabobery/sdkgen/runtime/RetryDescriptor {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class com/nabobery/sdkgen/runtime/SdkApiException : com/nabobery/sdkgen/runtime/SdkException {
+public class com/nabobery/sdkgen/runtime/SdkApiException : com/nabobery/sdkgen/runtime/SdkException {
 	public fun <init> (ILjava/util/List;Ljava/lang/String;)V
 	public final fun getHeaders ()Ljava/util/List;
 	public final fun getStatusCode ()I
@@ -532,8 +544,14 @@ public final class com/nabobery/sdkgen/runtime/SdkExecutor {
 	public static synthetic fun executeBodyless$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun executeRaw (Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun executeRaw$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun executeRawWithTypedErrors (Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lkotlin/jvm/functions/Function3;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun executeRawWithTypedErrors$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lkotlin/jvm/functions/Function3;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun executeWithHeaders (Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Ljava/util/List;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun executeWithHeaders$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Ljava/util/List;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public final fun executeWithResponse (Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun executeWithResponse$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun executeWithTypedErrors (Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun executeWithTypedErrors$default (Lcom/nabobery/sdkgen/runtime/SdkExecutor;Lcom/nabobery/sdkgen/runtime/SdkExecutionRequest;Lcom/nabobery/sdkgen/runtime/MediaTypeCodecRegistry;Lcom/nabobery/sdkgen/runtime/SdkResponseAlternativeDecoder;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lcom/nabobery/sdkgen/runtime/CallOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class com/nabobery/sdkgen/runtime/SdkExecutor$Companion {
@@ -547,6 +565,17 @@ public final class com/nabobery/sdkgen/runtime/SdkHeader {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/runtime/SdkHeaderedResponse {
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;)V
+	public final fun copy (Ljava/lang/Object;Ljava/util/List;)Lcom/nabobery/sdkgen/runtime/SdkHeaderedResponse;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/runtime/SdkHeaderedResponse;Ljava/lang/Object;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/SdkHeaderedResponse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHeaders ()Ljava/util/List;
+	public final fun getValue ()Ljava/lang/Object;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -988,6 +1017,13 @@ public final class com/nabobery/sdkgen/runtime/bodies/BinaryBodiesKt {
 	public static synthetic fun binaryUpload$default (Lcom/nabobery/sdkgen/runtime/SdkByteStream;Ljava/lang/Long;Ljava/lang/String;Lcom/nabobery/sdkgen/runtime/SdkBodyOwnership;ILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/SdkRequestBody$OneShot;
 }
 
+public final class com/nabobery/sdkgen/runtime/bodies/FormUrlEncodedBody {
+	public fun <init> ()V
+	public final fun add (Ljava/lang/String;D)Lcom/nabobery/sdkgen/runtime/bodies/FormUrlEncodedBody;
+	public final fun add (Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/runtime/bodies/FormUrlEncodedBody;
+	public final fun build ()Lcom/nabobery/sdkgen/runtime/SdkRequestBody$Bytes;
+}
+
 public final class com/nabobery/sdkgen/runtime/bodies/MultipartBody {
 	public fun <init> ()V
 	public fun <init> (Lcom/nabobery/sdkgen/runtime/bodies/MultipartCompatibility;Lkotlin/jvm/functions/Function0;J)V
@@ -1166,6 +1202,10 @@ public final class com/nabobery/sdkgen/runtime/observation/SdkOutcomeKind : java
 	public static fun values ()[Lcom/nabobery/sdkgen/runtime/observation/SdkOutcomeKind;
 }
 
+public final class com/nabobery/sdkgen/runtime/pagination/NextUrlResolutionKt {
+	public static final fun splitResolvedUrl (Ljava/lang/String;)Lkotlin/Pair;
+}
+
 public final class com/nabobery/sdkgen/runtime/pagination/Page {
 	public fun <init> (Ljava/lang/Object;Ljava/util/List;IZLjava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/Object;Ljava/util/List;IZLjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1183,15 +1223,25 @@ public final class com/nabobery/sdkgen/runtime/pagination/Page {
 }
 
 public final class com/nabobery/sdkgen/runtime/pagination/PageEnvelope {
+	public fun <init> (Ljava/lang/Object;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)V
 	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun copy (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;)Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/List;)V
+	public fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/List;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun copy (Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/List;Ljava/lang/String;)Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;Ljava/lang/Object;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Integer;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/pagination/PageEnvelope;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getItems ()Ljava/util/List;
 	public final fun getNextCursor ()Ljava/lang/String;
 	public final fun getNextToken ()Ljava/lang/String;
 	public final fun getNextUrl ()Ljava/lang/String;
+	public final fun getRequestUri ()Ljava/lang/String;
+	public final fun getResponseHeaders ()Ljava/util/List;
 	public final fun getTotalCount ()Ljava/lang/Long;
 	public final fun getTotalPages ()Ljava/lang/Integer;
 	public final fun getValue ()Ljava/lang/Object;

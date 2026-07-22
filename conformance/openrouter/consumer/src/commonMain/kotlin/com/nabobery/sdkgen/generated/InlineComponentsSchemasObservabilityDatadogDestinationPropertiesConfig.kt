@@ -24,7 +24,7 @@ import kotlinx.serialization.json.put
 @Serializable(with = InlineComponentsSchemasObservabilityDatadogDestinationPropertiesConfig.Serializer::class)
 public class InlineComponentsSchemasObservabilityDatadogDestinationPropertiesConfig(
   /**
-   * Datadog API key must have LLM Observability permissions.
+   * Datadog API key must have LLM Observability permissions. Create at:
    */
   public val apiKey: String,
   /**

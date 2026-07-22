@@ -62,125 +62,13 @@ public class InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPro
 
     override fun deserialize(decoder: Decoder): InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items")
+        .requireJsonDecoder("InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items " +
           "must be a JSON object")
       val content = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAb431cc20>>(raw, "content")
+        .decodeRequired<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAb431cc20>>(raw, "content")
       return InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items(
         content = content,
       )
@@ -189,63 +77,7 @@ public class InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPro
     override fun serialize(encoder: Encoder,
       `value`: InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items")
+        .requireJsonEncoder("InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         put("content", json.encodeToJsonElement(value.content))

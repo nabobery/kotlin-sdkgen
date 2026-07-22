@@ -76,63 +76,7 @@ public class InlineComponentsSchemasFusionAnalysisResultPropertiesContradictions
         throw SerializationException("InlineComponentsSchemasFusionAnalysisResultPropertiesContradictionsItems must " +
           "be a JSON object")
       val stances = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlineComponentsSchemasFusionAnalysisResultPropertiesContradictionsItemsPropertifbe72ae4>>(raw, "stances")
+        .decodeRequired<List<InlineComponentsSchemasFusionAnalysisResultPropertiesContradictionsItemsPropertifbe72ae4>>(raw, "stances")
       val topic = json.decodeRequired<String>(raw, "topic")
       return InlineComponentsSchemasFusionAnalysisResultPropertiesContradictionsItems(
         stances = stances,

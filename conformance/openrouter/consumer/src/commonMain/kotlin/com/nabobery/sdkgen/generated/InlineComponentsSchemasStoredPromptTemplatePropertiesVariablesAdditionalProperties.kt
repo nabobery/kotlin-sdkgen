@@ -83,63 +83,7 @@ public class InlineComponentsSchemasStoredPromptTemplatePropertiesVariablesAddit
         .matchesInputText) add(InlineComponentsSchemasStoredPromptTemplatePropertiesVariablesAdditionalPropertiesBranch
           .InputText)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInputImage) add(InlineComponentsSchemasStoredPromptTemplatePropertiesVariablesAdditionalPropertiesBranch.InputImage)
+        .matchesInputImage) add(InlineComponentsSchemasStoredPromptTemplatePropertiesVariablesAdditionalPropertiesBranch.InputImage)
       if (inspection
         .matchesInputFile) add(InlineComponentsSchemasStoredPromptTemplatePropertiesVariablesAdditionalPropertiesBranch
           .InputFile)

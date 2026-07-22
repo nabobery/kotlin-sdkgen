@@ -2,6 +2,7 @@ package com.nabobery.sdkgen.runtime.pagination
 
 import com.nabobery.sdkgen.runtime.PaginationDescriptor
 import com.nabobery.sdkgen.runtime.PropertyPath
+import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkPaginationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -147,6 +148,81 @@ internal class PaginationTransitionTest {
         assertFailsWith<SdkPaginationException> {
             computeTransition(descriptor, envelope, state, null, identityResolve)
         }
+    }
+
+    // --- HeaderNextUrl ---
+
+    @Test
+    fun headerNextUrlNoLinkHeaderTerminates() {
+        val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+        val envelope = PageEnvelope<Unit, String>(Unit, responseHeaders = emptyList())
+
+        val (outcome, _) = computeTransition(descriptor, envelope, TransitionState(), null, identityResolve)
+
+        assertEquals(PageOutcome.Terminate, outcome)
+    }
+
+    @Test
+    fun headerNextUrlNoNextRelTerminates() {
+        val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+        val envelope =
+            PageEnvelope<Unit, String>(
+                Unit,
+                responseHeaders = listOf(SdkHeader("Link", """<https://example.test/prev>; rel="prev"""")),
+            )
+
+        val (outcome, _) = computeTransition(descriptor, envelope, TransitionState(), null, identityResolve)
+
+        assertEquals(PageOutcome.Terminate, outcome)
+    }
+
+    @Test
+    fun headerNextUrlPresentResolvesAndContinues() {
+        val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+        val envelope =
+            PageEnvelope<Unit, String>(
+                Unit,
+                responseHeaders = listOf(SdkHeader("Link", """</page/2>; rel="next"""")),
+            )
+        val resolve: (String) -> String = { "https://example.test$it" }
+
+        val (outcome, state) = computeTransition(descriptor, envelope, TransitionState(), null, resolve)
+
+        assertEquals(PageOutcome.Continue(PageRequest.NextUrl("https://example.test/page/2")), outcome)
+        assertTrue("https://example.test/page/2" in state.seenContinuations)
+    }
+
+    @Test
+    fun headerNextUrlRepeatedResolvedUrlIsALoop() {
+        val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+        val envelope =
+            PageEnvelope<Unit, String>(
+                Unit,
+                responseHeaders = listOf(SdkHeader("Link", """<https://example.test/page/2>; rel="next"""")),
+            )
+        val state = TransitionState(seenContinuations = setOf("https://example.test/page/2"))
+
+        assertFailsWith<SdkPaginationException> {
+            computeTransition(descriptor, envelope, state, null, identityResolve)
+        }
+    }
+
+    @Test
+    fun headerNextUrlReadsAcrossMultipleLinkHeaders() {
+        val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+        val envelope =
+            PageEnvelope<Unit, String>(
+                Unit,
+                responseHeaders =
+                    listOf(
+                        SdkHeader("Link", """<https://example.test/prev>; rel="prev""""),
+                        SdkHeader("Link", """<https://example.test/page/3>; rel="next""""),
+                    ),
+            )
+
+        val (outcome, _) = computeTransition(descriptor, envelope, TransitionState(), null, identityResolve)
+
+        assertEquals(PageOutcome.Continue(PageRequest.NextUrl("https://example.test/page/3")), outcome)
     }
 
     // --- OffsetLimit ---

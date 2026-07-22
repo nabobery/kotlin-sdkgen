@@ -1,6 +1,6 @@
 package com.nabobery.sdkgen.generated
 
-import com.nabobery.sdkgen.runtime.SdkApiException
+import com.nabobery.sdkgen.generated.chat.ChatClient
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkSerializationException
@@ -19,6 +19,7 @@ import kotlin.coroutines.startCoroutine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 
 class OpenRouterRuntimeE2eTest {
@@ -45,28 +46,41 @@ class OpenRouterRuntimeE2eTest {
                     successTransport,
                     "https://openrouter.test",
                     authentication = SdkAuthentication { it },
-                ).sendChatCompletionRequest(request())
+                ).chat.sendChatCompletionRequest(request())
             }
         assertEquals("chat-1", success.id)
         assertEquals(
-            OpenRouterClient.sendChatCompletionRequestMetadata.operationId,
+            ChatClient.sendChatCompletionRequestMetadata.operationId,
             successTransport.capturedRequests.single().operationId,
         )
         successBody.assertClosedNormally()
 
-        val apiBody = FakeByteStream(listOf("{\"error\":\"denied\"}".encodeToByteArray()))
-        val apiTransport = FakeTransport().enqueueResponse(400, listOf(SdkHeader("X-Request-Id", "req-1")), apiBody)
+        val apiBody =
+            FakeByteStream(
+                listOf(
+                    "{\"error\":{\"code\":40001,\"message\":\"invalid model\"}}".encodeToByteArray(),
+                ),
+            )
+        val apiTransport =
+            FakeTransport().enqueueResponse(
+                400,
+                listOf(SdkHeader("Content-Type", "application/json"), SdkHeader("X-Request-Id", "req-1")),
+                apiBody,
+            )
         val apiFailure =
-            assertFailsWith<SdkApiException> {
+            assertFailsWith<ChatClient.SendChatCompletionRequestApiException> {
                 runSuspend {
                     OpenRouterClient(
                         apiTransport,
                         "https://openrouter.test",
                         authentication = SdkAuthentication { it },
-                    ).sendChatCompletionRequest(request())
+                    ).chat.sendChatCompletionRequest(request())
                 }
             }
+        val typedError = assertIs<ChatClient.SendChatCompletionRequestResponse.Http400Json>(apiFailure.error)
         assertEquals(400, apiFailure.statusCode)
+        assertEquals(40001, typedError.json.error.code)
+        assertEquals("invalid model", typedError.json.error.message)
         apiBody.assertClosedWith(apiFailure)
 
         val transportFailure = IllegalStateException("offline")
@@ -77,7 +91,7 @@ class OpenRouterRuntimeE2eTest {
                         FakeTransport().enqueueFailure(transportFailure),
                         "https://openrouter.test",
                         authentication = SdkAuthentication { it },
-                    ).sendChatCompletionRequest(request())
+                    ).chat.sendChatCompletionRequest(request())
                 }
             }
         assertSame(transportFailure, typedTransportFailure.cause)
@@ -92,7 +106,7 @@ class OpenRouterRuntimeE2eTest {
                         cancellationTransport,
                         "https://openrouter.test",
                         authentication = SdkAuthentication { it },
-                    ).sendChatCompletionRequest(request())
+                    ).chat.sendChatCompletionRequest(request())
                 }
             }
         assertSame(cancellation, propagated)
@@ -107,7 +121,7 @@ class OpenRouterRuntimeE2eTest {
                         malformedTransport,
                         "https://openrouter.test",
                         authentication = SdkAuthentication { it },
-                    ).sendChatCompletionRequest(request())
+                    ).chat.sendChatCompletionRequest(request())
                 }
             }
         malformedBody.assertClosedWith(serializationFailure)

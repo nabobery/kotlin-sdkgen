@@ -3,6 +3,7 @@ package com.nabobery.sdkgen.runtime.pagination
 import com.nabobery.sdkgen.runtime.PaginationBounds
 import com.nabobery.sdkgen.runtime.PaginationDescriptor
 import com.nabobery.sdkgen.runtime.PropertyPath
+import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkPaginationException
 import com.nabobery.sdkgen.runtime.SdkTimeoutException
 import com.nabobery.sdkgen.runtime.TimeoutPhase
@@ -469,6 +470,190 @@ internal class PaginationEngineFlowTest {
                 listOf(PageRequest.First, PageRequest.NextUrl("https://cdn.example.test/things?cursor=2")),
                 fetcher.requests,
             )
+        }
+
+    // --- HeaderNextUrl ---
+
+    @Test
+    fun headerNextUrlResolvesRelativeTargetAgainstEachPagesOwnRequestUri() =
+        runTestSuspend {
+            // The second page's Link header is relative and must resolve against the *second* page's own
+            // requestUri, not the operation's static baseUri (which points at a different path entirely) —
+            // this is the behavior that distinguishes HeaderNextUrl from body-path NextUrl.
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine =
+                PaginationEngine<String, Char>(
+                    descriptor,
+                    trustedHosts = trustedHosts,
+                )
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/repos/o/r/issues?page=1",
+                            responseHeaders = listOf(SdkHeader("Link", """</repos/o/r/issues?page=2>; rel="next"""")),
+                        ),
+                    ).enqueue(
+                        PageEnvelope(
+                            "p2",
+                            items = listOf('b'),
+                            requestUri = "https://api.example.test/repos/o/r/issues?page=2",
+                            responseHeaders = emptyList(),
+                        ),
+                    )
+
+            val pages = engine.pages(fetcher.fetch).toList()
+
+            assertEquals(listOf("p1", "p2"), pages.map { it.value })
+            assertEquals(
+                listOf(
+                    PageRequest.First,
+                    PageRequest.NextUrl("https://api.example.test:443/repos/o/r/issues?page=2"),
+                ),
+                fetcher.requests,
+            )
+        }
+
+    @Test
+    fun headerNextUrlAbsoluteTargetPassesThroughUnchanged() =
+        runTestSuspend {
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine = PaginationEngine<String, Char>(descriptor, trustedHosts = trustedHosts)
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/issues",
+                            responseHeaders =
+                                listOf(SdkHeader("Link", """<https://api.example.test/issues?page=2>; rel="next"""")),
+                        ),
+                    ).enqueue(
+                        PageEnvelope("p2", items = listOf('b'), requestUri = "https://api.example.test/issues?page=2"),
+                    )
+
+            val pages = engine.pages(fetcher.fetch).toList()
+
+            assertEquals(listOf("p1", "p2"), pages.map { it.value })
+        }
+
+    @Test
+    fun headerNextUrlUntrustedOriginIsRefused() =
+        runTestSuspend {
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine =
+                PaginationEngine<String, Char>(
+                    descriptor,
+                    trustedHosts = trustedHosts,
+                    operationId = "listIssues",
+                )
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/issues",
+                            responseHeaders = listOf(SdkHeader("Link", """<https://evil.test/steal>; rel="next"""")),
+                        ),
+                    )
+
+            val failure = assertFailsWith<SdkPaginationException> { engine.pages(fetcher.fetch).toList() }
+
+            assertTrue(requireNotNull(failure.message).contains("https://evil.test:443"))
+            assertEquals("listIssues", failure.operationId)
+            assertEquals(1, fetcher.requests.size)
+        }
+
+    @Test
+    fun headerNextUrlRepeatedResolvedTargetIsALoop() =
+        runTestSuspend {
+            // Page 1 points at page 2, and page 2's Link header points right back at page 2 itself (its own
+            // requestUri) — the second transition's resolved target was already used to fetch page 2, so it is a
+            // loop.
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine = PaginationEngine<String, Char>(descriptor, trustedHosts = trustedHosts)
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/issues?page=1",
+                            responseHeaders =
+                                listOf(SdkHeader("Link", """<https://api.example.test/issues?page=2>; rel="next"""")),
+                        ),
+                    ).enqueue(
+                        PageEnvelope(
+                            "p2",
+                            items = listOf('b'),
+                            requestUri = "https://api.example.test/issues?page=2",
+                            responseHeaders =
+                                listOf(SdkHeader("Link", """<https://api.example.test/issues?page=2>; rel="next"""")),
+                        ),
+                    )
+
+            assertFailsWith<SdkPaginationException> { engine.pages(fetcher.fetch).toList() }
+            Unit
+        }
+
+    @Test
+    fun firstPageForHeaderNextUrlResolvesAndTrustChecksTheLinkTarget() =
+        runTestSuspend {
+            // Unlike NextUrl, a HeaderNextUrl target is untrusted transport-layer input the caller has no other
+            // way to validate before acting on it, and resolving/trust-checking it costs no extra fetch — so
+            // firstPage() surfaces the same resolved, trusted URL pages()/items() would use to continue.
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine = PaginationEngine<String, Char>(descriptor, trustedHosts = trustedHosts)
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/issues",
+                            responseHeaders =
+                                listOf(SdkHeader("Link", """</issues?page=2>; rel="next"""")),
+                        ),
+                    )
+
+            val page = engine.firstPage(fetcher.fetch)
+
+            assertEquals("p1", page.value)
+            assertTrue(page.hasNext)
+            assertEquals("https://api.example.test:443/issues?page=2", page.continuationUrl)
+        }
+
+    @Test
+    fun firstPageForHeaderNextUrlThrowsOnAnUntrustedLinkTarget() =
+        runTestSuspend {
+            val descriptor = PaginationDescriptor.HeaderNextUrl(itemsPath)
+            val trustedHosts = TrustedHosts.of("https://api.example.test")
+            val engine =
+                PaginationEngine<String, Char>(descriptor, trustedHosts = trustedHosts, operationId = "listIssues")
+            val fetcher =
+                ScriptedFetcher<String, Char>()
+                    .enqueue(
+                        PageEnvelope(
+                            "p1",
+                            items = listOf('a'),
+                            requestUri = "https://api.example.test/issues",
+                            responseHeaders = listOf(SdkHeader("Link", """<https://evil.test/steal>; rel="next"""")),
+                        ),
+                    )
+
+            val failure = assertFailsWith<SdkPaginationException> { engine.firstPage(fetcher.fetch) }
+
+            assertTrue(requireNotNull(failure.message).contains("https://evil.test:443"))
+            assertEquals("listIssues", failure.operationId)
         }
 
     // --- requestedPageSize / initialOffset / initialPage ---

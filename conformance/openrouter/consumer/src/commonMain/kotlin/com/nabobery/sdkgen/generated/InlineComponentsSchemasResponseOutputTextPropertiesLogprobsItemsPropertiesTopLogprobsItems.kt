@@ -81,63 +81,7 @@ public class InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPro
 
     override fun deserialize(decoder: Decoder): InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems")
+        .requireJsonDecoder("InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems " +
@@ -155,63 +99,7 @@ public class InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPro
     override fun serialize(encoder: Encoder,
       `value`: InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems")
+        .requireJsonEncoder("InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         put("bytes", json.encodeToJsonElement(value.bytes))

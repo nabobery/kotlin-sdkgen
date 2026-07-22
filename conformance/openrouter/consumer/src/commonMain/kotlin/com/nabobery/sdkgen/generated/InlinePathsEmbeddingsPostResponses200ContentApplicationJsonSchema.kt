@@ -116,63 +116,7 @@ public class InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchema(
         throw SerializationException("InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchema must be a " +
           "JSON object")
       val data = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesDataItems>>(raw, "data")
+        .decodeRequired<List<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesDataItems>>(raw, "data")
       val model = json.decodeRequired<String>(raw, "model")
       val objectValue = json
         .decodeRequired<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesObject>(raw,
@@ -183,62 +127,7 @@ public class InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchema(
         objectValue = objectValue,
         id = raw["id"]?.let { json.decodeFromJsonElement<String>(it) },
         usage = raw["usage"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesUsage>(it) },
+          .decodeFromJsonElement<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesUsage>(it) },
       )
     }
 

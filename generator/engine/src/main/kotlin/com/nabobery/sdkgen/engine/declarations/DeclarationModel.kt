@@ -17,6 +17,94 @@ internal data class KotlinDeclarationModel(
 
     fun shuffled(seed: Int): KotlinDeclarationModel {
         val random = Random(seed)
+
+        fun FormValueDeclaration.shuffled(): FormValueDeclaration =
+            when (this) {
+                is FormValueDeclaration.Scalar -> {
+                    this
+                }
+
+                is FormValueDeclaration.Array -> {
+                    FormValueDeclaration.Array(element.shuffled())
+                }
+
+                is FormValueDeclaration.Map -> {
+                    FormValueDeclaration.Map(value.shuffled(), valuesAreJsonElements)
+                }
+
+                is FormValueDeclaration.Union -> {
+                    FormValueDeclaration.Union(
+                        branches.map { branch -> branch.copy(value = branch.value.shuffled()) },
+                    )
+                }
+
+                is FormValueDeclaration.Object -> {
+                    FormValueDeclaration.Object(
+                        fields.shuffled(random).map { field ->
+                            FormFieldDeclaration(
+                                wireName = field.wireName,
+                                accessorName = field.accessorName,
+                                type = field.type,
+                                required = field.required,
+                                value = field.value.shuffled(),
+                            )
+                        },
+                    )
+                }
+            }
+
+        fun OperationRequestBodyAlternative.shuffled(): OperationRequestBodyAlternative =
+            OperationRequestBodyAlternative(
+                mediaType = mediaType,
+                type = type,
+                multipartParts = multipartParts,
+                formFields =
+                    formFields.shuffled(random).map { field ->
+                        FormFieldDeclaration(
+                            wireName = field.wireName,
+                            accessorName = field.accessorName,
+                            type = field.type,
+                            required = field.required,
+                            value = field.value.shuffled(),
+                        )
+                    },
+                required = required,
+            )
+
+        fun OperationDeclaration.shuffled(): OperationDeclaration =
+            OperationDeclaration(
+                symbolId = symbolId,
+                order = order,
+                operationId = operationId,
+                method = method,
+                path = path,
+                requestMediaTypes = requestMediaTypes,
+                responseMediaTypes = responseMediaTypes,
+                successStatusCodes = successStatusCodes,
+                requestType = requestType,
+                responseType = responseType,
+                requestCodecPropertyName = requestCodecPropertyName,
+                responseCodecPropertyName = responseCodecPropertyName,
+                requestCodecConstantName = requestCodecConstantName,
+                responseCodecConstantName = responseCodecConstantName,
+                requestCodecId = requestCodecId,
+                responseCodecId = responseCodecId,
+                responseMode = responseMode,
+                deadlines = deadlines,
+                methodKdoc = methodKdoc,
+                parameters = parameters,
+                requestBodyAlternatives = requestBodyAlternatives.map { alternative -> alternative.shuffled() },
+                responseAlternatives = responseAlternatives,
+                security = security,
+                safety = safety,
+                idempotency = idempotency,
+                retry = retry,
+                pagination = pagination,
+                streaming = streaming,
+                operationIdentity = operationIdentity,
+                requestBodyRequired = requestBodyRequired,
+            )
+
         return copy(
             files =
                 files.shuffled(random).map { file ->
@@ -36,6 +124,10 @@ internal data class KotlinDeclarationModel(
                                         declaration.copy(cases = declaration.cases.shuffled(random))
                                     }
 
+                                    is PrimitiveOneOfDeclaration -> {
+                                        declaration.copy(cases = declaration.cases.shuffled(random))
+                                    }
+
                                     is AnyOfDeclaration -> {
                                         declaration.copy(branches = declaration.branches.shuffled(random))
                                     }
@@ -45,7 +137,13 @@ internal data class KotlinDeclarationModel(
                                     }
 
                                     is OperationClientDeclaration -> {
-                                        declaration.copy(operations = declaration.operations.shuffled(random))
+                                        declaration.copy(
+                                            operations =
+                                                declaration.operations
+                                                    .shuffled(random)
+                                                    .map { operation -> operation.shuffled() },
+                                            subClients = declaration.subClients.shuffled(random),
+                                        )
                                     }
                                 }
                             },
@@ -107,6 +205,18 @@ internal data class KotlinFileDeclaration(
                                 )
                             }
 
+                            is PrimitiveOneOfDeclaration -> {
+                                declaration.copy(
+                                    cases =
+                                        declaration.cases.sortedWith(
+                                            compareBy(
+                                                PrimitiveOneOfCaseDeclaration::order,
+                                                PrimitiveOneOfCaseDeclaration::symbolId,
+                                            ),
+                                        ),
+                                )
+                            }
+
                             is AnyOfDeclaration -> {
                                 declaration.copy(
                                     branches =
@@ -125,6 +235,13 @@ internal data class KotlinFileDeclaration(
                                     operations =
                                         declaration.operations.sortedWith(
                                             compareBy(OperationDeclaration::order, OperationDeclaration::symbolId),
+                                        ),
+                                    subClients =
+                                        declaration.subClients.sortedWith(
+                                            compareBy(
+                                                OperationClientGroupRef::packageName,
+                                                OperationClientGroupRef::className,
+                                            ),
                                         ),
                                 )
                             }
@@ -213,7 +330,111 @@ internal data class OneOfCaseDeclaration(
     val resolvedName: String,
     val requiredFields: List<UnionFieldDeclaration>,
     val matchFields: List<UnionFieldDeclaration> = requiredFields,
+    val matchesEmptyObject: Boolean = false,
+    val predicate: JsonBranchPredicate? = null,
 )
+
+internal data class PrimitiveOneOfDeclaration(
+    override val symbolId: String,
+    override val order: Int,
+    override val packageName: String,
+    override val fileName: String,
+    override val resolvedName: String,
+    override val kdoc: String,
+    val cases: List<PrimitiveOneOfCaseDeclaration>,
+) : Declaration
+
+internal data class PrimitiveOneOfCaseDeclaration(
+    val symbolId: String,
+    val order: Int,
+    val resolvedName: String,
+    val type: KotlinTypeRef,
+    val jsonKind: PrimitiveOneOfJsonKind,
+    val predicate: JsonBranchPredicate = JsonBranchPredicate.Kind(jsonKind),
+)
+
+/**
+ * Exact raw-JSON membership test for a closed `oneOf` branch. It deliberately carries schema
+ * assertions rather than Kotlin types: branch selection must not depend on serializer leniency.
+ */
+internal sealed interface JsonBranchPredicate {
+    data object AnyValue : JsonBranchPredicate
+
+    /** A branch with unsupported assertions that must never be selected permissively. */
+    data object NeverMatch : JsonBranchPredicate
+
+    data class Kind(
+        val kind: PrimitiveOneOfJsonKind,
+    ) : JsonBranchPredicate
+
+    data class AllOf(
+        val predicates: List<JsonBranchPredicate>,
+    ) : JsonBranchPredicate
+
+    data class AnyOf(
+        val predicates: List<JsonBranchPredicate>,
+    ) : JsonBranchPredicate
+
+    data class Constant(
+        val value: JsonValue,
+    ) : JsonBranchPredicate
+
+    data class Enumeration(
+        val values: List<JsonValue>,
+    ) : JsonBranchPredicate
+
+    data class Numeric(
+        val minimum: String? = null,
+        val maximum: String? = null,
+        val exclusiveMinimum: String? = null,
+        val exclusiveMaximum: String? = null,
+        val multipleOf: String? = null,
+    ) : JsonBranchPredicate
+
+    data class StringShape(
+        val minLength: Int? = null,
+        val maxLength: Int? = null,
+        val format: JsonStringFormat? = null,
+    ) : JsonBranchPredicate
+
+    data class ArrayShape(
+        val minItems: Int? = null,
+        val maxItems: Int? = null,
+        val uniqueItems: Boolean = false,
+        val item: JsonBranchPredicate? = null,
+    ) : JsonBranchPredicate
+
+    data class ObjectShape(
+        val requiredNames: List<String>,
+        val properties: Map<String, JsonBranchPredicate>,
+        val additionalProperties: JsonAdditionalPropertiesPredicate,
+    ) : JsonBranchPredicate
+}
+
+internal enum class JsonStringFormat {
+    DATE,
+    DATE_TIME,
+}
+
+internal sealed interface JsonAdditionalPropertiesPredicate {
+    data object Open : JsonAdditionalPropertiesPredicate
+
+    data object Closed : JsonAdditionalPropertiesPredicate
+
+    data class Typed(
+        val predicate: JsonBranchPredicate,
+    ) : JsonAdditionalPropertiesPredicate
+}
+
+internal enum class PrimitiveOneOfJsonKind {
+    NULL,
+    STRING,
+    INTEGER,
+    NUMBER,
+    BOOLEAN,
+    ARRAY,
+    OBJECT,
+}
 
 internal data class AnyOfDeclaration(
     override val symbolId: String,
@@ -251,6 +472,7 @@ internal data class UnionFieldDeclaration(
     val wireName: String,
     val type: KotlinTypeRef,
     val expectedStringValue: String? = null,
+    val expectedStringValues: List<String> = listOfNotNull(expectedStringValue),
     val required: Boolean = true,
 )
 
@@ -269,6 +491,17 @@ internal enum class SupportKind {
     Serialization,
 }
 
+/**
+ * A reference from a root [OperationClientDeclaration] facade to one per-tag/resource sub-client it exposes
+ * as a lazily-initialized property (see task T3: partition the generated client by tag/resource).
+ */
+internal data class OperationClientGroupRef(
+    val packageName: String,
+    val className: String,
+    val accessorName: String,
+    val kdoc: String = "",
+)
+
 internal class OperationClientDeclaration(
     override val symbolId: String,
     override val order: Int,
@@ -279,9 +512,17 @@ internal class OperationClientDeclaration(
     val codecsObjectName: String,
     operations: List<OperationDeclaration>,
     securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = emptyMap(),
+    subClients: List<OperationClientGroupRef> = emptyList(),
+    val preserveOperationMetadataNames: Boolean = false,
 ) : Declaration {
     val operations: List<OperationDeclaration> = operations.toList()
     val securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = securitySchemes.toMap()
+
+    /**
+     * Non-empty only on the root facade client: one entry per generated sub-client the facade exposes as a
+     * lazily-initialized property. A facade declaration otherwise carries no [operations] of its own.
+     */
+    val subClients: List<OperationClientGroupRef> = subClients.toList()
 
     fun copy(
         symbolId: String = this.symbolId,
@@ -293,6 +534,8 @@ internal class OperationClientDeclaration(
         codecsObjectName: String = this.codecsObjectName,
         operations: List<OperationDeclaration> = this.operations,
         securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = this.securitySchemes,
+        subClients: List<OperationClientGroupRef> = this.subClients,
+        preserveOperationMetadataNames: Boolean = this.preserveOperationMetadataNames,
     ): OperationClientDeclaration =
         OperationClientDeclaration(
             symbolId,
@@ -304,6 +547,8 @@ internal class OperationClientDeclaration(
             codecsObjectName,
             operations,
             securitySchemes,
+            subClients,
+            preserveOperationMetadataNames,
         )
 }
 
@@ -502,12 +747,25 @@ internal class RetryDeclaration(
 }
 
 internal sealed interface PaginationDeclaration {
+    val responseItemsPath: String
+    val itemType: KotlinTypeRef?
+
     data class CursorToken(
         val requestCursorParam: String,
         val requestLimitParam: String?,
-        val responseItemsPath: String,
+        override val responseItemsPath: String,
         val responseNextCursorPath: String,
-        val itemType: KotlinTypeRef? = null,
+        override val itemType: KotlinTypeRef? = null,
+    ) : PaginationDeclaration
+
+    /**
+     * The next page is sourced from the RFC 8288 `Link` response header's `rel="next"` target rather than any body
+     * field (see [com.nabobery.sdkgen.model.PaginationModel.HeaderNextUrl]) — unlike [CursorToken], there is no
+     * request cursor/limit parameter and no response next-value pointer.
+     */
+    data class HeaderNextUrl(
+        override val responseItemsPath: String,
+        override val itemType: KotlinTypeRef? = null,
     ) : PaginationDeclaration
 }
 
@@ -536,23 +794,84 @@ internal data class OperationParameterDeclaration(
 )
 
 internal class MultipartPartDeclaration(
-    val name: String,
+    val wireName: String,
+    val accessorName: String,
     val type: KotlinTypeRef,
     val required: Boolean,
     val contentType: String,
+    val indexedElements: Boolean = false,
     headers: Map<String, JsonValue> = emptyMap(),
-    val propertyName: String = KotlinNameResolver.memberName(name),
 ) {
     val headers: Map<String, JsonValue> = headers.toMap()
 }
+
+internal enum class FormScalarKind {
+    STRING,
+    INTEGER,
+    NUMBER,
+    BOOLEAN,
+    OPEN_ENUM,
+}
+
+internal enum class FormWireKind {
+    STRING,
+    INTEGER,
+    NUMBER,
+    BOOLEAN,
+    OBJECT,
+    ARRAY,
+}
+
+internal data class FormUnionBranch(
+    val accessorName: String,
+    val kind: FormWireKind,
+    val value: FormValueDeclaration,
+)
+
+internal sealed interface FormValueDeclaration {
+    data class Scalar(
+        val kind: FormScalarKind,
+    ) : FormValueDeclaration
+
+    data class Array(
+        val element: FormValueDeclaration,
+    ) : FormValueDeclaration
+
+    data class Map(
+        val value: FormValueDeclaration,
+        val valuesAreJsonElements: Boolean = false,
+    ) : FormValueDeclaration
+
+    class Union(
+        branches: List<FormUnionBranch>,
+    ) : FormValueDeclaration {
+        val branches: List<FormUnionBranch> = branches.toList()
+    }
+
+    class Object(
+        fields: List<FormFieldDeclaration>,
+    ) : FormValueDeclaration {
+        val fields: List<FormFieldDeclaration> = fields.toList()
+    }
+}
+
+internal class FormFieldDeclaration(
+    val wireName: String,
+    val accessorName: String,
+    val type: KotlinTypeRef,
+    val required: Boolean,
+    val value: FormValueDeclaration,
+)
 
 internal class OperationRequestBodyAlternative(
     val mediaType: String,
     val type: KotlinTypeRef,
     multipartParts: List<MultipartPartDeclaration> = emptyList(),
+    formFields: List<FormFieldDeclaration> = emptyList(),
     val required: Boolean = false,
 ) {
     val multipartParts: List<MultipartPartDeclaration> = multipartParts.toList()
+    val formFields: List<FormFieldDeclaration> = formFields.toList()
 }
 
 internal class OperationDeclaration(
@@ -588,6 +907,15 @@ internal class OperationDeclaration(
     val operationIdentity: String = operationId,
     /** Whether the operation's request body must be present when a body is modeled. */
     val requestBodyRequired: Boolean = false,
+    /**
+     * The decoded element type of the operation's streaming (SSE) success alternative, populated only when
+     * [responseMode] is [OperationResponseMode.MIXED]. [responseType] and [responseAlternatives] on a `MIXED`
+     * operation describe only its buffered (JSON) surface — the same shape a `BUFFERED`-only operation would have —
+     * so the ordinary body-returning method, `withResponse`, and every existing typed-error/codec code path work
+     * unchanged; this field is consulted only by the dedicated streaming entry point (`fooStream()`) to type its
+     * cold `Flow` and locate its event codec.
+     */
+    val streamResponseType: KotlinTypeRef? = null,
 ) {
     val requestMediaTypes: List<String> = requestMediaTypes.toList()
     val responseMediaTypes: List<String> = responseMediaTypes.toList()
@@ -649,12 +977,57 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
 
     fun MultipartPartDeclaration.rewritten(): MultipartPartDeclaration =
         MultipartPartDeclaration(
-            name = name,
+            wireName = wireName,
+            accessorName = accessorName,
             type = type.rewritten(),
             required = required,
             contentType = contentType,
+            indexedElements = indexedElements,
             headers = headers,
-            propertyName = propertyName,
+        )
+
+    fun FormValueDeclaration.rewritten(): FormValueDeclaration =
+        when (this) {
+            is FormValueDeclaration.Scalar -> {
+                this
+            }
+
+            is FormValueDeclaration.Array -> {
+                FormValueDeclaration.Array(element.rewritten())
+            }
+
+            is FormValueDeclaration.Map -> {
+                FormValueDeclaration.Map(value.rewritten())
+            }
+
+            is FormValueDeclaration.Union -> {
+                FormValueDeclaration.Union(
+                    branches.map { branch -> branch.copy(value = branch.value.rewritten()) },
+                )
+            }
+
+            is FormValueDeclaration.Object -> {
+                FormValueDeclaration.Object(
+                    fields.map { field ->
+                        FormFieldDeclaration(
+                            wireName = field.wireName,
+                            accessorName = field.accessorName,
+                            type = field.type.rewritten(),
+                            required = field.required,
+                            value = field.value.rewritten(),
+                        )
+                    },
+                )
+            }
+        }
+
+    fun FormFieldDeclaration.rewritten(): FormFieldDeclaration =
+        FormFieldDeclaration(
+            wireName = wireName,
+            accessorName = accessorName,
+            type = type.rewritten(),
+            required = required,
+            value = value.rewritten(),
         )
 
     fun OperationRequestBodyAlternative.rewritten(): OperationRequestBodyAlternative =
@@ -662,6 +1035,7 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
             mediaType = mediaType,
             type = type.rewritten(),
             multipartParts = multipartParts.map { part -> part.rewritten() },
+            formFields = formFields.map { field -> field.rewritten() },
             required = required,
         )
 
@@ -701,11 +1075,13 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
             pagination =
                 when (val value = pagination) {
                     is PaginationDeclaration.CursorToken -> value.copy(itemType = value.itemType?.rewritten())
+                    is PaginationDeclaration.HeaderNextUrl -> value.copy(itemType = value.itemType?.rewritten())
                     null -> null
                 },
             streaming = streaming,
             operationIdentity = operationIdentity,
             requestBodyRequired = requestBodyRequired,
+            streamResponseType = streamResponseType?.rewritten(),
         )
 
     fun Declaration.rewritten(): Declaration =
@@ -734,6 +1110,10 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
                             )
                         },
                 )
+            }
+
+            is PrimitiveOneOfDeclaration -> {
+                copy(cases = cases.map { case -> case.copy(type = case.type.rewritten()) })
             }
 
             is AnyOfDeclaration -> {
@@ -831,8 +1211,32 @@ private fun Declaration.canonicalText(): String =
                         .append(case.order)
                         .append(':')
                         .append(case.resolvedName)
+                        .append(":empty=")
+                        .append(case.matchesEmptyObject)
+                        .append(":predicate=")
+                        .append(case.predicate?.canonicalText())
                     case.requiredFields.forEach { field -> append("|required:").append(field.canonicalText()) }
                     case.matchFields.forEach { field -> append("|match:").append(field.canonicalText()) }
+                }
+            }
+        }
+
+        is PrimitiveOneOfDeclaration -> {
+            buildString {
+                append("primitive-oneof|").append(commonText())
+                cases.forEach { case ->
+                    append("|case:")
+                        .append(case.symbolId)
+                        .append(':')
+                        .append(case.order)
+                        .append(':')
+                        .append(case.resolvedName)
+                        .append(':')
+                        .append(case.type.canonicalText())
+                        .append(':')
+                        .append(case.jsonKind)
+                        .append(':')
+                        .append(case.predicate.canonicalText())
                 }
             }
         }
@@ -875,9 +1279,22 @@ private fun Declaration.canonicalText(): String =
         is OperationClientDeclaration -> {
             buildString {
                 append("operation-client|").append(commonText()).append("|codecs:").append(codecsObjectName)
+                append("|preserve-operation-metadata-names:").append(preserveOperationMetadataNames)
                 securitySchemes.toSortedMap().forEach { (schemeId, scheme) ->
                     append("|security-scheme:").append(schemeId).append(':').append(scheme)
                 }
+                subClients
+                    .sortedWith(compareBy(OperationClientGroupRef::packageName, OperationClientGroupRef::className))
+                    .forEach { subClient ->
+                        append("|sub-client:")
+                            .append(subClient.packageName)
+                            .append(':')
+                            .append(subClient.className)
+                            .append(':')
+                            .append(subClient.accessorName)
+                            .append(':')
+                            .append(sanitizeKDoc(subClient.kdoc))
+                    }
                 operations.forEach { operation ->
                     append("|operation:")
                         .append(operation.symbolId)
@@ -948,7 +1365,7 @@ private fun Declaration.canonicalText(): String =
                             .append(alternative.required)
                         alternative.multipartParts.forEach { part ->
                             append("|multipart-part:")
-                                .append(part.name)
+                                .append(part.wireName)
                                 .append(':')
                                 .append(part.type.canonicalText())
                                 .append(':')
@@ -956,7 +1373,9 @@ private fun Declaration.canonicalText(): String =
                                 .append(':')
                                 .append(part.contentType)
                                 .append(':')
-                                .append(part.propertyName)
+                                .append(part.indexedElements)
+                                .append(':')
+                                .append(part.accessorName)
                                 .append(':')
                                 .append(
                                     part.headers.keys
@@ -964,6 +1383,11 @@ private fun Declaration.canonicalText(): String =
                                         .joinToString(","),
                                 )
                         }
+                        alternative.formFields
+                            .sortedWith(compareBy(FormFieldDeclaration::wireName, FormFieldDeclaration::accessorName))
+                            .forEach { field ->
+                                append("|form-field:").append(field.canonicalText())
+                            }
                     }
                     operation.responseAlternatives.forEach { alternative ->
                         append("|response-alternative:")
@@ -1019,7 +1443,114 @@ private fun RetryDeclaration.canonicalText(): String =
     }
 
 private fun UnionFieldDeclaration.canonicalText(): String =
-    "$resolvedName:$wireName:${type.canonicalText()}:${expectedStringValue.orEmpty()}:$required"
+    "$resolvedName:$wireName:${type.canonicalText()}:${expectedStringValues.joinToString(",")}:$required"
+
+private fun FormFieldDeclaration.canonicalText(): String =
+    "$wireName:$accessorName:${type.canonicalText()}:$required:${value.canonicalText()}"
+
+private fun JsonBranchPredicate.canonicalText(): String =
+    when (this) {
+        JsonBranchPredicate.AnyValue -> {
+            "any"
+        }
+
+        JsonBranchPredicate.NeverMatch -> {
+            "never"
+        }
+
+        is JsonBranchPredicate.Kind -> {
+            "kind:$kind"
+        }
+
+        is JsonBranchPredicate.AllOf -> {
+            "all(${predicates.joinToString(",") { it.canonicalText() }})"
+        }
+
+        is JsonBranchPredicate.AnyOf -> {
+            "anyOf(${predicates.joinToString(",") { it.canonicalText() }})"
+        }
+
+        is JsonBranchPredicate.Constant -> {
+            "const:${value.canonicalText()}"
+        }
+
+        is JsonBranchPredicate.Enumeration -> {
+            "enum:${values.joinToString(",") { it.canonicalText() }}"
+        }
+
+        is JsonBranchPredicate.Numeric -> {
+            "numeric:$minimum:$maximum:$exclusiveMinimum:$exclusiveMaximum:$multipleOf"
+        }
+
+        is JsonBranchPredicate.StringShape -> {
+            "string:$minLength:$maxLength:$format"
+        }
+
+        is JsonBranchPredicate.ArrayShape -> {
+            "array:$minItems:$maxItems:$uniqueItems:${item?.canonicalText()}"
+        }
+
+        is JsonBranchPredicate.ObjectShape -> {
+            "object:${requiredNames.joinToString(
+                ",",
+            )}:${properties.toSortedMap().entries.joinToString(",") { (name, predicate) ->
+                "$name=${predicate.canonicalText()}"
+            }}:${additionalProperties.canonicalText()}"
+        }
+    }
+
+private fun JsonAdditionalPropertiesPredicate.canonicalText(): String =
+    when (this) {
+        JsonAdditionalPropertiesPredicate.Open -> "open"
+        JsonAdditionalPropertiesPredicate.Closed -> "closed"
+        is JsonAdditionalPropertiesPredicate.Typed -> "typed:${predicate.canonicalText()}"
+    }
+
+private fun JsonValue.canonicalText(): String =
+    when (this) {
+        JsonValue.Null -> "null"
+
+        is JsonValue.BooleanValue -> "boolean:$value"
+
+        is JsonValue.NumberValue -> "number:$lexicalValue"
+
+        is JsonValue.StringValue -> "string:$value"
+
+        is JsonValue.ArrayValue -> "array:${values.joinToString(",") { it.canonicalText() }}"
+
+        is JsonValue.ObjectValue -> "object:${properties.toSortedMap().entries.joinToString(
+            ",",
+        ) { (name, value) -> "$name=${value.canonicalText()}" }}"
+    }
+
+private fun FormValueDeclaration.canonicalText(): String =
+    when (this) {
+        is FormValueDeclaration.Scalar -> {
+            "scalar:$kind"
+        }
+
+        is FormValueDeclaration.Array -> {
+            "array:${element.canonicalText()}"
+        }
+
+        is FormValueDeclaration.Map -> {
+            "map:$valuesAreJsonElements:${value.canonicalText()}"
+        }
+
+        is FormValueDeclaration.Union -> {
+            "union:${branches.joinToString(",") { branch ->
+                "${branch.accessorName}:${branch.kind}:${branch.value.canonicalText()}"
+            }}"
+        }
+
+        is FormValueDeclaration.Object -> {
+            "object:${
+                fields
+                    .sortedWith(compareBy(FormFieldDeclaration::wireName, FormFieldDeclaration::accessorName))
+                    .joinToString(",") { it.canonicalText() }
+            }"
+        }
+    }
 
 internal fun sha256Hex(bytes: ByteArray): String =
     MessageDigest

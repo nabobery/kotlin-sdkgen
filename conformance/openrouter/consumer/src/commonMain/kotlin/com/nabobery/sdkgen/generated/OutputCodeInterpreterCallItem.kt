@@ -132,63 +132,7 @@ public class OutputCodeInterpreterCallItem(
         throw SerializationException("OutputCodeInterpreterCallItem is missing required property 'outputs'")
       }
       val outputs = raw["outputs"].let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasCodeInterpreterCallItemPropertiesOutputsItems>?>(requireNotNull(element)) }
+        .decodeFromJsonElement<List<InlineComponentsSchemasCodeInterpreterCallItemPropertiesOutputsItems>?>(requireNotNull(element)) }
       return OutputCodeInterpreterCallItem(
         code = code,
         containerId = containerId,

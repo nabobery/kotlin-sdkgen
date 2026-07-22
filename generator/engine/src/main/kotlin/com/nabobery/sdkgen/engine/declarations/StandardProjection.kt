@@ -24,6 +24,7 @@ import com.nabobery.sdkgen.model.SchemaRef
 import com.nabobery.sdkgen.model.SecuritySchemeKind
 import com.nabobery.sdkgen.model.SecuritySchemeModel
 import com.nabobery.sdkgen.model.SemanticDocument
+import com.nabobery.sdkgen.model.SourcePointer
 import com.nabobery.sdkgen.model.StatusSelectorKind
 import com.nabobery.sdkgen.model.StreamingModel
 import java.util.Locale
@@ -48,6 +49,8 @@ internal class StandardProjection : DeclarationProjection {
                             "FieldState",
                             "SerializationSupport",
                             "SdkJson",
+                            "SchemaInteger",
+                            "SchemaDecimal",
                         ),
                 )
             } catch (cancellation: CancellationException) {
@@ -69,18 +72,33 @@ internal class StandardProjection : DeclarationProjection {
             }
         val memberPlan = MemberNamePlan(request.document.operations, request.operationPrefix)
         val origins = linkedMapOf<String, com.nabobery.sdkgen.model.SourcePointer>()
-        val context =
-            SchemaProjectionContext(
-                request,
-                typePlan,
-                diagnostics,
-                origins,
-                fieldStateSchemaIds(request.document),
-            )
-        val schemaDeclarations =
+        val schemas =
             request.document.schemas.values
                 .sortedBy(SchemaModel::id)
-                .mapNotNull { schema -> context.projectDeclaration(schema) }
+        var failures = emptySet<SchemaId>()
+        var schemaDeclarations: List<Declaration>
+        var context: SchemaProjectionContext
+        while (true) {
+            val attemptDiagnostics = mutableListOf<GenerationDiagnostic>()
+            val attemptOrigins = linkedMapOf<String, com.nabobery.sdkgen.model.SourcePointer>()
+            context =
+                SchemaProjectionContext(
+                    request,
+                    typePlan,
+                    attemptDiagnostics,
+                    attemptOrigins,
+                    fieldStateSchemaIds(request.document),
+                    failures,
+                )
+            schemaDeclarations = schemas.mapNotNull(context::projectDeclaration)
+            val nextFailedSchemaIds = context.failedSchemaIds
+            if (nextFailedSchemaIds == failures) {
+                diagnostics += attemptDiagnostics
+                origins.putAll(attemptOrigins)
+                break
+            }
+            failures = nextFailedSchemaIds
+        }
         val declarations = mutableListOf<Declaration>()
         if (schemaDeclarations.filterIsInstance<ModelDeclaration>().any(ModelDeclaration::usesFieldState)) {
             declarations +=
@@ -141,7 +159,86 @@ internal class StandardProjection : DeclarationProjection {
                 )
         }
 
-        val client =
+        // Operations are partitioned per OpenAPI tag/resource (task T3) rather than emitted into one monolithic
+        // client: each group becomes its own OperationClientDeclaration in its own sub-package/file, and the root
+        // client becomes a thin facade exposing each group as a lazily-initialized property. This keeps compile
+        // units, constant pools, and IDE indexing bounded as specs grow from dozens to thousands of operations.
+        val groupKeyBySymbolId: Map<String, String> =
+            request.document.operations.associate { operation ->
+                "operation:${operation.operationId}" to groupKeyFor(operation)
+            }
+        val operationsByGroup: Map<String, List<OperationDeclaration>> =
+            operations.groupBy { operation -> groupKeyBySymbolId[operation.symbolId] ?: DEFAULT_GROUP_KEY }
+        val sortedGroupKeys = operationsByGroup.keys.sorted()
+        val groupPackageNames =
+            allocateNames(sortedGroupKeys) { key -> KotlinNameResolver.memberName(key).lowercase(Locale.ROOT) }
+        val groupClassNames =
+            allocateNames(
+                sortedGroupKeys,
+                reservedNames =
+                    setOf(
+                        clientName,
+                        codecsObjectName,
+                        "FieldPresence",
+                        "FieldState",
+                        "SerializationSupport",
+                        "SdkJson",
+                    ),
+            ) { key -> "${KotlinNameResolver.typeName(key)}Client" }
+        val groupAccessorNames =
+            allocateNames(
+                sortedGroupKeys,
+                reservedNames =
+                    setOf(
+                        "transport",
+                        "baseUri",
+                        "credentialProviders",
+                        "trustedHosts",
+                        "authentication",
+                        "toString",
+                        "hashCode",
+                        "equals",
+                    ),
+            ) { key -> KotlinNameResolver.memberName(key) }
+        val securitySchemeDeclarations =
+            request.document.securitySchemes
+                .mapNotNull { (schemeId, scheme) -> projectSecurityScheme(scheme)?.let { schemeId to it } }
+                .toMap()
+
+        val groupClients =
+            sortedGroupKeys.mapIndexed { index, key ->
+                val groupOperations = operationsByGroup.getValue(key)
+                val groupPackage = "${request.packageName}.${groupPackageNames.getValue(key)}"
+                val groupClassName = groupClassNames.getValue(key)
+                val groupCodecsName = "${groupClassName.removeSuffix("Client")}Codecs"
+                val referencedSchemeIds =
+                    groupOperations
+                        .flatMap { operation -> operation.security }
+                        .flatMap { requirement -> requirement.schemes }
+                        .map { scheme -> scheme.schemeId }
+                        .toSet()
+                OperationClientDeclaration(
+                    symbolId = "client:$groupPackage.$groupClassName",
+                    order = Int.MIN_VALUE + 10 + index,
+                    packageName = groupPackage,
+                    fileName = groupClassName,
+                    resolvedName = groupClassName,
+                    kdoc =
+                        "Client for the '$key' group of ${request.document.title ?: request.document.documentUri}.",
+                    codecsObjectName = groupCodecsName,
+                    operations = groupOperations,
+                    securitySchemes =
+                        securitySchemeDeclarations.filterKeys { schemeId ->
+                            schemeId in
+                                referencedSchemeIds
+                        },
+                    preserveOperationMetadataNames = true,
+                )
+            }
+        declarations += groupClients
+        groupClients.forEach { groupClient -> origins[groupClient.symbolId] = request.document.source }
+
+        val facade =
             OperationClientDeclaration(
                 symbolId = "client:$clientName",
                 order = Int.MIN_VALUE,
@@ -150,22 +247,27 @@ internal class StandardProjection : DeclarationProjection {
                 resolvedName = clientName,
                 kdoc = "Client for ${request.document.title ?: request.document.documentUri}.",
                 codecsObjectName = codecsObjectName,
-                operations = operations,
-                securitySchemes =
-                    request.document.securitySchemes
-                        .mapNotNull { (schemeId, scheme) ->
-                            projectSecurityScheme(scheme)?.let { schemeId to it }
-                        }.toMap(),
+                operations = emptyList(),
+                securitySchemes = emptyMap(),
+                subClients =
+                    sortedGroupKeys.map { key ->
+                        OperationClientGroupRef(
+                            packageName = "${request.packageName}.${groupPackageNames.getValue(key)}",
+                            className = groupClassNames.getValue(key),
+                            accessorName = groupAccessorNames.getValue(key),
+                            kdoc = "Operations tagged/grouped under '$key'.",
+                        )
+                    },
             )
-        declarations += client
-        origins[client.symbolId] = request.document.source
+        declarations += facade
+        origins[facade.symbolId] = request.document.source
 
         val files =
             declarations
                 .sortedWith(compareBy(Declaration::fileName, Declaration::symbolId))
                 .map { declaration ->
                     KotlinFileDeclaration(
-                        packageName = request.packageName,
+                        packageName = declaration.packageName,
                         fileName = declaration.fileName,
                         declarations = listOf(declaration),
                     )
@@ -177,8 +279,30 @@ internal class StandardProjection : DeclarationProjection {
                 diagnostics
                     .filter { diagnostic -> diagnostic.severity == DiagnosticSeverity.ERROR }
                     .mapNotNull { diagnostic ->
-                        diagnostic.symbolId.takeIf { it.startsWith("operation:") || it.startsWith("schema:") }?.let {
-                            GenerationExclusion(it, diagnostic.message, diagnostic.source)
+                        when {
+                            diagnostic.symbolId.startsWith("operation:") -> {
+                                GenerationExclusion(
+                                    GenerationExclusionKind.OPERATION,
+                                    diagnostic.symbolId,
+                                    diagnostic.wireCode,
+                                    diagnostic.message,
+                                    diagnostic.source,
+                                )
+                            }
+
+                            diagnostic.symbolId.startsWith("schema:") -> {
+                                GenerationExclusion(
+                                    GenerationExclusionKind.SCHEMA,
+                                    diagnostic.symbolId,
+                                    diagnostic.wireCode,
+                                    diagnostic.message,
+                                    diagnostic.source,
+                                )
+                            }
+
+                            else -> {
+                                null
+                            }
                         }
                     }.distinctBy(::exclusionKey)
                     .sortedWith(compareBy(GenerationExclusion::symbolId, { it.source.jsonPointer })),
@@ -279,7 +403,11 @@ internal class StandardProjection : DeclarationProjection {
                 message =
                     "Operation '${operation.operationId}' cannot be represented: " +
                         (failure.message ?: failure::class.qualifiedName ?: "unknown projection failure"),
-                source = operation.source.copy(documentUri = request.canonicalDocumentUri),
+                source =
+                    (failure as? UnrepresentableOperationException)
+                        ?.source
+                        ?.copy(documentUri = request.canonicalDocumentUri)
+                        ?: operation.source.copy(documentUri = request.canonicalDocumentUri),
                 symbolId = "operation:${operation.operationId}",
                 remediation = "Adjust the operation schema or add an explicit overlay before regenerating.",
             ),
@@ -305,10 +433,32 @@ internal class StandardProjection : DeclarationProjection {
             responseAlternatives.filter { alternative ->
                 alternative.selector.isSuccessSelector()
             }
+        // A MIXED operation's ordinary body-returning method, withResponse, typed errors, and codecs must all keep
+        // operating over exactly the shape a BUFFERED-only operation would have — see the streamResponseType KDoc
+        // on OperationDeclaration — so the streaming success alternative is carried separately and excluded from
+        // the OperationDeclaration.responseAlternatives ultimately stored below.
+        val streamingSuccessAlternatives =
+            successfulAlternatives.filter { alternative -> alternative.mode == OperationResponseMode.STREAMING }
+        val bufferedSuccessAlternatives =
+            successfulAlternatives.filter { alternative -> alternative.mode == OperationResponseMode.BUFFERED }
+        if (responseMode == OperationResponseMode.MIXED) {
+            if (streamingSuccessAlternatives.size != 1 || bufferedSuccessAlternatives.size != 1) {
+                unsupported(
+                    "mixed buffered/streaming responses require exactly one buffered and one streaming success " +
+                        "alternative",
+                )
+            }
+        }
+        val declaredResponseAlternatives =
+            if (responseMode == OperationResponseMode.MIXED) {
+                responseAlternatives.filterNot { alternative -> alternative in streamingSuccessAlternatives }
+            } else {
+                responseAlternatives
+            }
         val requestAlternatives = projectRequestBodyAlternatives(request, operation, context)
         val requestMediaTypes = requestAlternatives.map(OperationRequestBodyAlternative::mediaType)
         val responseMediaTypes =
-            successfulAlternatives
+            (if (responseMode == OperationResponseMode.MIXED) bufferedSuccessAlternatives else successfulAlternatives)
                 .flatMap(OperationResponseAlternative::mediaTypes)
                 .distinct()
         val operationName = memberPlan.operationName(operation)
@@ -322,10 +472,12 @@ internal class StandardProjection : DeclarationProjection {
                 }
                 ?: KotlinTypeRef("kotlin", "Unit")
         val responseType =
-            successfulAlternatives
+            bufferedSuccessAlternatives
                 .firstOrNull()
                 ?.type
+                ?: successfulAlternatives.firstOrNull()?.type
                 ?: KotlinTypeRef("kotlin", "Unit")
+        val streamResponseType = streamingSuccessAlternatives.firstOrNull()?.type
         val timeout = request.runtimeDefaults.requestTimeoutMillis
         val retryDefaults = request.runtimeDefaults.retries
         val safe = operation.method.uppercase(Locale.ROOT) in SAFE_METHODS
@@ -367,7 +519,7 @@ internal class StandardProjection : DeclarationProjection {
                     projectParameter(request, operation, parameter, context)
                 },
             requestBodyAlternatives = requestAlternatives,
-            responseAlternatives = responseAlternatives,
+            responseAlternatives = declaredResponseAlternatives,
             security =
                 operation.securityAlternatives.map { requirement ->
                     OperationSecurityRequirement(
@@ -396,6 +548,7 @@ internal class StandardProjection : DeclarationProjection {
             pagination = projectPagination(operation, context),
             streaming = projectStreaming(operation.streaming),
             requestBodyRequired = requestBodyRequired,
+            streamResponseType = streamResponseType,
         )
     }
 
@@ -424,18 +577,47 @@ internal class StandardProjection : DeclarationProjection {
         context: SchemaProjectionContext,
     ): List<OperationRequestBodyAlternative> {
         val requestBody = operation.requestBody ?: return emptyList()
-        return requestBody.content.mapIndexed { contentIndex, content ->
-            val bodyType =
+        val formContent =
+            requestBody.content.firstOrNull { content ->
+                content.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)
+            }
+        if (formContent != null && requestBody.content.size > 1) {
+            val alternative = requestBody.content.first { content -> content !== formContent }
+            unsupported(
+                "form request body has another media alternative; explicit request media selection is not supported",
+                alternative.source,
+            )
+        }
+        val bodyTypes =
+            requestBody.content.mapIndexed { contentIndex, content ->
                 content.schema?.let { schema ->
                     context.typeFor(schema, "${operation.operationId} request $contentIndex")
                 } ?: KotlinTypeRef("kotlin", "Unit")
+            }
+        val selectedType = bodyTypes.firstOrNull()
+        val incompatibleIndex = bodyTypes.indexOfFirst { type -> type != selectedType }
+        if (incompatibleIndex >= 0) {
+            val content = requestBody.content[incompatibleIndex]
+            unsupported(
+                "request media types use incompatible request schemas; media-type-specific request values are not supported",
+                content.schema?.let(context::dereference)?.source ?: content.source,
+            )
+        }
+        return requestBody.content.mapIndexed { contentIndex, content ->
+            val bodyType = bodyTypes[contentIndex]
             OperationRequestBodyAlternative(
                 mediaType = content.mediaType,
                 type = bodyType,
                 required = requestBody.requiredness == Requiredness.REQUIRED,
                 multipartParts =
                     if (content.mediaType.equals("multipart/form-data", ignoreCase = true)) {
-                        projectMultipartParts(request, operation, content.schema, content.encoding, context)
+                        projectMultipartParts(operation, content.schema, content.encoding, bodyType, context)
+                    } else {
+                        emptyList()
+                    },
+                formFields =
+                    if (content.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)) {
+                        projectFormFields(content, bodyType, context)
                     } else {
                         emptyList()
                     },
@@ -443,38 +625,380 @@ internal class StandardProjection : DeclarationProjection {
         }
     }
 
+    private fun projectFormFields(
+        content: MediaTypeModel,
+        bodyType: KotlinTypeRef,
+        context: SchemaProjectionContext,
+    ): List<FormFieldDeclaration> {
+        val schemaRef = content.schema ?: unsupported("form request body has no schema", content.source)
+        val schema = context.dereference(schemaRef)
+        if (schema.compositions.any { it.kind != CompositionKind.ALL_OF }) {
+            unsupported("form request body cannot use oneOf or anyOf composition", schema.source)
+        }
+        if (!isFormObject(schema)) {
+            unsupported("form request body must use an object schema", schema.source)
+        }
+        validateClosedFormObject(schema)
+        val properties = context.flattenObjectProperties(schema)
+        val propertyNames = properties.mapTo(mutableSetOf(), PropertyModel::name)
+        val encodingByProperty = content.encoding.associateBy { it.partName }
+        content.encoding.firstOrNull { encoding -> encoding.partName !in propertyNames }?.let { encoding ->
+            unsupported("form encoding names unknown property '${encoding.partName}'", encoding.source)
+        }
+        if (properties.isEmpty()) return emptyList()
+        val model =
+            context.modelDeclarationFor(schemaRef)
+                ?: unsupported("form request schema does not resolve to a model declaration", schema.source)
+        if (model.packageName != bodyType.packageName || model.resolvedName != bodyType.simpleName) {
+            unsupported("form request schema does not match its resolved request declaration", schema.source)
+        }
+        val fieldsByWireName = model.fields.associateBy(FieldDeclaration::wireName)
+        return properties.map { property ->
+            val field =
+                fieldsByWireName[property.name]
+                    ?: unsupported(
+                        "form property '${property.name}' has no field on resolved request declaration '${model.resolvedName}'",
+                        property.source,
+                    )
+            projectFormField(
+                property = property,
+                field = field,
+                encoding = encodingByProperty[property.name],
+                context = context,
+                visited = mutableSetOf(),
+                requireStructuredEncoding = true,
+                depth = 0,
+            )
+        }
+    }
+
+    private fun projectFormField(
+        property: PropertyModel,
+        field: FieldDeclaration,
+        encoding: com.nabobery.sdkgen.model.EncodingModel?,
+        context: SchemaProjectionContext,
+        visited: MutableSet<SchemaId>,
+        requireStructuredEncoding: Boolean,
+        depth: Int,
+    ): FormFieldDeclaration {
+        val schema = context.dereference(property.schema)
+        if (property.nullability == Nullability.NULLABLE || context.isEffectivelyNullable(property.schema)) {
+            unsupported(
+                "form property '${property.name}' is nullable but has no declared null wire representation",
+                property.source,
+            )
+        }
+        validateFormEncoding(property.name, schema, encoding, requireStructuredEncoding)
+        return FormFieldDeclaration(
+            wireName = property.name,
+            accessorName = field.resolvedName,
+            type = field.type,
+            required = field.required,
+            value = projectFormValue(property.schema, property.source, context, visited, depth),
+        )
+    }
+
+    private fun projectFormValue(
+        schemaRef: SchemaRef,
+        source: SourcePointer,
+        context: SchemaProjectionContext,
+        visited: MutableSet<SchemaId>,
+        depth: Int,
+    ): FormValueDeclaration {
+        val schema = context.dereference(schemaRef)
+        if (context.isEffectivelyNullable(schemaRef)) {
+            unsupported("form value is nullable but has no declared null wire representation", source)
+        }
+        if (!visited.add(schema.id)) unsupported("recursive form shape at ${schema.id}", source)
+        val result =
+            when {
+                schema.enum != null && schema.types.filterNot { it == "null" } == listOf("string") -> {
+                    FormValueDeclaration.Scalar(FormScalarKind.OPEN_ENUM)
+                }
+
+                schema.types.filterNot { it == "null" } == listOf("string") -> {
+                    FormValueDeclaration.Scalar(FormScalarKind.STRING)
+                }
+
+                schema.types.filterNot { it == "null" } == listOf("integer") -> {
+                    FormValueDeclaration.Scalar(FormScalarKind.INTEGER)
+                }
+
+                schema.types.filterNot { it == "null" } == listOf("number") -> {
+                    FormValueDeclaration.Scalar(FormScalarKind.NUMBER)
+                }
+
+                schema.types.filterNot { it == "null" } == listOf("boolean") -> {
+                    FormValueDeclaration.Scalar(FormScalarKind.BOOLEAN)
+                }
+
+                schema.items != null -> {
+                    val items = requireNotNull(schema.items)
+                    if (context.isEffectivelyNullable(items)) {
+                        unsupported(
+                            "form array elements are nullable but have no declared null wire representation",
+                            source,
+                        )
+                    }
+                    FormValueDeclaration.Array(
+                        projectFormValue(items, items.source, context, visited, depth + 1),
+                    )
+                }
+
+                schema.compositions.any { it.kind == CompositionKind.ANY_OF } -> {
+                    projectFormAnyOf(schemaRef, schema, source, context, visited, depth)
+                }
+
+                schema.compositions.any { it.kind == CompositionKind.ONE_OF } -> {
+                    unsupported("form value oneOf requires an explicit non-overlapping wire contract", source)
+                }
+
+                schema.additionalProperties is AdditionalPropertiesModel.Typed && schema.properties.isEmpty() -> {
+                    val additionalProperties = schema.additionalProperties as AdditionalPropertiesModel.Typed
+                    val valueSchema = additionalProperties.valueSchema
+                    if (context.isEffectivelyNullable(valueSchema)) {
+                        unsupported(
+                            "form map values are nullable but have no declared null wire representation",
+                            source,
+                        )
+                    }
+                    FormValueDeclaration.Map(
+                        projectFormValue(valueSchema, valueSchema.source, context, visited, depth + 1),
+                    )
+                }
+
+                isFormObject(schema) -> {
+                    validateClosedFormObject(schema)
+                    val properties = context.flattenObjectProperties(schema)
+                    val model =
+                        context.modelDeclarationFor(schemaRef)
+                            ?: unsupported("nested form object does not resolve to a model declaration", schema.source)
+                    val fieldsByWireName = model.fields.associateBy(FieldDeclaration::wireName)
+                    FormValueDeclaration.Object(
+                        properties.map { property ->
+                            val field =
+                                fieldsByWireName[property.name]
+                                    ?: unsupported(
+                                        "nested form property '${property.name}' has no resolved accessor",
+                                        property.source,
+                                    )
+                            projectFormField(
+                                property,
+                                field,
+                                null,
+                                context,
+                                visited,
+                                requireStructuredEncoding = false,
+                                depth = depth + 1,
+                            )
+                        },
+                    )
+                }
+
+                else -> {
+                    unsupported("form value has unsupported schema shape ${schema.id}", source)
+                }
+            }
+        visited.remove(schema.id)
+        return result
+    }
+
+    private fun projectFormAnyOf(
+        schemaRef: SchemaRef,
+        schema: SchemaModel,
+        source: SourcePointer,
+        context: SchemaProjectionContext,
+        visited: MutableSet<SchemaId>,
+        depth: Int,
+    ): FormValueDeclaration {
+        val compositions = schema.compositions.filter { composition -> composition.kind == CompositionKind.ANY_OF }
+        if (compositions.size != 1 ||
+            schema.compositions.any { composition -> composition.kind != CompositionKind.ANY_OF }
+        ) {
+            unsupported("form anyOf cannot be combined with another composition", source)
+        }
+        val branches =
+            compositions.single().branches.filterNot { branch ->
+                context.dereference(branch).acceptsOnlyNull
+            }
+        val kinds = branches.map { branch -> formWireKind(context.dereference(branch), source) }
+        if (kinds.distinct().size != kinds.size) {
+            unsupported("form anyOf branches overlap by wire kind and cannot be selected deterministically", source)
+        }
+        val declaration =
+            context.anyOfDeclarationFor(schemaRef)
+                ?: unsupported("form anyOf has no generated typed union declaration", source)
+        if (declaration.branches.size != branches.size) {
+            unsupported("form anyOf branch projection does not match its generated typed union", source)
+        }
+        return FormValueDeclaration.Union(
+            branches.zip(declaration.branches).zip(kinds).map { (branchAndDeclaration, kind) ->
+                val (branch, branchDeclaration) = branchAndDeclaration
+                val formValue = projectFormValue(branch, branch.source, context, visited, depth + 1)
+                FormUnionBranch(
+                    accessorName = branchDeclaration.propertyName,
+                    kind = kind,
+                    value =
+                        if (formValue is FormValueDeclaration.Map) {
+                            formValue.copy(valuesAreJsonElements = true)
+                        } else {
+                            formValue
+                        },
+                )
+            },
+        )
+    }
+
+    private fun formWireKind(
+        schema: SchemaModel,
+        source: SourcePointer,
+    ): FormWireKind {
+        if (schema.nullability == Nullability.NULLABLE || "null" in schema.types) {
+            unsupported("form union branch is nullable but has no declared null wire representation", source)
+        }
+        val types = schema.types.filterNot { type -> type == "null" }.distinct()
+        return when {
+            schema.items != null || types == listOf("array") -> FormWireKind.ARRAY
+            isFormObject(schema) -> FormWireKind.OBJECT
+            types == listOf("string") -> FormWireKind.STRING
+            types == listOf("integer") -> FormWireKind.INTEGER
+            types == listOf("number") -> FormWireKind.NUMBER
+            types == listOf("boolean") -> FormWireKind.BOOLEAN
+            else -> unsupported("form union branch has no supported distinct wire kind", source)
+        }
+    }
+
+    private fun validateClosedFormObject(schema: SchemaModel) {
+        if (schema.additionalProperties !is AdditionalPropertiesModel.Closed) {
+            unsupported(
+                "form object must declare additionalProperties: false; dynamic form keys are unsupported",
+                schema.additionalProperties?.source ?: schema.source,
+            )
+        }
+    }
+
+    private fun validateFormEncoding(
+        propertyName: String,
+        schema: SchemaModel,
+        encoding: com.nabobery.sdkgen.model.EncodingModel?,
+        requireStructuredEncoding: Boolean,
+    ) {
+        if (encoding?.contentType != null) {
+            unsupported("form property '$propertyName' uses unsupported encoding contentType", encoding.source)
+        }
+        if (!encoding?.headers.isNullOrEmpty()) {
+            unsupported(
+                "form property '$propertyName' uses unsupported encoding headers",
+                requireNotNull(encoding).source,
+            )
+        }
+        if (encoding?.allowReserved == true) {
+            unsupported("form property '$propertyName' uses unsupported allowReserved=true", encoding.source)
+        }
+        val structured = schema.items != null || isFormObject(schema) || schema.compositions.isNotEmpty()
+        if (structured && requireStructuredEncoding) {
+            if (encoding == null) {
+                unsupported(
+                    "structured form property '$propertyName' requires explicit deepObject encoding",
+                    schema.source,
+                )
+            }
+            if (encoding.style != "deepObject" || encoding.explode != true) {
+                unsupported(
+                    "structured form property '$propertyName' requires style=deepObject and explode=true",
+                    encoding.source,
+                )
+            }
+        } else if (encoding != null && encoding.style != null && encoding.style != "form") {
+            unsupported(
+                "scalar form property '$propertyName' uses unsupported style '${encoding.style}'",
+                encoding.source,
+            )
+        }
+    }
+
+    private fun isFormObject(schema: SchemaModel): Boolean =
+        "object" in schema.types || schema.properties.isNotEmpty() ||
+            schema.compositions.any { it.kind == CompositionKind.ALL_OF }
+
     private fun projectMultipartParts(
-        request: DeclarationProjectionRequest,
         operation: OperationModel,
         schemaRef: SchemaRef?,
         encodings: List<com.nabobery.sdkgen.model.EncodingModel>,
+        bodyType: KotlinTypeRef,
         context: SchemaProjectionContext,
     ): List<MultipartPartDeclaration> {
         if (schemaRef == null) unsupported("multipart request body has no schema")
         val schema = context.dereference(schemaRef)
         if (schema.compositions.any { it.kind == CompositionKind.ONE_OF || it.kind == CompositionKind.ANY_OF }) {
-            unsupported("multipart request body cannot use oneOf or anyOf composition")
+            unsupported("multipart request body cannot use oneOf or anyOf composition", schema.source)
         }
         val properties = context.flattenObjectProperties(schema)
-        if (properties.isEmpty()) unsupported("multipart request body must contain at least one object part")
-        val propertyNames = allocateNames(properties.map(PropertyModel::name), base = KotlinNameResolver::memberName)
+        if (properties.isEmpty()) {
+            unsupported(
+                "multipart request body must contain at least one object part",
+                schema.source,
+            )
+        }
+        val model =
+            context.modelDeclarationFor(schemaRef)
+                ?: unsupported("multipart request schema does not resolve to a model declaration", schema.source)
+        if (model.packageName != bodyType.packageName || model.resolvedName != bodyType.simpleName) {
+            unsupported("multipart request schema does not match its resolved request declaration", schema.source)
+        }
+        val fieldsByWireName = model.fields.associateBy(FieldDeclaration::wireName)
         val encodingByPart = encodings.associateBy { it.partName }
         return properties.map { property ->
             val propertySchema = context.dereference(property.schema)
             val encoding = encodingByPart[property.name]
+            val indexedElements = propertySchema.items != null
+            val elementSchema = propertySchema.items?.let(context::dereference)
+            if (indexedElements &&
+                (
+                    elementSchema?.types?.filterNot { type -> type == "null" } != listOf("string") ||
+                        elementSchema.format == "binary"
+                )
+            ) {
+                unsupported(
+                    "multipart array part '${property.name}' must contain non-null text values for indexed encoding",
+                    encoding?.source ?: property.source,
+                )
+            }
+            if (propertySchema.items?.let(context::isEffectivelyNullable) == true) {
+                unsupported(
+                    "multipart array part '${property.name}' has nullable elements with no null wire representation",
+                    encoding?.source ?: property.source,
+                )
+            }
+            if (property.nullability == Nullability.NULLABLE &&
+                (propertySchema.format == "binary" || propertySchema.types == listOf("string"))
+            ) {
+                unsupported(
+                    "nullable multipart binary/text part '${property.name}' has no supported wire representation",
+                    property.source,
+                )
+            }
+            val field =
+                fieldsByWireName[property.name]
+                    ?: unsupported(
+                        "multipart part '${property.name}' has no field on resolved request declaration '${model.resolvedName}'",
+                        property.source,
+                    )
             MultipartPartDeclaration(
-                name = property.name,
-                type = context.typeFor(property.schema, "${operation.operationId} ${property.name} part"),
-                required = property.requiredness == Requiredness.REQUIRED,
+                wireName = property.name,
+                accessorName = field.resolvedName,
+                type = field.type,
+                required = field.required,
                 contentType =
                     encoding?.contentType
                         ?: when {
+                            indexedElements -> "text/plain"
                             propertySchema.format == "binary" -> "application/octet-stream"
                             propertySchema.types == listOf("string") -> "text/plain"
                             else -> "application/json"
                         },
+                indexedElements = indexedElements,
                 headers = encoding?.headers.orEmpty(),
-                propertyName = propertyNames.getValue(property.name),
             )
         }
     }
@@ -526,12 +1050,24 @@ internal class StandardProjection : DeclarationProjection {
                         response.content.map { content -> responseMode(operation.streaming, content) }
                     }
                 }.distinct()
-        return when (modes.size) {
-            0, 1 -> modes.singleOrNull() ?: OperationResponseMode.BUFFERED
+        return when {
+            modes.isEmpty() -> {
+                OperationResponseMode.BUFFERED
+            }
 
-            else -> throw MixedResponseModeException(
-                "success responses declare both buffered and streaming alternatives",
-            )
+            modes.size == 1 -> {
+                modes.single()
+            }
+
+            modes.toSet() == setOf(OperationResponseMode.BUFFERED, OperationResponseMode.STREAMING) -> {
+                OperationResponseMode.MIXED
+            }
+
+            else -> {
+                throw MixedResponseModeException(
+                    "success responses declare both buffered and streaming alternatives",
+                )
+            }
         }
     }
 
@@ -553,31 +1089,19 @@ internal class StandardProjection : DeclarationProjection {
     ): PaginationDeclaration? =
         when (val pagination = operation.pagination) {
             is com.nabobery.sdkgen.model.PaginationModel.Cursor -> {
-                val responseSchemas =
-                    operation.responses
-                        .filter(::isSuccessResponse)
-                        .flatMap { response -> response.content }
-                        .mapNotNull { content -> content.schema }
-                val itemTypes =
-                    responseSchemas
-                        .map { schema ->
-                            context.collectionItemTypeAtPath(
-                                schema,
-                                pagination.responseItems.segments,
-                                "${operation.operationId} pagination item",
-                            )
-                        }.distinct()
-                val itemType =
-                    itemTypes.singleOrNull()
-                        ?: unsupported(
-                            "pagination response item paths must resolve to one common item type",
-                        )
                 PaginationDeclaration.CursorToken(
                     requestCursorParam = pagination.requestCursor,
                     requestLimitParam = pagination.requestLimit,
                     responseItemsPath = pagination.responseItems.segments.joinToString("."),
                     responseNextCursorPath = pagination.responseNextCursor.segments.joinToString("."),
-                    itemType = itemType,
+                    itemType = paginationItemType(operation, context, pagination.responseItems),
+                )
+            }
+
+            is com.nabobery.sdkgen.model.PaginationModel.HeaderNextUrl -> {
+                PaginationDeclaration.HeaderNextUrl(
+                    responseItemsPath = pagination.responseItems.segments.joinToString("."),
+                    itemType = paginationItemType(operation, context, pagination.responseItems),
                 )
             }
 
@@ -585,6 +1109,29 @@ internal class StandardProjection : DeclarationProjection {
                 null
             }
         }
+
+    private fun paginationItemType(
+        operation: OperationModel,
+        context: SchemaProjectionContext,
+        responseItems: com.nabobery.sdkgen.model.JsonPointer,
+    ): KotlinTypeRef {
+        val responseSchemas =
+            operation.responses
+                .filter(::isSuccessResponse)
+                .flatMap { response -> response.content }
+                .mapNotNull { content -> content.schema }
+        val itemTypes =
+            responseSchemas
+                .map { schema ->
+                    context.collectionItemTypeAtPath(
+                        schema,
+                        responseItems.segments,
+                        "${operation.operationId} pagination item",
+                    )
+                }.distinct()
+        return itemTypes.singleOrNull()
+            ?: unsupported("pagination response item paths must resolve to one common item type")
+    }
 
     private fun projectStreaming(streaming: StreamingModel?): StreamingDeclaration? =
         when (streaming) {
@@ -652,7 +1199,10 @@ internal class StandardProjection : DeclarationProjection {
         message: String,
     ) : UnrepresentableOperationException(message)
 
-    private fun unsupported(message: String): Nothing = throw UnrepresentableOperationException(message)
+    private fun unsupported(
+        message: String,
+        source: SourcePointer? = null,
+    ): Nothing = throw UnrepresentableOperationException(message, source)
 
     private companion object {
         val SAFE_METHODS = setOf("GET", "HEAD", "OPTIONS", "TRACE")
@@ -683,6 +1233,24 @@ internal class StandardProjection : DeclarationProjection {
                 exclusion.reason,
             ).joinToString("|")
     }
+}
+
+/** Group key used when an operation has no tag and no usable path segment (see task T3 grouping rules). */
+private const val DEFAULT_GROUP_KEY = "default"
+private val PATH_PARAMETER_SEGMENT = Regex("\\{[^{}]+}")
+
+/**
+ * The client-partition group for one operation: its first declared OpenAPI tag, falling back to the first
+ * non-parameter path segment, falling back to [DEFAULT_GROUP_KEY]. Grouping never depends on iteration order:
+ * the same operation always yields the same raw key, and callers sort keys before allocating Kotlin names.
+ */
+private fun groupKeyFor(operation: OperationModel): String {
+    operation.tags.firstOrNull { tag -> tag.isNotBlank() }?.let { tag -> return tag.trim() }
+    operation.path
+        .split('/')
+        .firstOrNull { segment -> segment.isNotBlank() && !segment.matches(PATH_PARAMETER_SEGMENT) }
+        ?.let { segment -> return segment }
+    return DEFAULT_GROUP_KEY
 }
 
 private const val FIELD_STATE_EXTENSION = "x-sdkgen-field-state"
@@ -735,35 +1303,64 @@ private class TypeNamePlan(
             .filter { schema -> schemaNeedsDeclaration(schema) }
             .map(SchemaModel::id)
             .sorted()
-            .map(SchemaId::value)
+    private val componentSchemaIds = namedSchemaIds.filter(::isComponentSchemaId)
+    private val inlineSchemaIds = namedSchemaIds.filterNot(::isComponentSchemaId)
+    private val componentNames =
+        allocateNames(
+            componentSchemaIds.map(SchemaId::value),
+            (reservedNames + emitterDerivedNamesUsingRawNames()).toSet(),
+        ) { schemaId -> rawComponentName(schemaId) }
+    private val preliminaryInlineNames =
+        InlineSchemaNameResolver(modelPrefix = modelPrefix).resolveAll(
+            inlineSchemaIds,
+            reservedNames + componentNames.values,
+        )
     private val names =
-        allocateNames(namedSchemaIds, (reservedNames + emitterDerivedNames()).toSet()) { schemaId ->
-            rawSchemaName(schemaId)
+        buildMap {
+            putAll(componentNames)
+            putAll(
+                InlineSchemaNameResolver(modelPrefix = modelPrefix)
+                    .resolveAll(
+                        inlineSchemaIds,
+                        reservedNames + componentNames.values + emitterDerivedNames(preliminaryInlineNames),
+                    ).mapKeys { (schemaId, _) -> schemaId.value },
+            )
         }
 
-    private fun emitterDerivedNames(): Set<String> =
+    private fun emitterDerivedNamesUsingRawNames(): Set<String> =
         schemas.values
-            .flatMap { schema -> emitterDerivedNames(schema) }
+            .flatMap { schema -> emitterDerivedNames(schema, rawSchemaName(schema.id)) }
             .toSet()
 
-    private fun emitterDerivedNames(schema: SchemaModel): List<String> {
+    private fun emitterDerivedNames(inlineNames: Map<SchemaId, String>): Set<String> =
+        schemas.values
+            .flatMap { schema ->
+                val name = componentNames[schema.id.value] ?: inlineNames[schema.id] ?: rawSchemaName(schema.id)
+                emitterDerivedNames(schema, name)
+            }.toSet()
+
+    private fun emitterDerivedNames(
+        schema: SchemaModel,
+        name: String,
+    ): List<String> {
         val effective = dereference(schema)
-        val name = rawSchemaName(schema.id.value)
         return when {
             effective.compositions.any { composition -> composition.kind == CompositionKind.ONE_OF } -> {
                 listOf(
                     "${name}DecodingException",
                     "${name}NoMatchException",
                     "${name}AmbiguityException",
+                    "${name}BranchValidationException",
                     "${name}Inspection",
                 )
             }
 
             effective.compositions.any { composition -> composition.kind == CompositionKind.ANY_OF } -> {
                 val composition = effective.compositions.single { it.kind == CompositionKind.ANY_OF }
+                val valueBranches = composition.branches.filterNot { branch -> dereference(branch).acceptsOnlyNull }
                 val branchViews =
-                    if (composition.branches.all { branch -> isObjectLike(dereference(branch)) }) {
-                        composition.branches.mapIndexed { index, _ ->
+                    if (valueBranches.all { branch -> isObjectLike(dereference(branch)) }) {
+                        valueBranches.mapIndexed { index, _ ->
                             val branchName = KotlinNameResolver.typeName("$name branch $index")
                             "${branchName}View"
                         }
@@ -823,17 +1420,19 @@ private class TypeNamePlan(
         return current
     }
 
-    private fun rawSchemaName(schemaId: String): String {
+    private fun rawSchemaName(schemaId: SchemaId): String =
+        if (isComponentSchemaId(schemaId)) {
+            rawComponentName(schemaId.value)
+        } else {
+            InlineSchemaNameResolver(modelPrefix = modelPrefix)
+                .resolveAll(listOf(schemaId), emptySet())
+                .getValue(schemaId)
+        }
+
+    private fun rawComponentName(schemaId: String): String {
         val marker = "/components/schemas/"
-        val componentSuffix = schemaId.substringAfter(marker, missingDelimiterValue = "")
-        if (componentSuffix.isNotEmpty() && '/' !in componentSuffix) return prefixedTypeName(componentSuffix)
-        val pointer = schemaId.substringAfter('#', schemaId)
-        val readable =
-            pointer.split('/').filter(String::isNotBlank).joinToString(" ") { segment ->
-                segment.replace("~1", "/").replace("~0", "~")
-            }
-        val base = prefixedTypeName("Inline $readable")
-        return if (base.length <= 90) base else "${base.take(80)}${sha256Hex(schemaId.encodeToByteArray()).take(8)}"
+        val componentSuffix = schemaId.substringAfter(marker)
+        return prefixedTypeName(componentSuffix)
     }
 
     private fun prefixedTypeName(raw: String): String =
@@ -865,9 +1464,13 @@ private class SchemaProjectionContext(
     private val diagnostics: MutableList<GenerationDiagnostic>,
     private val origins: MutableMap<String, com.nabobery.sdkgen.model.SourcePointer>,
     private val fieldStateSchemaIds: Set<SchemaId>,
+    initialFailedSchemaIds: Set<SchemaId>,
 ) {
     private val document = request.document
-    private val failedSchemaIds = mutableSetOf<SchemaId>()
+    private val failures = initialFailedSchemaIds.toMutableSet()
+
+    val failedSchemaIds: Set<SchemaId>
+        get() = failures.toSet()
 
     fun projectDeclaration(schema: SchemaModel): Declaration? {
         val name = typePlan.nameFor(schema.id) ?: return null
@@ -902,12 +1505,12 @@ private class SchemaProjectionContext(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: UnrepresentableOperationException) {
-            failedSchemaIds += schema.id
+            failures += schema.id
             diagnostics +=
                 GenerationDiagnostic(
                     code = GenerationDiagnosticCode.UNREPRESENTABLE_SCHEMA,
                     message = "Schema '${schema.id.value}' cannot be represented: ${failure.message}",
-                    source = schema.source,
+                    source = failure.source ?: schema.source,
                     symbolId = "schema:$name",
                     remediation = "Rewrite the schema with supported composition and property shapes or apply an overlay.",
                 )
@@ -919,11 +1522,13 @@ private class SchemaProjectionContext(
         schemaRef: SchemaRef,
         inlineName: String,
     ): KotlinTypeRef {
+        val referenceChainNullable = referenceChainIsNullable(schemaRef.schemaId)
         val schema = dereference(schemaRef.schemaId)
-        if (schema.id in failedSchemaIds) unsupported("schema ${schema.id} has no emitted declaration")
+        if (schema.id in failures) unsupported("schema ${schema.id} has no emitted declaration")
         val transparentBranch = transparentAllOfBranch(schema)
         val nullable =
-            schema.nullability == Nullability.NULLABLE ||
+            referenceChainNullable ||
+                schema.nullability == Nullability.NULLABLE ||
                 transparentAllOfAnnotationsAreNullable(schema)
         transparentBranch?.let { branch ->
             val branchType = typeFor(SchemaRef(branch.id, schemaRef.source), inlineName)
@@ -1031,6 +1636,24 @@ private class SchemaProjectionContext(
 
     fun dereference(schemaRef: SchemaRef): SchemaModel = dereference(schemaRef.schemaId)
 
+    fun isEffectivelyNullable(schemaRef: SchemaRef): Boolean {
+        val schema = dereference(schemaRef)
+        return referenceChainIsNullable(schemaRef.schemaId) ||
+            schema.nullability == Nullability.NULLABLE ||
+            transparentAllOfAnnotationsAreNullable(schema)
+    }
+
+    private fun referenceChainIsNullable(schemaId: SchemaId): Boolean {
+        var current = document.schemas[schemaId] ?: unsupported("schema $schemaId is missing from the semantic graph")
+        val visited = mutableSetOf<SchemaId>()
+        while (visited.add(current.id)) {
+            if (current.nullability == Nullability.NULLABLE) return true
+            val targetId = current.referenceTarget ?: return false
+            current = document.schemas[targetId] ?: unsupported("schema $targetId is missing from the semantic graph")
+        }
+        return false
+    }
+
     fun dereference(schema: SchemaModel): SchemaModel = dereference(schema.id)
 
     fun dereference(schemaId: SchemaId): SchemaModel {
@@ -1084,6 +1707,12 @@ private class SchemaProjectionContext(
         return properties.values.toList()
     }
 
+    fun modelDeclarationFor(schemaRef: SchemaRef): ModelDeclaration? =
+        projectDeclaration(dereference(schemaRef)) as? ModelDeclaration
+
+    fun anyOfDeclarationFor(schemaRef: SchemaRef): AnyOfDeclaration? =
+        projectDeclaration(dereference(schemaRef)) as? AnyOfDeclaration
+
     private fun projectModel(
         schema: SchemaModel,
         name: String,
@@ -1109,19 +1738,63 @@ private class SchemaProjectionContext(
                     kdoc = property.description.orEmpty(),
                 )
             }
+        val usesFieldState =
+            schema.id in fieldStateSchemaIds ||
+                fields.any { field -> field.required && field.nullable }
+        if (usesFieldState) validateFieldStateMemberNames(fields, properties)
+        validateRequiredValueBackingMemberNames(fields, properties)
         return ModelDeclaration(
             symbolId = "schema:$name",
             order = schemaOrder(schema),
             packageName = request.packageName,
             fileName = name,
             resolvedName = name,
-            kdoc = schema.description ?: "Generated model for ${schema.id.value}.",
+            kdoc = schemaKdoc(schema, "Generated model for ${schema.id.value}."),
             fields = fields,
             dslFunctionName = KotlinNameResolver.memberName(name),
-            usesFieldState =
-                schema.id in fieldStateSchemaIds ||
-                    fields.any { field -> field.required && field.nullable },
+            usesFieldState = usesFieldState,
         )
+    }
+
+    private fun validateRequiredValueBackingMemberNames(
+        fields: List<FieldDeclaration>,
+        properties: List<PropertyModel>,
+    ) {
+        val fieldsByName = fields.associateBy(FieldDeclaration::resolvedName)
+        val propertiesByWireName = properties.associateBy(PropertyModel::name)
+        fields.filter { field -> field.required && !field.nullable }.forEach { field ->
+            val backingName = "${field.resolvedName}Value"
+            val conflict = fieldsByName[backingName] ?: return@forEach
+            val source = requireNotNull(propertiesByWireName[conflict.wireName]).source
+            unsupported(
+                "generated required-field backing member '$backingName' for wire property '${field.wireName}' " +
+                    "(${field.type}, required=${field.required}, nullable=${field.nullable}) conflicts with Kotlin " +
+                    "property '$backingName' for wire property '${conflict.wireName}' " +
+                    "(${conflict.type}, required=${conflict.required}, nullable=${conflict.nullable})",
+                source,
+            )
+        }
+    }
+
+    private fun validateFieldStateMemberNames(
+        fields: List<FieldDeclaration>,
+        properties: List<PropertyModel>,
+    ) {
+        val fieldsByName = fields.associateBy(FieldDeclaration::resolvedName)
+        val propertiesByWireName = properties.associateBy(PropertyModel::name)
+        fields.forEach { field ->
+            val backingName = "${field.resolvedName}State"
+            val conflict = fieldsByName[backingName] ?: return@forEach
+            if (conflict === field) return@forEach
+            val source = requireNotNull(propertiesByWireName[conflict.wireName]).source
+            unsupported(
+                "generated field-state backing member '$backingName' for wire property '${field.wireName}' " +
+                    "(${field.type}, required=${field.required}, nullable=${field.nullable}) conflicts with Kotlin " +
+                    "property '$backingName' for wire property '${conflict.wireName}' " +
+                    "(${conflict.type}, required=${conflict.required}, nullable=${conflict.nullable})",
+                source,
+            )
+        }
     }
 
     private fun projectEnum(
@@ -1156,7 +1829,7 @@ private class SchemaProjectionContext(
             packageName = request.packageName,
             fileName = name,
             resolvedName = name,
-            kdoc = schema.description ?: "Forward-compatible enum for ${schema.id.value}.",
+            kdoc = schemaKdoc(schema, "Forward-compatible enum for ${schema.id.value}."),
             values = values.map { value -> value.copy(resolvedName = resolvedValues.getValue(value.symbolId)) },
         )
     }
@@ -1164,7 +1837,7 @@ private class SchemaProjectionContext(
     private fun projectOneOf(
         schema: SchemaModel,
         name: String,
-    ): OneOfDeclaration {
+    ): Declaration {
         val compositions = schema.compositions
         if (compositions.any {
                 it.kind != CompositionKind.ONE_OF
@@ -1173,52 +1846,110 @@ private class SchemaProjectionContext(
             unsupported("schema ${schema.id} combines oneOf with another composition")
         }
         val composition = compositions.single()
-        val branches = composition.branches.map { branch -> dereference(branch) }
-        if (branches.anyNot(::isObjectLike)) unsupported("schema ${schema.id} has a primitive oneOf branch")
+        val valueBranches = composition.branches.filterNot { branch -> dereference(branch).acceptsOnlyNull }
+        val branches = valueBranches.map { branch -> dereference(branch) }
+        val enclosingProperties = flattenObjectProperties(schema)
+        val requiredOnlyBranches =
+            branches.map { branch -> isRequiredOnlyObjectConstraint(branch, enclosingProperties) }
+        if (branches.indices.any { index -> !isObjectLike(branches[index]) && !requiredOnlyBranches[index] }) {
+            return projectPrimitiveOneOf(schema, name, valueBranches, branches)
+        }
+        val branchProperties =
+            branches.mapIndexed { index, branch ->
+                if (requiredOnlyBranches[index]) enclosingProperties else flattenObjectProperties(branch)
+            }
+        val discriminatorEnumSets =
+            composition.discriminator?.let { discriminator ->
+                branchProperties
+                    .map { properties ->
+                        properties
+                            .firstOrNull { property -> property.name == discriminator.propertyName }
+                            ?.let { property -> dereference(property.schema).enum }
+                            ?.values
+                            ?.mapNotNull { value -> (value as? JsonValue.StringValue)?.value }
+                            ?.distinct()
+                            ?.sorted()
+                            .orEmpty()
+                    }.takeIf { enumSets ->
+                        enumSets.all(List<String>::isNotEmpty) && enumSets.arePairwiseDisjoint()
+                    }
+            }
         val caseNames =
-            allocateNames(composition.branches.map { it.schemaId.value }) { key ->
+            allocateNames(valueBranches.map { it.schemaId.value }) { key ->
                 typePlan.nameFor(SchemaId(key)) ?: KotlinNameResolver.typeName(key.substringAfterLast('/'))
             }
         val cases =
-            composition.branches.mapIndexed { index, branch ->
+            valueBranches.mapIndexed { index, branch ->
                 val target = branches[index]
-                val properties = flattenObjectProperties(target)
+                val requiredOnly = requiredOnlyBranches[index]
+                val properties = branchProperties[index]
                 val fieldNames =
                     allocateNames(properties.map(PropertyModel::name), base = KotlinNameResolver::memberName)
+                val requiredNames =
+                    if (requiredOnly) {
+                        properties
+                            .filter { property -> property.requiredness == Requiredness.REQUIRED }
+                            .mapTo(linkedSetOf(), PropertyModel::name)
+                            .apply { addAll(target.requiredPropertyNames) }
+                    } else {
+                        properties
+                            .filter { property -> property.requiredness == Requiredness.REQUIRED }
+                            .mapTo(linkedSetOf(), PropertyModel::name)
+                    }
+                discriminatorEnumSets?.let {
+                    requiredNames += requireNotNull(composition.discriminator).propertyName
+                }
+                val matchesEmptyObject =
+                    properties.isEmpty() &&
+                        "object" in target.types &&
+                        target.additionalProperties is AdditionalPropertiesModel.Closed &&
+                        target.compositions.isEmpty()
                 val requiredFields =
                     properties
-                        .filter { it.requiredness == Requiredness.REQUIRED }
+                        .filter { property -> property.name in requiredNames }
                         .map { property ->
                             UnionFieldDeclaration(
                                 resolvedName = fieldNames.getValue(property.name),
                                 wireName = property.name,
                                 type = typeFor(property.schema, "$name ${property.name}"),
+                                expectedStringValues = exactStringValues(dereference(property.schema)),
                             )
                         }
-                if (requiredFields.isEmpty()) {
-                    unsupported(
-                        "oneOf branch ${branch.schemaId} has no required match fields",
-                    )
+                if (requiredFields.isEmpty() && !matchesEmptyObject) {
+                    return projectPrimitiveOneOf(schema, name, valueBranches, branches)
                 }
+                val structuralMatchFields =
+                    if (requiredOnly) {
+                        requiredFields.filter { field -> field.wireName in target.requiredPropertyNames }
+                    } else {
+                        requiredFields
+                    }
                 val discriminatorField =
                     composition.discriminator?.let { discriminator ->
                         val property =
                             properties.firstOrNull { it.name == discriminator.propertyName } ?: return@let null
                         val propertySchema = dereference(property.schema)
-                        val value = propertySchema.enum?.values?.singleOrNull() as? JsonValue.StringValue
+                        val expectedValues =
+                            discriminatorEnumSets?.get(index)
+                                ?: listOfNotNull(
+                                    (propertySchema.enum?.values?.singleOrNull() as? JsonValue.StringValue)?.value,
+                                )
                         UnionFieldDeclaration(
                             resolvedName = fieldNames.getValue(property.name),
                             wireName = property.name,
                             type = typeFor(property.schema, "$name ${property.name}"),
-                            expectedStringValue = value?.value,
+                            expectedStringValue = expectedValues.singleOrNull(),
+                            expectedStringValues = expectedValues,
                         )
                     }
                 val matchFields =
-                    if (discriminatorField != null) {
+                    if (discriminatorField != null && discriminatorField.expectedStringValues.isNotEmpty()) {
+                        listOf(discriminatorField)
+                    } else if (discriminatorField != null) {
                         listOf(discriminatorField) +
-                            requiredFields.filterNot { it.wireName == discriminatorField.wireName }
+                            structuralMatchFields.filterNot { it.wireName == discriminatorField.wireName }
                     } else {
-                        requiredFields
+                        structuralMatchFields
                     }
                 OneOfCaseDeclaration(
                     symbolId = "schema:$name/branch:${branch.schemaId.value}",
@@ -1226,6 +1957,22 @@ private class SchemaProjectionContext(
                     resolvedName = caseNames.getValue(branch.schemaId.value),
                     requiredFields = requiredFields,
                     matchFields = matchFields,
+                    matchesEmptyObject = matchesEmptyObject,
+                    predicate =
+                        if (hasRawLiteralPropertyConstraint(target)) {
+                            if (requiredOnly) {
+                                JsonBranchPredicate.AllOf(
+                                    listOf(
+                                        objectOneOfPredicate(schema.copy(compositions = emptyList())),
+                                        objectOneOfPredicate(target),
+                                    ),
+                                )
+                            } else {
+                                objectOneOfPredicate(target)
+                            }
+                        } else {
+                            null
+                        },
                 )
             }
         return OneOfDeclaration(
@@ -1234,8 +1981,48 @@ private class SchemaProjectionContext(
             packageName = request.packageName,
             fileName = name,
             resolvedName = name,
-            kdoc = schema.description ?: "Closed oneOf union for ${schema.id.value}.",
+            kdoc = schemaKdoc(schema, "Closed oneOf union for ${schema.id.value}."),
             cases = cases,
+        )
+    }
+
+    private fun projectPrimitiveOneOf(
+        schema: SchemaModel,
+        name: String,
+        valueBranches: List<SchemaRef>,
+        branches: List<SchemaModel>,
+    ): PrimitiveOneOfDeclaration {
+        val caseTypes =
+            valueBranches.mapIndexed { index, branch ->
+                typeFor(branch, "$name branch ${index + 1}")
+            }
+        val caseKeys =
+            valueBranches.mapIndexed { index, branch ->
+                branchKey(index, branch.schemaId)
+            }
+        val caseNames =
+            allocateNames(caseKeys) { key ->
+                val (index, _) = parseBranchKey(key)
+                KotlinNameResolver.typeName("${caseTypes[index].simpleName} value")
+            }
+        return PrimitiveOneOfDeclaration(
+            symbolId = "schema:$name",
+            order = schemaOrder(schema),
+            packageName = request.packageName,
+            fileName = name,
+            resolvedName = name,
+            kdoc = schemaKdoc(schema, "Closed primitive oneOf union for ${schema.id.value}."),
+            cases =
+                valueBranches.mapIndexed { index, branch ->
+                    PrimitiveOneOfCaseDeclaration(
+                        symbolId = "schema:$name/branch:${branch.schemaId.value}",
+                        order = index,
+                        resolvedName = caseNames.getValue(caseKeys[index]),
+                        type = caseTypes[index],
+                        jsonKind = primitiveOneOfJsonKind(branches[index]),
+                        predicate = primitiveOneOfPredicate(branches[index]),
+                    )
+                },
         )
     }
 
@@ -1251,8 +2038,9 @@ private class SchemaProjectionContext(
             unsupported("schema ${schema.id} combines anyOf with another composition")
         }
         val composition = compositions.single()
+        val valueBranches = composition.branches.filterNot { branch -> dereference(branch).acceptsOnlyNull }
         val branchKeys =
-            composition.branches.mapIndexed { index, branch ->
+            valueBranches.mapIndexed { index, branch ->
                 branchKey(index, branch.schemaId)
             }
         val branchNames =
@@ -1261,7 +2049,7 @@ private class SchemaProjectionContext(
                 typePlan.nameFor(SchemaId(schemaId)) ?: "Branch${index + 1}"
             }
         val branches =
-            composition.branches.mapIndexed { index, branch ->
+            valueBranches.mapIndexed { index, branch ->
                 val target = dereference(branch)
                 val branchName = branchNames.getValue(branchKey(index, branch.schemaId))
                 val branchSymbolId = "schema:$name/branch:$branchName"
@@ -1280,6 +2068,10 @@ private class SchemaProjectionContext(
                                 required = required,
                             )
                         }
+                    val viewFileName =
+                        target.id
+                            .takeIf(::isComponentSchemaId)
+                            ?.let(typePlan::nameFor)
                     AnyOfBranchDeclaration(
                         symbolId = branchSymbolId,
                         order = index,
@@ -1297,11 +2089,13 @@ private class SchemaProjectionContext(
                                         target.nullability == Nullability.NULLABLE,
                                 )
                             } ?: KotlinTypeRef("kotlinx.serialization.json", "JsonObject"),
-                        viewTypeName = "${branchName}View",
-                        viewFileName =
-                            target.id
-                                .takeIf(::isComponentSchemaId)
-                                ?.let(typePlan::nameFor),
+                        viewTypeName =
+                            if (viewFileName == null) {
+                                "${name}${branchName}View"
+                            } else {
+                                "${branchName}View"
+                            },
+                        viewFileName = viewFileName,
                     )
                 } else {
                     AnyOfBranchDeclaration(
@@ -1325,16 +2119,271 @@ private class SchemaProjectionContext(
             packageName = request.packageName,
             fileName = name,
             resolvedName = name,
-            kdoc = schema.description ?: "Lossless anyOf wrapper for ${schema.id.value}.",
+            kdoc = schemaKdoc(schema, "Lossless anyOf wrapper for ${schema.id.value}."),
             branches = branches,
         )
     }
+
+    private fun schemaKdoc(
+        schema: SchemaModel,
+        fallback: String,
+    ): String = "${schema.description ?: fallback}\n\nSource: ${schema.id.value}"
 
     private fun schemaOrder(schema: SchemaModel): Int = schema.id.value.hashCode()
 
     private fun isObjectLike(schema: SchemaModel): Boolean =
         "object" in schema.types || schema.properties.isNotEmpty() ||
             schema.compositions.any { it.kind == CompositionKind.ALL_OF }
+
+    private fun hasRawLiteralPropertyConstraint(schema: SchemaModel): Boolean =
+        flattenObjectProperties(schema).any { property ->
+            val propertySchema = dereference(property.schema)
+            propertySchema.constraints.containsKey("const") || propertySchema.enum != null
+        }
+
+    private fun objectOneOfPredicate(schema: SchemaModel): JsonBranchPredicate =
+        try {
+            primitiveOneOfPredicate(schema)
+        } catch (_: UnrepresentableOperationException) {
+            JsonBranchPredicate.NeverMatch
+        }
+
+    private fun exactStringValues(schema: SchemaModel): List<String> =
+        when (val constant = schema.constraints["const"]) {
+            is JsonValue.StringValue -> {
+                listOf(constant.value)
+            }
+
+            else -> {
+                schema.enum
+                    ?.takeIf { enum -> enum.values.all { value -> value is JsonValue.StringValue } }
+                    ?.values
+                    ?.map { value -> (value as JsonValue.StringValue).value }
+                    ?.distinct()
+                    ?.sorted()
+                    .orEmpty()
+            }
+        }
+
+    private fun primitiveOneOfJsonKind(schema: SchemaModel): PrimitiveOneOfJsonKind =
+        when (val predicate = primitiveOneOfPredicate(schema)) {
+            is JsonBranchPredicate.Kind -> {
+                predicate.kind
+            }
+
+            is JsonBranchPredicate.AllOf -> {
+                predicate.predicates
+                    .filterIsInstance<JsonBranchPredicate.Kind>()
+                    .singleOrNull()
+                    ?.kind
+                    ?: unsupported("oneOf branch ${schema.id} has no single JSON kind")
+            }
+
+            else -> {
+                unsupported("oneOf branch ${schema.id} has no exact JSON kind")
+            }
+        }
+
+    /**
+     * Projects only assertions whose raw JSON membership can be emitted exactly. This intentionally
+     * rejects constraint keywords rather than using successful Kotlin deserialization as a proxy for
+     * JSON Schema validation.
+     */
+    private fun primitiveOneOfPredicate(
+        schema: SchemaModel,
+        visiting: MutableSet<SchemaId> = linkedSetOf(),
+    ): JsonBranchPredicate {
+        if (!visiting.add(schema.id)) unsupported("oneOf branch ${schema.id} has a recursive predicate reference")
+        try {
+            if (schema.contentEncoding != null || schema.contentMediaType != null) {
+                unsupported("oneOf branch ${schema.id} uses unsupported content assertions")
+            }
+            val predicates = mutableListOf<JsonBranchPredicate>()
+            val typedPredicates =
+                schema.types.distinct().map { type ->
+                    when (type) {
+                        "null" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NULL)
+                        "string" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING)
+                        "integer" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.INTEGER)
+                        "number" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NUMBER)
+                        "boolean" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.BOOLEAN)
+                        "array" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.ARRAY)
+                        "object" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT)
+                        else -> unsupported("oneOf branch ${schema.id} has unsupported JSON type '$type'")
+                    }
+                }
+            when (typedPredicates.size) {
+                0 -> Unit
+                1 -> predicates += typedPredicates.single()
+                else -> predicates += JsonBranchPredicate.AnyOf(typedPredicates)
+            }
+            schema.constraints["const"]?.let { value -> predicates += JsonBranchPredicate.Constant(value) }
+            schema.enum?.let { enum -> predicates += JsonBranchPredicate.Enumeration(enum.values) }
+
+            val numeric = numericPredicate(schema)
+            if (numeric != null) predicates += numeric
+            val string = stringPredicate(schema)
+            if (string != null) predicates += string
+            val array = arrayPredicate(schema, visiting)
+            if (array != null) predicates += array
+            val objectPredicate = objectPredicate(schema, visiting)
+            if (objectPredicate != null) predicates += objectPredicate
+
+            schema.compositions.forEach { composition ->
+                if (composition.kind != CompositionKind.ALL_OF) {
+                    unsupported("oneOf branch ${schema.id} uses unsupported ${composition.kind} composition")
+                }
+                composition.branches.forEach { branch ->
+                    predicates += primitiveOneOfPredicate(dereference(branch), visiting)
+                }
+            }
+            if (predicates.isEmpty()) return JsonBranchPredicate.AnyValue
+            if (predicates.size == 1) return predicates.single()
+            return JsonBranchPredicate.AllOf(predicates)
+        } finally {
+            visiting.remove(schema.id)
+        }
+    }
+
+    private fun numericPredicate(schema: SchemaModel): JsonBranchPredicate.Numeric? {
+        val names = setOf("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf")
+        val values = names.associateWith { name -> schema.constraints[name]?.asNumber(name, schema) }
+        if (values.values.all { it == null }) return null
+        return JsonBranchPredicate.Numeric(
+            minimum = values.getValue("minimum"),
+            maximum = values.getValue("maximum"),
+            exclusiveMinimum = values.getValue("exclusiveMinimum"),
+            exclusiveMaximum = values.getValue("exclusiveMaximum"),
+            multipleOf = values.getValue("multipleOf"),
+        )
+    }
+
+    private fun stringPredicate(schema: SchemaModel): JsonBranchPredicate.StringShape? {
+        schema.constraints["pattern"]?.let {
+            unsupported("oneOf branch ${schema.id} uses pattern, whose JSON Schema regex dialect cannot be preserved")
+        }
+        val minLength = schema.constraints["minLength"]?.asNonNegativeInt("minLength", schema)
+        val maxLength = schema.constraints["maxLength"]?.asNonNegativeInt("maxLength", schema)
+        val format =
+            if (schema.types.isNotEmpty() && "string" !in schema.types) {
+                null
+            } else {
+                when (schema.format) {
+                    null -> null
+                    "date" -> JsonStringFormat.DATE
+                    "date-time" -> JsonStringFormat.DATE_TIME
+                    else -> unsupported("oneOf branch ${schema.id} uses unsupported string format '${schema.format}'")
+                }
+            }
+        return if (minLength == null && maxLength == null && format == null) {
+            null
+        } else {
+            JsonBranchPredicate.StringShape(minLength, maxLength, format)
+        }
+    }
+
+    private fun arrayPredicate(
+        schema: SchemaModel,
+        visiting: MutableSet<SchemaId>,
+    ): JsonBranchPredicate.ArrayShape? {
+        val minItems = schema.constraints["minItems"]?.asNonNegativeInt("minItems", schema)
+        val maxItems = schema.constraints["maxItems"]?.asNonNegativeInt("maxItems", schema)
+        val uniqueItems =
+            when (val value = schema.constraints["uniqueItems"]) {
+                null -> false
+                is JsonValue.BooleanValue -> value.value
+                else -> unsupported("oneOf branch ${schema.id} has non-boolean uniqueItems")
+            }
+        val item = schema.items?.let { reference -> primitiveOneOfPredicate(dereference(reference), visiting) }
+        return if (minItems == null && maxItems == null && !uniqueItems && item == null) {
+            null
+        } else {
+            JsonBranchPredicate.ArrayShape(minItems, maxItems, uniqueItems, item)
+        }
+    }
+
+    private fun objectPredicate(
+        schema: SchemaModel,
+        visiting: MutableSet<SchemaId>,
+    ): JsonBranchPredicate.ObjectShape? {
+        schema.constraints["minProperties"]?.let {
+            unsupported("oneOf branch ${schema.id} uses unsupported minProperties")
+        }
+        schema.constraints["maxProperties"]?.let {
+            unsupported("oneOf branch ${schema.id} uses unsupported maxProperties")
+        }
+        schema.constraints["unevaluatedProperties"]?.let {
+            unsupported("oneOf branch ${schema.id} uses unsupported unevaluatedProperties")
+        }
+        val properties = schema.properties.sortedBy(PropertyModel::name)
+        val requiredNames = schema.requiredPropertyNames.distinct().sorted()
+        val additional =
+            when (val value = schema.additionalProperties) {
+                null, is AdditionalPropertiesModel.FreeForm -> {
+                    JsonAdditionalPropertiesPredicate.Open
+                }
+
+                is AdditionalPropertiesModel.Closed -> {
+                    JsonAdditionalPropertiesPredicate.Closed
+                }
+
+                is AdditionalPropertiesModel.Typed -> {
+                    JsonAdditionalPropertiesPredicate.Typed(
+                        primitiveOneOfPredicate(dereference(value.valueSchema), visiting),
+                    )
+                }
+            }
+        val hasObjectAssertions =
+            properties.isNotEmpty() || requiredNames.isNotEmpty() || schema.additionalProperties != null
+        if (!hasObjectAssertions) return null
+        return JsonBranchPredicate.ObjectShape(
+            requiredNames = requiredNames,
+            properties =
+                properties.associate { property ->
+                    property.name to primitiveOneOfPredicate(dereference(property.schema), visiting)
+                },
+            additionalProperties = additional,
+        )
+    }
+
+    private fun JsonValue.asNumber(
+        name: String,
+        schema: SchemaModel,
+    ): String =
+        (this as? JsonValue.NumberValue)?.lexicalValue
+            ?: unsupported("oneOf branch ${schema.id} has non-numeric $name")
+
+    private fun JsonValue.asNonNegativeInt(
+        name: String,
+        schema: SchemaModel,
+    ): Int {
+        val value =
+            asNumber(name, schema).toIntOrNull()
+                ?: unsupported("oneOf branch ${schema.id} has non-integer $name")
+        if (value < 0) unsupported("oneOf branch ${schema.id} has negative $name")
+        return value
+    }
+
+    private fun List<List<String>>.arePairwiseDisjoint(): Boolean {
+        val seen = mutableSetOf<String>()
+        return all { values -> values.all(seen::add) }
+    }
+
+    private fun isRequiredOnlyObjectConstraint(
+        schema: SchemaModel,
+        enclosingProperties: List<PropertyModel>,
+    ): Boolean =
+        schema.referenceTarget == null &&
+            schema.types.isEmpty() &&
+            schema.properties.isEmpty() &&
+            schema.items == null &&
+            schema.additionalProperties == null &&
+            schema.enum == null &&
+            schema.compositions.isEmpty() &&
+            schema.requiredPropertyNames.isNotEmpty() &&
+            schema.requiredPropertyNames.all { requiredName ->
+                enclosingProperties.any { property -> property.name == requiredName }
+            }
 
     private fun transparentAllOfBranch(schema: SchemaModel): SchemaModel? {
         if (schema.types.isNotEmpty() || schema.properties.isNotEmpty() || schema.items != null ||
@@ -1369,11 +2418,15 @@ private class SchemaProjectionContext(
             schema.compositions.isEmpty() &&
             schema.enum == null
 
-    private fun unsupported(message: String): Nothing = throw UnrepresentableOperationException(message)
+    private fun unsupported(
+        message: String,
+        source: SourcePointer? = null,
+    ): Nothing = throw UnrepresentableOperationException(message, source)
 }
 
 private open class UnrepresentableOperationException(
     message: String,
+    val source: SourcePointer? = null,
 ) : RuntimeException(message)
 
 private fun <T> List<T>.anyNot(predicate: (T) -> Boolean): Boolean = any { item -> !predicate(item) }

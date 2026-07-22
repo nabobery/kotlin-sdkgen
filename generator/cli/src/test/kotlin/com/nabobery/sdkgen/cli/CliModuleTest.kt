@@ -59,10 +59,13 @@ internal class CliModuleTest {
         assertTrue(project.output.exists())
         assertTrue(project.output.resolve("manifest.json").exists())
         assertTrue(project.lock.exists())
+        // "/chat" has no operation tag, so it falls back to its first path segment: the "chat" sub-client
+        // (task T3 partitions the client by tag/resource; OperationMetadata lives on the sub-client, not the
+        // root OpenRouterClient.kt facade).
         assertTrue(
             project.output
                 .resolve(
-                    "com/nabobery/sdkgen/generated/OpenRouterClient.kt",
+                    "com/nabobery/sdkgen/generated/chat/ChatClient.kt",
                 ).readText()
                 .contains("OperationMetadata"),
         )

@@ -6,13 +6,35 @@ import kotlin.test.assertTrue
 
 class GeneratedLineWrappingTest {
     @Test
-    fun wrapsLargeGeneratedStringWithoutGrowingTheCallStack() {
+    fun leavesLargeGeneratedCodeStringsUntouchedToPreserveSyntax() {
         val source = "\"" + "word ".repeat(5_000) + "end\""
 
         val wrapped = wrapGeneratedKotlinForTest(source)
 
-        assertEquals(source.removeSurrounding("\""), generatedStringContents(wrapped))
-        assertTrue(wrapped.lineSequence().count() > 1)
+        assertEquals(source, wrapped)
+    }
+
+    @Test
+    fun preservesKDocDelimitersAndBlankLinesWhileWrappingContent() {
+        val longContent = "word ".repeat(40).trimEnd()
+        val source =
+            listOf(
+                "/**",
+                " * Short content.",
+                " * $longContent",
+                " *",
+                " */",
+            ).joinToString("\n")
+
+        val wrapped = wrapGeneratedKotlinForTest(source)
+        val lines = wrapped.lineSequence().toList()
+
+        assertEquals("/**", lines.first())
+        assertEquals(" * Short content.", lines[1])
+        assertEquals(" *", lines[lines.lastIndex - 1])
+        assertEquals(" */", lines.last())
+        assertTrue(lines.drop(2).dropLast(2).all { line -> line.startsWith(" * ") })
+        assertTrue(lines.size > 5)
     }
 
     @Test
@@ -23,17 +45,6 @@ class GeneratedLineWrappingTest {
 
         assertEquals(source, wrapped)
     }
-
-    private fun generatedStringContents(source: String): String =
-        source
-            .lineSequence()
-            .joinToString("") { line ->
-                line
-                    .trim()
-                    .removeSuffix("+")
-                    .trim()
-                    .removeSurrounding("\"")
-            }
 
     private fun wrapGeneratedKotlinForTest(source: String): String {
         val method =

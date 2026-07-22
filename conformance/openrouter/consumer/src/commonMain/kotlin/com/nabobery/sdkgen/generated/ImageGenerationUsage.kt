@@ -175,61 +175,7 @@ public class ImageGenerationUsage(
           .decodeFromJsonElement<AnthropicCacheCreation?>(element) },
         completionTokensDetails = raw["completion_tokens_details"]?.let { element ->
           if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasImageGenerationUsagePropertiesCompletionTokensDetails?>(element) },
+            .decodeFromJsonElement<InlineComponentsSchemasImageGenerationUsagePropertiesCompletionTokensDetails?>(element) },
         cost = raw["cost"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<Double?>(element) },
         costDetails = raw["cost_details"]?.let { element -> if (element == JsonNull) null else json

@@ -9,6 +9,7 @@ import com.nabobery.sdkgen.runtime.OperationSafety
 import com.nabobery.sdkgen.runtime.ResponseAlternative
 import com.nabobery.sdkgen.runtime.ResponseSelector
 import com.nabobery.sdkgen.runtime.RetryDescriptor
+import com.nabobery.sdkgen.runtime.SdkApiException
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkDeadlines
@@ -65,6 +66,12 @@ public object ResponseShapeCodecs {
   public val compatibleMediaResponseCodecAlternative1Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(compatibleMediaResponseCodecAlternative1Codec)
 
+  private val compatibleMediaResponseCodecAlternative2Codec: MediaTypeCodec<String> =
+      KotlinxSerializationCodec("compatibleMedia.response.alternative2", String.serializer(), SdkJson)
+
+  public val compatibleMediaResponseCodecAlternative2Registry: MediaTypeCodecRegistry<String> =
+      MediaTypeCodecRegistry.of(compatibleMediaResponseCodecAlternative2Codec)
+
   public val compatibleMediaRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
@@ -118,14 +125,40 @@ public class ResponseShapeClient(
    *
    * @param options Execution options.
    * @return Buffered response body.
-   * @throws SdkApiException When the service returns a non-success response.
+   * @throws CompatibleMediaApiException When the service returns a declared non-success response; its `error` property
+   * exposes the decoded CompatibleMediaError payload.
    * @throws SdkSerializationException When a request or response cannot be serialized.
    * @throws SdkTransportException When transport execution fails.
    */
-  public suspend fun compatibleMedia(options: CallOptions = CallOptions()): String = executor.execute<Unit,
-    String>(SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()),
-      listOf(ResponseShapeCodecs.COMPATIBLEMEDIA_RESPONSE_CODEC_ID), ResponseShapeCodecs
-        .compatibleMediaRequestCodecRegistry, ResponseShapeCodecs.compatibleMediaResponseCodecRegistry, options)
+  public suspend fun compatibleMedia(options: CallOptions = CallOptions()): String = executor
+    .executeWithTypedErrors<Unit, CompatibleMediaResponse, String>(
+    request = SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()),
+    requestCodecs = ResponseShapeCodecs.compatibleMediaRequestCodecRegistry,
+    responseDecoder = CompatibleMediaResponseDecoder,
+    mapSuccess = { response ->
+      when (response) {
+        is CompatibleMediaResponse.SuccessJson -> response.json
+        is CompatibleMediaResponse.SuccessVndValueJson -> response.json
+        is CompatibleMediaResponse.Http400Json -> response.json
+        is CompatibleMediaResponse.Http422NoContent ->
+          error("Runtime selected a non-success response for success mapping.")
+        is CompatibleMediaResponse.Unknown ->
+          error("Runtime returned an unmatched response through the typed success path.")
+      }
+    },
+    mapError = { response, statusCode, headers ->
+      when (response) {
+        is CompatibleMediaResponse.SuccessJson -> error("Runtime selected a success response for error mapping.")
+        is CompatibleMediaResponse.SuccessVndValueJson ->
+          error("Runtime selected a success response for error mapping.")
+        is CompatibleMediaResponse.Http400Json -> CompatibleMediaApiException(response, statusCode, headers)
+        is CompatibleMediaResponse.Http422NoContent -> CompatibleMediaApiException(response, statusCode, headers)
+        is CompatibleMediaResponse.Unknown ->
+          error("Runtime returned an unmatched response through the typed error path.")
+      }
+    },
+    options = options,
+  )
 
   /**
    * Golden response-shape regression for 'compatibleMedia'.
@@ -271,6 +304,11 @@ public class ResponseShapeClient(
   }
 
   /**
+   * Decoded non-success response alternatives that `compatibleMedia` may expose through its typed API exception.
+   */
+  public sealed interface CompatibleMediaError
+
+  /**
    * Typed response alternatives for `compatibleMedia`. Non-success alternatives are not converted into success values.
    */
   public sealed interface CompatibleMediaResponse {
@@ -286,11 +324,35 @@ public class ResponseShapeClient(
       public val headers: List<SdkHeader>,
     ) : CompatibleMediaResponse
 
+    public class Http400Json(
+      public val json: String,
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : CompatibleMediaResponse,
+        CompatibleMediaError
+
+    public class Http422NoContent(
+      public val unit: Unit,
+      public val statusCode: Int,
+      public val headers: List<SdkHeader>,
+    ) : CompatibleMediaResponse,
+        CompatibleMediaError
+
     public class Unknown(
       public val statusCode: Int,
       public val headers: List<SdkHeader>,
     ) : CompatibleMediaResponse
   }
+
+  /**
+   * Raised by `compatibleMedia` after decoding a declared non-success response. [error] is typed and is not included in
+   * the exception message or diagnostic rendering.
+   */
+  public class CompatibleMediaApiException(
+    public val error: CompatibleMediaError,
+    statusCode: Int,
+    headers: List<SdkHeader>,
+  ) : SdkApiException(statusCode, headers, "compatibleMedia")
 
   private object CompatibleMediaResponseDecoder : SdkResponseAlternativeDecoder<CompatibleMediaResponse> {
     public override suspend fun decode(
@@ -323,6 +385,24 @@ public class ResponseShapeClient(
           json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative1Registry
             .select(listOf("compatibleMedia.response.alternative1"), mediaType ?: "application/vnd.value+json")
               .decode(body, mediaType ?: "application/vnd.value+json"),
+          statusCode = statusCode,
+          headers = headers,
+        ),
+        transferBody = false,
+      )
+      alternative.id == "compatibleMedia.response.alternative2" -> SdkResponseDecodeResult(
+        value = CompatibleMediaResponse.Http400Json(
+          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative2Registry
+            .select(listOf("compatibleMedia.response.alternative2"), mediaType ?: "application/json").decode(body,
+              mediaType ?: "application/json"),
+          statusCode = statusCode,
+          headers = headers,
+        ),
+        transferBody = false,
+      )
+      alternative.id == "compatibleMedia.response.alternative3" -> SdkResponseDecodeResult(
+        value = CompatibleMediaResponse.Http422NoContent(
+          unit = Unit,
           statusCode = statusCode,
           headers = headers,
         ),
@@ -420,7 +500,7 @@ public class ResponseShapeClient(
           method = "GET",
           path = "/compatibleMedia",
           requestMediaTypes = emptyList(),
-          responseMediaTypes = listOf("application/json", "application/vnd.value+json"),
+          responseMediaTypes = listOf("application/json", "application/vnd.value+json", "application/json"),
           successStatusCodes = setOf(200),
           responseMode = SdkResponseMode.BUFFERED,
           deadlines = SdkDeadlines(null, null, null),
@@ -438,6 +518,20 @@ public class ResponseShapeClient(
               typeTag = "String",
               mode = SdkResponseMode.BUFFERED,
               id = "compatibleMedia.response.alternative1",
+            ),
+            ResponseAlternative(
+              selector = ResponseSelector.ExactStatus(code = 400),
+              mediaTypes = listOf("application/json"),
+              typeTag = "String",
+              mode = SdkResponseMode.BUFFERED,
+              id = "compatibleMedia.response.alternative2",
+            ),
+            ResponseAlternative(
+              selector = ResponseSelector.ExactStatus(code = 422),
+              mediaTypes = emptyList(),
+              typeTag = "Unit",
+              mode = SdkResponseMode.BUFFERED,
+              id = "compatibleMedia.response.alternative3",
             ),
           ),
           security = emptyList(),

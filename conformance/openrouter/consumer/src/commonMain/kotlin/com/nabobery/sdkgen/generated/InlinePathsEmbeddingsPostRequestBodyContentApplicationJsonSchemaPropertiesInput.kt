@@ -79,63 +79,7 @@ public class InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPro
       List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items>?
       by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch5) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items>>(raw) else null }
+        .decodeFromJsonElement<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items>>(raw) else null }
 
   public val matchedBranches:
       Set<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputBranch>
@@ -198,65 +142,7 @@ private fun inspectInlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSch
   val matchesBranch4 = element.isJsonDecodable<List<List<Double>>>() && (element as? JsonArray)?.size?.let {
     it <= 2147483647 } == true
   val matchesBranch5 = element
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .isJsonDecodable<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items>>() && (element as? JsonArray)?.size?.let { it <= 2147483647 } == true
+    .isJsonDecodable<List<InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputAnyOf4Items>>() && (element as? JsonArray)?.size?.let { it <= 2147483647 } == true
   return InlinePathsEmbeddingsPostRequestBodyContentApplicationJsonSchemaPropertiesInputInspection(
     matchesBranch1 = matchesBranch1,
     matchesBranch2 = matchesBranch2,

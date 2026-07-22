@@ -65,8 +65,13 @@ internal fun encodeQueryParameter(
     value: String,
 ): String = "${sdkUriEncode(name)}=${sdkUriEncode(value)}"
 
-/** Builds the absolute request URI after path-template replacement and repeated-query serialization. */
-internal fun buildRequestUri(
+/**
+ * Builds the absolute request URI after path-template replacement and repeated-query serialization — the same
+ * construction [SdkExecutor] uses internally to resolve a physical request. Public so generated code for
+ * [PaginationDescriptor.HeaderNextUrl] pagination can compute the exact URI a page fetch will use (for
+ * [com.nabobery.sdkgen.runtime.pagination.PageEnvelope.requestUri]) without duplicating this algorithm.
+ */
+public fun buildRequestUri(
     baseUri: String,
     pathTemplate: String,
     parameters: List<SdkRequestParameter>,

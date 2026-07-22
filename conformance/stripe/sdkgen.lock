@@ -1,0 +1,23 @@
+{
+  "version": "v1alpha1",
+  "configDigest": "8151030a7668b5a16d00ff54bf39ceb44e012325e2cda2e225e3496d0cb0ec62",
+  "source": {
+    "canonicalUri": "sdkgen://source/openapi.json",
+    "sha256": "e24a26de4188fd64dec4c043d5d3726277fdcb07556a493ea481c305b0a223d8",
+    "contentLength": 7866866,
+    "references": []
+  },
+  "overlays": [],
+  "generator": {
+    "version": "0.1.0-alpha.1",
+    "edition": "community"
+  },
+  "compatibilityProfiles": [],
+  "plugins": [],
+  "tools": [
+    {
+      "id": "kotlinpoet",
+      "version": "2.3.0"
+    }
+  ]
+}

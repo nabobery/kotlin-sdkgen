@@ -58,63 +58,7 @@ public class InlineComponentsSchemasMessagesMessageParamPropertiesContent intern
   public val branch2: List<InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1Items>?
       by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch2) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1Items>>(raw) else null }
+        .decodeFromJsonElement<List<InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1Items>>(raw) else null }
 
   public val matchedBranches:
       Set<InlineComponentsSchemasMessagesMessageParamPropertiesContentBranch>

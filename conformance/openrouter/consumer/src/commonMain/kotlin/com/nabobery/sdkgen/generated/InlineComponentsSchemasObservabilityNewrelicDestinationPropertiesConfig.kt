@@ -79,62 +79,7 @@ public class InlineComponentsSchemasObservabilityNewrelicDestinationPropertiesCo
         licenseKey = licenseKey,
         headers = raw["headers"]?.let { json.decodeFromJsonElement<Map<String, String>>(it) },
         region = raw["region"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasObservabilityNewrelicDestinationPropertiesConfigPropertiesRegion>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasObservabilityNewrelicDestinationPropertiesConfigPropertiesRegion>(it) },
       )
     }
 

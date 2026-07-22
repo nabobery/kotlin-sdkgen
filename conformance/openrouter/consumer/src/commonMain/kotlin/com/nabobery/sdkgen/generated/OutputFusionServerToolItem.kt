@@ -141,62 +141,7 @@ public class OutputFusionServerToolItem(
         analysis = raw["analysis"]?.let { json.decodeFromJsonElement<FusionAnalysisResult>(it) },
         error = raw["error"]?.let { json.decodeFromJsonElement<String>(it) },
         failedModels = raw["failed_models"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasOutputFusionServerToolItemPropertiesFailedModelsItems>>(it) },
+          .decodeFromJsonElement<List<InlineComponentsSchemasOutputFusionServerToolItemPropertiesFailedModelsItems>>(it) },
         failureReason = raw["failure_reason"]?.let { json.decodeFromJsonElement<String>(it) },
         id = raw["id"]?.let { json.decodeFromJsonElement<String>(it) },
         responses = raw["responses"]?.let { json

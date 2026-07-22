@@ -30,36 +30,44 @@ import com.nabobery.sdkgen.runtime.auth.parseOrigin
 internal fun resolveNextUrl(
     baseUri: String,
     rawNextUrl: String,
-): String? =
-    when {
-        rawNextUrl.startsWith("http://", ignoreCase = true) || rawNextUrl.startsWith("https://", ignoreCase = true) -> {
-            rawNextUrl
-        }
+): String? {
+    if (rawNextUrl.any(::isForbiddenRawUriCharacter)) return null
+    val resolved =
+        when {
+            rawNextUrl.startsWith("http://", ignoreCase = true) ||
+                rawNextUrl.startsWith("https://", ignoreCase = true) -> {
+                rawNextUrl
+            }
 
-        rawNextUrl.startsWith("//") -> {
-            val scheme = schemeOf(baseUri) ?: return null
-            "$scheme:$rawNextUrl"
-        }
+            rawNextUrl.startsWith("//") -> {
+                val scheme = schemeOf(baseUri) ?: return null
+                "$scheme:$rawNextUrl"
+            }
 
-        rawNextUrl.startsWith("/") -> {
-            val origin = parseOrigin(baseUri) ?: return null
-            "$origin$rawNextUrl"
-        }
+            rawNextUrl.startsWith("/") -> {
+                val origin = parseOrigin(baseUri) ?: return null
+                "$origin$rawNextUrl"
+            }
 
-        rawNextUrl.startsWith("?") -> {
-            val basePath = pathPrefix(baseUri) ?: return null
-            "$basePath$rawNextUrl"
-        }
+            rawNextUrl.startsWith("?") -> {
+                val basePath = pathPrefix(baseUri) ?: return null
+                "$basePath$rawNextUrl"
+            }
 
-        rawNextUrl.startsWith("#") -> {
-            null
-        }
+            rawNextUrl.startsWith("#") -> {
+                return null
+            }
 
-        else -> {
-            val directory = directoryPrefix(baseUri) ?: return null
-            "$directory$rawNextUrl"
+            else -> {
+                val directory = directoryPrefix(baseUri) ?: return null
+                "$directory$rawNextUrl"
+            }
         }
-    }
+    return resolved.takeIf { parseOrigin(it) != null }
+}
+
+private fun isForbiddenRawUriCharacter(character: Char): Boolean =
+    character.code <= ASCII_SPACE || character.code == ASCII_DELETE || character.isWhitespace()
 
 /**
  * Trust-checks [resolvedUrl] (already resolved by [resolveNextUrl]) against [trustedHosts], returning [resolvedUrl]
@@ -81,6 +89,25 @@ internal fun requireTrustedNextUrl(
         )
     }
     return resolvedUrl
+}
+
+/**
+ * Splits an already-resolved, absolute `http`/`https` [url] (as [resolveNextUrl] produces, and as carried on
+ * [PageRequest.NextUrl.url]) into its origin (`scheme://authority`) and the remaining path+query+fragment — the
+ * inverse of [com.nabobery.sdkgen.runtime.buildRequestUri]'s `baseUri`/`pathTemplate` split. Generated code for
+ * [HeaderNextUrl pagination][com.nabobery.sdkgen.runtime.PaginationDescriptor.HeaderNextUrl] uses this to re-target
+ * a continuation fetch's
+ * [com.nabobery.sdkgen.runtime.SdkExecutionRequest.baseUri] and [com.nabobery.sdkgen.runtime.OperationMetadata.path]
+ * at a resolved `Link` header target rather than the operation's own fixed base URI.
+ *
+ * @throws IllegalArgumentException when [url] is not an absolute `http`/`https` URI (should never happen for a URL
+ *   that already passed through [resolveNextUrl], which only ever produces such URLs).
+ */
+public fun splitResolvedUrl(url: String): Pair<String, String> {
+    val authorityEnd = requireNotNull(authorityEndIndex(url)) { "expected an absolute http(s) URL: $url" }
+    val origin = url.substring(0, authorityEnd)
+    val rest = url.substring(authorityEnd)
+    return origin to rest.ifEmpty { "/" }
 }
 
 /** `"http"`/`"https"` (lowercased) when [uri] is an absolute URI of one of those schemes, else `null`. */
@@ -129,3 +156,5 @@ private fun directoryPrefix(uri: String): String? {
 
 private const val HTTPS_PREFIX_LENGTH = 8
 private const val HTTP_PREFIX_LENGTH = 7
+private const val ASCII_SPACE = 0x20
+private const val ASCII_DELETE = 0x7F

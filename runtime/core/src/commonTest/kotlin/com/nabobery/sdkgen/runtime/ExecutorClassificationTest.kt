@@ -5,6 +5,7 @@ package com.nabobery.sdkgen.runtime
 import com.nabobery.sdkgen.runtime.resilience.SdkDelayer
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.startCoroutine
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -635,6 +636,106 @@ internal class ExecutorClassificationTest {
     }
 
     @Test
+    fun typedErrorExecutionDecodesOnceClosesBodyAndThrowsCatchableBaseWithTypedPayload() {
+        val responseBody = ClassificationRecordingStream(listOf("declined".encodeToByteArray()))
+        val decoder = ClassificationTypedDecoder()
+
+        val failure =
+            assertFailsWith<SdkApiException> {
+                executeWithTypedErrors(
+                    statusCode = 402,
+                    responseBody = responseBody,
+                    decoder = decoder,
+                )
+            }
+
+        assertTrue(failure is ClassificationTypedApiException)
+        assertEquals("declined", failure.error.code)
+        assertEquals(402, failure.statusCode)
+        assertEquals(1, decoder.decodeCount)
+        assertFalse(requireNotNull(failure.message).contains("declined"))
+        assertFalse(failure.toString().contains("declined"))
+        assertTrue(responseBody.closed)
+        assertSame(failure, responseBody.lastCloseCause)
+    }
+
+    @Test
+    fun typedErrorExecutionKeepsUnknownResponseBoundedAndRedacted() {
+        val secret = "secret-token"
+        val responseBody =
+            ClassificationRecordingStream(
+                listOf(
+                    (
+                        "{\"token\":\"$secret\",\"padding\":\"" +
+                            "x".repeat(UnknownApiException.MAX_BODY_PREVIEW_BYTES) +
+                            "\"}"
+                    ).encodeToByteArray(),
+                ),
+            )
+        val decoder = ClassificationTypedDecoder()
+
+        val failure =
+            assertFailsWith<UnknownApiException> {
+                executeWithTypedErrors(
+                    statusCode = 599,
+                    responseBody = responseBody,
+                    decoder = decoder,
+                )
+            }
+
+        val preview = requireNotNull(failure.redactedBodyPreview)
+        assertFalse(preview.contains(secret))
+        assertTrue(preview.contains("<redacted>"))
+        assertTrue(preview.encodeToByteArray().size <= UnknownApiException.MAX_BODY_PREVIEW_BYTES)
+        assertTrue(preview.endsWith("…[truncated]"))
+        assertEquals(0, decoder.decodeCount)
+        assertTrue(responseBody.closed)
+        assertSame(failure, responseBody.lastCloseCause)
+    }
+
+    @Test
+    fun typedErrorExecutionPreservesDecodeFailureClassification() {
+        val responseBody = ClassificationRecordingStream(listOf("broken".encodeToByteArray()))
+        val decodeFailure = IllegalArgumentException("malformed typed error")
+        val decoder = ClassificationTypedDecoder(decodeFailure)
+
+        val failure =
+            assertFailsWith<SdkSerializationException> {
+                executeWithTypedErrors(
+                    statusCode = 402,
+                    responseBody = responseBody,
+                    decoder = decoder,
+                )
+            }
+
+        assertSame(decodeFailure, failure.cause)
+        assertEquals(1, decoder.decodeCount)
+        assertTrue(responseBody.closed)
+        assertSame(failure, responseBody.lastCloseCause)
+    }
+
+    @Test
+    fun typedErrorExecutionPreservesCancellationIdentity() {
+        val responseBody = ClassificationRecordingStream(listOf("cancel".encodeToByteArray()))
+        val cancellation = CancellationException("cancel typed error decode")
+        val decoder = ClassificationTypedDecoder(cancellation)
+
+        val failure =
+            assertFailsWith<CancellationException> {
+                executeWithTypedErrors(
+                    statusCode = 402,
+                    responseBody = responseBody,
+                    decoder = decoder,
+                )
+            }
+
+        assertSame(cancellation, failure)
+        assertEquals(1, decoder.decodeCount)
+        assertTrue(responseBody.closed)
+        assertSame(cancellation, responseBody.lastCloseCause)
+    }
+
+    @Test
     fun withResponseKeepsTwoHundredSuccessTypedAndDoesNotUseLegacySuccessPath() {
         val result =
             executeWithResponse(
@@ -1095,6 +1196,54 @@ internal class ExecutorClassificationTest {
         assertTrue(responseBody.closed)
     }
 
+    private fun executeWithTypedErrors(
+        statusCode: Int,
+        responseBody: ClassificationRecordingStream,
+        decoder: ClassificationTypedDecoder,
+    ): String {
+        val metadata =
+            baseMetadata().copy(
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = listOf("application/json"),
+                responseAlternatives =
+                    listOf(
+                        ResponseAlternative(
+                            ResponseSelector.ExactStatus(200),
+                            listOf("application/json"),
+                            typeTag = "Success",
+                        ),
+                        ResponseAlternative(
+                            ResponseSelector.ExactStatus(402),
+                            listOf("application/json"),
+                            typeTag = "Error",
+                        ),
+                    ),
+            )
+        val transport =
+            ClassificationRecordingTransport(
+                SdkResponse(
+                    statusCode,
+                    listOf(SdkHeader("Content-Type", "application/json")),
+                    responseBody,
+                ),
+            )
+        return runSuspendForClassificationTest {
+            SdkExecutor(transport).executeWithTypedErrors<Unit, ClassificationTypedResponse, String>(
+                request = SdkExecutionRequest(metadata, "https://example.test", Unit, emptyList()),
+                requestCodecs = MediaTypeCodecRegistry.of<Unit>(),
+                responseDecoder = decoder,
+                mapSuccess = { response -> (response as ClassificationTypedResponse.Success).value },
+                mapError = { response, responseStatus, headers ->
+                    ClassificationTypedApiException(
+                        error = response as ClassificationTypedResponse.Error,
+                        statusCode = responseStatus,
+                        headers = headers,
+                    )
+                },
+            )
+        }
+    }
+
     private fun executeWithResponse(
         metadata: OperationMetadata,
         statusCode: Int,
@@ -1193,6 +1342,52 @@ internal class ExecutorClassificationTest {
             )
         }
     }
+}
+
+private sealed interface ClassificationTypedResponse {
+    data class Success(
+        val value: String,
+    ) : ClassificationTypedResponse
+
+    data class Error(
+        val code: String,
+    ) : ClassificationTypedResponse
+}
+
+private class ClassificationTypedApiException(
+    val error: ClassificationTypedResponse.Error,
+    statusCode: Int,
+    headers: List<SdkHeader>,
+) : SdkApiException(statusCode, headers, "op")
+
+private class ClassificationTypedDecoder(
+    private val failure: Throwable? = null,
+) : SdkResponseAlternativeDecoder<ClassificationTypedResponse> {
+    var decodeCount: Int = 0
+        private set
+
+    override suspend fun decode(
+        alternative: ResponseAlternative,
+        statusCode: Int,
+        headers: List<SdkHeader>,
+        body: SdkByteStream,
+        mediaType: String?,
+    ): ClassificationTypedResponse {
+        decodeCount += 1
+        failure?.let { throw it }
+        val value = body.readChunk()?.decodeToString().orEmpty()
+        return if (alternative.typeTag == "Success") {
+            ClassificationTypedResponse.Success(value)
+        } else {
+            ClassificationTypedResponse.Error(value)
+        }
+    }
+
+    override suspend fun decodeUnknown(
+        statusCode: Int,
+        headers: List<SdkHeader>,
+        body: SdkByteStream,
+    ): ClassificationTypedResponse = error("Unknown responses must use the bounded runtime path.")
 }
 
 private object ClassificationStringCodec : MediaTypeCodec<String> {

@@ -47,4 +47,8 @@ include(
     ":runtime:transport-java-http",
     ":integrations:gradle-plugin",
     ":conformance:openrouter:consumer",
+    ":conformance:github:consumer",
+    ":conformance:stripe:consumer",
+    ":conformance:streaming-fixture:consumer",
+    ":conformance:pagination-fixture:consumer",
 )

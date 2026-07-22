@@ -1,0 +1,550 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.String
+import kotlin.Unit
+import kotlin.collections.List
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * The [release](https://docs.github.com/rest/releases/releases/#get-a-release) object.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/webhooks_release
+ */
+@Serializable(with = WebhooksRelease.Serializer::class)
+public class WebhooksRelease internal constructor(
+  assets: List<InlineWebhooksReleaseAssetsItemX80f823eb>,
+  public val assetsUrl: String,
+  public val author: InlineWebhooksReleaseAuthorX1c2b7b7a?,
+  public val body: String?,
+  public val createdAt: String?,
+  /**
+   * Whether the release is a draft or published
+   */
+  public val draft: Boolean,
+  public val htmlUrl: String,
+  public val id: Int,
+  /**
+   * Whether or not the release is immutable.
+   */
+  public val immutable: Boolean,
+  public val name: String?,
+  public val nodeId: String,
+  /**
+   * Whether the release is identified as a prerelease or a full release.
+   */
+  public val prerelease: Boolean,
+  public val publishedAt: String?,
+  /**
+   * The name of the tag.
+   */
+  public val tagName: String,
+  public val tarballUrl: String?,
+  /**
+   * Specifies the commitish value that determines where the Git tag is created from.
+   */
+  public val targetCommitish: String,
+  public val updatedAt: String?,
+  public val uploadUrl: String,
+  public val url: String,
+  public val zipballUrl: String?,
+  private val discussionUrlState: FieldState<String>,
+  private val reactionsState: FieldState<InlineWebhooksReleaseReactionsXb76673db>,
+) {
+  public val assets: List<InlineWebhooksReleaseAssetsItemX80f823eb> = assets.toList()
+
+  public val discussionUrl: String?
+    get() = discussionUrlState.valueOrNull()
+
+  public val reactions: InlineWebhooksReleaseReactionsXb76673db?
+    get() = reactionsState.valueOrNull()
+
+  public constructor(
+    assets: List<InlineWebhooksReleaseAssetsItemX80f823eb>,
+    assetsUrl: String,
+    author: InlineWebhooksReleaseAuthorX1c2b7b7a?,
+    body: String?,
+    createdAt: String?,
+    draft: Boolean,
+    htmlUrl: String,
+    id: Int,
+    immutable: Boolean,
+    name: String?,
+    nodeId: String,
+    prerelease: Boolean,
+    publishedAt: String?,
+    tagName: String,
+    tarballUrl: String?,
+    targetCommitish: String,
+    updatedAt: String?,
+    uploadUrl: String,
+    url: String,
+    zipballUrl: String?,
+  ) : this(assets = assets,
+  assetsUrl = assetsUrl,
+  author = author,
+  body = body,
+  createdAt = createdAt,
+  draft = draft,
+  htmlUrl = htmlUrl,
+  id = id,
+  immutable = immutable,
+  name = name,
+  nodeId = nodeId,
+  prerelease = prerelease,
+  publishedAt = publishedAt,
+  tagName = tagName,
+  tarballUrl = tarballUrl,
+  targetCommitish = targetCommitish,
+  updatedAt = updatedAt,
+  uploadUrl = uploadUrl,
+  url = url,
+  zipballUrl = zipballUrl,
+  discussionUrlState = FieldState.Absent,
+  reactionsState = FieldState.Absent,
+  )
+
+  /**
+   * Returns the wire presence of `discussion_url`.
+   */
+  public fun discussionUrlPresence(): FieldPresence = discussionUrlState.presence
+
+  /**
+   * Returns the wire presence of `reactions`.
+   */
+  public fun reactionsPresence(): FieldPresence = reactionsState.presence
+
+  public class Builder {
+    private var assetsValue: List<InlineWebhooksReleaseAssetsItemX80f823eb>? = null
+
+    public var assets: List<InlineWebhooksReleaseAssetsItemX80f823eb>
+      get() = requireNotNull(assetsValue) { "assets is required" }
+      set(`value`) {
+        assetsValue = value
+      }
+
+    private var assetsUrlValue: String? = null
+
+    public var assetsUrl: String
+      get() = requireNotNull(assetsUrlValue) { "assetsUrl is required" }
+      set(`value`) {
+        assetsUrlValue = value
+      }
+
+    private var draftValue: Boolean? = null
+
+    public var draft: Boolean
+      get() = requireNotNull(draftValue) { "draft is required" }
+      set(`value`) {
+        draftValue = value
+      }
+
+    private var htmlUrlValue: String? = null
+
+    public var htmlUrl: String
+      get() = requireNotNull(htmlUrlValue) { "htmlUrl is required" }
+      set(`value`) {
+        htmlUrlValue = value
+      }
+
+    private var idValue: Int? = null
+
+    public var id: Int
+      get() = requireNotNull(idValue) { "id is required" }
+      set(`value`) {
+        idValue = value
+      }
+
+    private var immutableValue: Boolean? = null
+
+    public var immutable: Boolean
+      get() = requireNotNull(immutableValue) { "immutable is required" }
+      set(`value`) {
+        immutableValue = value
+      }
+
+    private var nodeIdValue: String? = null
+
+    public var nodeId: String
+      get() = requireNotNull(nodeIdValue) { "nodeId is required" }
+      set(`value`) {
+        nodeIdValue = value
+      }
+
+    private var prereleaseValue: Boolean? = null
+
+    public var prerelease: Boolean
+      get() = requireNotNull(prereleaseValue) { "prerelease is required" }
+      set(`value`) {
+        prereleaseValue = value
+      }
+
+    private var tagNameValue: String? = null
+
+    public var tagName: String
+      get() = requireNotNull(tagNameValue) { "tagName is required" }
+      set(`value`) {
+        tagNameValue = value
+      }
+
+    private var targetCommitishValue: String? = null
+
+    public var targetCommitish: String
+      get() = requireNotNull(targetCommitishValue) { "targetCommitish is required" }
+      set(`value`) {
+        targetCommitishValue = value
+      }
+
+    private var uploadUrlValue: String? = null
+
+    public var uploadUrl: String
+      get() = requireNotNull(uploadUrlValue) { "uploadUrl is required" }
+      set(`value`) {
+        uploadUrlValue = value
+      }
+
+    private var urlValue: String? = null
+
+    public var url: String
+      get() = requireNotNull(urlValue) { "url is required" }
+      set(`value`) {
+        urlValue = value
+      }
+
+    private var authorState: FieldState<InlineWebhooksReleaseAuthorX1c2b7b7a?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var author: InlineWebhooksReleaseAuthorX1c2b7b7a?
+      get() = authorState.valueOrNull()
+      set(`value`) {
+        authorState = value.toNullableFieldState()
+      }
+
+    private var bodyState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var body: String?
+      get() = bodyState.valueOrNull()
+      set(`value`) {
+        bodyState = value.toNullableFieldState()
+      }
+
+    private var createdAtState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var createdAt: String?
+      get() = createdAtState.valueOrNull()
+      set(`value`) {
+        createdAtState = value.toNullableFieldState()
+      }
+
+    private var nameState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var name: String?
+      get() = nameState.valueOrNull()
+      set(`value`) {
+        nameState = value.toNullableFieldState()
+      }
+
+    private var publishedAtState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var publishedAt: String?
+      get() = publishedAtState.valueOrNull()
+      set(`value`) {
+        publishedAtState = value.toNullableFieldState()
+      }
+
+    private var tarballUrlState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var tarballUrl: String?
+      get() = tarballUrlState.valueOrNull()
+      set(`value`) {
+        tarballUrlState = value.toNullableFieldState()
+      }
+
+    private var updatedAtState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var updatedAt: String?
+      get() = updatedAtState.valueOrNull()
+      set(`value`) {
+        updatedAtState = value.toNullableFieldState()
+      }
+
+    private var zipballUrlState: FieldState<String?> = FieldState.Absent
+
+    /**
+     * Required nullable field; assigning `null` records present-null.
+     */
+    public var zipballUrl: String?
+      get() = zipballUrlState.valueOrNull()
+      set(`value`) {
+        zipballUrlState = value.toNullableFieldState()
+      }
+
+    private var discussionUrlState: FieldState<String> = FieldState.Absent
+
+    /**
+     * Assign a non-null value, or use the unset function to omit the property.
+     */
+    public var discussionUrl: String?
+      get() = discussionUrlState.valueOrNull()
+      set(`value`) {
+        val present = requireNotNull(value) { "discussionUrl is not nullable; call unsetDiscussionUrl() to omit it" }
+        discussionUrlState = FieldState.Value(present)
+      }
+
+    private var reactionsState: FieldState<InlineWebhooksReleaseReactionsXb76673db> =
+        FieldState.Absent
+
+    /**
+     * Assign a non-null value, or use the unset function to omit the property.
+     */
+    public var reactions: InlineWebhooksReleaseReactionsXb76673db?
+      get() = reactionsState.valueOrNull()
+      set(`value`) {
+        val present = requireNotNull(value) { "reactions is not nullable; call unsetReactions() to omit it" }
+        reactionsState = FieldState.Value(present)
+      }
+
+    /**
+     * Omits `discussion_url` from serialized output.
+     */
+    public fun unsetDiscussionUrl() {
+      discussionUrlState = FieldState.Absent
+    }
+
+    /**
+     * Omits `reactions` from serialized output.
+     */
+    public fun unsetReactions() {
+      reactionsState = FieldState.Absent
+    }
+
+    public fun build(): WebhooksRelease {
+      check(assetsValue != null) { "assets is required" }
+      check(assetsUrlValue != null) { "assetsUrl is required" }
+      check(draftValue != null) { "draft is required" }
+      check(htmlUrlValue != null) { "htmlUrl is required" }
+      check(idValue != null) { "id is required" }
+      check(immutableValue != null) { "immutable is required" }
+      check(nodeIdValue != null) { "nodeId is required" }
+      check(prereleaseValue != null) { "prerelease is required" }
+      check(tagNameValue != null) { "tagName is required" }
+      check(targetCommitishValue != null) { "targetCommitish is required" }
+      check(uploadUrlValue != null) { "uploadUrl is required" }
+      check(urlValue != null) { "url is required" }
+      check(authorState !== FieldState.Absent) { "author is required, even when null" }
+      check(bodyState !== FieldState.Absent) { "body is required, even when null" }
+      check(createdAtState !== FieldState.Absent) { "createdAt is required, even when null" }
+      check(nameState !== FieldState.Absent) { "name is required, even when null" }
+      check(publishedAtState !== FieldState.Absent) { "publishedAt is required, even when null" }
+      check(tarballUrlState !== FieldState.Absent) { "tarballUrl is required, even when null" }
+      check(updatedAtState !== FieldState.Absent) { "updatedAt is required, even when null" }
+      check(zipballUrlState !== FieldState.Absent) { "zipballUrl is required, even when null" }
+      return WebhooksRelease(
+        assets = assets,
+        assetsUrl = assetsUrl,
+        author = authorState.valueOrNull(),
+        body = bodyState.valueOrNull(),
+        createdAt = createdAtState.valueOrNull(),
+        draft = draft,
+        htmlUrl = htmlUrl,
+        id = id,
+        immutable = immutable,
+        name = nameState.valueOrNull(),
+        nodeId = nodeId,
+        prerelease = prerelease,
+        publishedAt = publishedAtState.valueOrNull(),
+        tagName = tagName,
+        tarballUrl = tarballUrlState.valueOrNull(),
+        targetCommitish = targetCommitish,
+        updatedAt = updatedAtState.valueOrNull(),
+        uploadUrl = uploadUrl,
+        url = url,
+        zipballUrl = zipballUrlState.valueOrNull(),
+        discussionUrlState = discussionUrlState,
+        reactionsState = reactionsState,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): WebhooksRelease = Builder().apply(block).build()
+  }
+
+  public object Serializer : KSerializer<WebhooksRelease> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): WebhooksRelease {
+      val jsonDecoder = decoder.requireJsonDecoder("WebhooksRelease")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("WebhooksRelease must be a JSON object")
+      val assets = json.decodeRequired<List<InlineWebhooksReleaseAssetsItemX80f823eb>>(rawObject, "assets")
+      val assetsUrl = json.decodeRequired<String>(rawObject, "assets_url")
+      val draft = json.decodeRequired<Boolean>(rawObject, "draft")
+      val htmlUrl = json.decodeRequired<String>(rawObject, "html_url")
+      val id = json.decodeRequired<Int>(rawObject, "id")
+      val immutable = json.decodeRequired<Boolean>(rawObject, "immutable")
+      val nodeId = json.decodeRequired<String>(rawObject, "node_id")
+      val prerelease = json.decodeRequired<Boolean>(rawObject, "prerelease")
+      val tagName = json.decodeRequired<String>(rawObject, "tag_name")
+      val targetCommitish = json.decodeRequired<String>(rawObject, "target_commitish")
+      val uploadUrl = json.decodeRequired<String>(rawObject, "upload_url")
+      val url = json.decodeRequired<String>(rawObject, "url")
+      if (!rawObject.containsKey("author")) {
+        throw SerializationException("WebhooksRelease is missing required property 'author'")
+      }
+      val author = rawObject["author"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<InlineWebhooksReleaseAuthorX1c2b7b7a?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("body")) {
+        throw SerializationException("WebhooksRelease is missing required property 'body'")
+      }
+      val body = rawObject["body"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("created_at")) {
+        throw SerializationException("WebhooksRelease is missing required property 'created_at'")
+      }
+      val createdAt = rawObject["created_at"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("name")) {
+        throw SerializationException("WebhooksRelease is missing required property 'name'")
+      }
+      val name = rawObject["name"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("published_at")) {
+        throw SerializationException("WebhooksRelease is missing required property 'published_at'")
+      }
+      val publishedAt = rawObject["published_at"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("tarball_url")) {
+        throw SerializationException("WebhooksRelease is missing required property 'tarball_url'")
+      }
+      val tarballUrl = rawObject["tarball_url"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("updated_at")) {
+        throw SerializationException("WebhooksRelease is missing required property 'updated_at'")
+      }
+      val updatedAt = rawObject["updated_at"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      if (!rawObject.containsKey("zipball_url")) {
+        throw SerializationException("WebhooksRelease is missing required property 'zipball_url'")
+      }
+      val zipballUrl = rawObject["zipball_url"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(requireNotNull(element)) }
+      return WebhooksRelease(
+        assets = assets,
+        assetsUrl = assetsUrl,
+        author = author,
+        body = body,
+        createdAt = createdAt,
+        draft = draft,
+        htmlUrl = htmlUrl,
+        id = id,
+        immutable = immutable,
+        name = name,
+        nodeId = nodeId,
+        prerelease = prerelease,
+        publishedAt = publishedAt,
+        tagName = tagName,
+        tarballUrl = tarballUrl,
+        targetCommitish = targetCommitish,
+        updatedAt = updatedAt,
+        uploadUrl = uploadUrl,
+        url = url,
+        zipballUrl = zipballUrl,
+        discussionUrlState = json.decodeOptional(rawObject, "discussion_url", nullable = false),
+        reactionsState = json.decodeOptional(rawObject, "reactions", nullable = false),
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: WebhooksRelease) {
+      val jsonEncoder = encoder.requireJsonEncoder("WebhooksRelease")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("assets", json.encodeToJsonElement(value.assets))
+        put("assets_url", value.assetsUrl)
+        put("author", value.author?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("body", value.body?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("created_at", value.createdAt?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("draft", json.encodeToJsonElement(value.draft))
+        put("html_url", value.htmlUrl)
+        put("id", json.encodeToJsonElement(value.id))
+        put("immutable", json.encodeToJsonElement(value.immutable))
+        put("name", value.name?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("node_id", value.nodeId)
+        put("prerelease", json.encodeToJsonElement(value.prerelease))
+        put("published_at", value.publishedAt?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("tag_name", value.tagName)
+        put("tarball_url", value.tarballUrl?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("target_commitish", value.targetCommitish)
+        put("updated_at", value.updatedAt?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        put("upload_url", value.uploadUrl)
+        put("url", value.url)
+        put("zipball_url", value.zipballUrl?.let { json.encodeToJsonElement(it) } ?: JsonNull)
+        putState("discussion_url", value.discussionUrlState, json::encodeToJsonElement)
+        putState("reactions", value.reactionsState, json::encodeToJsonElement)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun webhooksRelease(block: WebhooksRelease.Builder.() -> Unit): WebhooksRelease = WebhooksRelease.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("WebhooksRelease is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
+
+private fun <T> T?.toNullableFieldState(): FieldState<T> = if (this == null) FieldState.Null else FieldState.Value(this)
+
+private inline fun <reified T> Json.decodeOptional(
+  raw: JsonObject,
+  name: String,
+  nullable: Boolean,
+): FieldState<T> {
+  if (!raw.containsKey(name)) return FieldState.Absent
+  val element = requireNotNull(raw[name])
+  if (element == JsonNull) {
+    if (!nullable) throw SerializationException("WebhooksRelease property '" + name + "' is not nullable")
+    return FieldState.Null
+  }
+  return FieldState.Value(decodeFromJsonElement<T>(element))
+}
+
+private inline fun <T> JsonObjectBuilder.putState(
+  name: String,
+  state: FieldState<T>,
+  encode: (T) -> JsonElement,
+) {
+  when (state) {
+    FieldState.Absent -> Unit
+    FieldState.Null -> put(name, JsonNull)
+    is FieldState.Value -> put(name, encode(state.value))
+  }
+}

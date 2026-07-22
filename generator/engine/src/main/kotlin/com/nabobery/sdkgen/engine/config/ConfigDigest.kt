@@ -11,7 +11,12 @@ import java.security.MessageDigest
 
 public object ConfigDigest {
     public fun sha256(config: SdkgenConfigV1Alpha1): String =
-        sha256(ConfigFormats.json.encodeToJsonElement(SdkgenConfigV1Alpha1.serializer(), config))
+        sha256(
+            ConfigFormats.json.encodeToJsonElement(
+                SdkgenConfigV1Alpha1.serializer(),
+                config.copy(acceptedWaivers = config.acceptedWaivers.sortedBy(AcceptedWaiverConfig::id)),
+            ),
+        )
 
     public fun sha256(element: JsonElement): String = sha256Bytes(canonicalize(element).encodeToByteArray())
 

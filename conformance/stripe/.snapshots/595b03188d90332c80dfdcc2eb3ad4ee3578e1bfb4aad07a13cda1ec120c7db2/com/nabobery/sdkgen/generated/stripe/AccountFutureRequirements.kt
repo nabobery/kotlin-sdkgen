@@ -1,0 +1,257 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+import kotlin.Int
+import kotlin.String
+import kotlin.Unit
+import kotlin.collections.List
+
+/**
+ *
+ *
+ * Source: sdkgen://source/openapi.json#/components/schemas/account_future_requirements
+ */
+@Serializable(with = AccountFutureRequirements.Serializer::class)
+public class AccountFutureRequirements(
+    /**
+     * Fields that are due and can be resolved by providing the corresponding alternative fields instead. Many
+     * alternatives can list the same `original_fields_due`, and any of these alternatives can serve as a pathway for
+     * attempting to resolve the fields again. Re-providing `original_fields_due` also serves as a pathway for attempting
+     * to resolve the fields again.
+     */
+    public val alternatives: List<AccountRequirementsAlternative>? = null,
+    /**
+     * Date on which `future_requirements` becomes the main `requirements` hash and `future_requirements` becomes empty.
+     * After the transition, `currently_due` requirements may immediately become `past_due`, but the account may also be
+     * given a grace period depending on its enablement state prior to transitioning.
+     */
+    public val currentDeadline: Int? = null,
+    /**
+     * Fields that need to be resolved to keep the account enabled. If not resolved by
+     * `future_requirements[current_deadline]`, these fields will transition to the main `requirements` hash.
+     */
+    public val currentlyDue: List<String>? = null,
+    /**
+     * This is typed as an enum for consistency with `requirements.disabled_reason`.
+     */
+    public val disabledReason: InlineAccountFutureRequirementsDisabledReasonXa6ead16a? = null,
+    /**
+     * Details about validation and verification failures for `due` requirements that must be resolved.
+     */
+    public val errors: List<AccountRequirementsError>? = null,
+    /**
+     * Fields you must collect when all thresholds are reached. As they become required, they appear in `currently_due` as
+     * well.
+     */
+    public val eventuallyDue: List<String>? = null,
+    /**
+     * Fields that haven't been resolved by `requirements.current_deadline`. These fields need to be resolved to enable
+     * the capability on the account. `future_requirements.past_due` is a subset of `requirements.past_due`.
+     */
+    public val pastDue: List<String>? = null,
+    /**
+     * Fields that are being reviewed, or might become required depending on the results of a review. If the review fails,
+     * these fields can move to `eventually_due`, `currently_due`, `past_due` or `alternatives`. Fields might appear in
+     * `eventually_due`, `currently_due`, `past_due` or `alternatives` and in `pending_verification` if one verification
+     * fails but another is still pending.
+     */
+    public val pendingVerification: List<String>? = null,
+) {
+    public class Builder {
+        /**
+         * Fields that are due and can be resolved by providing the corresponding alternative fields instead. Many
+         * alternatives can list the same `original_fields_due`, and any of these alternatives can serve as a pathway for
+         * attempting to resolve the fields again. Re-providing `original_fields_due` also serves as a pathway for
+         * attempting to resolve the fields again.
+         */
+        public var alternatives: List<AccountRequirementsAlternative>? = null
+
+        /**
+         * Date on which `future_requirements` becomes the main `requirements` hash and `future_requirements` becomes empty.
+         * After the transition, `currently_due` requirements may immediately become `past_due`, but the account may also be
+         * given a grace period depending on its enablement state prior to transitioning.
+         */
+        public var currentDeadline: Int? = null
+
+        /**
+         * Fields that need to be resolved to keep the account enabled. If not resolved by
+         * `future_requirements[current_deadline]`, these fields will transition to the main `requirements` hash.
+         */
+        public var currentlyDue: List<String>? = null
+
+        /**
+         * This is typed as an enum for consistency with `requirements.disabled_reason`.
+         */
+        public var disabledReason: InlineAccountFutureRequirementsDisabledReasonXa6ead16a? = null
+
+        /**
+         * Details about validation and verification failures for `due` requirements that must be resolved.
+         */
+        public var errors: List<AccountRequirementsError>? = null
+
+        /**
+         * Fields you must collect when all thresholds are reached. As they become required, they appear in `currently_due`
+         * as well.
+         */
+        public var eventuallyDue: List<String>? = null
+
+        /**
+         * Fields that haven't been resolved by `requirements.current_deadline`. These fields need to be resolved to enable
+         * the capability on the account. `future_requirements.past_due` is a subset of `requirements.past_due`.
+         */
+        public var pastDue: List<String>? = null
+
+        /**
+         * Fields that are being reviewed, or might become required depending on the results of a review. If the review
+         * fails, these fields can move to `eventually_due`, `currently_due`, `past_due` or `alternatives`. Fields might
+         * appear in `eventually_due`, `currently_due`, `past_due` or `alternatives` and in `pending_verification` if one
+         * verification fails but another is still pending.
+         */
+        public var pendingVerification: List<String>? = null
+
+        public fun build(): AccountFutureRequirements =
+            AccountFutureRequirements(
+                alternatives = alternatives,
+                currentDeadline = currentDeadline,
+                currentlyDue = currentlyDue,
+                disabledReason = disabledReason,
+                errors = errors,
+                eventuallyDue = eventuallyDue,
+                pastDue = pastDue,
+                pendingVerification = pendingVerification,
+            )
+    }
+
+    public companion object {
+        public fun build(block: Builder.() -> Unit): AccountFutureRequirements = Builder().apply(block).build()
+    }
+
+    public object Serializer : KSerializer<AccountFutureRequirements> {
+        override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+        override fun deserialize(decoder: Decoder): AccountFutureRequirements {
+            val jsonDecoder = decoder.requireJsonDecoder("AccountFutureRequirements")
+            val json = jsonDecoder.json
+            val rawObject =
+                jsonDecoder.decodeJsonElement() as? JsonObject
+                    ?: throw SerializationException("AccountFutureRequirements must be a JSON object")
+            return AccountFutureRequirements(
+                alternatives =
+                    rawObject["alternatives"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<AccountRequirementsAlternative>?>(element)
+                        }
+                    },
+                currentDeadline =
+                    rawObject["current_deadline"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<Int?>(element)
+                        }
+                    },
+                currentlyDue =
+                    rawObject["currently_due"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<String>?>(element)
+                        }
+                    },
+                disabledReason =
+                    rawObject["disabled_reason"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<InlineAccountFutureRequirementsDisabledReasonXa6ead16a?>(element)
+                        }
+                    },
+                errors =
+                    rawObject["errors"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<AccountRequirementsError>?>(element)
+                        }
+                    },
+                eventuallyDue =
+                    rawObject["eventually_due"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<String>?>(element)
+                        }
+                    },
+                pastDue =
+                    rawObject["past_due"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<String>?>(element)
+                        }
+                    },
+                pendingVerification =
+                    rawObject["pending_verification"]?.let { element ->
+                        if (element ==
+                            JsonNull
+                        ) {
+                            null
+                        } else {
+                            json.decodeFromJsonElement<List<String>?>(element)
+                        }
+                    },
+            )
+        }
+
+        override fun serialize(
+            encoder: Encoder,
+            `value`: AccountFutureRequirements,
+        ) {
+            val jsonEncoder = encoder.requireJsonEncoder("AccountFutureRequirements")
+            val json = jsonEncoder.json
+            val raw =
+                buildJsonObject {
+                    value.alternatives?.let { put("alternatives", json.encodeToJsonElement(it)) }
+                    value.currentDeadline?.let { put("current_deadline", json.encodeToJsonElement(it)) }
+                    value.currentlyDue?.let { put("currently_due", json.encodeToJsonElement(it)) }
+                    value.disabledReason?.let { put("disabled_reason", json.encodeToJsonElement(it)) }
+                    value.errors?.let { put("errors", json.encodeToJsonElement(it)) }
+                    value.eventuallyDue?.let { put("eventually_due", json.encodeToJsonElement(it)) }
+                    value.pastDue?.let { put("past_due", json.encodeToJsonElement(it)) }
+                    value.pendingVerification?.let { put("pending_verification", json.encodeToJsonElement(it)) }
+                }
+            jsonEncoder.encodeJsonElement(raw)
+        }
+    }
+}
+
+public fun accountFutureRequirements(block: AccountFutureRequirements.Builder.() -> Unit): AccountFutureRequirements =
+    AccountFutureRequirements.build(block)

@@ -313,6 +313,16 @@ internal fun goldenSliceModel(): KotlinDeclarationModel {
                                                 listOf("application/vnd.value+json"),
                                                 string,
                                             ),
+                                            OperationResponseAlternative(
+                                                ResponseSelectorDeclaration.ExactStatus(400),
+                                                listOf("application/json"),
+                                                string,
+                                            ),
+                                            OperationResponseAlternative(
+                                                ResponseSelectorDeclaration.ExactStatus(422),
+                                                emptyList(),
+                                                KotlinTypeRef("kotlin", "Unit"),
+                                            ),
                                         ),
                                     ),
                                 ),

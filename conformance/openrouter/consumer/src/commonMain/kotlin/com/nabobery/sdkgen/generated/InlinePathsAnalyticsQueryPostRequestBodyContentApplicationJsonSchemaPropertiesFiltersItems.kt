@@ -94,63 +94,7 @@ public class InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchem
 
     override fun deserialize(decoder: Decoder): InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems")
+        .requireJsonDecoder("InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems " +
@@ -170,63 +114,7 @@ public class InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchem
     override fun serialize(encoder: Encoder,
       `value`: InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems")
+        .requireJsonEncoder("InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesFiltersItems")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         put("field", value.field)

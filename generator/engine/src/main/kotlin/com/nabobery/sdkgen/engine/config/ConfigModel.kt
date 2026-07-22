@@ -23,7 +23,65 @@ public data class SdkgenConfigV1Alpha1(
     public val output: OutputConfig,
     public val diagnostics: DiagnosticsConfig = DiagnosticsConfig(),
     public val verification: VerificationConfig = VerificationConfig(),
-)
+    public val acceptedWaivers: List<AcceptedWaiverConfig> = emptyList(),
+) {
+    /** Retains the pre-waiver JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        version: ConfigVersion,
+        source: SourceConfig,
+        overlays: List<OverlayConfig>,
+        compatibilityProfiles: List<CompatibilityProfileConfig>,
+        kotlin: KotlinGenerationConfig,
+        runtime: RuntimeDefaults,
+        rules: List<RuleConfig>,
+        plugins: List<PluginConfig>,
+        output: OutputConfig,
+        diagnostics: DiagnosticsConfig,
+        verification: VerificationConfig,
+    ) : this(
+        version,
+        source,
+        overlays,
+        compatibilityProfiles,
+        kotlin,
+        runtime,
+        rules,
+        plugins,
+        output,
+        diagnostics,
+        verification,
+        emptyList(),
+    )
+
+    /** Retains the waiver-era JVM constructor descriptor for already-compiled consumers. */
+    public constructor(
+        waiverEraVersion: ConfigVersion,
+        waiverEraSource: SourceConfig,
+        waiverEraOverlays: List<OverlayConfig>,
+        waiverEraCompatibilityProfiles: List<CompatibilityProfileConfig>,
+        waiverEraKotlin: KotlinGenerationConfig,
+        waiverEraRuntime: RuntimeDefaults,
+        waiverEraRules: List<RuleConfig>,
+        waiverEraPlugins: List<PluginConfig>,
+        waiverEraAcceptedWaivers: List<AcceptedWaiverConfig>,
+        waiverEraOutput: OutputConfig,
+        waiverEraDiagnostics: DiagnosticsConfig,
+        waiverEraVerification: VerificationConfig,
+    ) : this(
+        version = waiverEraVersion,
+        source = waiverEraSource,
+        overlays = waiverEraOverlays,
+        compatibilityProfiles = waiverEraCompatibilityProfiles,
+        kotlin = waiverEraKotlin,
+        runtime = waiverEraRuntime,
+        rules = waiverEraRules,
+        plugins = waiverEraPlugins,
+        output = waiverEraOutput,
+        diagnostics = waiverEraDiagnostics,
+        verification = waiverEraVerification,
+        acceptedWaivers = waiverEraAcceptedWaivers,
+    )
+}
 
 @Serializable
 public enum class ConfigVersion {
@@ -194,6 +252,41 @@ public data class PluginConfig(
 )
 
 /** Paths are relative to the config file's own directory, not the process working directory. */
+@Serializable
+public data class AcceptedWaiverConfig(
+    public val id: String,
+    public val category: String,
+    public val match: WaiverMatchConfig,
+    public val rationale: String,
+    public val owner: String,
+    public val disposition: WaiverDisposition,
+)
+
+@Serializable
+public data class WaiverMatchConfig(
+    public val kind: WaivedSymbolKind,
+    public val symbolId: String,
+    public val diagnosticCode: String,
+    public val documentUri: String,
+    public val jsonPointer: String,
+    public val reasonSha256: String,
+)
+
+@Serializable
+public enum class WaivedSymbolKind {
+    @SerialName("schema")
+    SCHEMA,
+
+    @SerialName("operation")
+    OPERATION,
+}
+
+@Serializable
+public enum class WaiverDisposition {
+    @SerialName("omit")
+    OMIT,
+}
+
 @Serializable
 public data class OutputConfig(
     public val sources: String,

@@ -1,0 +1,136 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+import kotlin.String
+import kotlin.Unit
+
+/**
+ * Generated model for
+ * sdkgen://source/openapi.json#/paths/~1v1~1subscriptions/post/requestBody/content/application~1x-www-form-urlencoded/s
+ * chema/properties/add_invoice_items/items/properties/period.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1subscriptions/post/requestBody/content/application~1x-www-form-urlencoded/s
+ * chema/properties/add_invoice_items/items/properties/period
+ */
+@Serializable(with = InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff.Serializer::class)
+public class InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff(
+    public val end: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodEndX1828e809,
+    public val start: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodStartXc2c4ab91,
+) {
+    public class Builder {
+        private var endValue: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodEndX1828e809? =
+            null
+
+        public var end: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodEndX1828e809
+            get() = requireNotNull(endValue) { "end is required" }
+            set(`value`) {
+                endValue = value
+            }
+
+        private var startValue:
+            InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodStartXc2c4ab91? = null
+
+        public var start: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodStartXc2c4ab91
+            get() = requireNotNull(startValue) { "start is required" }
+            set(`value`) {
+                startValue = value
+            }
+
+        public fun build(): InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff {
+            check(endValue != null) { "end is required" }
+            check(startValue != null) { "start is required" }
+            return InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff(
+                end = end,
+                start = start,
+            )
+        }
+    }
+
+    public companion object {
+        public fun build(
+            block: Builder.() -> Unit,
+        ): InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff = Builder().apply(block).build()
+    }
+
+    public object Serializer : KSerializer<InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff> {
+        override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+        override fun deserialize(
+            decoder: Decoder,
+        ): InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff {
+            val jsonDecoder =
+                decoder.requireJsonDecoder(
+                    "InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff",
+                )
+            val json = jsonDecoder.json
+            val rawObject =
+                jsonDecoder.decodeJsonElement() as? JsonObject
+                    ?: throw SerializationException(
+                        "InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff must be a JSON object",
+                    )
+            val end =
+                json.decodeRequired<InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodEndX1828e809>(
+                    rawObject,
+                    "end",
+                )
+            val start =
+                json.decodeRequired<InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodStartXc2c4ab91>(
+                    rawObject,
+                    "start",
+                )
+            return InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff(
+                end = end,
+                start = start,
+            )
+        }
+
+        override fun serialize(
+            encoder: Encoder,
+            `value`: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff,
+        ) {
+            val jsonEncoder =
+                encoder.requireJsonEncoder(
+                    "InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff",
+                )
+            val json = jsonEncoder.json
+            val raw =
+                buildJsonObject {
+                    put("end", json.encodeToJsonElement(value.end))
+                    put("start", json.encodeToJsonElement(value.start))
+                }
+            jsonEncoder.encodeJsonElement(raw)
+        }
+    }
+}
+
+public fun inlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff(
+    block: InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff.Builder.() -> Unit,
+): InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff =
+    InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff.build(block)
+
+private inline fun <reified T> Json.decodeRequired(
+    raw: JsonObject,
+    name: String,
+): T {
+    val element =
+        raw[name]
+            ?: throw SerializationException(
+                "InlineV1SubscriptionsPostRequestFormAddInvoiceItemsItemPeriodX8816a3ff is missing required property '" +
+                    name +
+                    "'",
+            )
+    return decodeFromJsonElement(element)
+}

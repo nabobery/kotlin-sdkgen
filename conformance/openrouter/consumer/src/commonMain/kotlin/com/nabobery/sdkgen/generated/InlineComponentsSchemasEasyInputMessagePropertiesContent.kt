@@ -55,63 +55,7 @@ public class InlineComponentsSchemasEasyInputMessagePropertiesContent internal c
 ) {
   public val branch1: List<InlineComponentsSchemasEasyInputMessagePropertiesContentAnyOf0Items>? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch1) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasEasyInputMessagePropertiesContentAnyOf0Items>>(raw) else null }
+        .decodeFromJsonElement<List<InlineComponentsSchemasEasyInputMessagePropertiesContentAnyOf0Items>>(raw) else null }
 
   public val branch2: String? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch2) json

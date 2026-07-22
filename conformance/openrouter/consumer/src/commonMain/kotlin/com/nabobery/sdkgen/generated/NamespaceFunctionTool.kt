@@ -116,62 +116,7 @@ public class NamespaceFunctionTool(
         name = name,
         type = type,
         allowedCallers = raw["allowed_callers"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasNamespaceFunctionToolPropertiesAllowedCallersItems>?>(element) },
+          .decodeFromJsonElement<List<InlineComponentsSchemasNamespaceFunctionToolPropertiesAllowedCallersItems>?>(element) },
         deferLoading = raw["defer_loading"]?.let { json.decodeFromJsonElement<Boolean>(it) },
         description = raw["description"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<String?>(element) },

@@ -30,6 +30,11 @@
             "items": { "$ref": "#/$defs/plugin" },
             "default": []
         },
+        "acceptedWaivers": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/acceptedWaiver" },
+            "default": []
+        },
         "output": { "$ref": "#/$defs/output" },
         "diagnostics": { "$ref": "#/$defs/diagnostics" },
         "verification": { "$ref": "#/$defs/verification" }
@@ -251,6 +256,55 @@
                     "additionalProperties": { "type": "string" },
                     "default": {}
                 }
+            }
+        },
+        "acceptedWaiver": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "category",
+                "match",
+                "rationale",
+                "owner",
+                "disposition"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                },
+                "category": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                },
+                "match": { "$ref": "#/$defs/waiverMatch" },
+                "rationale": { "type": "string", "minLength": 1 },
+                "owner": { "type": "string", "minLength": 1 },
+                "disposition": { "const": "omit" }
+            }
+        },
+        "waiverMatch": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "kind",
+                "symbolId",
+                "diagnosticCode",
+                "documentUri",
+                "jsonPointer",
+                "reasonSha256"
+            ],
+            "properties": {
+                "kind": { "enum": ["schema", "operation"] },
+                "symbolId": { "type": "string", "minLength": 1 },
+                "diagnosticCode": {
+                    "type": "string",
+                    "pattern": "^SDKGEN-[A-Z0-9-]+$"
+                },
+                "documentUri": { "type": "string", "minLength": 1 },
+                "jsonPointer": { "type": "string", "pattern": "^/" },
+                "reasonSha256": { "$ref": "#/$defs/sha256" }
             }
         },
         "output": {

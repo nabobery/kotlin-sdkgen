@@ -50,62 +50,7 @@ public class InlineComponentsSchemasMessagesRequestPropertiesContextManagement(
           "JSON object")
       return InlineComponentsSchemasMessagesRequestPropertiesContextManagement(
         edits = raw["edits"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEditsItems>>(it) },
+          .decodeFromJsonElement<List<InlineComponentsSchemasMessagesRequestPropertiesContextManagementPropertiesEditsItems>>(it) },
       )
     }
 

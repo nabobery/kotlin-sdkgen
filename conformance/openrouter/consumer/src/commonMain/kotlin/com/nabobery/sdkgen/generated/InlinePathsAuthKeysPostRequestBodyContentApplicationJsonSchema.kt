@@ -86,62 +86,7 @@ public class InlinePathsAuthKeysPostRequestBodyContentApplicationJsonSchema(
       return InlinePathsAuthKeysPostRequestBodyContentApplicationJsonSchema(
         code = code,
         codeChallengeMethod = raw["code_challenge_method"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsAuthKeysPostRequestBodyContentApplicationJsonSchemaPropertiesCodeChalc0f3e8ff?>(element) },
+          .decodeFromJsonElement<InlinePathsAuthKeysPostRequestBodyContentApplicationJsonSchemaPropertiesCodeChalc0f3e8ff?>(element) },
         codeVerifier = raw["code_verifier"]?.let { json.decodeFromJsonElement<String>(it) },
       )
     }

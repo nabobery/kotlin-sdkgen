@@ -53,7 +53,7 @@ operations 1
 operation POST /uploads id=uploadDocument deprecated=false @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post:10:7:312
   description -
   request REQUIRED @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody:12:9:367
-    media multipart/form-data schema=sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema streaming=false encoding=[file:application/octet-stream, metadata:application/json] @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data:15:13:442
+    media multipart/form-data schema=sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema streaming=false encoding=[file:application/octet-stream:style=-:explode=-:allowReserved=-, metadata:application/json:style=-:explode=-:allowReserved=-] @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data:15:13:442
   response EXACT:201 @sdkgen://source/13-multipart-encoding.yaml#/paths/~1uploads/post/responses/201:31:11:926
   extensions {}
 diagnostics 0

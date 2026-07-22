@@ -62,62 +62,7 @@ public class InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainer
       InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1? by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection
         .matchesInlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1>(raw) else null }
+          .decodeFromJsonElement<InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1>(raw) else null }
 
   public val matchedBranches:
       Set<InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerBranch>
@@ -125,63 +70,7 @@ public class InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainer
       if (inspection.matchesBranch1) add(InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerBranch
         .Branch1)
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1) add(InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerBranch.InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1)
+        .matchesInlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1) add(InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerBranch.InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1)
     }
 
   public companion object {

@@ -1,0 +1,63 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * The default value for a merge commit title.
+ *
+ * - `PR_TITLE` - default to the pull request's title.
+ * - `MERGE_MESSAGE` - default to the classic title for a merge message (e.g., Merge pull request #123 from
+ * branch-name).
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-pull-request-unlocked/properties/pull_request/properties/hea
+ * d/properties/repo/properties/merge_commit_title
+ */
+@Serializable(with = InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f.Serializer::class)
+public sealed class InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `PR_TITLE`.
+   */
+  public data object PrTitle : InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f() {
+    public override val `value`: String = "PR_TITLE"
+  }
+
+  /**
+   * Documented value. Wire value: `MERGE_MESSAGE`.
+   */
+  public data object MergeMessage : InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f() {
+    public override val `value`: String = "MERGE_MESSAGE"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f = when (value) {
+      PrTitle.value -> PrTitle
+      MergeMessage.value -> MergeMessage
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookPullRequestUnlockedPullRequestHeadRepoMergeCommitTitleX30bb4e8f) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

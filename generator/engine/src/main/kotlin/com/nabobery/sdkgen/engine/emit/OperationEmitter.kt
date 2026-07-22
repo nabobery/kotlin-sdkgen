@@ -1,5 +1,9 @@
 package com.nabobery.sdkgen.engine.emit
 
+import com.nabobery.sdkgen.engine.declarations.FormFieldDeclaration
+import com.nabobery.sdkgen.engine.declarations.FormScalarKind
+import com.nabobery.sdkgen.engine.declarations.FormValueDeclaration
+import com.nabobery.sdkgen.engine.declarations.FormWireKind
 import com.nabobery.sdkgen.engine.declarations.KotlinNameResolver
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.MultipartPartDeclaration
@@ -38,6 +42,10 @@ internal fun EmissionContext.emitOperationClient(
     file: FileSpec.Builder,
     declaration: OperationClientDeclaration,
 ) {
+    if (declaration.subClients.isNotEmpty()) {
+        file.addType(operationClientFacade(declaration))
+        return
+    }
     val clientType = ClassName(declaration.packageName, declaration.resolvedName)
     val codecsType = ClassName(declaration.packageName, declaration.codecsObjectName)
     val codecsBuilder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.PUBLIC)
@@ -111,16 +119,33 @@ internal fun EmissionContext.emitOperationClient(
                 .initializer("baseUri")
                 .build(),
         )
+    if (declaration.operations.any { it.pagination is PaginationDeclaration.HeaderNextUrl }) {
+        clientBuilder.addProperty(
+            PropertySpec
+                .builder("paginationTrustedHosts", TRUSTED_HOSTS)
+                .addModifiers(KModifier.PRIVATE)
+                .initializer("trustedHosts ?: %T.of(baseUri)", TRUSTED_HOSTS)
+                .build(),
+        )
+    }
     val companionBuilder = TypeSpec.companionObjectBuilder()
     declaration.operations.forEach { operation ->
         val names = methodNames.getValue(operation)
-        val metadataPropertyName = operation.metadataPropertyName(singleOperation != null, names.operationName)
+        val metadataPropertyName =
+            operation.metadataPropertyName(
+                useGenericName = singleOperation != null && !declaration.preserveOperationMetadataNames,
+                operationName = names.operationName,
+            )
         val ordinaryResponseSupported = operation.hasCompatibleOrdinaryResponseShape()
         if (ordinaryResponseSupported) {
-            clientBuilder.addFunction(operationFunction(operation, codecsType, metadataPropertyName, names))
+            clientBuilder.addFunction(operationFunction(operation, clientType, codecsType, metadataPropertyName, names))
         }
         if (names.responseTypeName != null) {
+            names.errorTypeName?.let { clientBuilder.addType(responseErrorType(operation, it)) }
             clientBuilder.addType(responseResultType(operation, clientType, names))
+            names.apiExceptionTypeName?.let {
+                clientBuilder.addType(typedApiExceptionType(operation, clientType, names))
+            }
             clientBuilder.addType(responseDecoderType(operation, clientType, codecsType, names))
             clientBuilder.addFunction(
                 withResponseFunction(operation, clientType, codecsType, metadataPropertyName, names),
@@ -136,12 +161,83 @@ internal fun EmissionContext.emitOperationClient(
             PropertySpec
                 .builder(metadataPropertyName, OPERATION_METADATA)
                 .addModifiers(KModifier.PUBLIC)
-                .initializer(operationMetadata(operation))
-                .build(),
+                .delegate(
+                    "lazy(%T.PUBLICATION) { %L }",
+                    LAZY_THREAD_SAFETY_MODE,
+                    operationMetadata(operation),
+                ).build(),
         )
+        if (operation.responseMode == OperationResponseMode.MIXED) {
+            val streamMetadataPropertyName = "${metadataPropertyName}Stream"
+            companionBuilder.addProperty(
+                PropertySpec
+                    .builder(streamMetadataPropertyName, OPERATION_METADATA)
+                    .addModifiers(KModifier.PUBLIC)
+                    .delegate(
+                        "lazy(%T.PUBLICATION) { %L }",
+                        LAZY_THREAD_SAFETY_MODE,
+                        mixedStreamMetadata(operation),
+                    ).build(),
+            )
+            clientBuilder.addFunction(
+                mixedStreamOperationFunction(operation, clientType, codecsType, streamMetadataPropertyName, names),
+            )
+        }
     }
     clientBuilder.addType(companionBuilder.build())
     file.addType(clientBuilder.build())
+}
+
+/**
+ * Emits the root client facade for a partitioned SDK (task T3): the same public class name and constructor
+ * signature the monolithic client used to have, but with zero operations of its own — instead exposing each
+ * per-tag/resource sub-client as a lazily-initialized property (e.g. `client.chat.send(...)`). Auth/config/
+ * transport wiring is unchanged and still flows through this single construction point into every sub-client.
+ */
+private fun operationClientFacade(declaration: OperationClientDeclaration): TypeSpec {
+    val facadeType = ClassName(declaration.packageName, declaration.resolvedName)
+    val builder =
+        TypeSpec
+            .classBuilder(facadeType)
+            .addModifiers(KModifier.PUBLIC)
+            .addKdoc("%L\n", sanitizeKDoc(declaration.kdoc))
+            .primaryConstructor(
+                FunSpec
+                    .constructorBuilder()
+                    .addParameter("transport", SDK_TRANSPORT)
+                    .addParameter("baseUri", STRING)
+                    .addParameter(
+                        ParameterSpec
+                            .builder("credentialProviders", MAP.parameterizedBy(STRING, CREDENTIAL_PROVIDER))
+                            .defaultValue("emptyMap()")
+                            .build(),
+                    ).addParameter(
+                        ParameterSpec
+                            .builder("trustedHosts", TRUSTED_HOSTS.copy(nullable = true))
+                            .defaultValue("null")
+                            .build(),
+                    ).addParameter(
+                        ParameterSpec
+                            .builder("authentication", SDK_AUTHENTICATION.copy(nullable = true))
+                            .defaultValue("null")
+                            .build(),
+                    ).build(),
+            )
+    declaration.subClients.forEach { subClient ->
+        val subClientType = ClassName(subClient.packageName, subClient.className)
+        builder.addProperty(
+            PropertySpec
+                .builder(subClient.accessorName, subClientType)
+                .addModifiers(KModifier.PUBLIC)
+                .addKdoc("%L\n", sanitizeKDoc(subClient.kdoc))
+                .delegate(
+                    "lazy(%T.PUBLICATION) {\n⇥%T(transport, baseUri, credentialProviders, trustedHosts, authentication)\n⇤}",
+                    LAZY_THREAD_SAFETY_MODE,
+                    subClientType,
+                ).build(),
+        )
+    }
+    return builder.build()
 }
 
 private fun authenticationInitializer(requiresSecurityAuthentication: Boolean): CodeBlock {
@@ -211,11 +307,15 @@ private data class OperationMethodNames(
     val pageMetadataName: String? = null,
     val fetchPageName: String? = null,
     val responseTypeName: String? = null,
+    val errorTypeName: String? = null,
+    val apiExceptionTypeName: String? = null,
     val withResponseName: String? = null,
     val responseDecoderName: String? = null,
     val parameterNames: Map<OperationParameterDeclaration, String> = emptyMap(),
     val cursorParameterName: String? = null,
     val limitParameterName: String? = null,
+    /** `<operationName>Stream`, collision-allocated; populated only for [OperationResponseMode.MIXED] operations. */
+    val streamName: String? = null,
 )
 
 private fun operationMethodNames(
@@ -249,6 +349,24 @@ private fun operationMethodNames(
             } else {
                 null
             }
+        val errorTypeName =
+            if (responseTypeName != null && operation.hasCompatibleOrdinaryResponseShape() &&
+                operation.hasTypedErrorAlternatives()
+            ) {
+                uniqueMemberName(
+                    "${current.operationName.replaceFirstChar(Char::uppercaseChar)}Error",
+                    used,
+                )
+            } else {
+                null
+            }
+        val apiExceptionTypeName =
+            errorTypeName?.let {
+                uniqueMemberName(
+                    "${current.operationName.replaceFirstChar(Char::uppercaseChar)}ApiException",
+                    used,
+                )
+            }
         names[operation] =
             current.copy(
                 pagesName = operation.pagination?.let { uniqueMemberName("${current.operationName}Pages", used) },
@@ -268,10 +386,18 @@ private fun operationMethodNames(
                         )
                     },
                 responseTypeName = responseTypeName,
+                errorTypeName = errorTypeName,
+                apiExceptionTypeName = apiExceptionTypeName,
                 withResponseName =
                     responseTypeName?.let { uniqueMemberName("${current.operationName}WithResponse", used) },
                 responseDecoderName =
                     responseTypeName?.let { uniqueMemberName("${it}Decoder", used) },
+                streamName =
+                    if (operation.responseMode == OperationResponseMode.MIXED) {
+                        uniqueMemberName("${current.operationName}Stream", used)
+                    } else {
+                        null
+                    },
                 parameterNames = parameterNames,
                 cursorParameterName =
                     pagination?.requestCursorParam?.let { raw ->
@@ -329,10 +455,34 @@ private fun OperationParameterDeclaration.toParameterSpec(name: String): Paramet
         .apply { if (!required) defaultValue("null") }
         .build()
 
+/**
+ * Whether the typed exhaustive `fooWithResponse()` API is generated. `operation.responseAlternatives` already
+ * excludes a MIXED operation's streaming success alternative (see [OperationDeclaration.streamResponseType]'s
+ * KDoc), so it is always a purely buffered union here regardless of whether [OperationDeclaration.responseMode] is
+ * `BUFFERED` or `MIXED` — `fooWithResponse()` stays buffered-exhaustive per the approved API shape.
+ */
 private fun typedResponseAlternativesSupported(operation: OperationDeclaration): Boolean =
     operation.responseAlternatives.isNotEmpty() &&
-        operation.responseMode == OperationResponseMode.BUFFERED &&
+        operation.responseMode != OperationResponseMode.STREAMING &&
         operation.responseAlternatives.all { alternative -> alternative.mode == OperationResponseMode.BUFFERED }
+
+private fun OperationDeclaration.hasTypedErrorAlternatives(): Boolean =
+    typedResponseAlternativesSupported(this) && responseAlternatives.any { it.mayMatchNonSuccess(this) }
+
+private fun OperationResponseAlternative.mayMatchNonSuccess(operation: OperationDeclaration): Boolean =
+    when (val responseSelector = selector) {
+        is ResponseSelectorDeclaration.ExactStatus -> {
+            responseSelector.code !in 200..299 && responseSelector.code !in operation.successStatusCodes
+        }
+
+        is ResponseSelectorDeclaration.StatusRange -> {
+            responseSelector.firstInclusive < 200 || responseSelector.lastInclusive > 299
+        }
+
+        ResponseSelectorDeclaration.Default -> {
+            true
+        }
+    }
 
 private fun responseVariantNames(operation: OperationDeclaration): List<String> {
     val used = mutableSetOf<String>()
@@ -416,6 +566,51 @@ private fun responsePayloadPropertyName(alternative: OperationResponseAlternativ
     return KotlinNameResolver.memberName(candidate.ifBlank { "value" })
 }
 
+private fun responseErrorType(
+    operation: OperationDeclaration,
+    errorTypeName: String,
+): TypeSpec =
+    TypeSpec
+        .interfaceBuilder(errorTypeName)
+        .addModifiers(KModifier.PUBLIC, KModifier.SEALED)
+        .addKdoc(
+            "Decoded non-success response alternatives that `%L` may expose through its typed API exception.\n",
+            operation.operationIdentity,
+        ).build()
+
+private fun typedApiExceptionType(
+    operation: OperationDeclaration,
+    clientType: ClassName,
+    names: OperationMethodNames,
+): TypeSpec {
+    val errorType = clientType.nestedClass(requireNotNull(names.errorTypeName))
+    return TypeSpec
+        .classBuilder(requireNotNull(names.apiExceptionTypeName))
+        .addModifiers(KModifier.PUBLIC)
+        .addKdoc(
+            "Raised by `%L` after decoding a declared non-success response. [error] is typed and is not included " +
+                "in the exception message or diagnostic rendering.\n",
+            operation.operationIdentity,
+        ).primaryConstructor(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("error", errorType)
+                .addParameter("statusCode", INT)
+                .addParameter("headers", LIST.parameterizedBy(SDK_HEADER))
+                .build(),
+        ).superclass(SDK_API_EXCEPTION)
+        .addSuperclassConstructorParameter("statusCode")
+        .addSuperclassConstructorParameter("headers")
+        .addSuperclassConstructorParameter("%S", operation.operationIdentity)
+        .addProperty(
+            PropertySpec
+                .builder("error", errorType)
+                .addModifiers(KModifier.PUBLIC)
+                .initializer("error")
+                .build(),
+        ).build()
+}
+
 private fun responseResultType(
     operation: OperationDeclaration,
     clientType: ClassName,
@@ -435,7 +630,7 @@ private fun responseResultType(
     responseVariantNames(operation).forEachIndexed { index, variantName ->
         val alternative = operation.responseAlternatives[index]
         val payloadPropertyName = responsePayloadPropertyName(alternative)
-        builder.addType(
+        val variant =
             TypeSpec
                 .classBuilder(variantName)
                 .addModifiers(KModifier.PUBLIC)
@@ -458,8 +653,10 @@ private fun responseResultType(
                         .initializer("headers")
                         .build(),
                 ).addSuperinterface(responseInterface)
-                .build(),
-        )
+        names.errorTypeName
+            ?.takeIf { alternative.mayMatchNonSuccess(operation) }
+            ?.let { variant.addSuperinterface(clientType.nestedClass(it)) }
+        builder.addType(variant.build())
     }
     builder.addType(
         TypeSpec
@@ -658,6 +855,7 @@ private fun EmissionContext.addOperationCodecs(
     val requestCodecSupported = operation.requestType.requiresSerializationCodec()
     val responseCodecSupported = operation.responseCodecSupported()
     val multipartRequest = operation.multipartRequestBody()
+    val formRequest = operation.formRequestBody()
 
     if (requestCodecSupported) {
         codecsBuilder.addProperty(
@@ -667,7 +865,9 @@ private fun EmissionContext.addOperationCodecs(
                 .initializer("%S", operation.requestCodecId)
                 .build(),
         )
-        if (multipartRequest != null) {
+        if (formRequest != null) {
+            addFormRequestCodec(codecsBuilder, operation, formRequest, requestCodecType)
+        } else if (multipartRequest != null) {
             addMultipartRequestCodec(codecsBuilder, operation, multipartRequest, requestCodecType)
         } else {
             codecsBuilder.addProperty(
@@ -675,10 +875,11 @@ private fun EmissionContext.addOperationCodecs(
                     .builder(operation.requestCodecPropertyName, requestCodecType)
                     .addModifiers(KModifier.PRIVATE)
                     .initializer(
-                        "%T(%L, %L, SdkJson)",
+                        "%T(%L, %L, %M)",
                         KOTLINX_SERIALIZATION_CODEC,
                         operation.requestCodecConstantName,
                         serializerExpression(operation.requestType),
+                        sdkJson,
                     ).build(),
             )
         }
@@ -696,10 +897,11 @@ private fun EmissionContext.addOperationCodecs(
                     .builder(operation.responseCodecPropertyName, responseCodecType)
                     .addModifiers(KModifier.PRIVATE)
                     .initializer(
-                        "%T(%L, %L, SdkJson)",
+                        "%T(%L, %L, %M)",
                         KOTLINX_SERIALIZATION_CODEC,
                         operation.responseCodecConstantName,
                         serializerExpression(operation.responseType),
+                        sdkJson,
                     ).build(),
             )
     }
@@ -715,10 +917,11 @@ private fun EmissionContext.addOperationCodecs(
                             .builder(operation.responseAlternativeCodecPropertyName(index), alternativeCodecType)
                             .addModifiers(KModifier.PRIVATE)
                             .initializer(
-                                "%T(%S, %L, SdkJson)",
+                                "%T(%S, %L, %M)",
                                 KOTLINX_SERIALIZATION_CODEC,
                                 operation.responseAlternativeCodecId(index),
                                 serializerExpression(alternative.type),
+                                sdkJson,
                             ).build(),
                     ).addProperty(
                         PropertySpec
@@ -763,8 +966,218 @@ private fun EmissionContext.addOperationCodecs(
     }
 }
 
+private fun OperationDeclaration.formRequestBody(): OperationRequestBodyAlternative? =
+    requestBodyAlternatives.firstOrNull { alternative ->
+        alternative.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)
+    }
+
 private fun OperationDeclaration.multipartRequestBody(): OperationRequestBodyAlternative? =
     requestBodyAlternatives.firstOrNull { alternative -> alternative.multipartParts.isNotEmpty() }
+
+private fun EmissionContext.addFormRequestCodec(
+    codecsBuilder: TypeSpec.Builder,
+    operation: OperationDeclaration,
+    form: OperationRequestBodyAlternative,
+    requestCodecType: TypeName,
+) {
+    val codecObjectName = operation.formCodecObjectName()
+    val codecObject =
+        TypeSpec
+            .objectBuilder(codecObjectName)
+            .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(operation.requestType.toTypeName()))
+            .addProperty(
+                PropertySpec
+                    .builder("id", STRING)
+                    .addModifiers(KModifier.OVERRIDE)
+                    .initializer("%S", operation.requestCodecId)
+                    .build(),
+            ).addProperty(
+                PropertySpec
+                    .builder("mediaTypes", SET.parameterizedBy(STRING))
+                    .addModifiers(KModifier.OVERRIDE)
+                    .initializer("setOf(%S)", form.mediaType)
+                    .build(),
+            ).addFunction(formEncodeFunction(operation, form))
+            .addFunction(formDecodeFunction(operation))
+            .build()
+    codecsBuilder
+        .addType(codecObject)
+        .addProperty(
+            PropertySpec
+                .builder(operation.requestCodecPropertyName, requestCodecType)
+                .addModifiers(KModifier.PRIVATE)
+                .initializer("%L", codecObjectName)
+                .build(),
+        )
+}
+
+private fun OperationDeclaration.formCodecObjectName(): String =
+    operationId.replaceFirstChar(Char::uppercaseChar) + "FormCodec"
+
+private fun EmissionContext.formEncodeFunction(
+    operation: OperationDeclaration,
+    form: OperationRequestBodyAlternative,
+): FunSpec {
+    val body = CodeBlock.builder()
+    body.addStatement("val request = requireNotNull(value)")
+    body.addStatement("val form = %T()", FORM_URL_ENCODED_BODY)
+    form.formFields.forEach { field ->
+        addFormField(body, field, CodeBlock.of("request"), CodeBlock.of("%S", field.wireName), 0)
+    }
+    body.addStatement("return form.build()")
+    return FunSpec
+        .builder("encode")
+        .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
+        .addParameter("value", operation.requestType.toTypeName())
+        .addParameter("mediaType", STRING)
+        .returns(SDK_REQUEST_BODY)
+        .addCode(body.build())
+        .build()
+}
+
+private fun EmissionContext.addFormField(
+    body: CodeBlock.Builder,
+    field: FormFieldDeclaration,
+    parent: CodeBlock,
+    key: CodeBlock,
+    depth: Int,
+) {
+    val expression = CodeBlock.of("%L.%L", parent, field.accessorName)
+    if (field.required) {
+        addFormValue(body, field.value, expression, key, depth)
+    } else {
+        val valueName = "formValue$depth"
+        body.beginControlFlow("%L?.let { %L ->", expression, valueName)
+        addFormValue(body, field.value, CodeBlock.of("%L", valueName), key, depth + 1)
+        body.endControlFlow()
+    }
+}
+
+private fun EmissionContext.addFormValue(
+    body: CodeBlock.Builder,
+    value: FormValueDeclaration,
+    expression: CodeBlock,
+    key: CodeBlock,
+    depth: Int,
+    mapValuesAreJsonElements: Boolean = false,
+) {
+    when (value) {
+        is FormValueDeclaration.Scalar -> {
+            val wireValue =
+                when (value.kind) {
+                    FormScalarKind.STRING -> {
+                        expression
+                    }
+
+                    FormScalarKind.OPEN_ENUM -> {
+                        CodeBlock.of("%L.value", expression)
+                    }
+
+                    FormScalarKind.NUMBER -> {
+                        expression
+                    }
+
+                    FormScalarKind.INTEGER, FormScalarKind.BOOLEAN -> {
+                        CodeBlock.of("%L.toString()", expression)
+                    }
+                }
+            body.addStatement("form.add(%L, %L)", key, wireValue)
+        }
+
+        is FormValueDeclaration.Array -> {
+            val indexName = "formIndex$depth"
+            val elementName = "formElement$depth"
+            body.beginControlFlow("if (%L.isEmpty())", expression)
+            body.addStatement("form.add(%L, %S)", key, "")
+            body.nextControlFlow("else")
+            body.beginControlFlow("%L.forEachIndexed { %L, %L ->", expression, indexName, elementName)
+            addFormValue(
+                body,
+                value.element,
+                CodeBlock.of("%L", elementName),
+                CodeBlock.of("%L + %S + %L + %S", key, "[", indexName, "]"),
+                depth + 1,
+            )
+            body.endControlFlow()
+            body.endControlFlow()
+        }
+
+        is FormValueDeclaration.Map -> {
+            val segmentName = "formKey$depth"
+            val mapValueName = "formMapValue$depth"
+            body.beginControlFlow("%L.forEach { (%L, %L) ->", expression, segmentName, mapValueName)
+            val mapKey = CodeBlock.of("%L + %S + %L + %S", key, "[", segmentName, "]")
+            if (value.valuesAreJsonElements || mapValuesAreJsonElements) {
+                val primitiveName = "formPrimitive$depth"
+                body.addStatement(
+                    "val %L = %L as? %T ?: error(%S)",
+                    primitiveName,
+                    mapValueName,
+                    JSON_PRIMITIVE,
+                    "Form map values encoded from a raw JSON object must be JSON primitives",
+                )
+                body.addStatement("form.add(%L, %L.content)", mapKey, primitiveName)
+            } else {
+                addFormValue(
+                    body,
+                    value.value,
+                    CodeBlock.of("%L", mapValueName),
+                    mapKey,
+                    depth + 1,
+                )
+            }
+            body.endControlFlow()
+        }
+
+        is FormValueDeclaration.Union -> {
+            body.addStatement(
+                "require(%L.matchedBranches.size == 1) { %S }",
+                expression,
+                "Form union value must match exactly one wire-kind branch",
+            )
+            body.beginControlFlow("when")
+            value.branches.forEach { branch ->
+                body.beginControlFlow("%L.%L != null ->", expression, branch.accessorName)
+                addFormValue(
+                    body,
+                    branch.value,
+                    CodeBlock.of("requireNotNull(%L.%L)", expression, branch.accessorName),
+                    key,
+                    depth + 1,
+                    mapValuesAreJsonElements =
+                        branch.kind == FormWireKind.OBJECT && branch.value is FormValueDeclaration.Map,
+                )
+                body.endControlFlow()
+            }
+            body.beginControlFlow("else ->")
+            body.addStatement("error(%S)", "Form union value has no selected branch")
+            body.endControlFlow()
+            body.endControlFlow()
+        }
+
+        is FormValueDeclaration.Object -> {
+            value.fields.forEach { field ->
+                addFormField(
+                    body,
+                    field,
+                    expression,
+                    CodeBlock.of("%L + %S", key, "[${field.wireName}]"),
+                    depth + 1,
+                )
+            }
+        }
+    }
+}
+
+private fun EmissionContext.formDecodeFunction(operation: OperationDeclaration): FunSpec =
+    FunSpec
+        .builder("decode")
+        .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
+        .addParameter("body", SDK_BYTE_STREAM)
+        .addParameter("mediaType", STRING.copy(nullable = true))
+        .returns(operation.requestType.toTypeName())
+        .addStatement("error(%S)", "Form request codecs do not decode response bodies.")
+        .build()
 
 private fun EmissionContext.addMultipartRequestCodec(
     codecsBuilder: TypeSpec.Builder,
@@ -814,18 +1227,26 @@ private fun EmissionContext.multipartEncodeFunction(
     body.addStatement("val request = requireNotNull(value)")
     body.addStatement("val multipart = %T()", MULTIPART_BODY)
     multipart.multipartParts.forEach { part ->
-        val propertyName = part.propertyName
+        val accessorName = part.accessorName
         if (part.required) {
             val expression =
                 if (part.type.nullable) {
-                    CodeBlock.of("requireNotNull(request.%L)", propertyName)
+                    CodeBlock.of("requireNotNull(request.%L)", accessorName)
                 } else {
-                    CodeBlock.of("request.%L", propertyName)
+                    CodeBlock.of("request.%L", accessorName)
                 }
-            addMultipartPart(body, part, expression)
+            if (part.indexedElements) {
+                addIndexedMultipartTextParts(body, part, expression)
+            } else {
+                addMultipartPart(body, part, part.type, expression)
+            }
         } else {
-            body.beginControlFlow("request.%L?.let", propertyName)
-            addMultipartPart(body, part, CodeBlock.of("it"))
+            body.beginControlFlow("request.%L?.let", accessorName)
+            if (part.indexedElements) {
+                addIndexedMultipartTextParts(body, part, CodeBlock.of("it"))
+            } else {
+                addMultipartPart(body, part, part.type, CodeBlock.of("it"))
+            }
             body.endControlFlow()
         }
     }
@@ -840,27 +1261,56 @@ private fun EmissionContext.multipartEncodeFunction(
         .build()
 }
 
-private fun EmissionContext.addMultipartPart(
+private fun EmissionContext.addIndexedMultipartTextParts(
     body: CodeBlock.Builder,
     part: MultipartPartDeclaration,
     expression: CodeBlock,
 ) {
     val headers = multipartHeaders(part)
+    body.beginControlFlow("if (%L.isEmpty())", expression)
+    body.addStatement(
+        "multipart.text(name = %S, value = %S, mediaType = %S, headers = %L)",
+        part.wireName,
+        "",
+        part.contentType,
+        headers,
+    )
+    body.nextControlFlow("else")
+    body.beginControlFlow("%L.forEachIndexed { index, element ->", expression)
+    body.addStatement(
+        "multipart.text(name = %S + %S + index + %S, value = element, mediaType = %S, headers = %L)",
+        part.wireName,
+        "[",
+        "]",
+        part.contentType,
+        headers,
+    )
+    body.endControlFlow()
+    body.endControlFlow()
+}
+
+private fun EmissionContext.addMultipartPart(
+    body: CodeBlock.Builder,
+    part: MultipartPartDeclaration,
+    valueType: KotlinTypeRef,
+    expression: CodeBlock,
+) {
+    val headers = multipartHeaders(part)
     when {
-        part.type.isRawStream() -> {
+        valueType.isRawStream() -> {
             body.addStatement(
                 "multipart.binary(name = %S, stream = %L, mediaType = %S, headers = %L)",
-                part.name,
+                part.wireName,
                 expression,
                 part.contentType,
                 headers,
             )
         }
 
-        part.type.isString() -> {
+        valueType.isString() -> {
             body.addStatement(
                 "multipart.text(name = %S, value = %L, mediaType = %S, headers = %L)",
-                part.name,
+                part.wireName,
                 expression,
                 part.contentType,
                 headers,
@@ -869,9 +1319,10 @@ private fun EmissionContext.addMultipartPart(
 
         else -> {
             body.addStatement(
-                "multipart.bytes(name = %S, value = SdkJson.encodeToString(%L).encodeToByteArray(), " +
+                "multipart.bytes(name = %S, value = %M.encodeToString(%L).encodeToByteArray(), " +
                     "mediaType = %S, headers = %L)",
-                part.name,
+                part.wireName,
+                sdkJson,
                 expression,
                 part.contentType,
                 headers,
@@ -974,7 +1425,42 @@ private fun EmissionContext.serializerExpression(type: KotlinTypeRef): CodeBlock
     return expression.build()
 }
 
-private fun operationMetadata(operation: OperationDeclaration): CodeBlock {
+private fun operationMetadata(operation: OperationDeclaration): CodeBlock =
+    operationMetadata(
+        operation,
+        // A MIXED operation's own foo()/fooWithResponse() metadata always executes as an ordinary BUFFERED call —
+        // see mixedStreamMetadata for the dedicated STREAMING metadata fooStream() uses instead.
+        runtimeResponseModeName =
+            if (operation.responseMode == OperationResponseMode.MIXED) {
+                "BUFFERED"
+            } else {
+                operation.responseMode.runtimeName()
+            },
+        totalDeadlineMillis = operation.deadlines.totalMillis,
+        retryConnectionErrors = operation.retry.retryConnectionErrors,
+    )
+
+/**
+ * The dedicated [com.nabobery.sdkgen.runtime.OperationMetadata] for a [OperationResponseMode.MIXED] operation's
+ * `fooStream()` entry point: identical request/response shape metadata to [operationMetadata], but with its own
+ * `responseMode = STREAMING`, no total deadline, and no connection-error retry — matching the policy a
+ * `STREAMING`-only operation of the same shape would get, since `foo()`'s buffered metadata (which stays
+ * `BUFFERED`, keeps its total deadline, and keeps its retry policy) must not be shared with the streaming call.
+ */
+private fun mixedStreamMetadata(operation: OperationDeclaration): CodeBlock =
+    operationMetadata(
+        operation,
+        runtimeResponseModeName = "STREAMING",
+        totalDeadlineMillis = null,
+        retryConnectionErrors = false,
+    )
+
+private fun operationMetadata(
+    operation: OperationDeclaration,
+    runtimeResponseModeName: String,
+    totalDeadlineMillis: Long?,
+    retryConnectionErrors: Boolean,
+): CodeBlock {
     val requestMediaTypes = operation.requestMediaTypesForEmission()
     val responseMediaTypes = operation.responseMediaTypesForEmission()
     return CodeBlock
@@ -987,11 +1473,11 @@ private fun operationMetadata(operation: OperationDeclaration): CodeBlock {
         .add("requestMediaTypes = %L,\n", mediaTypesExpression(requestMediaTypes))
         .add("responseMediaTypes = %L,\n", mediaTypesExpression(responseMediaTypes))
         .add("successStatusCodes = setOf(%L),\n", operation.successStatusCodes.sorted().joinToString())
-        .add("responseMode = %T.%L,\n", SDK_RESPONSE_MODE, operation.responseMode.runtimeName())
+        .add("responseMode = %T.%L,\n", SDK_RESPONSE_MODE, runtimeResponseModeName)
         .add(
             "deadlines = %T(%L, %L, %L),\n",
             SDK_DEADLINES,
-            operation.deadlines.totalMillis.kotlinLongLiteral(),
+            totalDeadlineMillis.kotlinLongLiteral(),
             operation.deadlines.attemptMillis.kotlinLongLiteral(),
             operation.deadlines.idleMillis.kotlinLongLiteral(),
         ).add("responseAlternatives = %L,\n", responseAlternativesExpression(operation))
@@ -1002,8 +1488,17 @@ private fun operationMetadata(operation: OperationDeclaration): CodeBlock {
             operation.safety.safe,
             operation.safety.idempotent,
         ).add("idempotency = %L,\n", idempotencyExpression(operation))
-        .add("retry = %L,\n", retryExpression(operation.retry))
-        .add("pagination = %L,\n", paginationExpression(operation))
+        .add(
+            "retry = %L,\n",
+            retryExpression(
+                RetryDeclaration(
+                    retryableStatusCodes = operation.retry.retryableStatusCodes,
+                    retryConnectionErrors = retryConnectionErrors,
+                    maxAttempts = operation.retry.maxAttempts,
+                    backoff = operation.retry.backoff,
+                ),
+            ),
+        ).add("pagination = %L,\n", paginationExpression(operation))
         .add("streaming = %L,\n", streamingExpression(operation))
         .unindent()
         .add(")")
@@ -1139,6 +1634,15 @@ private fun paginationExpression(operation: OperationDeclaration): CodeBlock =
                     pagination.responseNextCursorPath,
                 ).build()
         }
+
+        is PaginationDeclaration.HeaderNextUrl -> {
+            CodeBlock.of(
+                "%T.HeaderNextUrl(responseItemsPath = %T(%S))",
+                PAGINATION_DESCRIPTOR,
+                PROPERTY_PATH,
+                pagination.responseItemsPath,
+            )
+        }
     }
 
 private fun streamingExpression(operation: OperationDeclaration): CodeBlock =
@@ -1164,6 +1668,13 @@ private fun streamingExpression(operation: OperationDeclaration): CodeBlock =
 private fun nullableStringExpression(value: String?): CodeBlock =
     value?.let { CodeBlock.of("%S", it) } ?: CodeBlock.of("null")
 
+/**
+ * The runtime [com.nabobery.sdkgen.runtime.SdkResponseMode] name for one physical call's expected response shape.
+ * [OperationResponseMode.MIXED] has no runtime equivalent by itself — a MIXED operation's buffered and streaming
+ * entry points each execute as an ordinary [OperationResponseMode.BUFFERED] or [OperationResponseMode.STREAMING]
+ * call respectively, against their own dedicated [com.nabobery.sdkgen.runtime.OperationMetadata] (see
+ * [mixedStreamMetadata]) — so this is never asked to render `MIXED` itself.
+ */
 private fun OperationResponseMode.runtimeName(): String =
     when (this) {
         OperationResponseMode.BUFFERED -> "BUFFERED"
@@ -1173,6 +1684,7 @@ private fun OperationResponseMode.runtimeName(): String =
 
 private fun EmissionContext.operationFunction(
     operation: OperationDeclaration,
+    clientType: ClassName,
     codecsType: ClassName,
     metadataPropertyName: String,
     names: OperationMethodNames,
@@ -1187,12 +1699,13 @@ private fun EmissionContext.operationFunction(
         }
 
         else -> {
-            bufferedOperationFunction(operation, codecsType, metadataPropertyName, names)
+            bufferedOperationFunction(operation, clientType, codecsType, metadataPropertyName, names)
         }
     }
 
 private fun EmissionContext.bufferedOperationFunction(
     operation: OperationDeclaration,
+    clientType: ClassName,
     codecsType: ClassName,
     metadataPropertyName: String,
     names: OperationMethodNames,
@@ -1208,7 +1721,11 @@ private fun EmissionContext.bufferedOperationFunction(
                 operationParameterSpecs(operation, names).forEach(::addParameter)
             }.addParameter(optionsParameter())
             .returns(responseType)
-            .addKdoc("%L", bufferedKDoc(operation))
+            .addKdoc("%L", bufferedKDoc(operation, names))
+    if (names.apiExceptionTypeName != null) {
+        function.addCode(typedErrorExecutionCode(operation, clientType, codecsType, metadataPropertyName, names))
+        return function.build()
+    }
     when {
         operation.responseType.isUnit() -> {
             function.addStatement(
@@ -1259,6 +1776,81 @@ private fun EmissionContext.bufferedOperationFunction(
     return function.build()
 }
 
+private fun typedErrorExecutionCode(
+    operation: OperationDeclaration,
+    clientType: ClassName,
+    codecsType: ClassName,
+    metadataPropertyName: String,
+    names: OperationMethodNames,
+): CodeBlock {
+    val requestType = operation.requestType.toTypeName()
+    val responseType = operation.responseType.toTypeName()
+    val responseInterface = clientType.nestedClass(requireNotNull(names.responseTypeName))
+    val apiExceptionType = clientType.nestedClass(requireNotNull(names.apiExceptionTypeName))
+    val variants = responseVariantNames(operation)
+    return CodeBlock
+        .builder()
+        .add("return executor.executeWithTypedErrors<%T, %T, %T>(\n", requestType, responseInterface, responseType)
+        .indent()
+        .add(
+            "request = %T(%L, baseUri, %L, %L, %L),\n",
+            SDK_EXECUTION_REQUEST,
+            metadataPropertyName,
+            requestValue(operation),
+            requestCodecIds(operation, codecsType),
+            requestParametersExpression(operation, names),
+        ).add("requestCodecs = %T.%L,\n", codecsType, "${operation.requestCodecPropertyName}Registry")
+        .add("responseDecoder = %L,\n", requireNotNull(names.responseDecoderName))
+        .add("mapSuccess = { response ->\n")
+        .indent()
+        .add("when (response) {\n")
+        .indent()
+        .apply {
+            operation.responseAlternatives.forEachIndexed { index, alternative ->
+                add("is %T -> ", responseInterface.nestedClass(variants[index]))
+                if (alternative.type == operation.responseType) {
+                    add("response.%L\n", responsePayloadPropertyName(alternative))
+                } else {
+                    add("error(%S)\n", "Runtime selected a non-success response for success mapping.")
+                }
+            }
+            add(
+                "is %T -> error(%S)\n",
+                responseInterface.nestedClass("Unknown"),
+                "Runtime returned an unmatched response through the typed success path.",
+            )
+        }.unindent()
+        .add("}\n")
+        .unindent()
+        .add("},\n")
+        .add("mapError = { response, statusCode, headers ->\n")
+        .indent()
+        .add("when (response) {\n")
+        .indent()
+        .apply {
+            operation.responseAlternatives.forEachIndexed { index, alternative ->
+                add("is %T -> ", responseInterface.nestedClass(variants[index]))
+                if (alternative.mayMatchNonSuccess(operation)) {
+                    add("%T(response, statusCode, headers)\n", apiExceptionType)
+                } else {
+                    add("error(%S)\n", "Runtime selected a success response for error mapping.")
+                }
+            }
+            add(
+                "is %T -> error(%S)\n",
+                responseInterface.nestedClass("Unknown"),
+                "Runtime returned an unmatched response through the typed error path.",
+            )
+        }.unindent()
+        .add("}\n")
+        .unindent()
+        .add("},\n")
+        .add("options = options,\n")
+        .unindent()
+        .add(")\n")
+        .build()
+}
+
 private fun EmissionContext.streamingOperationFunction(
     operation: OperationDeclaration,
     codecsType: ClassName,
@@ -1268,33 +1860,148 @@ private fun EmissionContext.streamingOperationFunction(
     require(operation.streaming is StreamingDeclaration.ServerSentEvents) {
         "Streaming emission requires a declared ServerSentEvents descriptor."
     }
+    return sseFlowFunction(
+        operation = operation,
+        codecsType = codecsType,
+        metadataPropertyName = metadataPropertyName,
+        functionName = names.operationName,
+        elementType = operation.responseType,
+        names = names,
+        kdoc = streamingKDoc(operation),
+    )
+}
+
+/**
+ * `fooStream()` for a [OperationResponseMode.MIXED] operation (approved API shape: `foo()`/`fooWithResponse()` stay
+ * buffered-only; `fooStream()` is the collision-allocated, distinctly-named cold-`Flow` entry point — never an
+ * overload of `foo()` by return type, since Kotlin overload resolution cannot disambiguate `suspend fun foo(): T`
+ * from `fun foo(): Flow<T>` at every call site). Executes against [mixedStreamMetadata] rather than the buffered
+ * `foo()`/`fooWithResponse()` metadata, so its own `STREAMING` response mode, absent total deadline, and disabled
+ * connection-error retry never leak into (or get leaked into by) the buffered entry points sharing this operation.
+ */
+private fun EmissionContext.mixedStreamOperationFunction(
+    operation: OperationDeclaration,
+    clientType: ClassName,
+    codecsType: ClassName,
+    streamMetadataPropertyName: String,
+    names: OperationMethodNames,
+): FunSpec {
+    require(operation.streaming is StreamingDeclaration.ServerSentEvents) {
+        "Streaming emission requires a declared ServerSentEvents descriptor."
+    }
+    val elementType = requireNotNull(operation.streamResponseType) { "MIXED operation requires a streamResponseType" }
+    return sseFlowFunction(
+        operation = operation,
+        clientType = clientType,
+        codecsType = codecsType,
+        metadataPropertyName = streamMetadataPropertyName,
+        functionName = requireNotNull(names.streamName),
+        elementType = elementType,
+        names = names,
+        kdoc = mixedStreamKDoc(operation, elementType),
+    )
+}
+
+private fun rawTypedErrorStreamCode(
+    operation: OperationDeclaration,
+    clientType: ClassName,
+    codecsType: ClassName,
+    metadataPropertyName: String,
+    names: OperationMethodNames,
+): CodeBlock {
     val requestType = operation.requestType.toTypeName()
-    val responseType = operation.responseType.toTypeName()
-    val returnElementType = if (operation.responseType.isSseEvent()) SSE_EVENT else responseType
+    val responseInterface = clientType.nestedClass(requireNotNull(names.responseTypeName))
+    val apiExceptionType = clientType.nestedClass(requireNotNull(names.apiExceptionTypeName))
+    val variants = responseVariantNames(operation)
+    return CodeBlock
+        .builder()
+        .add("executor.executeRawWithTypedErrors<%T, %T>(\n", requestType, responseInterface)
+        .indent()
+        .add(
+            "request = %T(%L, baseUri, %L, %L, %L),\n",
+            SDK_EXECUTION_REQUEST,
+            metadataPropertyName,
+            requestValue(operation),
+            requestCodecIds(operation, codecsType),
+            requestParametersExpression(operation, names),
+        ).add("requestCodecs = %T.%L,\n", codecsType, "${operation.requestCodecPropertyName}Registry")
+        .add("responseDecoder = %L,\n", requireNotNull(names.responseDecoderName))
+        .add("mapError = { response, statusCode, headers ->\n")
+        .indent()
+        .add("when (response) {\n")
+        .indent()
+        .apply {
+            operation.responseAlternatives.forEachIndexed { index, alternative ->
+                add("is %T -> ", responseInterface.nestedClass(variants[index]))
+                if (alternative.mayMatchNonSuccess(operation)) {
+                    add("%T(response, statusCode, headers)\n", apiExceptionType)
+                } else {
+                    add("error(%S)\n", "Runtime selected a success response for error mapping.")
+                }
+            }
+            add(
+                "is %T -> error(%S)\n",
+                responseInterface.nestedClass("Unknown"),
+                "Runtime returned an unmatched response through the typed error path.",
+            )
+        }.unindent()
+        .add("}\n")
+        .unindent()
+        .add("},\n")
+        .add("options = options,\n")
+        .unindent()
+        .add(")\n")
+        .build()
+}
+
+private fun EmissionContext.sseFlowFunction(
+    operation: OperationDeclaration,
+    clientType: ClassName? = null,
+    codecsType: ClassName,
+    metadataPropertyName: String,
+    functionName: String,
+    elementType: KotlinTypeRef,
+    names: OperationMethodNames,
+    kdoc: String,
+): FunSpec {
+    val requestType = operation.requestType.toTypeName()
+    val returnElementType = if (elementType.isSseEvent()) SSE_EVENT else elementType.toTypeName()
     val function =
         FunSpec
-            .builder(names.operationName)
+            .builder(functionName)
             .addModifiers(KModifier.PUBLIC)
             .apply {
                 requestParameter(operation)?.let(::addParameter)
                 operationParameterSpecs(operation, names).forEach(::addParameter)
             }.addParameter(optionsParameter())
             .returns(FLOW.parameterizedBy(returnElementType))
-            .addKdoc("%L", streamingKDoc(operation))
+            .addKdoc("%L", kdoc)
     val body = CodeBlock.builder()
     body.add("return %M(\n", SSE_FLOW).indent()
     body.add("streamProvider = {\n").indent()
-    body.add(
-        "executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)\n",
-        requestType,
-        SDK_EXECUTION_REQUEST,
-        metadataPropertyName,
-        requestValue(operation),
-        requestCodecIds(operation, codecsType),
-        requestParametersExpression(operation, names),
-        codecsType,
-        "${operation.requestCodecPropertyName}Registry",
-    )
+    if (operation.responseMode == OperationResponseMode.MIXED) {
+        body.add(
+            rawTypedErrorStreamCode(
+                operation = operation,
+                clientType = requireNotNull(clientType),
+                codecsType = codecsType,
+                metadataPropertyName = metadataPropertyName,
+                names = names,
+            ),
+        )
+    } else {
+        body.add(
+            "executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)\n",
+            requestType,
+            SDK_EXECUTION_REQUEST,
+            metadataPropertyName,
+            requestValue(operation),
+            requestCodecIds(operation, codecsType),
+            requestParametersExpression(operation, names),
+            codecsType,
+            "${operation.requestCodecPropertyName}Registry",
+        )
+    }
     body.unindent().add("},\n")
     body.add(
         "descriptor = requireNotNull(%L.streaming as? %T.ServerSentEvents),\n",
@@ -1302,11 +2009,12 @@ private fun EmissionContext.streamingOperationFunction(
         STREAMING_DESCRIPTOR,
     )
     body.unindent().add(")")
-    if (!operation.responseType.isSseEvent()) {
+    if (!elementType.isSseEvent()) {
         body.add(
-            ".%M { data -> SdkJson.decodeFromString(%L, data) }",
+            ".%M { data -> %M.decodeFromString(%L, data) }",
             DECODE_DATA,
-            serializerExpression(operation.responseType),
+            sdkJson,
+            serializerExpression(elementType),
         )
     }
     body.add("\n")
@@ -1319,7 +2027,7 @@ private fun EmissionContext.paginatedOperationFunction(
     metadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
-    val pagination = requireNotNull(operation.pagination as? PaginationDeclaration.CursorToken)
+    val pagination = requireNotNull(operation.pagination)
     val responseType = operation.responseType.toTypeName()
     val itemType = pagination.itemType.toTypeNameOrAny()
     val pageType = PAGE.parameterizedBy(responseType, itemType)
@@ -1337,7 +2045,10 @@ private fun EmissionContext.paginatedOperationFunction(
                     "bounds.\n@return The first decoded page.\n",
                 sanitizeKDoc(operation.methodKdoc),
             )
-    function.addStatement("val engine = %L", paginationEngineExpression(metadataPropertyName, responseType, itemType))
+    function.addStatement(
+        "val engine = %L",
+        paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
+    )
     function.addStatement(
         "return engine.firstPage { pageRequest -> %L(%L, pageRequest, options) }",
         requireNotNull(names.fetchPageName),
@@ -1351,7 +2062,7 @@ private fun EmissionContext.paginationPagesFunction(
     metadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
-    val pagination = requireNotNull(operation.pagination as? PaginationDeclaration.CursorToken)
+    val pagination = requireNotNull(operation.pagination)
     val responseType = operation.responseType.toTypeName()
     val itemType = pagination.itemType.toTypeNameOrAny()
     val returnType = FLOW.parameterizedBy(PAGE.parameterizedBy(responseType, itemType))
@@ -1369,7 +2080,7 @@ private fun EmissionContext.paginationPagesFunction(
                 "@param options Execution options, including pagination bounds.\n",
         ).addStatement(
             "return %L.pages(fetch = { pageRequest -> %L(%L, pageRequest, options) }, pagination = options.pagination)",
-            paginationEngineExpression(metadataPropertyName, responseType, itemType),
+            paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
             requireNotNull(names.fetchPageName),
             pageFetchArguments(operation, names),
         ).build()
@@ -1380,7 +2091,7 @@ private fun EmissionContext.paginationItemsFunction(
     metadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
-    val pagination = requireNotNull(operation.pagination as? PaginationDeclaration.CursorToken)
+    val pagination = requireNotNull(operation.pagination)
     val responseType = operation.responseType.toTypeName()
     val itemType = pagination.itemType.toTypeNameOrAny()
     return FunSpec
@@ -1397,7 +2108,7 @@ private fun EmissionContext.paginationItemsFunction(
                 "@param options Execution options, including pagination bounds.\n",
         ).addStatement(
             "return %L.items(fetch = { pageRequest -> %L(%L, pageRequest, options) }, pagination = options.pagination)",
-            paginationEngineExpression(metadataPropertyName, responseType, itemType),
+            paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
             requireNotNull(names.fetchPageName),
             pageFetchArguments(operation, names),
         ).build()
@@ -1422,7 +2133,7 @@ private fun EmissionContext.pageFetcherFunction(
     codecsType: ClassName,
     names: OperationMethodNames,
 ): FunSpec {
-    val pagination = requireNotNull(operation.pagination as? PaginationDeclaration.CursorToken)
+    val pagination = requireNotNull(operation.pagination)
     val requestType = operation.requestType.toTypeName()
     val responseType = operation.responseType.toTypeName()
     val itemType = pagination.itemType.toTypeNameOrAny()
@@ -1449,26 +2160,75 @@ private fun EmissionContext.pageFetcherFunction(
         requireNotNull(names.pageMetadataName),
         pageMetadataArguments(operation, names),
     )
-    body.add(
-        "val response = executor.execute<%T, %T>(%T(pageMetadata, baseUri, pageRequestValue, %L, %L), " +
-            "%L, %T.%L, %T.%L, options)\n",
-        requestType,
-        responseType,
-        SDK_EXECUTION_REQUEST,
-        requestCodecIds(operation, codecsType),
-        pageRequestParametersExpression(operation, names),
-        responseCodecIds(operation, codecsType),
-        codecsType,
-        "${operation.requestCodecPropertyName}Registry",
-        codecsType,
-        "${operation.responseCodecPropertyName}Registry",
-    )
-    body.add(
-        "return %T(value = response, items = %L.orEmpty(), nextCursor = %L)\n",
-        PAGE_ENVELOPE,
-        responsePathExpression("response", pagination.responseItemsPath),
-        responsePathExpression("response", pagination.responseNextCursorPath),
-    )
+    when (pagination) {
+        is PaginationDeclaration.CursorToken -> {
+            body.add(
+                "val response = executor.execute<%T, %T>(%T(pageMetadata, baseUri, pageRequestValue, %L, %L), " +
+                    "%L, %T.%L, %T.%L, options)\n",
+                requestType,
+                responseType,
+                SDK_EXECUTION_REQUEST,
+                requestCodecIds(operation, codecsType),
+                pageRequestParametersExpression(operation, names),
+                responseCodecIds(operation, codecsType),
+                codecsType,
+                "${operation.requestCodecPropertyName}Registry",
+                codecsType,
+                "${operation.responseCodecPropertyName}Registry",
+            )
+            body.add(
+                "return %T(value = response, items = %L.orEmpty(), nextCursor = %L)\n",
+                PAGE_ENVELOPE,
+                responsePathExpression("response", pagination.responseItemsPath),
+                responsePathExpression("response", pagination.responseNextCursorPath),
+            )
+        }
+
+        is PaginationDeclaration.HeaderNextUrl -> {
+            body.add("val effectiveBaseUri = when (pageRequest) {\n").indent()
+            body.add("is %T.NextUrl -> %M(pageRequest.url).first\n", PAGE_REQUEST, SPLIT_RESOLVED_URL)
+            body.add("else -> baseUri\n")
+            body.unindent().add("}\n")
+            body.add("val effectivePath = when (pageRequest) {\n").indent()
+            body.add("is %T.NextUrl -> %M(pageRequest.url).second\n", PAGE_REQUEST, SPLIT_RESOLVED_URL)
+            body.add("else -> pageMetadata.path\n")
+            body.unindent().add("}\n")
+            body.add("val effectiveParameters = when (pageRequest) {\n").indent()
+            body.add("is %T.NextUrl -> emptyList()\n", PAGE_REQUEST)
+            body.add("else -> %L\n", requestParametersExpression(operation, names))
+            body.unindent().add("}\n")
+            body
+                .add(
+                    "val response = executor.executeWithHeaders<%T, %T>(\n",
+                    requestType,
+                    responseType,
+                ).indent()
+            body.add(
+                "%T(pageMetadata.copy(path = effectivePath), effectiveBaseUri, pageRequestValue, %L, effectiveParameters),\n",
+                SDK_EXECUTION_REQUEST,
+                requestCodecIds(operation, codecsType),
+            )
+            body.add("%L,\n", responseCodecIds(operation, codecsType))
+            body.add("%T.%L,\n", codecsType, "${operation.requestCodecPropertyName}Registry")
+            body.add("%T.%L,\n", codecsType, "${operation.responseCodecPropertyName}Registry")
+            body.add("options,\n")
+            body.unindent().add(")\n")
+            body.add(
+                "val requestUri = %M(effectiveBaseUri, effectivePath, effectiveParameters)\n",
+                BUILD_REQUEST_URI,
+            )
+            body
+                .add(
+                    "return %T(\n",
+                    PAGE_ENVELOPE,
+                ).indent()
+            body.add("value = response.value,\n")
+            body.add("items = %L.orEmpty(),\n", responsePathExpression("response.value", pagination.responseItemsPath))
+            body.add("responseHeaders = response.headers,\n")
+            body.add("requestUri = requestUri,\n")
+            body.unindent().add(")\n")
+        }
+    }
     function.addCode(body.build())
     return function.build()
 }
@@ -1477,19 +2237,31 @@ private fun paginationEngineExpression(
     metadataPropertyName: String,
     responseType: TypeName,
     itemType: TypeName,
-): CodeBlock =
-    CodeBlock
+    pagination: PaginationDeclaration,
+): CodeBlock {
+    val descriptorSubtype =
+        when (pagination) {
+            is PaginationDeclaration.CursorToken -> "CursorToken"
+            is PaginationDeclaration.HeaderNextUrl -> "HeaderNextUrl"
+        }
+    return CodeBlock
         .builder()
         .add("%T<%T, %T>(\n", PAGINATION_ENGINE, responseType, itemType)
         .indent()
         .add(
-            "descriptor = requireNotNull(%L.pagination as? %T.CursorToken),\n",
+            "descriptor = requireNotNull(%L.pagination as? %T.%L),\n",
             metadataPropertyName,
             PAGINATION_DESCRIPTOR,
+            descriptorSubtype,
         ).add("operationId = %L.operationId,\n", metadataPropertyName)
-        .unindent()
+        .apply {
+            if (pagination is PaginationDeclaration.HeaderNextUrl) {
+                add("trustedHosts = paginationTrustedHosts,\n")
+            }
+        }.unindent()
         .add(")")
         .build()
+}
 
 private fun responsePathExpression(
     root: String,
@@ -1563,7 +2335,7 @@ private fun parameterValuesExpression(
     parameterName: String,
 ): CodeBlock =
     if (parameter.type.isRepeatedParameter()) {
-        if (parameter.type.nullable) {
+        if (!parameter.required || parameter.type.nullable) {
             CodeBlock.of("%L?.map { it.toString() }.orEmpty()", parameterName)
         } else {
             CodeBlock.of("%L.map { it.toString() }", parameterName)
@@ -1655,7 +2427,10 @@ private fun withResponseKDoc(operation: OperationDeclaration): String =
         )
     }
 
-private fun bufferedKDoc(operation: OperationDeclaration): String =
+private fun bufferedKDoc(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
+): String =
     buildString {
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
@@ -1668,7 +2443,12 @@ private fun bufferedKDoc(operation: OperationDeclaration): String =
                 else -> "@return Buffered response body.\n"
             },
         )
-        append("@throws SdkApiException When the service returns a non-success response.\n")
+        names.apiExceptionTypeName?.let { exceptionTypeName ->
+            append(
+                "@throws $exceptionTypeName When the service returns a declared non-success response; its `error` " +
+                    "property exposes the decoded ${requireNotNull(names.errorTypeName)} payload.\n",
+            )
+        } ?: append("@throws SdkApiException When the service returns a non-success response.\n")
         append("@throws SdkSerializationException When a request or response cannot be serialized.\n")
         append("@throws SdkTransportException When transport execution fails.\n")
     }
@@ -1685,10 +2465,58 @@ private fun streamingKDoc(operation: OperationDeclaration): String =
         append("@throws SdkStreamingException When the stream framing or declared in-band error fails.\n")
     }
 
+/**
+ * KDoc for a [OperationResponseMode.MIXED] operation's `fooStream()` entry point, distinct from [streamingKDoc]:
+ * this operation *also* has a buffered `foo()`/`fooWithResponse()` pair over the same underlying request, so the
+ * doc must be explicit about which method to call for which need, plus the execution/ownership/termination
+ * contract every generated streaming method shares.
+ */
+private fun mixedStreamKDoc(
+    operation: OperationDeclaration,
+    elementType: KotlinTypeRef,
+): String =
+    buildString {
+        append(sanitizeKDoc(operation.methodKdoc))
+        append("\n\n")
+        append(
+            "Streaming counterpart of this operation's buffered `${operation.operationId}()`/" +
+                "`${operation.operationId}WithResponse()` methods: the service can answer the same request either " +
+                "as a single buffered JSON body (use those) or as a `text/event-stream` (use this method) — this " +
+                "method always requests the streaming alternative.\n\n",
+        )
+        append(
+            "The returned `Flow` is cold: no request is sent, and the connection is not opened, until a collector " +
+                "actually starts collecting. Each independent collection opens its own fresh connection; " +
+                "collections are never shared or replayed. Cancelling the collecting coroutine promptly closes the " +
+                "underlying connection; ownership of the response body transfers to the flow for its lifetime and " +
+                "is always released — on normal completion, on a declared terminal sentinel, or on cancellation or " +
+                "failure — a caller never needs to close anything itself.\n\n",
+        )
+        if (!elementType.isSseEvent()) {
+            append(
+                "Each event's `data` is decoded as `${elementType.simpleName}`; a declared terminal sentinel value " +
+                    "ends the stream without being emitted, and a declared in-band error event fails the flow with " +
+                    "SdkStreamingException instead of being emitted as a value.\n\n",
+            )
+        } else {
+            append(
+                "Events are emitted undecoded; a declared terminal sentinel value ends the stream without being " +
+                    "emitted, and a declared in-band error event fails the flow with SdkStreamingException instead " +
+                    "of being emitted as a value.\n\n",
+            )
+        }
+        if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
+        append("@param options Execution options.\n")
+        append("@return A cold flow of decoded streaming events; never resolves to a single response value.\n")
+        append("@throws SdkApiException When the service returns a non-success response.\n")
+        append("@throws SdkSerializationException When a request or stream item cannot be decoded.\n")
+        append("@throws SdkStreamingException When the stream framing or declared in-band error fails.\n")
+    }
+
 private fun OperationDeclaration.metadataPropertyName(
-    isSingleOperation: Boolean,
+    useGenericName: Boolean,
     operationName: String,
-): String = if (isSingleOperation) "metadata" else "${operationName}Metadata"
+): String = if (useGenericName) "metadata" else "${operationName}Metadata"
 
 private fun OperationDeclaration.requestMediaTypesForEmission(): List<String> =
     if (requestType.isUnit()) emptyList() else requestMediaTypes

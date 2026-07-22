@@ -440,65 +440,7 @@ private fun inspectInlineComponentsSchemasAnthropicTextBlockParamPropertiesCitat
   val startBlockIndex = startBlockIndexResult?.getOrNull()
   val startBlockIndexDecoded = startBlockIndexResult?.isSuccess == true
   val typeState5Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicCitationWebSearchResultLocationParamPropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicCitationWebSearchResultLocationParamPropertiesType>(element) } }
   val typeState5 = typeState5Result?.getOrNull()
   val typeState5Decoded = typeState5Result?.isSuccess == true
   val typeState5Matches = raw.stringValue("type") == "web_search_result_location" && typeState5Decoded

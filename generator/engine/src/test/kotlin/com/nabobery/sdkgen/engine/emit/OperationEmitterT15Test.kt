@@ -115,6 +115,46 @@ class OperationEmitterT15Test {
         assertTrue(source.contains("executeBodyless<UploadRequest>"))
     }
 
+    @Test
+    fun emitsMultipartAccessorsFromDeclarationMetadataForArbitraryOptionalBinaryParts() {
+        val stream = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+        val operation =
+            multipartOperation(
+                parts =
+                    listOf(
+                        MultipartPartDeclaration(
+                            wireName = "input_audio",
+                            accessorName = "inputAudio",
+                            type = stream,
+                            required = true,
+                            contentType = "audio/wav",
+                        ),
+                        MultipartPartDeclaration(
+                            wireName = "attachment",
+                            accessorName = "attachment",
+                            type = stream.copy(nullable = true),
+                            required = false,
+                            contentType = "application/octet-stream",
+                        ),
+                        MultipartPartDeclaration(
+                            wireName = "when",
+                            accessorName = "whenValue",
+                            type = stream,
+                            required = true,
+                            contentType = "application/octet-stream",
+                        ),
+                    ),
+            )
+
+        val source = render(operation)
+
+        assertTrue(source.contains("name = \"input_audio\", stream = request.inputAudio"))
+        assertTrue(source.contains("request.attachment?.let"))
+        assertTrue(source.contains("name = \"attachment\", stream = it"))
+        assertTrue(source.contains("name = \"when\", stream = request.whenValue"))
+        assertFalse(source.contains("request.file"))
+    }
+
     private fun render(operation: OperationDeclaration): String = render(listOf(operation))
 
     private fun render(operations: List<OperationDeclaration>): String {
@@ -224,29 +264,33 @@ class OperationEmitterT15Test {
             streaming = StreamingDeclaration.ServerSentEvents("[DONE]", "stream", "text/event-stream"),
         )
 
-    private fun multipartOperation(): OperationDeclaration {
+    private fun multipartOperation(
+        parts: List<MultipartPartDeclaration> =
+            listOf(
+                MultipartPartDeclaration(
+                    wireName = "caption",
+                    accessorName = "caption",
+                    type = KotlinTypeRef("kotlin", "String"),
+                    required = true,
+                    contentType = "text/plain",
+                    headers = mapOf("X-Part-Checksum" to JsonValue.StringValue("checksum")),
+                ),
+                MultipartPartDeclaration(
+                    wireName = "file",
+                    accessorName = "file",
+                    type = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
+                    required = true,
+                    contentType = "image/png",
+                ),
+            ),
+    ): OperationDeclaration {
         val requestType = KotlinTypeRef(PACKAGE, "UploadRequest")
         val multipart =
             OperationRequestBodyAlternative(
                 mediaType = "multipart/form-data",
                 type = requestType,
                 required = true,
-                multipartParts =
-                    listOf(
-                        MultipartPartDeclaration(
-                            name = "caption",
-                            type = KotlinTypeRef("kotlin", "String"),
-                            required = true,
-                            contentType = "text/plain",
-                            headers = mapOf("X-Part-Checksum" to JsonValue.StringValue("checksum")),
-                        ),
-                        MultipartPartDeclaration(
-                            name = "file",
-                            type = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
-                            required = true,
-                            contentType = "image/png",
-                        ),
-                    ),
+                multipartParts = parts,
             )
         return OperationDeclaration(
             symbolId = "operation:uploadAsset",
@@ -314,6 +358,63 @@ class OperationEmitterT15Test {
         assertFalse(source.contains("ByteReadChannel"))
         assertFalse(source.contains("okio"))
         assertFalse(source.contains("InputStream"))
+    }
+
+    @Test
+    fun mixedStreamingMethodUsesRawTypedErrorsWithGeneratedDecoderAndMapper() {
+        val source =
+            render(
+                OperationDeclaration(
+                    symbolId = "operation:sendChat",
+                    order = 0,
+                    operationId = "sendChat",
+                    operationIdentity = "sendChat",
+                    method = "POST",
+                    path = "/chat",
+                    requestMediaTypes = listOf("application/json"),
+                    responseMediaTypes = listOf("application/json"),
+                    successStatusCodes = setOf(200),
+                    requestType = KotlinTypeRef(PACKAGE, "ChatRequest"),
+                    responseType = KotlinTypeRef(PACKAGE, "ChatResult"),
+                    requestCodecPropertyName = "sendChatRequestCodec",
+                    responseCodecPropertyName = "sendChatResponseCodec",
+                    requestCodecConstantName = "SEND_CHAT_REQUEST_CODEC_ID",
+                    responseCodecConstantName = "SEND_CHAT_RESPONSE_CODEC_ID",
+                    requestCodecId = "sendChat.request",
+                    responseCodecId = "sendChat.response",
+                    responseMode = OperationResponseMode.MIXED,
+                    deadlines = OperationDeadlines(60_000, 30_000, null),
+                    methodKdoc = "Sends chat.",
+                    responseAlternatives =
+                        listOf(
+                            OperationResponseAlternative(
+                                ResponseSelectorDeclaration.ExactStatus(200),
+                                listOf("application/json"),
+                                KotlinTypeRef(PACKAGE, "ChatResult"),
+                            ),
+                            OperationResponseAlternative(
+                                ResponseSelectorDeclaration.ExactStatus(401),
+                                listOf("application/json"),
+                                KotlinTypeRef(PACKAGE, "ErrorResponse"),
+                            ),
+                        ),
+                    streaming =
+                        StreamingDeclaration.ServerSentEvents(
+                            "[DONE]",
+                            responseContentType = "text/event-stream",
+                        ),
+                    streamResponseType = KotlinTypeRef(PACKAGE, "ChatDelta"),
+                ),
+            )
+
+        assertTrue(source.contains("public fun sendChatStream("))
+        assertTrue(source.contains("executor.executeRawWithTypedErrors<ChatRequest, SendChatResponse>("))
+        assertTrue(source.contains("responseDecoder = SendChatResponseDecoder"))
+        assertTrue(
+            source.contains(
+                "is SendChatResponse.Http401Json -> SendChatApiException(response, statusCode, headers)",
+            ),
+        )
     }
 
     @Test
@@ -483,6 +584,70 @@ class OperationEmitterT15Test {
         assertFalse(source.contains("PageRequest.First -> request,"))
         assertFalse(source.contains("\"cursor\" + \"=\" + it"))
         assertFalse(source.contains("transport.execute("))
+    }
+
+    @Test
+    fun emitsHeaderNextUrlPaginationUsingLinkHeaderAndExecuteWithHeaders() {
+        val source =
+            render(
+                OperationDeclaration(
+                    symbolId = "operation:listIssues",
+                    order = 0,
+                    operationId = "listIssues",
+                    operationIdentity = "listIssues",
+                    method = "GET",
+                    path = "/repos/{owner}/{repo}/issues",
+                    requestMediaTypes = emptyList(),
+                    responseMediaTypes = listOf("application/json"),
+                    successStatusCodes = setOf(200),
+                    requestType = KotlinTypeRef("kotlin", "Unit"),
+                    responseType = KotlinTypeRef(PACKAGE, "IssuePage"),
+                    requestCodecPropertyName = "listIssuesRequestCodec",
+                    responseCodecPropertyName = "listIssuesResponseCodec",
+                    requestCodecConstantName = "LIST_ISSUES_REQUEST_CODEC_ID",
+                    responseCodecConstantName = "LIST_ISSUES_RESPONSE_CODEC_ID",
+                    requestCodecId = "listIssues.request",
+                    responseCodecId = "listIssues.response",
+                    responseMode = OperationResponseMode.BUFFERED,
+                    deadlines = OperationDeadlines(12_000, 3_000, 1_000),
+                    methodKdoc = "Lists issues.",
+                    parameters =
+                        listOf(
+                            OperationParameterDeclaration(
+                                "owner",
+                                OperationParameterLocation.PATH,
+                                KotlinTypeRef("kotlin", "String"),
+                                required = true,
+                            ),
+                            OperationParameterDeclaration(
+                                "repo",
+                                OperationParameterLocation.PATH,
+                                KotlinTypeRef("kotlin", "String"),
+                                required = true,
+                            ),
+                        ),
+                    pagination =
+                        PaginationDeclaration.HeaderNextUrl(
+                            "items",
+                            KotlinTypeRef(PACKAGE, "Issue"),
+                        ),
+                ),
+            )
+
+        assertTrue(source.contains("public suspend fun listIssues("))
+        assertTrue(source.contains("): Page<IssuePage, Issue>"))
+        assertTrue(source.contains("public fun listIssuesPages("))
+        assertTrue(source.contains("public fun listIssuesItems("))
+        assertTrue(source.contains("PaginationDescriptor.HeaderNextUrl(responseItemsPath = PropertyPath(\"items\"))"))
+        assertTrue(source.contains("private val paginationTrustedHosts: TrustedHosts"))
+        assertTrue(source.contains("trustedHosts = paginationTrustedHosts,"))
+        assertTrue(source.contains("splitResolvedUrl(pageRequest.url)"))
+        assertTrue(source.contains("executor.executeWithHeaders<Unit, IssuePage>("))
+        assertTrue(source.contains("pageMetadata.copy(path = effectivePath)"))
+        assertTrue(source.contains("buildRequestUri(effectiveBaseUri, effectivePath, effectiveParameters)"))
+        assertTrue(source.contains("responseHeaders = response.headers,"))
+        assertTrue(source.contains("requestUri = requestUri,"))
+        assertFalse(source.contains("nextCursor ="))
     }
 
     @Test

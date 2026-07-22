@@ -97,62 +97,7 @@ public class InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1I
         type = type,
         cacheControl = raw["cache_control"]?.let { json.decodeFromJsonElement<AnthropicCacheControlDirective>(it) },
         content = raw["content"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1ItemsOneOf4Procc337b93>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasMessagesMessageParamPropertiesContentAnyOf1ItemsOneOf4Procc337b93>(it) },
         isError = raw["is_error"]?.let { json.decodeFromJsonElement<Boolean>(it) },
       )
     }

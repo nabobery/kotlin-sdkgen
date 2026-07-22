@@ -17,6 +17,7 @@ import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.SupportDeclaration
 import com.nabobery.sdkgen.engine.declarations.SupportKind
 import com.nabobery.sdkgen.engine.declarations.rewriteTypeReferences
@@ -1328,6 +1329,15 @@ private fun emittedTopLevelNames(
             )
         }
 
+        is PrimitiveOneOfDeclaration -> {
+            listOf(
+                resolvedName,
+                "${resolvedName}DecodingException",
+                "${resolvedName}NoMatchException",
+                "${resolvedName}AmbiguityException",
+            )
+        }
+
         is AnyOfDeclaration -> {
             val branchEnumName =
                 declaration.branchEnumName.takeIf { name -> name != "${declaration.resolvedName}Branch" }
@@ -1430,6 +1440,10 @@ internal fun applyDeclarationAugmentations(
             }
 
             is OneOfDeclaration -> {
+                declaration.copy(fileName = fileName, resolvedName = name, kdoc = kdoc)
+            }
+
+            is PrimitiveOneOfDeclaration -> {
                 declaration.copy(fileName = fileName, resolvedName = name, kdoc = kdoc)
             }
 

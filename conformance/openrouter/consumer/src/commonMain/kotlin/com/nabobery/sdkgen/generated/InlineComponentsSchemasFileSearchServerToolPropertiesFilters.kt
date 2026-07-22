@@ -71,63 +71,7 @@ public class InlineComponentsSchemasFileSearchServerToolPropertiesFilters intern
       Set<InlineComponentsSchemasFileSearchServerToolPropertiesFiltersBranch>
     get() = buildSet {
       if (inspection
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .matchesInlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0) add(InlineComponentsSchemasFileSearchServerToolPropertiesFiltersBranch.InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0)
+        .matchesInlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0) add(InlineComponentsSchemasFileSearchServerToolPropertiesFiltersBranch.InlineComponentsSchemasFileSearchServerToolPropertiesFiltersAnyOf0)
       if (inspection.matchesCompoundFilter) add(InlineComponentsSchemasFileSearchServerToolPropertiesFiltersBranch
         .CompoundFilter)
       if (inspection.matchesBranch3) add(InlineComponentsSchemasFileSearchServerToolPropertiesFiltersBranch.Branch3)

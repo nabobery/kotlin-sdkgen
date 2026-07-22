@@ -126,62 +126,7 @@ public class InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPr
           .decodeFromJsonElement<CostDetails?>(element) },
         isByok = raw["is_byok"]?.let { json.decodeFromJsonElement<Boolean>(it) },
         promptTokensDetails = raw["prompt_tokens_details"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesUsage5c2f467b>(it) },
+          .decodeFromJsonElement<InlinePathsEmbeddingsPostResponses200ContentApplicationJsonSchemaPropertiesUsage5c2f467b>(it) },
       )
     }
 

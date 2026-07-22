@@ -1,0 +1,80 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlin.String
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1setup_intents~1{intent}/post/requestBody/content/application~1x-www-form-ur
+ * lencoded/schema/properties/payment_method_options/properties/us_bank_account/properties/financial_connections/propert
+ * ies/prefetch/items.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1setup_intents~1{intent}/post/requestBody/content/application~1x-www-form-ur
+ * lencoded/schema/properties/payment_method_options/properties/us_bank_account/properties/financial_connections/propert
+ * ies/prefetch/items
+ */
+@Serializable(with = InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f.Serializer::class)
+public sealed class InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f {
+    public abstract val `value`: String
+
+    /**
+     * Documented value. Wire value: `balances`.
+     */
+    public data object Balances : InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f() {
+        public override val `value`: String = "balances"
+    }
+
+    /**
+     * Documented value. Wire value: `ownership`.
+     */
+    public data object Ownership : InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f() {
+        public override val `value`: String = "ownership"
+    }
+
+    /**
+     * Documented value. Wire value: `transactions`.
+     */
+    public data object Transactions : InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f() {
+        public override val `value`: String = "transactions"
+    }
+
+    public data class SdkUnknown(
+        public override val `value`: String,
+    ) : InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f()
+
+    public companion object {
+        public fun fromValue(`value`: String): InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f =
+            when (value) {
+                Balances.value -> Balances
+                Ownership.value -> Ownership
+                Transactions.value -> Transactions
+                else -> SdkUnknown(value)
+            }
+    }
+
+    public object Serializer : KSerializer<InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f> {
+        override val descriptor: SerialDescriptor =
+            PrimitiveSerialDescriptor(
+                "com.nabobery.sdkgen.generated.stripe.InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f",
+                PrimitiveKind.STRING,
+            )
+
+        override fun deserialize(
+            decoder: Decoder,
+        ): InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f = fromValue(decoder.decodeString())
+
+        override fun serialize(
+            encoder: Encoder,
+            `value`: InlineV1SetupIntentsPostRequestFormPaymentMethodOptionsItemX27b9007f,
+        ) {
+            encoder.encodeString(value.value)
+        }
+    }
+}

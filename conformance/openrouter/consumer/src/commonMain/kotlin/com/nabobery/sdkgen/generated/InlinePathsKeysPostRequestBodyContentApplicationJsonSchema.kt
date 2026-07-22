@@ -136,62 +136,7 @@ public class InlinePathsKeysPostRequestBodyContentApplicationJsonSchema(
         limit = raw["limit"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<Double?>(element) },
         limitReset = raw["limit_reset"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsKeysPostRequestBodyContentApplicationJsonSchemaPropertiesLimitReset?>(element) },
+          .decodeFromJsonElement<InlinePathsKeysPostRequestBodyContentApplicationJsonSchemaPropertiesLimitReset?>(element) },
         workspaceId = raw["workspace_id"]?.let { json.decodeFromJsonElement<String>(it) },
       )
     }

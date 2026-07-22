@@ -85,62 +85,7 @@ public class InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActio
         query = query,
         type = type,
         sources = raw["sources"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems>>(it) },
+          .decodeFromJsonElement<List<InlineComponentsSchemasOutputWebSearchServerToolItemPropertiesActionPropertiesSourcesItems>>(it) },
       )
     }
 

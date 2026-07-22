@@ -2,9 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-pagination.schema.json",
     "type": "object",
-    "additionalProperties": false,
     "properties": {
-        "style": { "const": "cursor" },
+        "style": { "enum": ["cursor", "headerNextUrl"] },
         "requestCursor": { "type": "string", "minLength": 1 },
         "requestLimit": { "type": "string", "minLength": 1 },
         "responseItems": { "type": "string", "pattern": "^/(?:[^~]|~[01])*$" },
@@ -13,10 +12,43 @@
             "pattern": "^/(?:[^~]|~[01])*$"
         }
     },
-    "required": [
-        "style",
-        "requestCursor",
-        "responseItems",
-        "responseNextCursor"
+    "required": ["style", "responseItems"],
+    "allOf": [
+        {
+            "if": {
+                "properties": { "style": { "const": "cursor" } },
+                "required": ["style"]
+            },
+            "then": {
+                "additionalProperties": false,
+                "properties": {
+                    "style": {},
+                    "requestCursor": {},
+                    "requestLimit": {},
+                    "responseItems": {},
+                    "responseNextCursor": {}
+                },
+                "required": [
+                    "style",
+                    "requestCursor",
+                    "responseItems",
+                    "responseNextCursor"
+                ]
+            }
+        },
+        {
+            "if": {
+                "properties": { "style": { "const": "headerNextUrl" } },
+                "required": ["style"]
+            },
+            "then": {
+                "additionalProperties": false,
+                "properties": {
+                    "style": {},
+                    "responseItems": {}
+                },
+                "required": ["style", "responseItems"]
+            }
+        }
     ]
 }

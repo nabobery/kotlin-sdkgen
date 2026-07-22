@@ -404,63 +404,7 @@ public class InlinePathsKeyGetResponses200ContentApplicationJsonSchemaProperties
       val isProvisioningKey = json.decodeRequired<Boolean>(raw, "is_provisioning_key")
       val label = json.decodeRequired<String>(raw, "label")
       val rateLimit = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit>(raw, "rate_limit")
+        .decodeRequired<InlinePathsKeyGetResponses200ContentApplicationJsonSchemaPropertiesDataPropertiesRateLimit>(raw, "rate_limit")
       val usage = json.decodeRequired<Double>(raw, "usage")
       val usageDaily = json.decodeRequired<Double>(raw, "usage_daily")
       val usageMonthly = json.decodeRequired<Double>(raw, "usage_monthly")

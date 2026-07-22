@@ -12,6 +12,10 @@ import com.nabobery.sdkgen.engine.declarations.AnyOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
 import com.nabobery.sdkgen.engine.declarations.EnumValueDeclaration
 import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
+import com.nabobery.sdkgen.engine.declarations.GenerationDiagnosticCode
+import com.nabobery.sdkgen.engine.declarations.JsonAdditionalPropertiesPredicate
+import com.nabobery.sdkgen.engine.declarations.JsonBranchPredicate
+import com.nabobery.sdkgen.engine.declarations.JsonStringFormat
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.KotlinFileDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
@@ -31,6 +35,9 @@ import com.nabobery.sdkgen.engine.declarations.OperationSecurityRequirement
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeRef
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfCaseDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
+import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfJsonKind
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.declarations.StreamingDeclaration
@@ -39,6 +46,7 @@ import com.nabobery.sdkgen.engine.declarations.SupportKind
 import com.nabobery.sdkgen.engine.declarations.UnionFieldDeclaration
 import com.nabobery.sdkgen.engine.spi.DeclarationAugmentation
 import com.nabobery.sdkgen.engine.spi.applyDeclarationAugmentations
+import com.nabobery.sdkgen.model.JsonValue
 import com.nabobery.sdkgen.model.SourceLocation
 import com.nabobery.sdkgen.model.SourcePointer
 import com.nabobery.sdkgen.openapi.SemanticAdapter
@@ -46,6 +54,7 @@ import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.lang.reflect.InvocationTargetException
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -202,6 +211,89 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun operationAndMixedStreamMetadataUsePublicationLazyDelegatesAndCompile() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:watchUpdates",
+                order = 0,
+                operationId = "watchUpdates",
+                operationIdentity = "watchUpdates",
+                method = "GET",
+                path = "/updates",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = listOf("application/json", "text/event-stream"),
+                successStatusCodes = setOf(200),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = string,
+                requestCodecPropertyName = "watchUpdatesRequestCodec",
+                responseCodecPropertyName = "watchUpdatesResponseCodec",
+                requestCodecConstantName = "WATCH_UPDATES_REQUEST_CODEC_ID",
+                responseCodecConstantName = "WATCH_UPDATES_RESPONSE_CODEC_ID",
+                requestCodecId = "watchUpdates.request",
+                responseCodecId = "watchUpdates.response",
+                responseMode = OperationResponseMode.MIXED,
+                deadlines = OperationDeadlines(null, 30_000, null),
+                methodKdoc = "Watches updates.",
+                responseAlternatives =
+                    listOf(
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(200),
+                            listOf("application/json"),
+                            string,
+                        ),
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(401),
+                            listOf("application/json"),
+                            string,
+                        ),
+                    ),
+                streaming = StreamingDeclaration.ServerSentEvents("[DONE]", responseContentType = "text/event-stream"),
+                streamResponseType = string,
+            )
+        val client =
+            OperationClientDeclaration(
+                symbolId = "client:MetadataClient",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "MetadataClient",
+                resolvedName = "MetadataClient",
+                kdoc = "Metadata compile regression client.",
+                codecsObjectName = "MetadataCodecs",
+                operations = listOf(operation),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "MetadataClient", listOf(client)),
+                        KotlinFileDeclaration(
+                            PACKAGE,
+                            "SerializationSupport",
+                            listOf(
+                                SupportDeclaration(
+                                    "support:serialization",
+                                    0,
+                                    PACKAGE,
+                                    "SerializationSupport",
+                                    "SerializationSupport",
+                                    "",
+                                    SupportKind.Serialization,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val source = rendered.single { it.path.endsWith("MetadataClient.kt") }.bytes.decodeToString()
+
+        assertTrue(source.contains("public val metadataStream: OperationMetadata"))
+        assertEquals(2, Regex("lazy\\(LazyThreadSafetyMode\\.PUBLICATION\\)").findAll(source).count())
+        assertFalse(source.contains("LazyThreadSafetyMode.NONE"))
+        compileGenerated(rendered)
+    }
+
+    @Test
     fun projectedPlainOptionalNullableFieldsDecodeAbsentNullAndValue() {
         val source =
             Files.createTempFile("sdkgen-plain-optional-", ".yaml").also { path ->
@@ -329,6 +421,741 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun primitiveOneOfEmitsTypedJsonKindDispatchWithoutFallback() {
+        val timestamp =
+            PrimitiveOneOfDeclaration(
+                symbolId = "schema:Timestamp",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "Timestamp",
+                resolvedName = "Timestamp",
+                kdoc = "Timestamp primitive union.",
+                cases =
+                    listOf(
+                        PrimitiveOneOfCaseDeclaration(
+                            symbolId = "schema:Timestamp/branch:epoch",
+                            order = 0,
+                            resolvedName = "EpochValue",
+                            type = KotlinTypeRef("kotlin", "Long"),
+                            jsonKind = PrimitiveOneOfJsonKind.NUMBER,
+                        ),
+                        PrimitiveOneOfCaseDeclaration(
+                            symbolId = "schema:Timestamp/branch:date-time",
+                            order = 1,
+                            resolvedName = "DateTimeValue",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            jsonKind = PrimitiveOneOfJsonKind.STRING,
+                        ),
+                    ),
+            )
+        val model =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(PACKAGE, "Timestamp", listOf(timestamp)),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                "support:serialization",
+                                0,
+                                PACKAGE,
+                                "SerializationSupport",
+                                "SerializationSupport",
+                                "",
+                                SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val source = rendered.single { it.path.endsWith("Timestamp.kt") }.bytes.decodeToString()
+
+        assertTrue(source.contains("public sealed interface Timestamp"))
+        assertTrue(source.contains("public val raw: JsonElement"))
+        assertTrue(source.contains("element.isJsonSchemaNumber()"))
+        assertTrue(source.contains("element is JsonPrimitive && element.isString"))
+        assertTrue(source.contains("if (matches.size > 1)"))
+        assertFalse(source.contains("Any"))
+        val harness =
+            """
+            package $PACKAGE
+
+            fun classifyTimestamp(raw: String): String =
+                try {
+                    when (SdkJson.decodeFromString(Timestamp.Serializer, raw)) {
+                        is Timestamp.EpochValue -> "epoch"
+                        is Timestamp.DateTimeValue -> "date-time"
+                    }
+                } catch (_: TimestampNoMatchException) {
+                    "no-match"
+                } catch (_: TimestampAmbiguityException) {
+                    "ambiguity"
+                }
+
+            fun roundTripTimestamp(raw: String): String =
+                SdkJson.encodeToString(Timestamp.Serializer, SdkJson.decodeFromString(Timestamp.Serializer, raw))
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/TimestampHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val harnessClass = loader.loadClass("$PACKAGE.TimestampHarnessKt")
+            val classify = harnessClass.getMethod("classifyTimestamp", String::class.java)
+            val roundTrip = harnessClass.getMethod("roundTripTimestamp", String::class.java)
+
+            assertEquals("epoch", classify.invoke(null, "1700000000"))
+            assertEquals("date-time", classify.invoke(null, "\"2026-07-21T00:00:00Z\""))
+            assertEquals("no-match", classify.invoke(null, "true"))
+            assertEquals("1700000000", roundTrip.invoke(null, "1700000000"))
+        }
+    }
+
+    @Test
+    fun primitiveOneOfPredicatesEnforceRawJsonSchemaMembershipBeforeDeserialization() {
+        val element = KotlinTypeRef("kotlinx.serialization.json", "JsonElement")
+        val string = KotlinTypeRef("kotlin", "String")
+
+        fun branch(
+            name: String,
+            predicate: JsonBranchPredicate,
+            type: KotlinTypeRef = element,
+        ): PrimitiveOneOfCaseDeclaration =
+            PrimitiveOneOfCaseDeclaration(
+                symbolId = "schema:$name",
+                order = 0,
+                resolvedName = name,
+                type = type,
+                jsonKind =
+                    when (predicate) {
+                        is JsonBranchPredicate.Kind -> {
+                            predicate.kind
+                        }
+
+                        is JsonBranchPredicate.AllOf -> {
+                            predicate.predicates
+                                .filterIsInstance<JsonBranchPredicate.Kind>()
+                                .single()
+                                .kind
+                        }
+
+                        else -> {
+                            PrimitiveOneOfJsonKind.STRING
+                        }
+                    },
+                predicate = predicate,
+            )
+
+        fun union(
+            name: String,
+            cases: List<PrimitiveOneOfCaseDeclaration>,
+        ): PrimitiveOneOfDeclaration =
+            PrimitiveOneOfDeclaration("schema:$name", 0, PACKAGE, name, name, "$name predicate union.", cases)
+
+        fun all(vararg predicates: JsonBranchPredicate): JsonBranchPredicate =
+            JsonBranchPredicate.AllOf(predicates.toList())
+
+        val enumAndConst =
+            union(
+                "EnumAndConst",
+                listOf(
+                    branch(
+                        "Enum",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                            JsonBranchPredicate.Enumeration(
+                                listOf(JsonValue.StringValue("ready"), JsonValue.StringValue("pending")),
+                            ),
+                        ),
+                        string,
+                    ),
+                    branch(
+                        "Constant",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                            JsonBranchPredicate.Constant(JsonValue.StringValue("fixed")),
+                        ),
+                        string,
+                    ),
+                ),
+            )
+        val numeric =
+            union(
+                "Numeric",
+                listOf(
+                    branch("Integer", JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.INTEGER)),
+                    branch(
+                        "Half",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NUMBER),
+                            JsonBranchPredicate.Numeric(minimum = "-2.5", maximum = "2.5", multipleOf = "0.5"),
+                        ),
+                    ),
+                ),
+            )
+        val dates =
+            union(
+                "Dates",
+                listOf(
+                    branch(
+                        "Date",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                            JsonBranchPredicate.StringShape(format = JsonStringFormat.DATE),
+                        ),
+                        string,
+                    ),
+                    branch(
+                        "DateTime",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                            JsonBranchPredicate.StringShape(format = JsonStringFormat.DATE_TIME),
+                        ),
+                        string,
+                    ),
+                ),
+            )
+        val lengths =
+            union(
+                "Lengths",
+                listOf(
+                    branch(
+                        "Short",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                            JsonBranchPredicate.StringShape(minLength = 2, maxLength = 3),
+                        ),
+                        string,
+                    ),
+                ),
+            )
+        val arrays =
+            union(
+                "Arrays",
+                listOf(
+                    branch(
+                        "IntegerArray",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.ARRAY),
+                            JsonBranchPredicate.ArrayShape(
+                                minItems = 1,
+                                maxItems = 2,
+                                uniqueItems = true,
+                                item = JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.INTEGER),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val closedObject =
+            union(
+                "ClosedObject",
+                listOf(
+                    branch(
+                        "Identifier",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT),
+                            JsonBranchPredicate.ObjectShape(
+                                requiredNames = listOf("id"),
+                                properties = mapOf("id" to JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING)),
+                                additionalProperties = JsonAdditionalPropertiesPredicate.Closed,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val openObject =
+            union(
+                "OpenObject",
+                listOf(
+                    branch(
+                        "Anything",
+                        all(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT),
+                            JsonBranchPredicate.ObjectShape(
+                                requiredNames = emptyList(),
+                                properties = emptyMap(),
+                                additionalProperties = JsonAdditionalPropertiesPredicate.Open,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val model =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(PACKAGE, "EnumAndConst", listOf(enumAndConst)),
+                    KotlinFileDeclaration(PACKAGE, "Numeric", listOf(numeric)),
+                    KotlinFileDeclaration(PACKAGE, "Dates", listOf(dates)),
+                    KotlinFileDeclaration(PACKAGE, "Lengths", listOf(lengths)),
+                    KotlinFileDeclaration(PACKAGE, "Arrays", listOf(arrays)),
+                    KotlinFileDeclaration(PACKAGE, "ClosedObject", listOf(closedObject)),
+                    KotlinFileDeclaration(PACKAGE, "OpenObject", listOf(openObject)),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                "support:serialization",
+                                0,
+                                PACKAGE,
+                                "SerializationSupport",
+                                "SerializationSupport",
+                                "",
+                                SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val harness =
+            """
+            package $PACKAGE
+
+            fun enumConst(raw: String): String =
+                try {
+                    when (SdkJson.decodeFromString(EnumAndConst.Serializer, raw)) {
+                        is EnumAndConst.Enum -> "Enum"
+                        is EnumAndConst.Constant -> "Constant"
+                    }
+                } catch (_: Throwable) { "no-match" }
+            fun numeric(raw: String): String =
+                try {
+                    when (SdkJson.decodeFromString(Numeric.Serializer, raw)) {
+                        is Numeric.Integer -> "Integer"
+                        is Numeric.Half -> "Half"
+                    }
+                } catch (_: NumericAmbiguityException) { "ambiguity" }
+                catch (_: Throwable) { "no-match" }
+            fun dates(raw: String): String =
+                try {
+                    when (SdkJson.decodeFromString(Dates.Serializer, raw)) {
+                        is Dates.Date -> "Date"
+                        is Dates.DateTime -> "DateTime"
+                    }
+                } catch (_: Throwable) { "no-match" }
+            fun lengths(raw: String): String = try { SdkJson.decodeFromString(Lengths.Serializer, raw); "Short" } catch (_: Throwable) { "no-match" }
+            fun arrays(raw: String): String = try { SdkJson.decodeFromString(Arrays.Serializer, raw); "IntegerArray" } catch (_: Throwable) { "no-match" }
+            fun closed(raw: String): String = try { SdkJson.decodeFromString(ClosedObject.Serializer, raw); "Identifier" } catch (_: Throwable) { "no-match" }
+            fun open(raw: String): String = try { SdkJson.decodeFromString(OpenObject.Serializer, raw); "Anything" } catch (_: Throwable) { "no-match" }
+            fun roundTrip(raw: String): String = SdkJson.encodeToString(Numeric.Serializer, SdkJson.decodeFromString(Numeric.Serializer, raw))
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile("${PACKAGE.replace('.', '/')}/PredicateHarness.kt", harness.encodeToByteArray()),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val harnessClass = loader.loadClass("$PACKAGE.PredicateHarnessKt")
+
+            fun invoke(
+                method: String,
+                raw: String,
+            ): String =
+                try {
+                    harnessClass.getMethod(method, String::class.java).invoke(null, raw) as String
+                } catch (failure: InvocationTargetException) {
+                    if (failure.targetException.javaClass.simpleName == "NumericAmbiguityException") {
+                        "ambiguity"
+                    } else {
+                        throw failure
+                    }
+                }
+
+            assertEquals("Enum", invoke("enumConst", "\"ready\""))
+            assertEquals("Constant", invoke("enumConst", "\"fixed\""))
+            assertEquals("no-match", invoke("enumConst", "\"unknown\""))
+            assertEquals("ambiguity", invoke("numeric", "2.0"))
+            assertEquals("ambiguity", invoke("numeric", "2e0"))
+            assertEquals("Half", invoke("numeric", "1.5"))
+            assertEquals("Half", invoke("numeric", "-1.5"))
+            assertEquals("no-match", invoke("numeric", "1.1"))
+            assertEquals("Date", invoke("dates", "\"2024-02-29\""))
+            assertEquals("DateTime", invoke("dates", "\"2024-02-29T23:59:59Z\""))
+            assertEquals("DateTime", invoke("dates", "\"2016-12-31T23:59:60Z\""))
+            assertEquals("DateTime", invoke("dates", "\"2017-01-01T00:59:60+01:00\""))
+            assertEquals("no-match", invoke("dates", "\"2024-02-29T12:00:60Z\""))
+            assertEquals("no-match", invoke("dates", "\"2016-12-31T23:59:60+01:00\""))
+            assertEquals("no-match", invoke("dates", "\"2023-02-29\""))
+            assertEquals("Short", invoke("lengths", "\"😀a\""))
+            assertEquals("no-match", invoke("lengths", "\"a\""))
+            assertEquals("IntegerArray", invoke("arrays", "[1,2]"))
+            assertEquals("no-match", invoke("arrays", "[1,1.0]"))
+            assertEquals("Identifier", invoke("closed", "{\"id\":\"x\"}"))
+            assertEquals("no-match", invoke("closed", "{\"id\":\"x\",\"extra\":true}"))
+            assertEquals("no-match", invoke("closed", "{}"))
+            assertEquals("Anything", invoke("open", "{\"extra\":true}"))
+            assertEquals("1.5", invoke("roundTrip", "1.5"))
+        }
+    }
+
+    @Test
+    fun primitiveOneOfNumericPredicatesHandleExtremeExponentsWithoutOverflowOrLinearWork() {
+        val element = KotlinTypeRef("kotlinx.serialization.json", "JsonElement")
+
+        fun numericUnion(
+            name: String,
+            predicate: JsonBranchPredicate,
+        ): PrimitiveOneOfDeclaration =
+            PrimitiveOneOfDeclaration(
+                symbolId = "schema:$name",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = name,
+                resolvedName = name,
+                kdoc = "Extreme exponent regression.",
+                cases =
+                    listOf(
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:$name/number",
+                            0,
+                            "NumberValue",
+                            element,
+                            PrimitiveOneOfJsonKind.NUMBER,
+                            JsonBranchPredicate.AllOf(
+                                listOf(JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NUMBER), predicate),
+                            ),
+                        ),
+                    ),
+            )
+        val integer = numericUnion("ExtremeInteger", JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.INTEGER))
+        val lowerBound = numericUnion("ExtremeBound", JsonBranchPredicate.Numeric(minimum = "1"))
+        val multiple = numericUnion("ExtremeMultiple", JsonBranchPredicate.Numeric(multipleOf = "1"))
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "ExtremeInteger", listOf(integer)),
+                        KotlinFileDeclaration(PACKAGE, "ExtremeBound", listOf(lowerBound)),
+                        KotlinFileDeclaration(PACKAGE, "ExtremeMultiple", listOf(multiple)),
+                        KotlinFileDeclaration(
+                            PACKAGE,
+                            "SerializationSupport",
+                            listOf(
+                                SupportDeclaration(
+                                    "support:serialization",
+                                    0,
+                                    PACKAGE,
+                                    "SerializationSupport",
+                                    "SerializationSupport",
+                                    "",
+                                    SupportKind.Serialization,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val harness =
+            """
+            package $PACKAGE
+
+            fun extremeInteger(raw: String): String = try {
+                ExtremeInteger.fromRaw(SdkJson.parseToJsonElement(raw)); "match"
+            } catch (_: Throwable) { "no-match" }
+            fun extremeBound(raw: String): String = try {
+                ExtremeBound.fromRaw(SdkJson.parseToJsonElement(raw)); "match"
+            } catch (_: Throwable) { "no-match" }
+            fun extremeMultiple(raw: String): String = try {
+                ExtremeMultiple.fromRaw(SdkJson.parseToJsonElement(raw)); "match"
+            } catch (_: Throwable) { "no-match" }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/ExtremeExponentHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val harnessClass = loader.loadClass("$PACKAGE.ExtremeExponentHarnessKt")
+
+            fun invoke(
+                method: String,
+                raw: String,
+            ): String = harnessClass.getMethod(method, String::class.java).invoke(null, raw) as String
+
+            assertEquals("match", invoke("extremeInteger", "1e9223372036854775808"))
+            assertEquals("no-match", invoke("extremeInteger", "1e-9223372036854775808"))
+            assertEquals("match", invoke("extremeBound", "1e9223372036854775808"))
+            assertEquals("no-match", invoke("extremeBound", "1e-9223372036854775808"))
+            assertEquals("match", invoke("extremeMultiple", "1e9223372036854775808"))
+            assertEquals("no-match", invoke("extremeMultiple", "1e-9223372036854775808"))
+        }
+    }
+
+    @Test
+    fun primitiveOneOfFactoriesRejectValuesOutsideTheirDeclaredBranches() {
+        val element = KotlinTypeRef("kotlinx.serialization.json", "JsonElement")
+        val string = KotlinTypeRef("kotlin", "String")
+        val union =
+            PrimitiveOneOfDeclaration(
+                symbolId = "schema:FactoryChoice",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "FactoryChoice",
+                resolvedName = "FactoryChoice",
+                kdoc = "Factory validation regression.",
+                cases =
+                    listOf(
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:FactoryChoice/enum",
+                            0,
+                            "EnumValue",
+                            string,
+                            PrimitiveOneOfJsonKind.STRING,
+                            JsonBranchPredicate.AllOf(
+                                listOf(
+                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                                    JsonBranchPredicate.Enumeration(listOf(JsonValue.StringValue("ready"))),
+                                ),
+                            ),
+                        ),
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:FactoryChoice/bounded",
+                            1,
+                            "BoundedValue",
+                            element,
+                            PrimitiveOneOfJsonKind.NUMBER,
+                            JsonBranchPredicate.AllOf(
+                                listOf(
+                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NUMBER),
+                                    JsonBranchPredicate.Numeric(minimum = "1", maximum = "2"),
+                                ),
+                            ),
+                        ),
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:FactoryChoice/date",
+                            2,
+                            "DateValue",
+                            string,
+                            PrimitiveOneOfJsonKind.STRING,
+                            JsonBranchPredicate.AllOf(
+                                listOf(
+                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                                    JsonBranchPredicate.StringShape(format = JsonStringFormat.DATE),
+                                ),
+                            ),
+                        ),
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:FactoryChoice/array",
+                            3,
+                            "ArrayValue",
+                            element,
+                            PrimitiveOneOfJsonKind.ARRAY,
+                            JsonBranchPredicate.AllOf(
+                                listOf(
+                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.ARRAY),
+                                    JsonBranchPredicate.ArrayShape(minItems = 1),
+                                ),
+                            ),
+                        ),
+                        PrimitiveOneOfCaseDeclaration(
+                            "schema:FactoryChoice/object",
+                            4,
+                            "ObjectValue",
+                            element,
+                            PrimitiveOneOfJsonKind.OBJECT,
+                            JsonBranchPredicate.AllOf(
+                                listOf(
+                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT),
+                                    JsonBranchPredicate.ObjectShape(
+                                        requiredNames = listOf("id"),
+                                        properties = emptyMap(),
+                                        additionalProperties = JsonAdditionalPropertiesPredicate.Open,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "FactoryChoice", listOf(union)),
+                        KotlinFileDeclaration(
+                            PACKAGE,
+                            "SerializationSupport",
+                            listOf(
+                                SupportDeclaration(
+                                    "support:serialization",
+                                    0,
+                                    PACKAGE,
+                                    "SerializationSupport",
+                                    "SerializationSupport",
+                                    "",
+                                    SupportKind.Serialization,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val harness =
+            """
+            package $PACKAGE
+
+            fun factoryOutcome(name: String): String =
+                try {
+                    when (name) {
+                        "bad-enum" -> FactoryChoice.EnumValue.of("other")
+                        "good-enum" -> FactoryChoice.EnumValue.of("ready")
+                        "bad-bound" -> FactoryChoice.BoundedValue.of(SdkJson.parseToJsonElement("0"))
+                        "bad-date" -> FactoryChoice.DateValue.of("2023-02-29")
+                        "bad-array" -> FactoryChoice.ArrayValue.of(SdkJson.parseToJsonElement("[]"))
+                        "bad-object" -> FactoryChoice.ObjectValue.of(SdkJson.parseToJsonElement("{}"))
+                        else -> error("unknown")
+                    }
+                    "accepted"
+                } catch (_: FactoryChoiceBranchValidationException) {
+                    "rejected"
+                }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/FactoryHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val outcome = loader.loadClass("$PACKAGE.FactoryHarnessKt").getMethod("factoryOutcome", String::class.java)
+            assertEquals("rejected", outcome.invoke(null, "bad-enum"))
+            assertEquals("accepted", outcome.invoke(null, "good-enum"))
+            assertEquals("rejected", outcome.invoke(null, "bad-bound"))
+            assertEquals("rejected", outcome.invoke(null, "bad-date"))
+            assertEquals("rejected", outcome.invoke(null, "bad-array"))
+            assertEquals("rejected", outcome.invoke(null, "bad-object"))
+        }
+    }
+
+    @Test
+    fun objectOneOfFactoriesRejectValuesOutsideTheirSelectedRawJsonBranch() {
+        val string = KotlinTypeRef("kotlin", "String")
+
+        fun branch(
+            name: String,
+            value: String,
+        ): OneOfCaseDeclaration =
+            OneOfCaseDeclaration(
+                symbolId = "schema:CheckRun/$name",
+                order = if (name == "Completed") 0 else 1,
+                resolvedName = name,
+                requiredFields = listOf(UnionFieldDeclaration("type", "type", string)),
+                matchFields =
+                    listOf(
+                        UnionFieldDeclaration(
+                            "type",
+                            "type",
+                            string,
+                            expectedStringValue = value,
+                        ),
+                    ),
+                predicate =
+                    JsonBranchPredicate.AllOf(
+                        listOf(
+                            JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT),
+                            JsonBranchPredicate.ObjectShape(
+                                requiredNames = listOf("type"),
+                                properties =
+                                    mapOf(
+                                        "type" to
+                                            JsonBranchPredicate.AllOf(
+                                                listOf(
+                                                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                                                    if (value == "completed") {
+                                                        JsonBranchPredicate.Constant(JsonValue.StringValue(value))
+                                                    } else {
+                                                        JsonBranchPredicate.Enumeration(
+                                                            listOf(JsonValue.StringValue(value)),
+                                                        )
+                                                    },
+                                                ),
+                                            ),
+                                    ),
+                                additionalProperties = JsonAdditionalPropertiesPredicate.Closed,
+                            ),
+                        ),
+                    ),
+            )
+        val choice =
+            OneOfDeclaration(
+                symbolId = "schema:CheckRun",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "CheckRun",
+                resolvedName = "CheckRun",
+                kdoc = "Object oneOf factory validation regression.",
+                cases = listOf(branch("Completed", "completed"), branch("Queued", "queued")),
+            )
+        val support =
+            SupportDeclaration(
+                "support:serialization",
+                0,
+                PACKAGE,
+                "SerializationSupport",
+                "SerializationSupport",
+                "",
+                SupportKind.Serialization,
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "CheckRun", listOf(choice)),
+                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                    ),
+                ),
+            )
+        val harness =
+            """
+            package $PACKAGE
+
+            fun checkRunFactory(value: String): String =
+                try {
+                    val result = CheckRun.Completed.of(value)
+                    val roundTripped = SdkJson.decodeFromString(CheckRun.Serializer, SdkJson.encodeToString(CheckRun.Serializer, result))
+                    if (roundTripped is CheckRun.Completed && roundTripped.type == value) "round-trip" else "wrong-branch"
+                } catch (failure: Throwable) {
+                    failure::class.simpleName.orEmpty()
+                }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/CheckRunFactoryHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val factory =
+                loader
+                    .loadClass(
+                        "$PACKAGE.CheckRunFactoryHarnessKt",
+                    ).getMethod("checkRunFactory", String::class.java)
+            assertEquals("round-trip", factory.invoke(null, "completed"))
+            assertEquals("CheckRunBranchValidationException", factory.invoke(null, "queued"))
+            assertEquals("CheckRunNoMatchException", factory.invoke(null, "unknown"))
+        }
+    }
+
+    @Test
     fun requiredNullableOneOfFieldsRequirePresenceAndSuccessfulDecode() {
         val nullableString = KotlinTypeRef("kotlin", "String", nullable = true)
         val choice =
@@ -380,11 +1207,95 @@ class KotlinPoetEmitterCompileRegressionTest {
         val rendered = KotlinPoetEmitter(PACKAGE).render(model)
         val source = rendered.single { it.path.endsWith("NullableChoice.kt") }.bytes.decodeToString()
 
-        assertTrue(source.contains("val valueResult = raw[\"value\"]?.let"))
-        assertTrue(source.contains("val valuePresent = raw.containsKey(\"value\")"))
+        assertTrue(source.contains("val valueResult = rawObject[\"value\"]?.let"))
+        assertTrue(source.contains("val valuePresent = rawObject.containsKey(\"value\")"))
         assertTrue(source.contains("val valueDecoded = valueResult?.isSuccess == true"))
         assertTrue(source.contains("valuePresent && valueDecoded"))
         assertTrue(source.contains("value = matches.value"))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun oneOfSerializerDecodesRequiredFieldsNotUsedForMatching() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val choice =
+            OneOfDeclaration(
+                symbolId = "schema:DiscriminatedPayloadChoice",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "DiscriminatedPayloadChoice",
+                resolvedName = "DiscriminatedPayloadChoice",
+                kdoc = "Required payload oneOf compile regression.",
+                cases =
+                    listOf(
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:DiscriminatedPayloadChoice/a",
+                            order = 0,
+                            resolvedName = "TypeA",
+                            requiredFields =
+                                listOf(
+                                    UnionFieldDeclaration("type", "type", string),
+                                    UnionFieldDeclaration("payload", "payload", string),
+                                ),
+                            matchFields =
+                                listOf(
+                                    UnionFieldDeclaration(
+                                        "type",
+                                        "type",
+                                        string,
+                                        expectedStringValue = "a",
+                                        expectedStringValues = listOf("a"),
+                                    ),
+                                ),
+                        ),
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:DiscriminatedPayloadChoice/b",
+                            order = 1,
+                            resolvedName = "TypeB",
+                            requiredFields =
+                                listOf(
+                                    UnionFieldDeclaration("type", "type", string),
+                                    UnionFieldDeclaration("payload", "payload", string),
+                                ),
+                            matchFields =
+                                listOf(
+                                    UnionFieldDeclaration(
+                                        "type",
+                                        "type",
+                                        string,
+                                        expectedStringValue = "b",
+                                        expectedStringValues = listOf("b"),
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+        val model =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(PACKAGE, "DiscriminatedPayloadChoice", listOf(choice)),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                "support:serialization",
+                                0,
+                                PACKAGE,
+                                "SerializationSupport",
+                                "SerializationSupport",
+                                "",
+                                SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val source = rendered.single { it.path.endsWith("DiscriminatedPayloadChoice.kt") }.bytes.decodeToString()
+
+        assertTrue(source.contains("val payloadResult = rawObject[\"payload\"]?.let"))
         compileGenerated(rendered)
     }
 
@@ -429,7 +1340,7 @@ class KotlinPoetEmitterCompileRegressionTest {
         fun discriminatorBranch(
             name: String,
             order: Int,
-            expected: String,
+            expected: List<String>,
         ): OneOfCaseDeclaration =
             OneOfCaseDeclaration(
                 symbolId = "schema:SharedValueDiscriminator/$name",
@@ -449,7 +1360,8 @@ class KotlinPoetEmitterCompileRegressionTest {
                             resolvedName = "value",
                             wireName = "value",
                             type = string,
-                            expectedStringValue = expected,
+                            expectedStringValue = expected.singleOrNull(),
+                            expectedStringValues = expected,
                         ),
                     ),
             )
@@ -474,8 +1386,28 @@ class KotlinPoetEmitterCompileRegressionTest {
             union(
                 "SharedValueDiscriminator",
                 listOf(
-                    discriminatorBranch("Alpha", 0, "a"),
-                    discriminatorBranch("Beta", 1, "b"),
+                    discriminatorBranch("Alpha", 0, listOf("a")),
+                    discriminatorBranch("Beta", 1, listOf("b", "c")),
+                ),
+            )
+        val emptyObject =
+            union(
+                "EmptyObjectActor",
+                listOf(
+                    OneOfCaseDeclaration(
+                        symbolId = "schema:EmptyObjectActor/Empty",
+                        order = 0,
+                        resolvedName = "Empty",
+                        requiredFields = emptyList(),
+                        matchFields = emptyList(),
+                        matchesEmptyObject = true,
+                    ),
+                    OneOfCaseDeclaration(
+                        symbolId = "schema:EmptyObjectActor/User",
+                        order = 1,
+                        resolvedName = "User",
+                        requiredFields = listOf(UnionFieldDeclaration("id", "id", KotlinTypeRef("kotlin", "Long"))),
+                    ),
                 ),
             )
         val support =
@@ -494,6 +1426,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     KotlinFileDeclaration(PACKAGE, "SharedValueForward", listOf(forward)),
                     KotlinFileDeclaration(PACKAGE, "SharedValueReverse", listOf(reverse)),
                     KotlinFileDeclaration(PACKAGE, "SharedValueDiscriminator", listOf(discriminator)),
+                    KotlinFileDeclaration(PACKAGE, "EmptyObjectActor", listOf(emptyObject)),
                     KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
                 ),
             )
@@ -508,8 +1441,8 @@ class KotlinPoetEmitterCompileRegressionTest {
             assertTrue(source.contains("valueState2Result"))
             assertTrue(source.contains("valueState2Present"))
             assertFalse(source.contains("valueState1Present"))
-            assertTrue(source.contains("matches.valueState1Decoded"))
-            assertTrue(source.contains("matches.valueState2Present && matches.valueState2Decoded"))
+            assertTrue(source.contains("matches.StringValueMatches"))
+            assertTrue(source.contains("matches.NullableValueMatches"))
         }
 
         val harness =
@@ -540,6 +1473,19 @@ class KotlinPoetEmitterCompileRegressionTest {
                     }
                 } catch (_: SharedValueDiscriminatorNoMatchException) {
                     "no-match"
+                }
+
+            fun emptyActor(raw: String): String =
+                try {
+                    when (SdkJson.decodeFromString(EmptyObjectActor.Serializer, raw)) {
+                        is EmptyObjectActor.Empty -> "empty"
+                        is EmptyObjectActor.User -> "user"
+                        else -> "unknown"
+                    }
+                } catch (_: EmptyObjectActorNoMatchException) {
+                    "no-match"
+                } catch (_: EmptyObjectActorAmbiguityException) {
+                    "ambiguity"
                 }
 
             private fun classifyReverse(raw: String): String =
@@ -583,7 +1529,13 @@ class KotlinPoetEmitterCompileRegressionTest {
             val discriminator = harnessClass.getMethod("discriminator", String::class.java)
             assertEquals("alpha", discriminator.invoke(null, "{\"value\":\"a\"}"))
             assertEquals("beta", discriminator.invoke(null, "{\"value\":\"b\"}"))
-            assertEquals("no-match", discriminator.invoke(null, "{\"value\":\"c\"}"))
+            assertEquals("beta", discriminator.invoke(null, "{\"value\":\"c\"}"))
+            assertEquals("no-match", discriminator.invoke(null, "{\"value\":\"d\"}"))
+
+            val emptyActor = harnessClass.getMethod("emptyActor", String::class.java)
+            assertEquals("empty", emptyActor.invoke(null, "{}"))
+            assertEquals("user", emptyActor.invoke(null, "{\"id\":1}"))
+            assertEquals("no-match", emptyActor.invoke(null, "{\"other\":1}"))
         }
     }
 
@@ -690,11 +1642,11 @@ class KotlinPoetEmitterCompileRegressionTest {
             rendered.map { it.path to it.bytes.decodeToString() },
             rerendered.map { it.path to it.bytes.decodeToString() },
         )
-        assertTrue(valueSource.contains("raw[\"foo\"]"))
-        assertTrue(valueSource.contains("raw[\"foo_decoded\"]"))
+        assertTrue(valueSource.contains("rawObject[\"foo\"]"))
+        assertTrue(valueSource.contains("rawObject[\"foo_decoded\"]"))
         listOf("alpha", "alpha_result", "alpha_present", "alpha_matches", "failures", "names", "raw", "size")
             .forEach {
-                assertTrue(inspectionSource.contains("raw[\"$it\"]"))
+                assertTrue(inspectionSource.contains("rawObject[\"$it\"]"))
             }
 
         val harness =
@@ -876,6 +1828,109 @@ class KotlinPoetEmitterCompileRegressionTest {
         assertFalse(source.contains("SdkByteStream.serializer()"))
         assertFalse(source.contains("io.ktor"))
         assertFalse(source.contains("okhttp3"))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun ergonomicMethodCompilesWithDiscoverableTypedExceptionsForMultipleErrorAlternatives() {
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:createWidget",
+                order = 0,
+                operationId = "createWidget",
+                method = "POST",
+                path = "/widgets",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = listOf("application/json"),
+                successStatusCodes = setOf(200),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = KotlinTypeRef("kotlin", "String"),
+                requestCodecPropertyName = "createWidgetRequestCodec",
+                responseCodecPropertyName = "createWidgetResponseCodec",
+                requestCodecConstantName = "CREATE_WIDGET_REQUEST_CODEC_ID",
+                responseCodecConstantName = "CREATE_WIDGET_RESPONSE_CODEC_ID",
+                requestCodecId = "createWidget.request",
+                responseCodecId = "createWidget.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(null, null, null),
+                methodKdoc = "Creates a widget.",
+                responseAlternatives =
+                    listOf(
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(200),
+                            listOf("application/json"),
+                            KotlinTypeRef("kotlin", "String"),
+                        ),
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(400),
+                            listOf("application/json"),
+                            KotlinTypeRef("kotlin", "String"),
+                        ),
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(422),
+                            emptyList(),
+                            KotlinTypeRef("kotlin", "Unit"),
+                        ),
+                    ),
+            )
+        val client =
+            OperationClientDeclaration(
+                symbolId = "client:WidgetClient",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "WidgetClient",
+                resolvedName = "WidgetClient",
+                kdoc = "Widget client.",
+                codecsObjectName = "WidgetCodecs",
+                operations = listOf(operation),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "WidgetClient", listOf(client)),
+                        KotlinFileDeclaration(
+                            PACKAGE,
+                            "SerializationSupport",
+                            listOf(
+                                SupportDeclaration(
+                                    "support:serialization",
+                                    0,
+                                    PACKAGE,
+                                    "SerializationSupport",
+                                    "SerializationSupport",
+                                    "",
+                                    SupportKind.Serialization,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val source = rendered.single { it.path.endsWith("WidgetClient.kt") }.bytes.decodeToString()
+
+        assertTrue(source.contains("public suspend fun createWidget("))
+        assertTrue(source.contains("public sealed interface CreateWidgetError"))
+        assertTrue(source.contains("public class CreateWidgetApiException("))
+        assertTrue(source.contains("public val error: CreateWidgetError"))
+        assertTrue(source.contains(") : SdkApiException(statusCode, headers, \"createWidget\")"))
+        assertTrue(source.contains("@throws CreateWidgetApiException"))
+        assertTrue(source.contains("decoded CreateWidgetError payload"))
+        assertTrue(
+            Regex(
+                """executor\.executeWithTypedErrors<Unit,\s+CreateWidgetResponse,\s+String>""",
+            ).containsMatchIn(source),
+        )
+        assertTrue(
+            Regex(
+                """public class Http400Json\([\s\S]*?\) : CreateWidgetResponse,\s+CreateWidgetError""",
+            ).containsMatchIn(source),
+        )
+        assertTrue(
+            Regex(
+                """public class Http422NoContent\([\s\S]*?\) : CreateWidgetResponse,\s+CreateWidgetError""",
+            ).containsMatchIn(source),
+        )
         compileGenerated(rendered)
     }
 
@@ -1293,6 +2348,216 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun openRouterDualContentTranscriptionIsDiagnosedAtMultipartSchema() {
+        val source =
+            Files.createTempFile("sdkgen-stt-dual-content-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: STT dual content, version: "1" }
+                    paths:
+                      /audio/transcriptions:
+                        post:
+                          operationId: createAudioTranscriptions
+                          requestBody:
+                            content:
+                              application/json:
+                                schema: { ${'$'}ref: '#/components/schemas/STTRequest' }
+                              multipart/form-data:
+                                schema:
+                                  type: object
+                                  properties:
+                                    file: { type: string, format: binary }
+                                    language: { type: string }
+                                    model: { type: string }
+                                    response_format: { type: string }
+                          responses: { '204': { description: Transcribed } }
+                    components:
+                      schemas:
+                        STTInputAudio:
+                          type: object
+                          required: [data, format]
+                          properties:
+                            data: { type: string }
+                            format: { type: string }
+                        STTRequest:
+                          type: object
+                          required: [input_audio, model]
+                          properties:
+                            input_audio: { ${'$'}ref: '#/components/schemas/STTInputAudio' }
+                            language: { type: string }
+                            model: { type: string }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "SttClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+
+        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createAudioTranscriptions" }
+        assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, diagnostic.code)
+        assertEquals(
+            "/paths/~1audio~1transcriptions/post/requestBody/content/multipart~1form-data/schema",
+            diagnostic.source.jsonPointer,
+        )
+        assertTrue(diagnostic.message.contains("incompatible request schemas"))
+        assertFalse(
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+                .any { it.operationIdentity == "createAudioTranscriptions" },
+        )
+    }
+
+    @Test
+    fun multipartAccessorCollisionsUseExactResolvedModelFieldsAndCompile() {
+        val source =
+            Files.createTempFile("sdkgen-multipart-accessor-collision-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Multipart collision, version: "1" }
+                    paths:
+                      /upload:
+                        post:
+                          operationId: uploadCollision
+                          requestBody:
+                            required: true
+                            content:
+                              multipart/form-data:
+                                schema: { ${'$'}ref: '#/components/schemas/UploadRequest' }
+                          responses: { '204': { description: Uploaded } }
+                    components:
+                      schemas:
+                        UploadRequest:
+                          type: object
+                          required: [foo-bar, foo_bar, expand]
+                          properties:
+                            foo-bar: { type: string, format: binary }
+                            foo_bar: { type: string }
+                            expand: { type: array, items: { type: string } }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "UploadClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val sourceText = rendered.joinToString("\n") { file -> file.bytes.decodeToString() }
+        assertTrue(sourceText.contains("name = \"foo-bar\", stream = request.fooBar"))
+        assertTrue(sourceText.contains("name = \"foo_bar\", value = request.fooBar2"))
+        assertTrue(sourceText.contains("if (request.expand.isEmpty())"))
+        assertTrue(sourceText.contains("name = \"expand\", value = \"\""))
+        assertTrue(sourceText.contains("name = \"expand\" + \"[\" + index + \"]\""))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun formCodecUsesResolvedAccessorsStandardDeepObjectAndCanonicalNumbersAndCompiles() {
+        val source =
+            Files.createTempFile("sdkgen-form-urlencoded-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Form, version: "1" }
+                    paths:
+                      /charges:
+                        post:
+                          operationId: createCharge
+                          requestBody:
+                            required: true
+                            content:
+                              application/x-www-form-urlencoded:
+                                schema: { ${'$'}ref: '#/components/schemas/ChargeRequest' }
+                                encoding:
+                                  details: { style: deepObject, explode: true }
+                                  expand: { style: deepObject, explode: true }
+                                  metadata: { style: deepObject, explode: true }
+                                  source: { style: deepObject, explode: true }
+                          responses: { '204': { description: Created } }
+                    components:
+                      schemas:
+                        ChargeRequest:
+                          type: object
+                          additionalProperties: false
+                          required: [class, amount, rate]
+                          properties:
+                            class: { type: string }
+                            amount: { type: integer }
+                            rate: { type: number }
+                            active: { type: boolean }
+                            expand: { type: array, items: { type: string } }
+                            metadata:
+                              anyOf:
+                                - type: object
+                                  additionalProperties: { type: string }
+                                - type: string
+                                  enum: [""]
+                            source:
+                              anyOf:
+                                - type: object
+                                  additionalProperties: false
+                                  properties: { token: { type: string } }
+                                - type: string
+                            details:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                postal_code: { type: string }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "ChargeClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val sourceText = rendered.joinToString("\n") { file -> file.bytes.decodeToString() }
+        assertTrue(sourceText.contains("FormUrlEncodedBody"))
+        assertTrue(sourceText.contains("form.add(\"class\", request.classValue)"))
+        assertTrue(sourceText.contains("form.add(\"amount\", request.amount.toString())"))
+        assertTrue(sourceText.contains("form.add(\"rate\", request.rate)"))
+        assertTrue(sourceText.contains("if (formValue0.isEmpty())"))
+        assertTrue(sourceText.contains("form.add(\"expand\", \"\")"))
+        assertTrue(sourceText.contains("formValue0.forEachIndexed"))
+        assertTrue(sourceText.contains(".forEach { (formKey"))
+        assertTrue(sourceText.contains("+ formKey"))
+        assertTrue(sourceText.contains("matchedBranches.size == 1"))
+        assertTrue(sourceText.contains("Form union value has no selected branch"))
+        assertTrue(sourceText.contains("Form map values encoded from a raw JSON object must be JSON primitives"))
+        assertTrue(sourceText.contains("[postal_code]"))
+        compileGenerated(rendered)
+    }
+
+    @Test
     fun referencedAnyOfBranchViewsAreEmittedOnceAndSharedAcrossUnions() {
         val source =
             Files.createTempFile("sdkgen-shared-anyof-view-", ".yaml").also { path ->
@@ -1479,6 +2744,422 @@ class KotlinPoetEmitterCompileRegressionTest {
         assertTrue(serializationSupport.contains("SdkJson"))
         assertFalse(rendered.any { it.path.endsWith("/RenamedPresence.kt") })
         assertFalse(rendered.any { it.path.endsWith("/RenamedSerialization.kt") })
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun primitiveOneOfNumericSupportTypesAvoidSchemaNameCollisionsAndCompile() {
+        val source =
+            Files.createTempFile("sdkgen-primitive-oneof-support-collision-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Primitive support collision, version: "1" }
+                    paths: {}
+                    components:
+                      schemas:
+                        SchemaInteger:
+                          type: object
+                          required: [value]
+                          properties:
+                            value: { type: integer }
+                        SchemaDecimal:
+                          type: object
+                          required: [value]
+                          properties:
+                            value: { type: number }
+                        Choice:
+                          oneOf:
+                            - { type: integer }
+                            - { type: string }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "CollisionClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun modelSerializerLocalsAvoidRawPropertyCollisions() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val model =
+            ModelDeclaration(
+                symbolId = "schema:RawPropertyModel",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "RawPropertyModel",
+                resolvedName = "RawPropertyModel",
+                kdoc = "Model with raw-shaped properties.",
+                fields =
+                    listOf(
+                        FieldDeclaration("schema:RawPropertyModel/html", 0, "html", "html", string, true, false, ""),
+                        FieldDeclaration("schema:RawPropertyModel/raw", 1, "raw", "raw", string, true, false, ""),
+                        FieldDeclaration(
+                            "schema:RawPropertyModel/rawObject",
+                            2,
+                            "rawObject",
+                            "raw_object",
+                            string,
+                            true,
+                            false,
+                            "",
+                        ),
+                    ),
+                dslFunctionName = "rawPropertyModel",
+            )
+        val support =
+            SupportDeclaration(
+                "support:serialization",
+                0,
+                PACKAGE,
+                "SerializationSupport",
+                "SerializationSupport",
+                "",
+                SupportKind.Serialization,
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "RawPropertyModel", listOf(model)),
+                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                    ),
+                ),
+            )
+        val source = rendered.single { file -> file.path.endsWith("RawPropertyModel.kt") }.bytes.decodeToString()
+
+        compileGenerated(rendered)
+        assertTrue(source.contains("val rawObject2 = jsonDecoder.decodeJsonElement() as? JsonObject"))
+    }
+
+    @Test
+    fun projectionExcludesRequiredValueBackingCollisionsBeforeEmission() {
+        val source =
+            Files.createTempFile("sdkgen-required-value-backing-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Required value backing, version: "1" }
+                    paths: {}
+                    components:
+                      schemas:
+                        IssueEvent:
+                          type: object
+                          required: [issue_field]
+                          properties:
+                            issue_field:
+                              type: object
+                              required: [name]
+                              properties:
+                                name: { type: string }
+                            issue_field_value:
+                              type: object
+                              required: [value]
+                              properties:
+                                value: { type: string }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "IssueEventClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+
+        assertTrue(mapping.diagnostics.any { diagnostic -> diagnostic.symbolId == "schema:IssueEvent" })
+        compileGenerated(KotlinPoetEmitter(PACKAGE).render(mapping.model))
+    }
+
+    @Test
+    fun generatedUnionSourcesCompileWithLongPredicatesRawFieldNamesAndDistinctEmptyViews() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val jsonObject = KotlinTypeRef("kotlinx.serialization.json", "JsonObject")
+        val primitive =
+            PrimitiveOneOfDeclaration(
+                symbolId = "schema:LongPredicate",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "LongPredicate",
+                resolvedName = "LongPredicate",
+                kdoc = "Long predicate wrapping regression.",
+                cases =
+                    listOf(
+                        PrimitiveOneOfCaseDeclaration(
+                            symbolId = "schema:LongPredicate/object",
+                            order = 0,
+                            resolvedName = "ObjectValue",
+                            type = jsonObject,
+                            jsonKind = PrimitiveOneOfJsonKind.OBJECT,
+                            predicate =
+                                JsonBranchPredicate.AllOf(
+                                    listOf(
+                                        JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT),
+                                        JsonBranchPredicate.ObjectShape(
+                                            requiredNames = (1..18).map { "property$it" },
+                                            properties =
+                                                (1..18).associate { property ->
+                                                    "property$property" to
+                                                        JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING)
+                                                },
+                                            additionalProperties = JsonAdditionalPropertiesPredicate.Closed,
+                                        ),
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+        val rawFieldChoice =
+            OneOfDeclaration(
+                symbolId = "schema:RawFieldChoice",
+                order = 1,
+                packageName = PACKAGE,
+                fileName = "RawFieldChoice",
+                resolvedName = "RawFieldChoice",
+                kdoc = "Raw local-name collision regression.",
+                cases =
+                    listOf(
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:RawFieldChoice/raw",
+                            order = 0,
+                            resolvedName = "RawValue",
+                            requiredFields =
+                                listOf(
+                                    UnionFieldDeclaration("rawValue", "raw_value", string),
+                                ),
+                        ),
+                    ),
+            )
+
+        fun emptyBranch(symbolId: String) =
+            AnyOfBranchDeclaration(
+                symbolId = symbolId,
+                order = 0,
+                resolvedName = "Branch2",
+                propertyName = "branch2",
+                fields = emptyList(),
+                viewFields = emptyList(),
+                shape = AnyOfBranchShape.OBJECT,
+                type = jsonObject,
+                viewTypeName = "Branch2View",
+            )
+        val firstAnyOf =
+            AnyOfDeclaration(
+                "schema:FirstAnyOf",
+                2,
+                PACKAGE,
+                "FirstAnyOf",
+                "FirstAnyOf",
+                "First empty-object view.",
+                listOf(emptyBranch("schema:FirstAnyOf/branch")),
+            )
+        val secondAnyOf =
+            AnyOfDeclaration(
+                "schema:SecondAnyOf",
+                3,
+                PACKAGE,
+                "SecondAnyOf",
+                "SecondAnyOf",
+                "Second empty-object view.",
+                listOf(emptyBranch("schema:SecondAnyOf/branch")),
+            )
+        val support =
+            SupportDeclaration(
+                "support:serialization",
+                4,
+                PACKAGE,
+                "SerializationSupport",
+                "SerializationSupport",
+                "",
+                SupportKind.Serialization,
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "LongPredicate", listOf(primitive)),
+                        KotlinFileDeclaration(PACKAGE, "RawFieldChoice", listOf(rawFieldChoice)),
+                        KotlinFileDeclaration(PACKAGE, "FirstAnyOf", listOf(firstAnyOf)),
+                        KotlinFileDeclaration(PACKAGE, "SecondAnyOf", listOf(secondAnyOf)),
+                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                    ),
+                ),
+            )
+        val emptyViewSources =
+            rendered.filter { file -> file.bytes.decodeToString().contains("class Branch2View") }
+
+        val rawChoiceSource = rendered.single { file -> file.path.endsWith("RawFieldChoice.kt") }.bytes.decodeToString()
+
+        assertEquals(2, emptyViewSources.size)
+        assertTrue(emptyViewSources.all { file -> !file.bytes.decodeToString().contains("data class Branch2View()") })
+        assertTrue(rawChoiceSource.contains("val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject"))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun mixedPredicateAndLegacyEmptyObjectOneOfInitializesRawEmptyBeforeCaseMatches() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val choice =
+            OneOfDeclaration(
+                symbolId = "schema:MixedPredicateEmptyChoice",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "MixedPredicateEmptyChoice",
+                resolvedName = "MixedPredicateEmptyChoice",
+                kdoc = "Mixed predicate and empty-object compile regression.",
+                cases =
+                    listOf(
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:MixedPredicateEmptyChoice/value",
+                            order = 0,
+                            resolvedName = "Value",
+                            requiredFields = listOf(UnionFieldDeclaration("value", "value", string)),
+                            predicate =
+                                JsonBranchPredicate.ObjectShape(
+                                    requiredNames = listOf("value"),
+                                    properties =
+                                        mapOf(
+                                            "value" to JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                                        ),
+                                    additionalProperties = JsonAdditionalPropertiesPredicate.Closed,
+                                ),
+                        ),
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:MixedPredicateEmptyChoice/empty",
+                            order = 1,
+                            resolvedName = "Empty",
+                            requiredFields = emptyList(),
+                            matchesEmptyObject = true,
+                        ),
+                    ),
+            )
+        val support =
+            SupportDeclaration(
+                "support:serialization",
+                1,
+                PACKAGE,
+                "SerializationSupport",
+                "SerializationSupport",
+                "",
+                SupportKind.Serialization,
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "MixedPredicateEmptyChoice", listOf(choice)),
+                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                    ),
+                ),
+            )
+        val source =
+            rendered
+                .single { file -> file.path.endsWith("MixedPredicateEmptyChoice.kt") }
+                .bytes
+                .decodeToString()
+
+        assertTrue(source.indexOf("val rawEmpty = rawObject.isEmpty()") < source.indexOf("val EmptyMatches = rawEmpty"))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun optionalCollectionParametersAreNullSafeAndCompile() {
+        val stringList =
+            KotlinTypeRef(
+                "kotlin.collections",
+                "List",
+                listOf(KotlinTypeRef("kotlin", "String")),
+            )
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:optionalCollection",
+                order = 0,
+                operationId = "optionalCollection",
+                method = "GET",
+                path = "/optional-collection",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = emptyList(),
+                successStatusCodes = setOf(204),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = KotlinTypeRef("kotlin", "Unit"),
+                requestCodecPropertyName = "optionalCollectionRequestCodec",
+                responseCodecPropertyName = "optionalCollectionResponseCodec",
+                requestCodecConstantName = "OPTIONAL_COLLECTION_REQUEST_CODEC_ID",
+                responseCodecConstantName = "OPTIONAL_COLLECTION_RESPONSE_CODEC_ID",
+                requestCodecId = "optionalCollection.request",
+                responseCodecId = "optionalCollection.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(null, null, null),
+                methodKdoc = "Optional collection parameter regression.",
+                parameters =
+                    listOf(
+                        OperationParameterDeclaration(
+                            "labels",
+                            OperationParameterLocation.QUERY,
+                            stringList,
+                            required = false,
+                        ),
+                    ),
+            )
+        val client =
+            OperationClientDeclaration(
+                "client:OptionalCollectionClient",
+                0,
+                PACKAGE,
+                "OptionalCollectionClient",
+                "OptionalCollectionClient",
+                "Optional collection parameter compile regression client.",
+                "OptionalCollectionCodecs",
+                listOf(operation),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE).render(
+                KotlinDeclarationModel(
+                    listOf(
+                        KotlinFileDeclaration(PACKAGE, "OptionalCollectionClient", listOf(client)),
+                        KotlinFileDeclaration(
+                            PACKAGE,
+                            "SerializationSupport",
+                            listOf(
+                                SupportDeclaration(
+                                    "support:serialization",
+                                    0,
+                                    PACKAGE,
+                                    "SerializationSupport",
+                                    "SerializationSupport",
+                                    "",
+                                    SupportKind.Serialization,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val source =
+            rendered
+                .single { file -> file.path.endsWith("OptionalCollectionClient.kt") }
+                .bytes
+                .decodeToString()
+
+        assertTrue(source.contains("labels?.map { it.toString() }.orEmpty()"))
         compileGenerated(rendered)
     }
 

@@ -13,6 +13,7 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.DirectoryNotEmptyException
 import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
+import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
@@ -277,6 +278,9 @@ class AtomicOutputPublisherTest {
 
         first.start()
         assertTrue(firstEnteredLockWrite.await(5, TimeUnit.SECONDS))
+        val coordinators = fixture.destination.parent.listDirectoryEntries(".sdkgen-publish-*.lock")
+        assertTrue(coordinators.isNotEmpty())
+        assertTrue(coordinators.all { coordinator -> Files.isDirectory(coordinator, NOFOLLOW_LINKS) })
         second.start()
         assertFalse(secondEnteredLockWrite.await(200, TimeUnit.MILLISECONDS))
         releaseFirstLockWrite.countDown()

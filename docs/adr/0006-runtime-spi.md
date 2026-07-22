@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted. Ordinary JSON, incremental SSE, and multipart execution are all proven through the SPI as of Phase 2 (see
-Resolution below); the open items originally listed under "Conditions and re-evaluation triggers" are resolved.
+Accepted. Ordinary JSON, incremental SSE, and multipart execution are proven through the SPI as of Phase 2 (see
+Resolution below). The canonical OpenRouter `createAudioTranscriptions` generation waiver remains active because its
+JSON and multipart media types use incompatible request schemas that the current single-request-type API cannot express.
 
 ## Context
 
@@ -125,11 +126,17 @@ listed above. Each is now a shipped, KDoc'd contract rather than a deferred ques
   has no idle-read timeout of its own.
 
 The multipart contract-kit gap is resolved: `runtime/testing`'s adapter contract kit exercises multipart execution
-through the SPI for all three adapters, with fixture coverage for FakeTransport and all three JVM adapters. The remaining
-finding — the _generated_
-multipart codec for `createAudioTranscriptions` hardcodes `request.file` instead of the schema's actual property name —
-is an emitter defect, not an SPI defect; the underlying multipart SPI machinery itself is proven correct by the runtime
-fixture tests that bypass the broken generated codec.
+through the SPI for all three adapters, with fixture coverage for FakeTransport and all three JVM adapters. Multipart
+accessors are bound to the exact resolved request-model fields, and unsupported arrays and nullable binary/text parts are
+diagnosed at their property or encoding source rather than assigned an implicit wire representation.
+
+The canonical OpenRouter `createAudioTranscriptions` waiver remains active. Its `application/json` alternative uses
+`STTRequest`, where `input_audio` is a JSON `STTInputAudio`, while its `multipart/form-data` alternative uses a separate
+inline object with a binary `file` property. The generated operation API currently accepts one request type, so this
+media-specific schema pair is emitted as a source-linked `UNREPRESENTABLE_OPERATION` diagnostic instead of binding the
+multipart `file` part to the JSON request model. The waiver can be reconsidered only after media-type-specific request
+values are represented and the canonical operation generates and compiles. The underlying multipart SPI machinery
+remains proven independently by the runtime fixture tests.
 
 Chunk-allocation benchmarking and per-upgrade contract-kit re-runs remain open, ongoing engineering practice rather than
 one-time Phase 2 deliverables; they are not blockers for this ADR's status.

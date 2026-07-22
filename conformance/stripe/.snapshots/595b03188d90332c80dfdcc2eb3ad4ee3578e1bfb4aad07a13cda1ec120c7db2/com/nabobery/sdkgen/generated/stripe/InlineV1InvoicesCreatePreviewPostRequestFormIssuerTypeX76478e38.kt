@@ -1,0 +1,69 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlin.String
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1invoices~1create_preview/post/requestBody/content/application~1x-www-form-u
+ * rlencoded/schema/properties/issuer/properties/type.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1invoices~1create_preview/post/requestBody/content/application~1x-www-form-u
+ * rlencoded/schema/properties/issuer/properties/type
+ */
+@Serializable(with = InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38.Serializer::class)
+public sealed class InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38 {
+    public abstract val `value`: String
+
+    /**
+     * Documented value. Wire value: `account`.
+     */
+    public data object Account : InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38() {
+        public override val `value`: String = "account"
+    }
+
+    /**
+     * Documented value. Wire value: `self`.
+     */
+    public data object Self : InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38() {
+        public override val `value`: String = "self"
+    }
+
+    public data class SdkUnknown(
+        public override val `value`: String,
+    ) : InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38()
+
+    public companion object {
+        public fun fromValue(`value`: String): InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38 =
+            when (value) {
+                Account.value -> Account
+                Self.value -> Self
+                else -> SdkUnknown(value)
+            }
+    }
+
+    public object Serializer : KSerializer<InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38> {
+        override val descriptor: SerialDescriptor =
+            PrimitiveSerialDescriptor(
+                "com.nabobery.sdkgen.generated.stripe.InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38",
+                PrimitiveKind.STRING,
+            )
+
+        override fun deserialize(decoder: Decoder): InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38 =
+            fromValue(decoder.decodeString())
+
+        override fun serialize(
+            encoder: Encoder,
+            `value`: InlineV1InvoicesCreatePreviewPostRequestFormIssuerTypeX76478e38,
+        ) {
+            encoder.encodeString(value.value)
+        }
+    }
+}

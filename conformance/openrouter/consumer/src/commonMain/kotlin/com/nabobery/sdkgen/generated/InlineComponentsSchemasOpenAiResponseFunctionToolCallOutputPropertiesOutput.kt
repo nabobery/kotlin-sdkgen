@@ -61,63 +61,7 @@ public class InlineComponentsSchemasOpenAiResponseFunctionToolCallOutputProperti
       List<InlineComponentsSchemasOpenAiResponseFunctionToolCallOutputPropertiesOutputAnyOf1Items>?
       by
       lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch2) json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasOpenAiResponseFunctionToolCallOutputPropertiesOutputAnyOf1Items>>(raw) else null }
+        .decodeFromJsonElement<List<InlineComponentsSchemasOpenAiResponseFunctionToolCallOutputPropertiesOutputAnyOf1Items>>(raw) else null }
 
   public val matchedBranches:
       Set<InlineComponentsSchemasOpenAiResponseFunctionToolCallOutputPropertiesOutputBranch>

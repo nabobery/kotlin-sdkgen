@@ -162,62 +162,7 @@ public class InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchema(
         callbackUrl = callbackUrl,
         codeChallenge = raw["code_challenge"]?.let { json.decodeFromJsonElement<String>(it) },
         codeChallengeMethod = raw["code_challenge_method"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchemaPropertiesCode676847a5>(it) },
+          .decodeFromJsonElement<InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchemaPropertiesCode676847a5>(it) },
         expiresAt = raw["expires_at"]?.let { element -> if (element == JsonNull) null else json
           .decodeFromJsonElement<String?>(element) },
         keyLabel = raw["key_label"]?.let { json.decodeFromJsonElement<String>(it) },
@@ -225,62 +170,7 @@ public class InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchema(
         spawnAgent = raw["spawn_agent"]?.let { json.decodeFromJsonElement<String>(it) },
         spawnCloud = raw["spawn_cloud"]?.let { json.decodeFromJsonElement<String>(it) },
         usageLimitType = raw["usage_limit_type"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchemaPropertiesUsageLimitType>(it) },
+          .decodeFromJsonElement<InlinePathsAuthKeysCodePostRequestBodyContentApplicationJsonSchemaPropertiesUsageLimitType>(it) },
         workspaceId = raw["workspace_id"]?.let { json.decodeFromJsonElement<String>(it) },
       )
     }

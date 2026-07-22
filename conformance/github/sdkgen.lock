@@ -1,0 +1,29 @@
+{
+  "version": "v1alpha1",
+  "configDigest": "e2d4f83591c44b2e08910787f76f12b6da05bdba7c44f680d587f80bb623a458",
+  "source": {
+    "canonicalUri": "sdkgen://source/openapi.yaml",
+    "sha256": "350102b39f8575f9ef0eb7db96fc2f80f5cbfefbfbaf64d243bc696348d00b63",
+    "contentLength": 9718738,
+    "references": []
+  },
+  "overlays": [
+    {
+      "id": "github-code-search-runtime-semantics",
+      "canonicalUri": "sdkgen://overlay/github-code-search-runtime-semantics",
+      "sha256": "4bb4eb28ee5b424cea50c9ea92047ed35e49282273800ab7e1ab4cd83b083288"
+    }
+  ],
+  "generator": {
+    "version": "0.1.0-alpha.1",
+    "edition": "community"
+  },
+  "compatibilityProfiles": [],
+  "plugins": [],
+  "tools": [
+    {
+      "id": "kotlinpoet",
+      "version": "2.3.0"
+    }
+  ]
+}

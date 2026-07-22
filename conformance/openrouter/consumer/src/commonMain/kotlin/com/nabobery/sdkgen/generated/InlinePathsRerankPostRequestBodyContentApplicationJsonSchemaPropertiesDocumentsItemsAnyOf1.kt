@@ -59,63 +59,7 @@ public class InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropert
 
     override fun deserialize(decoder: Decoder): InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1 {
       val jsonDecoder = decoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonDecoder("InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1")
+        .requireJsonDecoder("InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1")
       val json = jsonDecoder.json
       val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
         throw SerializationException("InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1 " +
@@ -129,63 +73,7 @@ public class InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropert
     override fun serialize(encoder: Encoder,
       `value`: InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1) {
       val jsonEncoder = encoder
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .requireJsonEncoder("InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1")
+        .requireJsonEncoder("InlinePathsRerankPostRequestBodyContentApplicationJsonSchemaPropertiesDocumentsItemsAnyOf1")
       val json = jsonEncoder.json
       val raw = buildJsonObject {
         value.image?.let { put("image", it) }

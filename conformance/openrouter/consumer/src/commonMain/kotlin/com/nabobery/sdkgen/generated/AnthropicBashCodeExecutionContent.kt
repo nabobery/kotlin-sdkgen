@@ -176,65 +176,7 @@ private fun inspectAnthropicBashCodeExecutionContent(raw: JsonObject): Anthropic
   val typeState2Decoded = typeState2Result?.isSuccess == true
   val typeState2Matches = raw.stringValue("type") == "bash_code_execution_tool_result_error" && typeState2Decoded
   val errorCodeResult = raw["error_code"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasAnthropicBashCodeExecutionToolResultErrorPropertiesErrorCode>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasAnthropicBashCodeExecutionToolResultErrorPropertiesErrorCode>(element) } }
   val errorCode = errorCodeResult?.getOrNull()
   val errorCodeDecoded = errorCodeResult?.isSuccess == true
   val typeState1Result = raw["type"]?.let { element -> runCatching { SdkJson

@@ -54,62 +54,7 @@ public class InlineComponentsSchemasFileSearchServerToolPropertiesRankingOptions
           "JSON object")
       return InlineComponentsSchemasFileSearchServerToolPropertiesRankingOptions(
         ranker = raw["ranker"]?.let { json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasFileSearchServerToolPropertiesRankingOptionsPropertiesRanker>(it) },
+          .decodeFromJsonElement<InlineComponentsSchemasFileSearchServerToolPropertiesRankingOptionsPropertiesRanker>(it) },
         scoreThreshold = raw["score_threshold"]?.let { json.decodeFromJsonElement<Double>(it) },
       )
     }

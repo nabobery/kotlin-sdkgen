@@ -80,62 +80,7 @@ public class InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainer
         type = type,
         fileIds = raw["file_ids"]?.let { json.decodeFromJsonElement<List<String>>(it) },
         memoryLimit = raw["memory_limit"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1Properte38ea91e?>(element) },
+          .decodeFromJsonElement<InlineComponentsSchemasCodeInterpreterServerToolPropertiesContainerAnyOf1Properte38ea91e?>(element) },
       )
     }
 

@@ -2,6 +2,7 @@
 
 package com.nabobery.sdkgen.engine
 
+import com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig
 import com.nabobery.sdkgen.engine.config.ConfigVersion
 import com.nabobery.sdkgen.engine.config.DiagnosticsConfig
 import com.nabobery.sdkgen.engine.config.KotlinGenerationConfig
@@ -10,15 +11,21 @@ import com.nabobery.sdkgen.engine.config.OutputConfig
 import com.nabobery.sdkgen.engine.config.OverlayConfig
 import com.nabobery.sdkgen.engine.config.PackageCoordinates
 import com.nabobery.sdkgen.engine.config.PluginConfig
+import com.nabobery.sdkgen.engine.config.RuntimeDefaults
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
 import com.nabobery.sdkgen.engine.config.SourceConfig
 import com.nabobery.sdkgen.engine.config.TargetFamily
+import com.nabobery.sdkgen.engine.config.VerificationConfig
+import com.nabobery.sdkgen.engine.config.WaivedSymbolKind
+import com.nabobery.sdkgen.engine.config.WaiverDisposition
+import com.nabobery.sdkgen.engine.config.WaiverMatchConfig
 import com.nabobery.sdkgen.engine.declarations.DeclarationMappingResult
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjection
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
 import com.nabobery.sdkgen.engine.declarations.GenerationDiagnostic
 import com.nabobery.sdkgen.engine.declarations.GenerationDiagnosticCode
 import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
+import com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.emit.KotlinEmitter
@@ -82,7 +89,13 @@ class GenerationPipelineTest {
         assertTrue(first.generatedFiles > 1)
         val generatedTree = tree(firstOutput)
         assertTrue(generatedTree.keys.any { it.endsWith("/OpenRouterClient.kt") })
-        val clientSource = generatedTree.getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
+        // Task T3 partitions the client by tag/resource: OpenRouterClient.kt is now a thin facade exposing
+        // each sub-client as a lazily-initialized property, while "/chat" (untagged, falls back to its first
+        // path segment) is emitted into its own chat/ChatClient.kt sub-client file.
+        val facadeSource = generatedTree.getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
+        assertTrue(facadeSource.contains("public val chat: ChatClient"))
+        assertTrue(facadeSource.contains("by lazy"))
+        val clientSource = generatedTree.getValue("com/nabobery/sdkgen/generated/chat/ChatClient.kt")
         assertTrue(clientSource.contains("OperationMetadata"))
         assertTrue(clientSource.contains("emptyList()"))
         assertTrue(!clientSource.contains("Unit.serializer()"))
@@ -135,6 +148,40 @@ class GenerationPipelineTest {
     }
 
     @Test
+    fun publicResultAndConfigTypesRetainPriorJvmConstructorDescriptors() {
+        SdkgenConfigV1Alpha1::class.java.getConstructor(
+            ConfigVersion::class.java,
+            SourceConfig::class.java,
+            List::class.java,
+            List::class.java,
+            KotlinGenerationConfig::class.java,
+            RuntimeDefaults::class.java,
+            List::class.java,
+            List::class.java,
+            OutputConfig::class.java,
+            DiagnosticsConfig::class.java,
+            VerificationConfig::class.java,
+        )
+        GenerationExclusionView::class.java.getConstructor(
+            String::class.java,
+            String::class.java,
+            String::class.java,
+            String::class.java,
+        )
+        ValidationResult::class.java.getConstructor(List::class.java, List::class.java)
+        GenerationResult::class.java.getConstructor(
+            String::class.java,
+            String::class.java,
+            Path::class.java,
+            Int::class.javaPrimitiveType,
+            Long::class.javaPrimitiveType,
+            List::class.java,
+            List::class.java,
+            Long::class.javaPrimitiveType,
+        )
+    }
+
+    @Test
     fun generateRefusesBlockingDiagnosticsAndExclusionsBeforePublishing() {
         val source = basicSource()
         val root = Files.createTempDirectory("sdkgen-blocked-generation")
@@ -182,6 +229,69 @@ class GenerationPipelineTest {
         assertFalse(exclusionOnlyOutput.exists())
         assertFalse(lock.destination.exists())
         assertFalse(root.resolve(".snapshots").exists())
+    }
+
+    @Test
+    fun blockedGenerationRetainsAcceptedAndStaleWaiverAuditViews() {
+        val source = basicSource()
+        val pipeline =
+            GenerationPipeline(
+                "0.1.0-test",
+                projection = DecoratedProjection(exclusionSymbols = listOf("schema:accepted", "schema:active")),
+            )
+        val baseline = pipeline.validate(config(source.sha256), source, emptyList())
+        val accepted = baseline.exclusions.single { exclusion -> exclusion.symbolId == "schema:accepted" }
+        val acceptedWaiver =
+            AcceptedWaiverConfig(
+                id = "accepted-test-exclusion",
+                category = "test-waiver",
+                match =
+                    WaiverMatchConfig(
+                        kind = WaivedSymbolKind.SCHEMA,
+                        symbolId = accepted.symbolId,
+                        diagnosticCode = accepted.diagnosticCode,
+                        documentUri = accepted.documentUri,
+                        jsonPointer = accepted.jsonPointer,
+                        reasonSha256 = accepted.reasonSha256,
+                    ),
+                rationale = "Audit result view regression.",
+                owner = "engine-test",
+                disposition = WaiverDisposition.OMIT,
+            )
+        val mixedConfig = config(source.sha256).copy(acceptedWaivers = listOf(acceptedWaiver))
+        val mixedValidation = pipeline.validate(mixedConfig, source, emptyList())
+        val mixedFailure =
+            assertFailsWith<GenerationBlockedException> {
+                pipeline.generate(
+                    mixedConfig,
+                    source,
+                    emptyList(),
+                    Files.createTempDirectory("sdkgen-waiver-mixed").resolve("out"),
+                )
+            }
+        assertEquals(mixedValidation.acceptedWaivers, mixedFailure.validation.acceptedWaivers)
+        assertEquals(mixedValidation.exclusions, mixedFailure.validation.exclusions)
+
+        val staleConfig =
+            mixedConfig.copy(
+                acceptedWaivers =
+                    listOf(
+                        acceptedWaiver.copy(match = acceptedWaiver.match.copy(reasonSha256 = "0".repeat(64))),
+                    ),
+            )
+        val staleValidation = pipeline.validate(staleConfig, source, emptyList())
+        val staleFailure =
+            assertFailsWith<GenerationBlockedException> {
+                pipeline.generate(
+                    staleConfig,
+                    source,
+                    emptyList(),
+                    Files.createTempDirectory("sdkgen-waiver-stale").resolve("out"),
+                )
+            }
+        assertTrue(staleValidation.acceptedWaivers.isEmpty())
+        assertTrue(staleValidation.diagnostics.any { it.code == "SDKGEN-WAIVER-STALE" })
+        assertEquals(staleValidation, staleFailure.validation)
     }
 
     @Test
@@ -361,10 +471,13 @@ class GenerationPipelineTest {
 
         GenerationPipeline("0.1.0-test").generate(config, source, listOf(overlay), output)
 
+        // "/chat" has no operation tag, so it falls back to its first path segment: the "chat" sub-client
+        // (task T3 partitions the client by tag/resource, so the method itself lives in ChatClient.kt, not
+        // the root OpenRouterClient.kt facade).
         assertTrue(
             tree(
                 output,
-            ).getValue("com/nabobery/sdkgen/generated/OpenRouterClient.kt")
+            ).getValue("com/nabobery/sdkgen/generated/chat/ChatClient.kt")
                 .contains("Overlaid chat operation description"),
         )
         val manifest = tree(output).getValue("manifest.json")
@@ -660,15 +773,18 @@ class GenerationPipelineTest {
             input: DeclarationAugmentationPhaseValue,
             context: PluginContext,
         ): PluginPhaseResult<DeclarationAugmentationPhaseValue> {
-            val first = input.declarations.first()
-            val second = input.declarations[1]
+            // Rename the root client facade to collide with the support declaration that shares its package:
+            // picking by symbolId identity (rather than list position) keeps this deterministic regardless of
+            // how many per-tag/resource sub-client declarations the projection also produces (task T3).
+            val facade = input.declarations.first { declaration -> declaration.symbolId == "client:OpenRouterClient" }
+            val support = input.declarations.first { declaration -> declaration.symbolId == "support:serialization" }
             return PluginPhaseResult.Applied(
                 input.copy(
                     augmentations =
                         listOf(
                             DeclarationAugmentation(
-                                symbolId = first.symbolId,
-                                resolvedName = second.resolvedName,
+                                symbolId = facade.symbolId,
+                                resolvedName = support.resolvedName,
                                 source = context.source,
                             ),
                         ),
@@ -689,6 +805,7 @@ class GenerationPipelineTest {
     private class DecoratedProjection(
         private val warning: Boolean = false,
         private val exclusionSymbol: String? = null,
+        private val exclusionSymbols: List<String> = emptyList(),
     ) : DeclarationProjection {
         override fun project(request: DeclarationProjectionRequest): DeclarationMappingResult {
             val result = StandardProjection().project(request)
@@ -709,11 +826,20 @@ class GenerationPipelineTest {
                 } else {
                     null
                 }
-            val exclusion = exclusionSymbol?.let { symbolId -> GenerationExclusion(symbolId, "Test exclusion", source) }
+            val exclusions =
+                (listOfNotNull(exclusionSymbol) + exclusionSymbols).map { symbolId ->
+                    GenerationExclusion(
+                        kind = GenerationExclusionKind.SCHEMA,
+                        symbolId = symbolId,
+                        diagnosticCode = GenerationDiagnosticCode.UNREPRESENTABLE_SCHEMA.wireCode,
+                        reason = "Test exclusion",
+                        source = source,
+                    )
+                }
             return DeclarationMappingResult(
                 model = result.model,
                 diagnostics = result.diagnostics + listOfNotNull(diagnostic),
-                exclusions = result.exclusions + listOfNotNull(exclusion),
+                exclusions = result.exclusions + exclusions,
             )
         }
     }

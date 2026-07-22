@@ -3,6 +3,7 @@
 
 package com.nabobery.sdkgen.engine.output
 
+import com.nabobery.sdkgen.engine.AcceptedWaiverView
 import com.nabobery.sdkgen.engine.declarations.GenerationDiagnostic
 import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
@@ -13,7 +14,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import java.nio.channels.FileChannel
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.DirectoryNotEmptyException
@@ -23,8 +23,6 @@ import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-import java.nio.file.StandardOpenOption.CREATE
-import java.nio.file.StandardOpenOption.WRITE
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
@@ -95,6 +93,7 @@ internal class AtomicOutputPublisher(
         identity: GenerationManifestIdentity,
         diagnostics: List<GenerationDiagnostic>,
         exclusions: List<GenerationExclusion>,
+        acceptedWaivers: List<AcceptedWaiverView> = emptyList(),
         failAfterFiles: Int? = null,
         lock: LockPublication? = null,
         verifier: (Path) -> Unit = {},
@@ -120,7 +119,8 @@ internal class AtomicOutputPublisher(
             }
             verify(temp, declarationModel, sortedFiles)
             verifier(temp)
-            val manifest = manifestBytes(declarationModel, sortedFiles, identity, diagnostics, exclusions)
+            val manifest =
+                manifestBytes(declarationModel, sortedFiles, identity, diagnostics, exclusions, acceptedWaivers)
             temp.resolve("manifest.json").writeBytes(manifest)
             val snapshotDigest = directoryDigest(sortedFiles, manifest)
             val snapshot = snapshots.resolve(snapshotDigest)
@@ -291,9 +291,39 @@ internal class AtomicOutputPublisher(
         val coordinator = coordinators[index]
         val processLock = PUBLICATION_LOCKS.computeIfAbsent(coordinator) { ReentrantLock() }
         return processLock.withLock {
-            FileChannel.open(coordinator, CREATE, WRITE).use { channel ->
-                channel.lock().use { withCoordinatorLocks(coordinators, index + 1, action) }
+            withDirectoryCoordinatorLock(coordinator) {
+                withCoordinatorLocks(coordinators, index + 1, action)
             }
+        }
+    }
+
+    private fun <T> withDirectoryCoordinatorLock(
+        coordinator: Path,
+        action: () -> T,
+    ): T {
+        while (true) {
+            try {
+                Files.createDirectory(coordinator)
+                break
+            } catch (_: FileAlreadyExistsException) {
+                if (Files.exists(coordinator, NOFOLLOW_LINKS) && !Files.isDirectory(coordinator, NOFOLLOW_LINKS)) {
+                    error("publication coordinator must be a directory: $coordinator")
+                }
+                try {
+                    Thread.sleep(COORDINATOR_RETRY_MILLIS)
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw IllegalStateException(
+                        "interrupted while waiting for publication coordinator: $coordinator",
+                        interrupted,
+                    )
+                }
+            }
+        }
+        try {
+            return action()
+        } finally {
+            Files.delete(coordinator)
         }
     }
 
@@ -391,6 +421,7 @@ internal class AtomicOutputPublisher(
         identity: GenerationManifestIdentity,
         diagnostics: List<GenerationDiagnostic>,
         exclusions: List<GenerationExclusion>,
+        acceptedWaivers: List<AcceptedWaiverView>,
     ): ByteArray {
         val manifest =
             buildJsonObject {
@@ -510,12 +541,37 @@ internal class AtomicOutputPublisher(
                         exclusions.forEach { exclusion ->
                             add(
                                 buildJsonObject {
+                                    put("kind", exclusion.kind.name.lowercase(Locale.ROOT))
                                     put("symbolId", exclusion.symbolId)
+                                    put("diagnosticCode", exclusion.diagnosticCode)
                                     put("reason", exclusion.reason)
+                                    put("reasonSha256", sha256Hex(exclusion.reason.encodeToByteArray()))
                                     put(
                                         "source",
                                         sourcePointer(exclusion.source.documentUri, exclusion.source.jsonPointer),
                                     )
+                                },
+                            )
+                        }
+                    },
+                )
+                put(
+                    "acceptedWaivers",
+                    buildJsonArray {
+                        acceptedWaivers.sortedBy(AcceptedWaiverView::id).forEach { waiver ->
+                            add(
+                                buildJsonObject {
+                                    put("id", waiver.id)
+                                    put("category", waiver.category)
+                                    put("kind", waiver.kind.name.lowercase(Locale.ROOT))
+                                    put("symbolId", waiver.symbolId)
+                                    put("diagnosticCode", waiver.diagnosticCode)
+                                    put("reason", waiver.reason)
+                                    put("reasonSha256", waiver.reasonSha256)
+                                    put("rationale", waiver.rationale)
+                                    put("owner", waiver.owner)
+                                    put("disposition", waiver.disposition)
+                                    put("source", sourcePointer(waiver.documentUri, waiver.jsonPointer))
                                 },
                             )
                         }
@@ -665,7 +721,8 @@ internal class AtomicOutputPublisher(
     }
 
     private companion object {
-        const val MAX_MANIFEST_FILES = 10_000
+        const val COORDINATOR_RETRY_MILLIS = 10L
+        const val MAX_MANIFEST_FILES = 20_000
         const val MAX_MANIFEST_PATH_LENGTH = 4096
         val MANIFEST_JSON: Json = Json { prettyPrint = true }
         val PUBLICATION_LOCKS = ConcurrentHashMap<Path, ReentrantLock>()

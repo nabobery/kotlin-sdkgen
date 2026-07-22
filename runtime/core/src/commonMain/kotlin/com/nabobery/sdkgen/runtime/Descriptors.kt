@@ -300,6 +300,18 @@ public sealed interface PaginationDescriptor {
         public val responseItemsPath: PropertyPath,
         public val responseNextTokenPath: PropertyPath,
     ) : PaginationDescriptor
+
+    /**
+     * The next page is sourced from the RFC 8288 `Link` response header's `rel="next"` target rather than any body
+     * field — [responseItemsPath] still locates the item list in the decoded body, but there is no
+     * `responseNextUrlPath`: the runtime pagination engine parses the `Link` header itself
+     * (`com.nabobery.sdkgen.runtime.pagination.firstNextLinkTarget`) and resolves the result against the URI of the
+     * request that produced that response (not a fixed operation base URI), so relative targets stay correct across
+     * however many hops the walk takes.
+     */
+    public data class HeaderNextUrl(
+        public val responseItemsPath: PropertyPath,
+    ) : PaginationDescriptor
 }
 
 /** A bounded, declarative predicate over a decoded streaming event. No predicate lambdas are permitted. */

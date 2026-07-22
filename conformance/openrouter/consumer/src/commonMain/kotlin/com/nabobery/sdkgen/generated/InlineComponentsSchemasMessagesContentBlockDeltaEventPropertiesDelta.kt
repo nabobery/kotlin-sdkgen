@@ -301,65 +301,7 @@ private fun inspectInlineComponentsSchemasMessagesContentBlockDeltaEventProperti
   val text = textResult?.getOrNull()
   val textDecoded = textResult?.isSuccess == true
   val typeState1Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf0PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf0PropertiesType>(element) } }
   val typeState1 = typeState1Result?.getOrNull()
   val typeState1Decoded = typeState1Result?.isSuccess == true
   val partialJsonResult = raw["partial_json"]?.let { element -> runCatching { SdkJson
@@ -367,65 +309,7 @@ private fun inspectInlineComponentsSchemasMessagesContentBlockDeltaEventProperti
   val partialJson = partialJsonResult?.getOrNull()
   val partialJsonDecoded = partialJsonResult?.isSuccess == true
   val typeState2Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf1PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf1PropertiesType>(element) } }
   val typeState2 = typeState2Result?.getOrNull()
   val typeState2Decoded = typeState2Result?.isSuccess == true
   val thinkingResult = raw["thinking"]?.let { element -> runCatching { SdkJson
@@ -433,65 +317,7 @@ private fun inspectInlineComponentsSchemasMessagesContentBlockDeltaEventProperti
   val thinking = thinkingResult?.getOrNull()
   val thinkingDecoded = thinkingResult?.isSuccess == true
   val typeState3Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf2PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf2PropertiesType>(element) } }
   val typeState3 = typeState3Result?.getOrNull()
   val typeState3Decoded = typeState3Result?.isSuccess == true
   val signatureResult = raw["signature"]?.let { element -> runCatching { SdkJson
@@ -499,189 +325,15 @@ private fun inspectInlineComponentsSchemasMessagesContentBlockDeltaEventProperti
   val signature = signatureResult?.getOrNull()
   val signatureDecoded = signatureResult?.isSuccess == true
   val typeState4Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf3PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf3PropertiesType>(element) } }
   val typeState4 = typeState4Result?.getOrNull()
   val typeState4Decoded = typeState4Result?.isSuccess == true
   val citationResult = raw["citation"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf4Proper6739e8d6>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf4Proper6739e8d6>(element) } }
   val citation = citationResult?.getOrNull()
   val citationDecoded = citationResult?.isSuccess == true
   val typeState5Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf4PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf4PropertiesType>(element) } }
   val typeState5 = typeState5Result?.getOrNull()
   val typeState5Decoded = typeState5Result?.isSuccess == true
   val contentResult = raw["content"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String?>(element) } }
@@ -689,65 +341,7 @@ private fun inspectInlineComponentsSchemasMessagesContentBlockDeltaEventProperti
   val contentPresent = raw.containsKey("content")
   val contentDecoded = contentResult?.isSuccess == true
   val typeState6Result = raw["type"]?.let { element -> runCatching { SdkJson
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf5PropertiesType>(element) } }
+    .decodeFromJsonElement<InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaOneOf5PropertiesType>(element) } }
   val typeState6 = typeState6Result?.getOrNull()
   val typeState6Decoded = typeState6Result?.isSuccess == true
   return InlineComponentsSchemasMessagesContentBlockDeltaEventPropertiesDeltaInspection(

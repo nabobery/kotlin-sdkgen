@@ -83,63 +83,7 @@ public class InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchem
           "must be a JSON object")
       val classifierId = json.decodeRequired<String>(raw, "classifier_id")
       val filters = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesCld288d8d4>>(raw, "filters")
+        .decodeRequired<List<InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesCld288d8d4>>(raw, "filters")
       return InlinePathsAnalyticsQueryPostRequestBodyContentApplicationJsonSchemaPropertiesCl4b29c7dd(
         classifierId = classifierId,
         filters = filters,

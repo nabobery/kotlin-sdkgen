@@ -10,7 +10,7 @@ object ExperimentSupport {
     val openRouterFixture: Path = propertyPath("intake.openRouterFile")
     val modelSource: Path = propertyPath("intake.modelSource")
     val stressFixtures: List<Path> =
-        (1..16).map { index ->
+        (1..17).map { index ->
             val prefix = index.toString().padStart(2, '0')
             propertyPath("intake.stressRoot")
                 .toFile()

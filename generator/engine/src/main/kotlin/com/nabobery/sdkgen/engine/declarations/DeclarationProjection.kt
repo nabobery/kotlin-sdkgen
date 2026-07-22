@@ -59,8 +59,15 @@ internal data class GenerationDiagnostic(
     }
 }
 
+internal enum class GenerationExclusionKind {
+    SCHEMA,
+    OPERATION,
+}
+
 internal data class GenerationExclusion(
+    val kind: GenerationExclusionKind,
     val symbolId: String,
+    val diagnosticCode: String,
     val reason: String,
     val source: SourcePointer,
 )

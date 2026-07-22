@@ -1,0 +1,58 @@
+{
+    "schemaVersion": "v1alpha1",
+    "generatorVersion": "fixture-verification",
+    "edition": "community",
+    "kotlinPoetVersion": "2.3.0",
+    "configDigest": "d5c86914af9defc89cdca425e60896d8e78d6032a8c1394f7d5f6120e1e7733c",
+    "declarationModelSha256": "603b3488d20acf3d1a140a9847869f68246c75a96f0692dd1c509f38c7890a27",
+    "source": {
+        "canonicalUri": "sdkgen://source/openapi.yaml",
+        "sha256": "463078210dae71d7a1ab9aa30e1f657a7ca2cedd8b5acb3c7b58b2804878f5b7",
+        "contentLength": 2548
+    },
+    "references": [],
+    "overlays": [],
+    "targets": ["jvm"],
+    "compatibilityProfiles": [],
+    "plugins": [],
+    "tools": [
+        {
+            "id": "kotlinpoet",
+            "version": "2.3.0"
+        }
+    ],
+    "warningsAsErrors": false,
+    "warningAllowlist": [],
+    "diagnostics": [],
+    "exclusions": [],
+    "files": [
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatDelta.kt",
+            "sha256": "e2d36f3d3109ee01ad9f068b3b90f13169f77a9dcfa7bec7de00bfcd78328a63"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatRequest.kt",
+            "sha256": "86007389f8835cc0103377abc18320290df9ebe439e9a5e70b17cea8626054c7"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatResult.kt",
+            "sha256": "b5a38ff708012159cc6bfe4cbb698ce3acc75232d001087edae013fad9b69701"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ErrorResponse.kt",
+            "sha256": "13a051bf81ca1054f0d100b24844620433fc4280996e69f651c0727235ec7528"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/SerializationSupport.kt",
+            "sha256": "5f6b2671ad717cf0bc77fb836f7a2138f4d5d145178f136b136085d559b43190"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/StreamingFixtureClient.kt",
+            "sha256": "a3cbbc2804a120d9a7d2e420905377a064b54282bf465fd4a9266afa6b9d86b4"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/chat/ChatClient.kt",
+            "sha256": "62eaaa829d832970344aecde91102e9c528892480c66deb61cd978f13092dce9"
+        }
+    ]
+}

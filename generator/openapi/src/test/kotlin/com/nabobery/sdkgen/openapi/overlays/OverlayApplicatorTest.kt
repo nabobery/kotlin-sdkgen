@@ -312,6 +312,50 @@ class OverlayApplicatorTest {
     }
 
     @Test
+    fun `headerNextUrl pagination is accepted with only style and responseItems`() {
+        val valid =
+            overlay(
+                "header-next-url",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: headerNextUrl
+                      responseItems: /items
+                """,
+            )
+
+        val result = OverlayApplicator().apply(source, listOf(valid))
+
+        assertEquals(
+            "/items",
+            result.document.at("/paths/~1chat/post/x-sdkgen-pagination/responseItems").asText(),
+        )
+    }
+
+    @Test
+    fun `headerNextUrl pagination rejects cursor-only fields`() {
+        val invalid =
+            overlay(
+                "header-next-url-invalid",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: headerNextUrl
+                      responseItems: /items
+                      requestCursor: cursor
+                """,
+            )
+
+        val failure =
+            assertFailsWith<ExtensionValidationException> {
+                OverlayApplicator().apply(source, listOf(invalid))
+            }
+        assertTrue(failure.message!!.contains("/paths/~1chat/post/x-sdkgen-pagination/requestCursor"))
+    }
+
+    @Test
     fun `canonical operation extensions reject non-operation attachments without misclassifying vendor extensions`() {
         val attachmentSource =
             """

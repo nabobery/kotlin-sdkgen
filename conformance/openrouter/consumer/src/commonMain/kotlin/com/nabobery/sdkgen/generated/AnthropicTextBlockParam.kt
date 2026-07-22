@@ -93,62 +93,7 @@ public class AnthropicTextBlockParam(
         type = type,
         cacheControl = raw["cache_control"]?.let { json.decodeFromJsonElement<AnthropicCacheControlDirective>(it) },
         citations = raw["citations"]?.let { element -> if (element == JsonNull) null else json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeFromJsonElement<List<InlineComponentsSchemasAnthropicTextBlockParamPropertiesCitationsItems>?>(element) },
+          .decodeFromJsonElement<List<InlineComponentsSchemasAnthropicTextBlockParamPropertiesCitationsItems>?>(element) },
       )
     }
 

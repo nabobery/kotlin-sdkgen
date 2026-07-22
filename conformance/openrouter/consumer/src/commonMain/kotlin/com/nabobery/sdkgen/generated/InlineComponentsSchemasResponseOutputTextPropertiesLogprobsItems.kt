@@ -103,63 +103,7 @@ public class InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItems(
       val logprob = json.decodeRequired<Double>(raw, "logprob")
       val token = json.decodeRequired<String>(raw, "token")
       val topLogprobs = json
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                        .decodeRequired<List<InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems>>(raw, "top_logprobs")
+        .decodeRequired<List<InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItemsPropertiesTopLogprobsItems>>(raw, "top_logprobs")
       return InlineComponentsSchemasResponseOutputTextPropertiesLogprobsItems(
         bytes = bytes,
         logprob = logprob,

@@ -3,6 +3,34 @@
 package com.nabobery.sdkgen.runtime
 
 /**
+ * A decoded success value paired with the physical response's headers, returned by [SdkExecutor.executeWithHeaders].
+ *
+ * Not a `data class`: [headers] is defensively copied at construction, for the same reason documented on
+ * [ResponseAlternative]'s KDoc (a data-class primary constructor cannot intercept and copy an incoming mutable
+ * collection before it becomes part of the instance's identity). [equals]/[hashCode]/[toString]/[copy] are
+ * hand-written over that copy.
+ */
+public class SdkHeaderedResponse<T>(
+    public val value: T,
+    headers: List<SdkHeader>,
+) {
+    /** Defensive copy of the headers supplied at construction; later mutation of the input has no effect. */
+    public val headers: List<SdkHeader> = headers.toList()
+
+    public fun copy(
+        value: T = this.value,
+        headers: List<SdkHeader> = this.headers,
+    ): SdkHeaderedResponse<T> = SdkHeaderedResponse(value, headers)
+
+    override fun equals(other: Any?): Boolean =
+        other is SdkHeaderedResponse<*> && value == other.value && headers == other.headers
+
+    override fun hashCode(): Int = arrayOf<Any?>(value, headers).contentHashCode()
+
+    override fun toString(): String = "SdkHeaderedResponse(value=$value, headers=$headers)"
+}
+
+/**
  * The result of decoding a selected response alternative.
  *
  * [transferBody] is an explicit ownership decision for the original response body. It must be `true` only when the
