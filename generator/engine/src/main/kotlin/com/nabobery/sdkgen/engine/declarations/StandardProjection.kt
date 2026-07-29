@@ -14,6 +14,7 @@ import com.nabobery.sdkgen.model.JsonValue
 import com.nabobery.sdkgen.model.MediaTypeModel
 import com.nabobery.sdkgen.model.Nullability
 import com.nabobery.sdkgen.model.OperationModel
+import com.nabobery.sdkgen.model.ParameterLocation
 import com.nabobery.sdkgen.model.ParameterModel
 import com.nabobery.sdkgen.model.PropertyModel
 import com.nabobery.sdkgen.model.Requiredness
@@ -71,7 +72,7 @@ internal class StandardProjection : DeclarationProjection {
                 )
             }
         val memberPlan = MemberNamePlan(request.document.operations, request.operationPrefix)
-        val origins = linkedMapOf<String, com.nabobery.sdkgen.model.SourcePointer>()
+        val origins = linkedMapOf<String, SourcePointer>()
         val schemas =
             request.document.schemas.values
                 .sortedBy(SchemaModel::id)
@@ -80,7 +81,7 @@ internal class StandardProjection : DeclarationProjection {
         var context: SchemaProjectionContext
         while (true) {
             val attemptDiagnostics = mutableListOf<GenerationDiagnostic>()
-            val attemptOrigins = linkedMapOf<String, com.nabobery.sdkgen.model.SourcePointer>()
+            val attemptOrigins = linkedMapOf<String, SourcePointer>()
             context =
                 SchemaProjectionContext(
                     request,
@@ -315,9 +316,9 @@ internal class StandardProjection : DeclarationProjection {
             SecuritySchemeKind.API_KEY -> {
                 val location =
                     when (scheme.location) {
-                        com.nabobery.sdkgen.model.ParameterLocation.HEADER -> OperationParameterLocation.HEADER
-                        com.nabobery.sdkgen.model.ParameterLocation.QUERY -> OperationParameterLocation.QUERY
-                        com.nabobery.sdkgen.model.ParameterLocation.COOKIE -> OperationParameterLocation.COOKIE
+                        ParameterLocation.HEADER -> OperationParameterLocation.HEADER
+                        ParameterLocation.QUERY -> OperationParameterLocation.QUERY
+                        ParameterLocation.COOKIE -> OperationParameterLocation.COOKIE
                         else -> null
                     }
                 val parameterName = scheme.parameterName.orEmpty()
@@ -409,7 +410,10 @@ internal class StandardProjection : DeclarationProjection {
                         ?.copy(documentUri = request.canonicalDocumentUri)
                         ?: operation.source.copy(documentUri = request.canonicalDocumentUri),
                 symbolId = "operation:${operation.operationId}",
-                remediation = "Adjust the operation schema or add an explicit overlay before regenerating.",
+                remediation =
+                    (failure as? UnrepresentableOperationException)
+                        ?.remediation
+                        ?: "Adjust the operation schema or add an explicit overlay before regenerating.",
             ),
         )
 
@@ -558,16 +562,251 @@ internal class StandardProjection : DeclarationProjection {
         parameter: ParameterModel,
         context: SchemaProjectionContext,
     ): OperationParameterDeclaration {
-        val schema = parameter.schema ?: parameter.content.firstOrNull()?.schema
+        if (parameter.content.isNotEmpty()) {
+            unsupported(
+                "parameter '${parameter.name}' uses unsupported content-based serialization",
+                parameter.content.first().source,
+            )
+        }
+        val schemaRef = parameter.schema ?: unsupported("parameter '${parameter.name}' has no schema", parameter.source)
+        val schema = context.parameterSerializationSchema(schemaRef)
         return OperationParameterDeclaration(
             name = parameter.name,
             location = OperationParameterLocation.valueOf(parameter.location.name),
             type =
-                schema?.let { context.typeFor(it, "${operation.operationId} ${parameter.name} parameter") }
-                    ?: unsupported("parameter '${parameter.name}' has no schema"),
+                context.typeFor(schemaRef, "${operation.operationId} ${parameter.name} parameter"),
             required = parameter.requiredness == Requiredness.REQUIRED,
             style = parameter.style,
             explode = parameter.explode,
+            kdoc = context.projectedKdoc(parameter.description, schemaRef, subject = "parameter"),
+            serialization = parameterSerialization(parameter, schemaRef, schema, context),
+        )
+    }
+
+    private fun parameterSerialization(
+        parameter: ParameterModel,
+        schemaRef: SchemaRef,
+        schema: SchemaModel,
+        context: SchemaProjectionContext,
+    ): ParameterSerialization {
+        val style = parameter.style ?: unsupported("parameter '${parameter.name}' has no serialization style")
+        val explode = parameter.explode ?: unsupported("parameter '${parameter.name}' has no explode value")
+        return when (parameter.location) {
+            ParameterLocation.PATH -> {
+                if (style != "simple") unsupported("path parameter '${parameter.name}' uses unsupported style '$style'")
+                if (ParameterSchemaPredicates.isPrimitiveParameterUnion(schema, context::dereference)) {
+                    // ADR-0016's wire-collapse argument only reaches arrays in query position, where `form` with
+                    // explode=true is a repeated key. A path segment is one value: `renderPathTemplate` requires
+                    // exactly one and throws otherwise, so an array branch here compiles and then fails at call
+                    // time. A bare `type: array` path parameter is already rejected below; this closes the same
+                    // shape wrapped in a `oneOf`.
+                    if (ParameterSchemaPredicates.unionHasArrayBranch(schema, context::dereference)) {
+                        unsupported(
+                            "path parameter '${parameter.name}' is a primitive union with an array branch; " +
+                                "a path segment carries exactly one value",
+                            schema.source,
+                        )
+                    }
+                    ParameterSerialization.PrimitiveUnion
+                } else {
+                    if (!ParameterSchemaPredicates.isPrimitiveParameterSchema(schema)) {
+                        unsupported("path parameter '${parameter.name}' only supports scalar schema", schema.source)
+                    }
+                    ParameterSerialization.Repeated
+                }
+            }
+
+            ParameterLocation.QUERY -> {
+                when (style) {
+                    "form" -> {
+                        when {
+                            ParameterSchemaPredicates.isPrimitiveParameterSchema(schema) -> {
+                                ParameterSerialization.Repeated
+                            }
+
+                            ParameterSchemaPredicates.isPrimitiveParameterArray(schema, context::dereference) -> {
+                                if (explode) ParameterSerialization.Repeated else ParameterSerialization.CommaJoined
+                            }
+
+                            ParameterSchemaPredicates.isPrimitiveParameterUnion(schema, context::dereference) -> {
+                                if (!explode) {
+                                    unsupported(
+                                        "form parameter '${parameter.name}' is a primitive union and requires " +
+                                            "explode=true; a comma-joined union cannot be reconstructed",
+                                        schema.source,
+                                    )
+                                }
+                                ParameterSerialization.PrimitiveUnion
+                            }
+
+                            else -> {
+                                unsupported(
+                                    "form parameter '${parameter.name}' requires a scalar or primitive array schema",
+                                    schema.source,
+                                )
+                            }
+                        }
+                    }
+
+                    "deepObject" -> {
+                        if (!explode) {
+                            unsupported(
+                                "deepObject parameter '${parameter.name}' requires explode=true",
+                                schema.source,
+                            )
+                        }
+                        if (ParameterSchemaPredicates.isPrimitiveParameterArray(schema, context::dereference)) {
+                            ParameterSerialization.StripeCompatibleIndexedArray
+                        } else if (ParameterSchemaPredicates.isPrimitiveParameterSchema(schema)) {
+                            ParameterSerialization.StripeCompatibleScalar
+                        } else if (ParameterSchemaPredicates.hasStripeCompatibleDeepObjectScalarBranch(
+                                schema,
+                                context::dereference,
+                            )
+                        ) {
+                            ParameterSerialization.StripeCompatibleJsonScalar
+                        } else if (schema.items != null) {
+                            unsupported(
+                                "deepObject parameter '${parameter.name}' requires primitive array item schemas",
+                                schema.source,
+                            )
+                        } else {
+                            deepObjectParameterSerialization(parameter, schemaRef, schema, context)
+                        }
+                    }
+
+                    else -> {
+                        unsupported(
+                            "query parameter '${parameter.name}' uses unsupported style '$style'",
+                            schema.source,
+                        )
+                    }
+                }
+            }
+
+            ParameterLocation.HEADER -> {
+                if (style != "simple" || explode) {
+                    unsupported(
+                        "header parameter '${parameter.name}' requires simple style with explode=false",
+                        schema.source,
+                    )
+                }
+                when {
+                    ParameterSchemaPredicates.isPrimitiveParameterSchema(schema) -> {
+                        ParameterSerialization.Repeated
+                    }
+
+                    ParameterSchemaPredicates.isPrimitiveParameterArray(schema, context::dereference) -> {
+                        ParameterSerialization.CommaJoined
+                    }
+
+                    else -> {
+                        unsupported(
+                            "header parameter '${parameter.name}' requires a scalar or primitive array schema",
+                            schema.source,
+                        )
+                    }
+                }
+            }
+
+            ParameterLocation.COOKIE -> {
+                if (style != "form" || explode || !ParameterSchemaPredicates.isPrimitiveParameterSchema(schema)) {
+                    unsupported(
+                        "cookie parameter '${parameter.name}' requires form style with explode=false and a scalar schema",
+                        schema.source,
+                    )
+                }
+                ParameterSerialization.Repeated
+            }
+        }
+    }
+
+    private fun deepObjectParameterSerialization(
+        parameter: ParameterModel,
+        schemaRef: SchemaRef,
+        schema: SchemaModel,
+        context: SchemaProjectionContext,
+    ): ParameterSerialization.DeepObject {
+        if (!isFormObject(schema)) {
+            unsupported("deepObject parameter '${parameter.name}' requires an object schema", schema.source)
+        }
+        val model =
+            context.modelDeclarationFor(schemaRef)
+                ?: unsupported(
+                    "deepObject parameter '${parameter.name}' has no resolved object declaration",
+                    schema.source,
+                )
+        val fieldsByWireName = model.fields.associateBy(FieldDeclaration::wireName)
+        val additionalProperties =
+            when (val additional = schema.additionalProperties) {
+                null, is AdditionalPropertiesModel.Closed -> {
+                    null
+                }
+
+                is AdditionalPropertiesModel.FreeForm -> {
+                    requireNotNull(model.additionalProperties) {
+                        "deepObject model ${model.resolvedName} is missing open additionalProperties metadata"
+                    }.let { declaration ->
+                        DeepObjectAdditionalPropertiesDeclaration(
+                            accessorName = declaration.resolvedName,
+                            serialization = DeepObjectAdditionalPropertiesSerialization.JSON_PRIMITIVE_CONTENT,
+                        )
+                    }
+                }
+
+                is AdditionalPropertiesModel.Typed -> {
+                    val valueSchema = context.dereference(additional.valueSchema)
+                    if (!ParameterSchemaPredicates.isPrimitiveParameterSchema(valueSchema)) {
+                        unsupported(
+                            "deepObject parameter '${parameter.name}' additionalProperties requires a primitive schema",
+                            additional.source,
+                        )
+                    }
+                    if (context.isEffectivelyNullable(additional.valueSchema)) {
+                        unsupported(
+                            "deepObject parameter '${parameter.name}' additionalProperties values are nullable",
+                            additional.source,
+                        )
+                    }
+                    requireNotNull(model.additionalProperties) {
+                        "deepObject model ${model.resolvedName} is missing typed additionalProperties metadata"
+                    }.let { declaration ->
+                        DeepObjectAdditionalPropertiesDeclaration(
+                            accessorName = declaration.resolvedName,
+                            serialization =
+                                if (valueSchema.enum != null) {
+                                    DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE
+                                } else {
+                                    DeepObjectAdditionalPropertiesSerialization.TO_STRING
+                                },
+                        )
+                    }
+                }
+            }
+        return ParameterSerialization.DeepObject(
+            context.flattenObjectProperties(schema).map { property ->
+                val propertySchema = context.dereference(property.schema)
+                if (!ParameterSchemaPredicates.isPrimitiveParameterSchema(propertySchema)) {
+                    unsupported(
+                        "deepObject parameter '${parameter.name}' property '${property.name}' requires a primitive schema",
+                        property.source,
+                    )
+                }
+                if (property.nullability == Nullability.NULLABLE || context.isEffectivelyNullable(property.schema)) {
+                    unsupported(
+                        "deepObject parameter '${parameter.name}' property '${property.name}' is nullable",
+                        property.source,
+                    )
+                }
+                val field =
+                    fieldsByWireName[property.name]
+                        ?: unsupported(
+                            "deepObject parameter '${parameter.name}' property '${property.name}' has no resolved accessor",
+                            property.source,
+                        )
+                DeepObjectParameterPropertyDeclaration(property.name, field.resolvedName, field.required)
+            },
+            additionalProperties,
         )
     }
 
@@ -638,8 +877,8 @@ internal class StandardProjection : DeclarationProjection {
         if (!isFormObject(schema)) {
             unsupported("form request body must use an object schema", schema.source)
         }
-        validateClosedFormObject(schema)
         val properties = context.flattenObjectProperties(schema)
+        validateClosedFormObject(schema, properties)
         val propertyNames = properties.mapTo(mutableSetOf(), PropertyModel::name)
         val encodingByProperty = content.encoding.associateBy { it.partName }
         content.encoding.firstOrNull { encoding -> encoding.partName !in propertyNames }?.let { encoding ->
@@ -754,7 +993,7 @@ internal class StandardProjection : DeclarationProjection {
                 }
 
                 schema.additionalProperties is AdditionalPropertiesModel.Typed && schema.properties.isEmpty() -> {
-                    val additionalProperties = schema.additionalProperties as AdditionalPropertiesModel.Typed
+                    val additionalProperties = schema.additionalProperties
                     val valueSchema = additionalProperties.valueSchema
                     if (context.isEffectivelyNullable(valueSchema)) {
                         unsupported(
@@ -768,8 +1007,8 @@ internal class StandardProjection : DeclarationProjection {
                 }
 
                 isFormObject(schema) -> {
-                    validateClosedFormObject(schema)
                     val properties = context.flattenObjectProperties(schema)
+                    validateClosedFormObject(schema, properties)
                     val model =
                         context.modelDeclarationFor(schemaRef)
                             ?: unsupported("nested form object does not resolve to a model declaration", schema.source)
@@ -868,12 +1107,62 @@ internal class StandardProjection : DeclarationProjection {
         }
     }
 
-    private fun validateClosedFormObject(schema: SchemaModel) {
-        if (schema.additionalProperties !is AdditionalPropertiesModel.Closed) {
-            unsupported(
-                "form object must declare additionalProperties: false; dynamic form keys are unsupported",
-                schema.additionalProperties?.source ?: schema.source,
-            )
+    /**
+     * Decides whether a form object's key set is closed enough to emit as a typed declaration, branching on
+     * all four [AdditionalPropertiesModel] states explicitly so no case falls through silently.
+     *
+     * A `null` [SchemaModel.additionalProperties] is the keyword being absent from the source, which is a
+     * distinct state from [AdditionalPropertiesModel.FreeForm] (see [AdditionalPropertiesModel]). Once the
+     * object declares properties, absent is treated as closed, matching the two other object-shape decisions
+     * in this file: [projectModel] emits a catch-all field only when `additionalProperties` is both non-null
+     * and not [AdditionalPropertiesModel.Closed], and [projectDeepObjectParameterAdditionalProperties]
+     * already matches `null` and [AdditionalPropertiesModel.Closed] together. Requiring a literal
+     * `additionalProperties: false` here — a keyword essentially no real specification writes on every nested
+     * object — was the sole outlier, and it excluded 148 of Stripe's 587 operations for schemas that declare a
+     * complete property set and no dynamic keys at all. See ADR-0014.
+     *
+     * [properties] must be the *flattened* property set, so `allOf` composition is accounted for the same way
+     * [projectModel] accounts for it.
+     *
+     * Each rejected state carries its own message rather than one shared string, so waiver tooling can tell
+     * them apart by reason hash.
+     */
+    private fun validateClosedFormObject(
+        schema: SchemaModel,
+        properties: List<PropertyModel>,
+    ) {
+        when (val additionalProperties = schema.additionalProperties) {
+            is AdditionalPropertiesModel.Closed -> {
+                Unit
+            }
+
+            // Absent keyword: closed once a property set exists. An object that declares no shape at all has
+            // no form wire representation -- unlike the JSON path, which can degrade to a JsonObject, a form
+            // body has no primitive for serializing an undeclared shape as key=value pairs.
+            null -> {
+                if (properties.isEmpty()) {
+                    unsupported(
+                        "form object declares no properties and omits additionalProperties; " +
+                            "a form value with no declared shape has no form wire representation",
+                        schema.source,
+                    )
+                }
+            }
+
+            is AdditionalPropertiesModel.FreeForm -> {
+                unsupported(
+                    "form object declares additionalProperties: true; free-form dynamic form keys are unsupported",
+                    additionalProperties.source,
+                )
+            }
+
+            is AdditionalPropertiesModel.Typed -> {
+                unsupported(
+                    "form object mixes fixed properties with a typed additionalProperties catch-all; " +
+                        "mixed fixed-and-dynamic form keys are unsupported",
+                    additionalProperties.source,
+                )
+            }
         }
     }
 
@@ -1240,16 +1529,34 @@ private const val DEFAULT_GROUP_KEY = "default"
 private val PATH_PARAMETER_SEGMENT = Regex("\\{[^{}]+}")
 
 /**
- * The client-partition group for one operation: its first declared OpenAPI tag, falling back to the first
- * non-parameter path segment, falling back to [DEFAULT_GROUP_KEY]. Grouping never depends on iteration order:
- * the same operation always yields the same raw key, and callers sort keys before allocating Kotlin names.
+ * A leading API version segment: `/v1`, `/v2beta`, `/2024-01-01`.
+ *
+ * A version segment is shared by every path in an API, so it carries no grouping information. This is a
+ * **heuristic**, not a proof: matching happens one operation at a time, so the "shared by every path" property
+ * is never checked, and the pattern also matches names like `v1customers` that are not versions. A false
+ * positive regroups an untagged operation; a false negative leaves a whole API in one client. See ADR-0017.
+ */
+private val API_VERSION_SEGMENT = Regex("^(v\\d+[A-Za-z0-9]*|\\d{4}-\\d{2}-\\d{2})$", RegexOption.IGNORE_CASE)
+
+/**
+ * The client-partition group for one operation: its first declared OpenAPI tag, or failing that the first path
+ * segment that names something, falling back to [DEFAULT_GROUP_KEY]. Grouping never depends on iteration
+ * order: the same operation always yields the same raw key, and callers sort keys before allocating Kotlin
+ * names.
+ *
+ * Version segments are skipped. A specification that declares no tags and versions every path under a shared
+ * prefix — Stripe puts all 414 paths under `/v1` — would otherwise collapse into a single group, putting its
+ * entire API in one client class and one codecs object. See ADR-0017.
  */
 private fun groupKeyFor(operation: OperationModel): String {
     operation.tags.firstOrNull { tag -> tag.isNotBlank() }?.let { tag -> return tag.trim() }
-    operation.path
-        .split('/')
-        .firstOrNull { segment -> segment.isNotBlank() && !segment.matches(PATH_PARAMETER_SEGMENT) }
-        ?.let { segment -> return segment }
+    val namedSegments =
+        operation.path
+            .split('/')
+            .filter { segment -> segment.isNotBlank() && !segment.matches(PATH_PARAMETER_SEGMENT) }
+    namedSegments.firstOrNull { segment -> !segment.matches(API_VERSION_SEGMENT) }?.let { segment -> return segment }
+    // Every named segment is a version: the version is all the path says, so group by it rather than lose it.
+    namedSegments.firstOrNull()?.let { segment -> return segment }
     return DEFAULT_GROUP_KEY
 }
 
@@ -1462,7 +1769,7 @@ private class SchemaProjectionContext(
     private val request: DeclarationProjectionRequest,
     private val typePlan: TypeNamePlan,
     private val diagnostics: MutableList<GenerationDiagnostic>,
-    private val origins: MutableMap<String, com.nabobery.sdkgen.model.SourcePointer>,
+    private val origins: MutableMap<String, SourcePointer>,
     private val fieldStateSchemaIds: Set<SchemaId>,
     initialFailedSchemaIds: Set<SchemaId>,
 ) {
@@ -1512,7 +1819,9 @@ private class SchemaProjectionContext(
                     message = "Schema '${schema.id.value}' cannot be represented: ${failure.message}",
                     source = failure.source ?: schema.source,
                     symbolId = "schema:$name",
-                    remediation = "Rewrite the schema with supported composition and property shapes or apply an overlay.",
+                    remediation =
+                        failure.remediation
+                            ?: "Rewrite the schema with supported composition and property shapes or apply an overlay.",
                 )
             null
         }
@@ -1553,33 +1862,56 @@ private class SchemaProjectionContext(
         ) {
             unsupported("schema ${schema.id} declares multiple non-null types ${concreteTypes.joinToString()}")
         }
+        val concreteType = concreteTypes.singleOrNull()
         val base =
             when {
                 schema.format == "binary" -> {
-                    KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+                    if (concreteType == "string") {
+                        KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+                    } else {
+                        throw UnrepresentableOperationException(
+                            message =
+                                "schema ${schema.id} uses format 'binary' with non-string type " +
+                                    "'${concreteType ?: "unspecified"}'",
+                            source = schema.source,
+                            remediation =
+                                "Declare binary payloads as type 'string', remove format 'binary', or apply an overlay.",
+                        )
+                    }
                 }
 
-                concreteTypes.singleOrNull() == "string" -> {
+                concreteType == "string" -> {
                     KotlinTypeRef("kotlin", "String")
                 }
 
-                concreteTypes.singleOrNull() == "integer" && schema.format == "int64" -> {
+                concreteType == "integer" && schema.format == "int64" -> {
                     KotlinTypeRef("kotlin", "Long")
                 }
 
-                concreteTypes.singleOrNull() == "integer" -> {
+                concreteType == "integer" -> {
                     KotlinTypeRef("kotlin", "Int")
                 }
 
-                concreteTypes.singleOrNull() == "number" -> {
+                concreteType == "number" -> {
+                    if (schema.format == "decimal") {
+                        throw UnrepresentableOperationException(
+                            message =
+                                "schema ${schema.id} uses number format 'decimal', which has no approved portable " +
+                                    "lossless Kotlin representation",
+                            source = schema.source,
+                            remediation =
+                                "Apply an overlay selecting an explicitly lossy number type, or wait for a portable " +
+                                    "lossless decimal vehicle.",
+                        )
+                    }
                     KotlinTypeRef("kotlin", "Double")
                 }
 
-                concreteTypes.singleOrNull() == "boolean" -> {
+                concreteType == "boolean" -> {
                     KotlinTypeRef("kotlin", "Boolean")
                 }
 
-                concreteTypes.singleOrNull() == "array" -> {
+                concreteType == "array" -> {
                     KotlinTypeRef(
                         "kotlin.collections",
                         "List",
@@ -1603,7 +1935,7 @@ private class SchemaProjectionContext(
                     )
                 }
 
-                concreteTypes.singleOrNull() == "object" -> {
+                concreteType == "object" -> {
                     KotlinTypeRef("kotlinx.serialization.json", "JsonObject")
                 }
 
@@ -1635,6 +1967,16 @@ private class SchemaProjectionContext(
     }
 
     fun dereference(schemaRef: SchemaRef): SchemaModel = dereference(schemaRef.schemaId)
+
+    fun parameterSerializationSchema(schemaRef: SchemaRef): SchemaModel {
+        var current = dereference(schemaRef)
+        val visited = mutableSetOf<SchemaId>()
+        while (visited.add(current.id)) {
+            val transparentBranch = transparentAllOfBranch(current) ?: return current
+            current = dereference(transparentBranch)
+        }
+        unsupported("recursive transparent allOf composition at ${current.id}", current.source)
+    }
 
     fun isEffectivelyNullable(schemaRef: SchemaRef): Boolean {
         val schema = dereference(schemaRef)
@@ -1719,7 +2061,22 @@ private class SchemaProjectionContext(
     ): ModelDeclaration {
         if (!isObjectLike(schema)) unsupported("schema ${schema.id} is not an object")
         val properties = flattenObjectProperties(schema)
-        val fieldNames = allocateNames(properties.map(PropertyModel::name), base = KotlinNameResolver::memberName)
+        val additionalPropertiesModel = schema.additionalProperties
+        val hasAdditionalProperties =
+            properties.isNotEmpty() &&
+                additionalPropertiesModel != null &&
+                additionalPropertiesModel !is AdditionalPropertiesModel.Closed
+        // Sort after real wire names so an actual `additionalProperties` property retains its
+        // natural Kotlin name and the generated catch-all receives a stable suffix.
+        val additionalPropertiesKey = "\uffffadditionalProperties"
+        val fieldNames =
+            allocateNames(
+                properties.map(PropertyModel::name) +
+                    if (hasAdditionalProperties) listOf(additionalPropertiesKey) else emptyList(),
+                base = { key ->
+                    if (key == additionalPropertiesKey) "additionalProperties" else KotlinNameResolver.memberName(key)
+                },
+            )
         val fields =
             properties.mapIndexed { index, property ->
                 val projectedType = typeFor(property.schema, "$name ${property.name}")
@@ -1735,7 +2092,44 @@ private class SchemaProjectionContext(
                     type = type,
                     required = property.requiredness == Requiredness.REQUIRED,
                     nullable = nullable || type.nullable,
-                    kdoc = property.description.orEmpty(),
+                    kdoc = projectedKdoc(property.description, property.schema),
+                )
+            }
+        val additionalProperties =
+            if (!hasAdditionalProperties) {
+                null
+            } else {
+                val declaredAdditionalProperties = requireNotNull(additionalPropertiesModel)
+                val valuesAreJsonElements =
+                    declaredAdditionalProperties is AdditionalPropertiesModel.FreeForm ||
+                        (
+                            declaredAdditionalProperties is AdditionalPropertiesModel.Typed &&
+                                isAnnotationOnly(dereference(declaredAdditionalProperties.valueSchema))
+                        )
+                val valueType =
+                    when (val additional = declaredAdditionalProperties) {
+                        is AdditionalPropertiesModel.FreeForm -> {
+                            KotlinTypeRef("kotlinx.serialization.json", "JsonElement")
+                        }
+
+                        is AdditionalPropertiesModel.Typed -> {
+                            if (valuesAreJsonElements) {
+                                KotlinTypeRef("kotlinx.serialization.json", "JsonElement")
+                            } else {
+                                typeFor(additional.valueSchema, "$name additionalProperties")
+                            }
+                        }
+
+                        is AdditionalPropertiesModel.Closed -> {
+                            error("unreachable additionalProperties shape")
+                        }
+                    }
+                AdditionalPropertiesDeclaration(
+                    resolvedName = fieldNames.getValue(additionalPropertiesKey),
+                    valueType = valueType,
+                    valuesAreJsonElements = valuesAreJsonElements,
+                    fixedWireNames = fields.mapTo(linkedSetOf(), FieldDeclaration::wireName),
+                    kdoc = "Additional JSON object members not declared as fixed properties.",
                 )
             }
         val usesFieldState =
@@ -1751,6 +2145,7 @@ private class SchemaProjectionContext(
             resolvedName = name,
             kdoc = schemaKdoc(schema, "Generated model for ${schema.id.value}."),
             fields = fields,
+            additionalProperties = additionalProperties,
             dslFunctionName = KotlinNameResolver.memberName(name),
             usesFieldState = usesFieldState,
         )
@@ -2129,6 +2524,52 @@ private class SchemaProjectionContext(
         fallback: String,
     ): String = "${schema.description ?: fallback}\n\nSource: ${schema.id.value}"
 
+    fun projectedKdoc(
+        description: String?,
+        schemaRef: SchemaRef,
+        subject: String = "property",
+    ): String = projectedKdoc(description, dereference(schemaRef), subject)
+
+    private fun projectedKdoc(
+        description: String?,
+        schema: SchemaModel,
+        subject: String,
+    ): String {
+        val projectionKdoc =
+            when {
+                schema.format == "byte" || schema.contentEncoding == "base64" -> {
+                    "Base64-encoded wire text. This $subject is not decoded into bytes."
+                }
+
+                schema.types
+                    .filterNot { it == "null" }
+                    .distinct()
+                    .singleOrNull() == "string" &&
+                    schema.format != null &&
+                    schema.format != "binary" -> {
+                    "Wire format: `${schema.format}`. Represented as `String` in this release; " +
+                        "SDKGen does not validate this format."
+                }
+
+                schema.types
+                    .filterNot { it == "null" }
+                    .distinct()
+                    .singleOrNull() == "number" &&
+                    schema.format != "decimal" -> {
+                    "Represented as IEEE-754 `Double`; values may lose decimal precision."
+                }
+
+                else -> {
+                    ""
+                }
+            }
+        return when {
+            description.isNullOrBlank() -> projectionKdoc
+            projectionKdoc.isBlank() -> description
+            else -> "$description\n\n$projectionKdoc"
+        }
+    }
+
     private fun schemaOrder(schema: SchemaModel): Int = schema.id.value.hashCode()
 
     private fun isObjectLike(schema: SchemaModel): Boolean =
@@ -2427,6 +2868,7 @@ private class SchemaProjectionContext(
 private open class UnrepresentableOperationException(
     message: String,
     val source: SourcePointer? = null,
+    val remediation: String? = null,
 ) : RuntimeException(message)
 
 private fun <T> List<T>.anyNot(predicate: (T) -> Boolean): Boolean = any { item -> !predicate(item) }

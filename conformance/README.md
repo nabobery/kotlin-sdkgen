@@ -30,7 +30,7 @@ round-trip snapshot test even before it gains a dedicated assertion.
 | 14  | `14-cursor-pagination.yaml`                | Cursor-style pagination (request cursor/limit, nullable next-cursor in the response envelope) exposes stable pagination metadata without assuming page-number semantics.                                                                                               | `SemanticModelTest."all seventeen stress fixtures adapt into deterministic snapshots"`; `CorpusOverlayTest."applies canonical streaming and pagination overlays to stress fixtures"` (`x-sdkgen-pagination` overlay + OpenAPI 3.1 re-validation)                                                                                                   |
 | 15  | `15-binary-non2xx-headers.yaml`            | A binary success payload alongside a typed non-2xx error response keeps binary bodies portable and preserves declared response headers per status.                                                                                                                     | `SemanticModelTest."all seventeen stress fixtures adapt into deterministic snapshots"`; `SemanticModelTest."enums objects streaming multipart and response metadata retain their shapes"`                                                                                                                                                          |
 | 16  | `16-reference-only-anyof.yaml`             | A reference-only `anyOf` where an object may satisfy one or both referenced schemas accepts multi-match values and preserves all fields instead of selecting a single winner.                                                                                          | `SemanticModelTest."all seventeen stress fixtures adapt into deterministic snapshots"`                                                                                                                                                                                                                                                             |
-| 17  | `17-openapi30-normalization.yaml`          | An OpenAPI 3.0.x document exercising the ingestion-seam normalization pass: nullable scalar/enum/`$ref`/`oneOf`, boolean `exclusiveMinimum`/`exclusiveMaximum`, and `format: binary`/`byte` all adapt losslessly with a traceable diagnostic per mapping (Phase 3 T2). | `SemanticModelTest."all seventeen stress fixtures adapt into deterministic snapshots"`; `Openapi30NormalizationTest` (dedicated table-driven coverage)                                                                                                                                                                                             |
+| 17  | `17-openapi30-normalization.yaml`          | An OpenAPI 3.0.x document exercising the ingestion-seam normalization pass: nullable scalar/enum/`$ref`/`oneOf`, boolean `exclusiveMinimum`/`exclusiveMaximum`, and `format: binary`/`byte` all adapt losslessly with a traceable diagnostic per mapping (normalization fixture). | `SemanticModelTest."all seventeen stress fixtures adapt into deterministic snapshots"`; `Openapi30NormalizationTest` (dedicated table-driven coverage)                                                                                                                                                                                             |
 
 Every fixture's rendered `SnapshotRenderer` output is checked into
 `generator/openapi/src/test/resources/snapshots/NN-*.txt` and compared byte-for-byte across two
@@ -59,15 +59,13 @@ module that exercises the SDK end-to-end across the supported test matrix.
 ### GitHub REST
 
 `conformance/github/` pins the GitHub REST corpus, its lock/config and narrowly scoped runtime-semantics
-overlay, one canonical generated snapshot, and a JVM consumer. The accepted Phase 3 state has 7,169 generated
+overlay, one canonical generated snapshot, and a JVM consumer. The current accepted state has 7,169 generated
 Kotlin files, 139 exact accepted waivers, and zero active exclusions. The consumer covers Link-header pagination,
 bearer authentication, typed errors, PATCH presence semantics, parameter encoding, and exact union behavior.
-See `docs/phase3/results/t10-github-conformance.md`.
 
 ### Stripe
 
 `conformance/stripe/` pins the Stripe corpus, exact waiver inventory, one canonical generated snapshot, and a
-KMP consumer with a JVM conformance suite. The accepted Phase 3 state has 10,616 generated Kotlin files,
-157 exact accepted waivers, and zero active exclusions. The consumer covers Stripe-compatible indexed form
+KMP consumer with a JVM conformance suite. The current accepted state has 10,616 generated Kotlin files,
+68 exact accepted waivers and 68 explicitly excluded operations. The consumer covers Stripe-compatible indexed form
 arrays, typed maps, disjoint form unions, indexed multipart arrays, Basic authentication, and typed responses.
-See `docs/phase3/results/t11-stripe-conformance.md`.

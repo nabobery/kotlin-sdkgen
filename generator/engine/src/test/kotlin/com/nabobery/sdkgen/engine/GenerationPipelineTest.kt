@@ -28,6 +28,7 @@ import com.nabobery.sdkgen.engine.declarations.GenerationExclusion
 import com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
+import com.nabobery.sdkgen.engine.emit.EmittedSources
 import com.nabobery.sdkgen.engine.emit.KotlinEmitter
 import com.nabobery.sdkgen.engine.spi.DeclarationAugmentation
 import com.nabobery.sdkgen.engine.spi.DeclarationAugmentationPhaseValue
@@ -79,9 +80,17 @@ class GenerationPipelineTest {
         val root = Files.createTempDirectory("sdkgen-pipeline-test")
         val firstOutput = root.resolve("first/current")
         val secondOutput = root.resolve("second/current")
+        val firstProjection = root.resolve("first/kotlin-api.json")
         val pipeline = GenerationPipeline("0.1.0-test")
 
-        val first = pipeline.generate(config, source, emptyList(), firstOutput)
+        val first =
+            pipeline.generate(
+                config,
+                source,
+                emptyList(),
+                firstOutput,
+                publicApiProjectionDestination = firstProjection,
+            )
         val second = pipeline.generate(config, source, emptyList(), secondOutput)
         assertEquals(first.snapshotSha256, second.snapshotSha256)
         assertEquals(first.declarationModelSha256, second.declarationModelSha256)
@@ -102,6 +111,10 @@ class GenerationPipelineTest {
         assertTrue(first.diagnostics.isEmpty())
         assertTrue(first.exclusions.isEmpty())
         assertTrue(firstOutput.resolve("manifest.json").readText().contains("\"exclusions\""))
+        val projectionText = firstProjection.readText()
+        assertTrue(projectionText.contains("\"schemaVersion\": \"kotlin-public-api/v2\""))
+        assertTrue(projectionText.contains(first.declarationModelSha256))
+        assertTrue(projectionText.contains("\"files\""))
 
         val previousLocale = Locale.getDefault()
         try {
@@ -145,6 +158,53 @@ class GenerationPipelineTest {
 
         assertTrue(result.diagnostics.isEmpty())
         assertTrue(result.exclusions.isEmpty())
+    }
+
+    @Test
+    fun kotlinApiProjectionCannotOverwriteGeneratedOutput() {
+        val sourcePath = Path.of(requireNotNull(System.getProperty("engine.basicOpenApiFile")))
+        val sourceBytes = sourcePath.readBytes()
+        val source =
+            ResolvedSource(
+                sourcePath,
+                "sdkgen://fixtures/basic-openapi.yaml",
+                sourceBytes.sha256(),
+                sourceBytes.size.toLong(),
+            )
+        val output = Files.createTempDirectory("sdkgen-projection-collision").resolve("current")
+        val pipeline = GenerationPipeline("0.1.0-test")
+        pipeline.generate(config(source.sha256), source, emptyList(), output)
+        val manifestBefore = output.resolve("manifest.json").readText()
+
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                pipeline.generate(
+                    config(source.sha256),
+                    source,
+                    emptyList(),
+                    output,
+                    publicApiProjectionDestination = output.resolve("manifest.json"),
+                )
+            }
+
+        assertTrue(failure.message.orEmpty().contains("outside the generated output tree"))
+        assertEquals(manifestBefore, output.resolve("manifest.json").readText())
+
+        val outputAlias = output.parent.resolve("output-alias")
+        Files.createSymbolicLink(outputAlias, output)
+        val aliasFailure =
+            assertFailsWith<IllegalArgumentException> {
+                pipeline.generate(
+                    config(source.sha256),
+                    source,
+                    emptyList(),
+                    output,
+                    publicApiProjectionDestination = outputAlias.resolve("projection.json"),
+                )
+            }
+
+        assertTrue(aliasFailure.message.orEmpty().contains("outside the generated output tree"))
+        assertEquals(manifestBefore, output.resolve("manifest.json").readText())
     }
 
     @Test
@@ -309,7 +369,7 @@ class GenerationPipelineTest {
                 emitter =
                     KotlinEmitter {
                         rendered = true
-                        emptyList()
+                        EmittedSources(files = emptyList(), publicApiProjection = "{}")
                     },
                 pluginEngine =
                     SdkGenPluginEngine(
@@ -650,7 +710,7 @@ class GenerationPipelineTest {
                 emitter =
                     KotlinEmitter {
                         rendered = true
-                        emptyList()
+                        EmittedSources(files = emptyList(), publicApiProjection = "{}")
                     },
                 pluginEngine = SdkGenPluginEngine(SdkGenPluginRegistry(listOf(AnalyzePipelinePlugin))),
             )

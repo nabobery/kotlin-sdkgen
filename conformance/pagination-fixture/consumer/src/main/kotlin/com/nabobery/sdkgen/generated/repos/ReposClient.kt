@@ -44,6 +44,7 @@ import com.nabobery.sdkgen.runtime.pagination.PageRequest
 import com.nabobery.sdkgen.runtime.pagination.PaginationEngine
 import com.nabobery.sdkgen.runtime.pagination.splitResolvedUrl
 import kotlin.Int
+import kotlin.LazyThreadSafetyMode
 import kotlin.String
 import kotlin.Unit
 import kotlin.collections.List
@@ -92,8 +93,7 @@ public class ReposClient(
   authentication: SdkAuthentication? = null,
 ) {
   private val contractSecuritySchemes: Map<String, SecurityScheme> = mapOf(
-        "apiKey" to SecurityScheme.ApiKey(location = SecurityScheme.ApiKeyLocation.HEADER, parameterName =
-          "Authorization"),
+        "apiKey" to SecurityScheme.ApiKey(location = SecurityScheme.ApiKeyLocation.HEADER, parameterName = "Authorization"),
       )
 
   private val authentication: SdkAuthentication? = authentication ?: SecuritySchemeAuthentication(
@@ -133,13 +133,15 @@ public class ReposClient(
    *
    * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
    * into success values.
+   * @param owner Wire parameter `owner`.
+   * @param repo Wire parameter `repo`.
+   * @param options Execution options.
    */
   public suspend fun listIssuesWithResponse(
     owner: String,
     repo: String,
     options: CallOptions = CallOptions(),
-  ): SdkResponseResult<ListIssuesResponse> = executor.executeWithResponse<Unit,
-    ListIssuesResponse>(SdkExecutionRequest(listIssuesMetadata, baseUri, Unit, emptyList(), buildList {
+  ): SdkResponseResult<ListIssuesResponse> = executor.executeWithResponse<Unit, ListIssuesResponse>(SdkExecutionRequest(listIssuesMetadata, baseUri, Unit, emptyList(), buildList {
     add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner.toString())))
     add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo.toString())))
   }), ReposCodecs.listIssuesRequestCodecRegistry, ListIssuesResponseDecoder, options)
@@ -147,6 +149,8 @@ public class ReposClient(
   /**
    * Returns a cold page flow for listIssues.
    *
+   * @param owner Wire parameter `owner`.
+   * @param repo Wire parameter `repo`.
    * @param options Execution options, including pagination bounds.
    */
   public fun listIssuesPages(
@@ -157,8 +161,7 @@ public class ReposClient(
     descriptor = requireNotNull(listIssuesMetadata.pagination as? PaginationDescriptor.HeaderNextUrl),
     operationId = listIssuesMetadata.operationId,
     trustedHosts = paginationTrustedHosts,
-  ).pages(fetch = { pageRequest -> fetchlistIssuesPage(Unit, owner, repo, pageRequest, options) }, pagination = options
-    .pagination)
+  ).pages(fetch = { pageRequest -> fetchlistIssuesPage(Unit, owner, repo, pageRequest, options) }, pagination = options.pagination)
 
   /**
    * Returns a cold item flow for listIssues.
@@ -173,8 +176,7 @@ public class ReposClient(
     descriptor = requireNotNull(listIssuesMetadata.pagination as? PaginationDescriptor.HeaderNextUrl),
     operationId = listIssuesMetadata.operationId,
     trustedHosts = paginationTrustedHosts,
-  ).items(fetch = { pageRequest -> fetchlistIssuesPage(Unit, owner, repo, pageRequest, options) }, pagination = options
-    .pagination)
+  ).items(fetch = { pageRequest -> fetchlistIssuesPage(Unit, owner, repo, pageRequest, options) }, pagination = options.pagination)
 
   private fun metadataForListIssuesPage(
     pageRequest: PageRequest,
@@ -209,14 +211,12 @@ public class ReposClient(
     val effectiveParameters = when (pageRequest) {
       is PageRequest.NextUrl -> emptyList()
       else -> buildList {
-        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner
-          .toString())))
+        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner.toString())))
         add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo.toString())))
       }
     }
     val response = executor.executeWithHeaders<Unit, IssuePage>(
-      SdkExecutionRequest(pageMetadata.copy(path = effectivePath), effectiveBaseUri, pageRequestValue, emptyList(),
-        effectiveParameters),
+      SdkExecutionRequest(pageMetadata.copy(path = effectivePath), effectiveBaseUri, pageRequestValue, emptyList(), effectiveParameters),
       listOf(ReposCodecs.LISTISSUES_RESPONSE_CODEC_ID),
       ReposCodecs.listIssuesRequestCodecRegistry,
       ReposCodecs.listIssuesResponseCodecRegistry,
@@ -294,9 +294,7 @@ public class ReposClient(
     ): SdkResponseDecodeResult<ListIssuesResponse> = when {
       alternative.id == "listIssues.response.alternative0" -> SdkResponseDecodeResult(
         value = ListIssuesResponse.SuccessJson(
-          json = ReposCodecs.listIssuesResponseCodecAlternative0Registry
-            .select(listOf("listIssues.response.alternative0"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ReposCodecs.listIssuesResponseCodecAlternative0Registry.select(listOf("listIssues.response.alternative0"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -304,9 +302,7 @@ public class ReposClient(
       )
       alternative.id == "listIssues.response.alternative1" -> SdkResponseDecodeResult(
         value = ListIssuesResponse.Http401Json(
-          json = ReposCodecs.listIssuesResponseCodecAlternative1Registry
-            .select(listOf("listIssues.response.alternative1"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ReposCodecs.listIssuesResponseCodecAlternative1Registry.select(listOf("listIssues.response.alternative1"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -314,9 +310,7 @@ public class ReposClient(
       )
       alternative.id == "listIssues.response.alternative2" -> SdkResponseDecodeResult(
         value = ListIssuesResponse.Http500Json(
-          json = ReposCodecs.listIssuesResponseCodecAlternative2Registry
-            .select(listOf("listIssues.response.alternative2"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ReposCodecs.listIssuesResponseCodecAlternative2Registry.select(listOf("listIssues.response.alternative2"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -333,7 +327,8 @@ public class ReposClient(
   }
 
   public companion object {
-    public val listIssuesMetadata: OperationMetadata = OperationMetadata(
+    public val listIssuesMetadata: OperationMetadata by
+        lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "listIssues",
           method = "GET",
           path = "/repos/{owner}/{repo}/issues",
@@ -380,6 +375,6 @@ public class ReposClient(
           ),
           pagination = PaginationDescriptor.HeaderNextUrl(responseItemsPath = PropertyPath("items")),
           streaming = null,
-        )
+        ) }
   }
 }

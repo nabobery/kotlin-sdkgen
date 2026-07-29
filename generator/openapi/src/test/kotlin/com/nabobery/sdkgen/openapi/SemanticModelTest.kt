@@ -607,6 +607,97 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `parameter serialization forms report actionable adaptation diagnostics`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Parameters, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      parameters:
+                        - { name: matrix, in: query, style: matrix, schema: { type: string } }
+                        - { name: filter, in: query, style: deepObject, explode: true, schema: { type: array, items: { type: string } } }
+                        - { name: nullable_filter, in: query, style: deepObject, explode: true, schema: { type: [array, "null"], items: { type: string } } }
+                        - { name: created, in: query, style: deepObject, explode: true, schema: { type: string } }
+                        - { name: created_union, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: integer }] } }
+                        - { name: encoded, in: query, content: { application/json: { schema: { type: string } } } }
+                      responses: { '204': { description: ok } }
+                """.trimIndent(),
+            )
+
+        assertEquals(
+            setOf(
+                DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE,
+                DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION,
+                DiagnosticCode.UNSUPPORTED_PARAMETER_CONTENT_SERIALIZATION,
+            ),
+            result.document.diagnostics
+                .map { it.code }
+                .toSet(),
+        )
+        assertEquals(
+            4,
+            result.document.diagnostics.count {
+                it.code == DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION
+            },
+        )
+    }
+
+    @Test
+    fun `deepObject compatibility diagnostics match the projection serialization matrix`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Parameter matrix, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      parameters:
+                        - { name: query_array, in: query, style: deepObject, explode: true, schema: { type: array, items: { type: string } } }
+                        - { name: query_scalar, in: query, style: deepObject, explode: true, schema: { type: string } }
+                        - { name: query_union_scalar, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: integer }] } }
+                        - { name: header_scalar, in: header, style: deepObject, explode: true, schema: { type: string } }
+                        - { name: query_not_exploded, in: query, style: deepObject, explode: false, schema: { type: string } }
+                        - { name: union_primitive_array, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: array, items: { type: string } }] } }
+                        - { name: union_object_array, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: array, items: { type: object } }] } }
+                        - { name: mixed_anyof_allof, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: string }], allOf: [{ type: object }] } }
+                        - { name: mixed_anyof_oneof, in: query, style: deepObject, explode: true, schema: { anyOf: [{ type: object }, { type: string }], oneOf: [{ type: object }] } }
+                      responses: { '204': { description: ok } }
+                """.trimIndent(),
+            )
+
+        val diagnosticsByParameter =
+            result.document.diagnostics.associate { diagnostic ->
+                diagnostic.message.substringAfter("Parameter '").substringBefore("'") to diagnostic.code
+            }
+
+        assertEquals(
+            mapOf(
+                "query_array" to DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION,
+                "query_scalar" to DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION,
+                "query_union_scalar" to DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION,
+                "header_scalar" to DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE,
+                "query_not_exploded" to DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE,
+                "union_primitive_array" to DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE_SCHEMA_KIND,
+                "union_object_array" to DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE_SCHEMA_KIND,
+                "mixed_anyof_oneof" to DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE_SCHEMA_KIND,
+            ),
+            diagnosticsByParameter,
+        )
+        assertFalse(
+            result.document.diagnostics.any { diagnostic ->
+                diagnostic.code == DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION &&
+                    diagnostic.message.contains("Parameter 'mixed_anyof_allof'")
+            },
+        )
+    }
+
+    @Test
     fun `form Encoding Object semantics and source remain explicit`() {
         val form =
             adaptYaml(

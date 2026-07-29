@@ -1,0 +1,42 @@
+version: v1alpha1
+source:
+  uri: openapi.yaml
+  sha256: 463078210dae71d7a1ab9aa30e1f657a7ca2cedd8b5acb3c7b58b2804878f5b7
+  acquisition:
+    mode: local
+    offline: true
+    allowedHosts: []
+    followRedirects: false
+    maxRedirects: 0
+    maxBytes: 16777216
+    timeoutSeconds: 30
+    cacheDirectory: .sdkgen/cache
+    allowedLocalRoots:
+      - .
+kotlin:
+  packageName: com.nabobery.sdkgen.generated
+  coordinates:
+    groupId: com.nabobery.sdkgen
+    artifactId: streaming-fixture
+  naming:
+    clientName: StreamingFixtureClient
+  targets:
+    - jvm
+runtime:
+  retries:
+    maxAttempts: 3
+output:
+  sources: generated
+  resources: generated-resources
+  manifest: generated/manifest.json
+  lock: sdkgen.lock
+  checkedInSources: true
+diagnostics:
+  warningsAsErrors: false
+  warningAllowlist: []
+  format: json
+verification:
+  gates:
+    - schema
+    - determinism
+    - api

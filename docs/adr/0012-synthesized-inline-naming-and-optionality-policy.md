@@ -59,7 +59,7 @@ No universal `FieldState`, directional request/response model split, per-field i
 
 This is an intentional generated API rename before 1.0. Inline Kotlin type names, filenames, references, serializer descriptors, and generated source KDoc change. Canonical semantic identity does not.
 
-The focused inventory is `docs/phase3/results/t8-openrouter-renames.tsv`. It maps current semantic identities to a legacy-algorithm candidate and a new naming candidate; it is not a proven historical migration map.
+The focused inventory is `docs/conformance/evidence/openrouter-renames.tsv`. It maps current semantic identities to a legacy-algorithm candidate and a new naming candidate; it is not a proven historical migration map.
 
 The checked-in OpenRouter generated tree contains 880 legacy `Inline*.kt` files, but projection of the current pinned `conformance/openrouter/openapi.yaml` produces 933 declaration-worthy inline schemas: 879 current legacy candidates are present in the checked-in tree, 54 are absent, and one checked-in legacy inline file no longer has a current candidate. This pre-existing baseline/spec drift makes the requested “880 remains 880” regeneration metric impossible without suppressing current declarations or reverting the pin. The production `GenerationPipeline` also blocks the current pin on 38 pre-existing blocking diagnostics/exclusions: conflicting `allOf`, primitive `oneOf`, cascading missing declarations, and incompatible multipart/request media schemas. T8 therefore records the discrepancy rather than weakening diagnostics, silently dropping 53 declarations, or changing unrelated schema support. Compilation of the stale checked-in consumer does not validate the new names.
 

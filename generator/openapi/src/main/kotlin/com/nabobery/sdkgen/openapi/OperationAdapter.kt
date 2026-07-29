@@ -3,8 +3,10 @@
 package com.nabobery.sdkgen.openapi
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.nabobery.sdkgen.model.CompositionKind
 import com.nabobery.sdkgen.model.DiagnosticCode
 import com.nabobery.sdkgen.model.DiagnosticPhase
+import com.nabobery.sdkgen.model.DiagnosticSeverity
 import com.nabobery.sdkgen.model.EncodingModel
 import com.nabobery.sdkgen.model.HeaderModel
 import com.nabobery.sdkgen.model.IdempotencyModel
@@ -17,6 +19,8 @@ import com.nabobery.sdkgen.model.ParameterModel
 import com.nabobery.sdkgen.model.RequestBodyModel
 import com.nabobery.sdkgen.model.Requiredness
 import com.nabobery.sdkgen.model.ResponseModel
+import com.nabobery.sdkgen.model.SchemaModel
+import com.nabobery.sdkgen.model.SchemaRef
 import com.nabobery.sdkgen.model.SecurityRequirementModel
 import com.nabobery.sdkgen.model.SecuritySchemeKind
 import com.nabobery.sdkgen.model.SecuritySchemeModel
@@ -231,8 +235,83 @@ private fun AdaptationContext.adaptParameter(
     val explode =
         resolvedNode.get("explode")?.takeIf(JsonNode::isBoolean)?.booleanValue()
             ?: (style == "form")
+    val parameterName = resolvedNode.path("name").asText()
+    val schemaNode = resolvedNode.get("schema")
+    val schema =
+        schemaNode?.let {
+            adaptSchemaUse(located.document, "${located.pointer}/schema", it)
+        }
+    if (resolvedNode.has("content")) {
+        addDiagnostic(
+            code = DiagnosticCode.UNSUPPORTED_PARAMETER_CONTENT_SERIALIZATION,
+            message = "Parameter '$parameterName' uses content-based serialization, which is not supported.",
+            remediation = "Use a schema-based parameter with a supported style and explode combination.",
+            severity = DiagnosticSeverity.WARNING,
+            phase = DiagnosticPhase.ADAPTATION,
+            source = located.document.source("${located.pointer}/content"),
+        )
+    }
+    val parameterSerializationDiagnostic =
+        schema?.let {
+            parameterSerializationDiagnostic(location, style, explode, it)
+        }
+    if (style !in SUPPORTED_PARAMETER_STYLES) {
+        addDiagnostic(
+            code = DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE,
+            message = "Parameter '$parameterName' uses unsupported style '$style'.",
+            remediation = "Use simple, form, or deepObject serialization where supported by the parameter location.",
+            severity = DiagnosticSeverity.WARNING,
+            phase = DiagnosticPhase.ADAPTATION,
+            source = located.document.source("${located.pointer}/style"),
+        )
+    } else {
+        when (parameterSerializationDiagnostic) {
+            ParameterSerializationDiagnostic.STRIPE_COMPATIBLE -> {
+                addDiagnostic(
+                    code = DiagnosticCode.NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION,
+                    message =
+                        "Parameter '$parameterName' uses a non-standard Stripe-compatible deepObject extension " +
+                            "for bracket-indexed arrays or ordinary scalar query pairs.",
+                    remediation = "Prefer standard form serialization for portable OpenAPI documents.",
+                    severity = DiagnosticSeverity.WARNING,
+                    phase = DiagnosticPhase.ADAPTATION,
+                    source = located.document.source("${located.pointer}/schema"),
+                )
+            }
+
+            ParameterSerializationDiagnostic.UNSUPPORTED_LOCATION_OR_EXPLODE -> {
+                addDiagnostic(
+                    code = DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE,
+                    message =
+                        "Parameter '$parameterName' uses deepObject serialization outside the supported " +
+                            "query/explode=true combination.",
+                    remediation = "Use deepObject only for query parameters with explode=true.",
+                    severity = DiagnosticSeverity.WARNING,
+                    phase = DiagnosticPhase.ADAPTATION,
+                    source = located.document.source("${located.pointer}/style"),
+                )
+            }
+
+            ParameterSerializationDiagnostic.UNSUPPORTED_SCHEMA_KIND -> {
+                addDiagnostic(
+                    code = DiagnosticCode.UNSUPPORTED_PARAMETER_STYLE_SCHEMA_KIND,
+                    message = "Parameter '$parameterName' uses deepObject serialization with an unsupported schema.",
+                    remediation =
+                        "Use deepObject with a flat object schema, a primitive array, or a scalar-compatible " +
+                            "anyOf branch.",
+                    severity = DiagnosticSeverity.WARNING,
+                    phase = DiagnosticPhase.ADAPTATION,
+                    source = located.document.source("${located.pointer}/schema"),
+                )
+            }
+
+            null -> {
+                Unit
+            }
+        }
+    }
     return ParameterModel(
-        name = resolvedNode.path("name").asText(),
+        name = parameterName,
         location = location,
         requiredness =
             if (resolvedNode
@@ -246,10 +325,7 @@ private fun AdaptationContext.adaptParameter(
             },
         style = style,
         explode = explode,
-        schema =
-            resolvedNode.get("schema")?.let {
-                adaptSchemaUse(located.document, "${located.pointer}/schema", it)
-            },
+        schema = schema,
         content = adaptContent(resolvedNode.get("content"), "${located.pointer}/content", located.document),
         description = resolvedNode.path("description").textOrNull(),
         deprecated = resolvedNode.path("deprecated").booleanOrFalse(),
@@ -258,6 +334,75 @@ private fun AdaptationContext.adaptParameter(
         source = rootDocument.source(pointer),
     )
 }
+
+private val SUPPORTED_PARAMETER_STYLES = setOf("simple", "form", "deepObject")
+private val PRIMITIVE_PARAMETER_SCHEMA_TYPES = setOf("string", "integer", "number", "boolean")
+
+private enum class ParameterSerializationDiagnostic {
+    STRIPE_COMPATIBLE,
+    UNSUPPORTED_LOCATION_OR_EXPLODE,
+    UNSUPPORTED_SCHEMA_KIND,
+}
+
+private fun AdaptationContext.parameterSerializationDiagnostic(
+    location: ParameterLocation,
+    style: String,
+    explode: Boolean,
+    schemaRef: SchemaRef,
+): ParameterSerializationDiagnostic? {
+    val schema = resolveSchema(schemaRef) ?: return null
+    if (style != "deepObject") return null
+    if (location != ParameterLocation.QUERY || !explode) {
+        return ParameterSerializationDiagnostic.UNSUPPORTED_LOCATION_OR_EXPLODE
+    }
+    if (isPrimitiveParameterArray(schema) ||
+        isPrimitiveParameterSchema(schema) ||
+        hasStripeCompatibleDeepObjectScalarBranch(schema)
+    ) {
+        return ParameterSerializationDiagnostic.STRIPE_COMPATIBLE
+    }
+    return if (!isFormObject(schema)) {
+        ParameterSerializationDiagnostic.UNSUPPORTED_SCHEMA_KIND
+    } else {
+        null
+    }
+}
+
+private fun AdaptationContext.resolveSchema(schemaRef: SchemaRef): SchemaModel? {
+    var current = schemas[schemaRef.schemaId] ?: return null
+    val visited = mutableSetOf(current.id)
+    while (true) {
+        val targetId = current.referenceTarget ?: break
+        if (!visited.add(targetId)) break
+        current = schemas[targetId] ?: return null
+    }
+    return current
+}
+
+private fun AdaptationContext.isPrimitiveParameterArray(schema: SchemaModel): Boolean =
+    schema.items?.let(::resolveSchema)?.let(::isPrimitiveParameterSchema) == true
+
+private fun isPrimitiveParameterSchema(schema: SchemaModel): Boolean {
+    val types = schema.types.filterNot { type -> type == "null" }.distinct()
+    return types.size == 1 &&
+        types.single() in PRIMITIVE_PARAMETER_SCHEMA_TYPES &&
+        schema.items == null &&
+        schema.properties.isEmpty() &&
+        schema.additionalProperties == null &&
+        schema.compositions.isEmpty()
+}
+
+private fun AdaptationContext.hasStripeCompatibleDeepObjectScalarBranch(schema: SchemaModel): Boolean {
+    val composition = schema.compositions.singleOrNull { item -> item.kind == CompositionKind.ANY_OF } ?: return false
+    if (schema.compositions.size != 1) return false
+    return composition.branches.any { branch ->
+        resolveSchema(branch)?.let(::isPrimitiveParameterSchema) == true
+    }
+}
+
+private fun isFormObject(schema: SchemaModel): Boolean =
+    "object" in schema.types || schema.properties.isNotEmpty() ||
+        schema.compositions.any { composition -> composition.kind == CompositionKind.ALL_OF }
 
 private fun AdaptationContext.adaptRequestBody(
     node: JsonNode,

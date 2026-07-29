@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "v1alpha1",
+  "matrices": [
+    {
+      "matrix": "behavior",
+      "rows": [
+        {
+          "id": "github.behavior.pagination",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Generated Link pagination and continuation trust",
+          "fixtureId": "github.pagination",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "notRun",
+          "evidenceProducer": "test-fixture",
+          "evidenceSha256": "daa7e69da54024a7d652356e31918bb7e121e41fdb76b7fb158c9ec843a6c709",
+          "reason": "first"
+        },
+        {
+          "id": "github.behavior.pagination-2",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Duplicate fixtureId row",
+          "fixtureId": "github.pagination",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "notRun",
+          "evidenceProducer": "test-fixture",
+          "evidenceSha256": "daa7e69da54024a7d652356e31918bb7e121e41fdb76b7fb158c9ec843a6c709",
+          "reason": "second"
+        }
+      ]
+    }
+  ]
+}

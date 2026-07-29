@@ -1,0 +1,363 @@
+---
+# Drift detection and (optionally) a drift-fix pull request.
+#
+# PRIVILEGE SPLIT (SEC-002 / SEC-009, docs/threat-model.md):
+#   - `detect-drift` runs unprivileged: `permissions: contents: read`, no secrets, on every
+#     scheduled run AND on every manual dispatch. It regenerates each conformance consumer's SDK
+#     output with the existing `sdkgen check` / `sdkgen generate` CLI commands
+#     (generator/cli/src/main/kotlin/com/nabobery/sdkgen/cli/CliModule.kt: `CheckCommand`,
+#     `GenerateCommand`) and, on drift, uploads a plain-text unified diff as a build artifact. It
+#     never has a token capable of writing to this repository.
+#   - `open-drift-pr` is the only job with `contents: write` / `pull-requests: write`. It only
+#     runs when a human explicitly dispatches this workflow with `open_pr: true` (see the
+#     `workflow_dispatch` input below) AND `detect-drift` reported drift. A `schedule` trigger can
+#     never reach this job, by construction (the `if:` below checks
+#     `github.event_name == 'workflow_dispatch'`).
+#
+# HOW A MALICIOUS/POISONED GENERATED ARTIFACT CANNOT REACH THE WRITE JOB AS EXECUTABLE CODE:
+#   - `detect-drift` uploads only a unified diff (`git diff`, plain text) via
+#     actions/upload-artifact. It does not upload generated Kotlin sources, build scripts, or
+#     anything that would be sourced/executed.
+#   - `open-drift-pr` downloads that artifact with actions/download-artifact and treats it purely
+#     as DATA: it first verifies the patch's declared paths against a strict allowlist (only the
+#     generated conformance trees; see the "Verify the patch only touches generated conformance
+#     output" step), then runs `git apply --check` and `git apply`. Note precisely what this does
+#     and does not guarantee: `git apply` can add, delete, and set the executable bit on files, and
+#     can create a symlink (mode 120000) — it is not limited to "modifying tracked text files" in
+#     the narrow sense. The safety property here rests on the enforced path allowlist (workflow,
+#     build-logic, `.gitattributes`/`.gitignore`, and every other path outside the three generated
+#     conformance trees are rejected before `git apply` ever runs) and on the fact that nothing in
+#     this job subsequently executes, sources, evals, or builds the patched content — not on any
+#     claim that `git apply` itself is incapable of writing an executable or a symlink. The job
+#     never runs `./gradlew`, never runs the CLI, and never executes anything the `detect-drift`
+#     job produced. It commits the patched files and opens a PR; ordinary branch-protected CI (this
+#     repository's own future required checks, run unprivileged against the PR head) is what
+#     actually re-validates the patched code — this job never does.
+#   - This is the standard defense against the `pull_request_target`/artifact-poisoning class of
+#     attack: the job with repository-write capability never executes attacker-influenced content,
+#     it only relays attacker-influenced *text* into a PR for a human (and unprivileged CI) to
+#     review before merge.
+#
+# WHAT THIS WORKFLOW CANNOT DETECT (be explicit about scope, per SEC-001 in
+# docs/threat-model.md): SEC-001/SEC-004 (remote, HTTPS spec
+# acquisition with digest/host/redirect/size limits) is `notImplemented` in this tree —
+# `LocalInputResolver` only reads specs already vendored in the repository
+# (`generator/engine/.../input/LocalInputResolver.kt`). This workflow therefore detects
+# *regeneration* drift (checked-in generated output no longer matches what the pinned local spec
+# + lock would produce today, e.g. from a hand-edit of generated sources or an engine change) —
+# it cannot detect that an upstream API has changed, because there is no remote-fetch path to
+# refresh the vendored spec from. Wiring that in is future scope, not this packet's.
+
+name: Drift check
+
+on:
+  schedule:
+    # Weekly, off-peak. Detection only — see the privilege split above; this trigger can never
+    # open a PR.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      open_pr:
+        description: >-
+          Open a drift-fix PR if drift is found. Requires explicit human dispatch — never true on
+          a schedule trigger. Leave false to only inspect the uploaded diff artifact.
+        type: boolean
+        default: false
+
+# Shared with release-verification.yml's `sdkgen-heavy-gradle-lane` group — GitHub only
+# serializes runs whose group names match exactly, so a private `drift-...` group here would let
+# a scheduled drift run and a dispatched release rehearsal execute their own
+# GitHub/Stripe/streaming-fixture generation lanes at the same time, which
+# AGENTS.md ("Resource-safe verification") explicitly
+# forbids. `cancel-in-progress: false` (not `true`, as an earlier revision of this file had it):
+# canceling would let a weekly scheduled drift run silently kill an in-progress, human-dispatched
+# release rehearsal (or vice versa) just because it happened to start first — a scheduled trigger
+# must never be able to cancel a manually-authorized run. The previous "a new manual dispatch
+# supersedes an in-flight scheduled one" convenience is given up in favor of always queuing,
+# because queuing is the behavior that cannot cross-cancel a run in the *other* workflow sharing
+# this group.
+concurrency:
+  group: sdkgen-heavy-gradle-lane
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # KMP builds have Node download disabled (AGENTS.md); Node must already be on PATH.
+  # actions/setup-node below provisions it explicitly rather than relying on runner defaults.
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+jobs:
+  detect-drift:
+    name: Detect drift (unprivileged)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      has_drift: ${{ steps.check.outputs.has_drift }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Node (KMP node-download is disabled; Node must be on PATH)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+
+      # Resource-safe conformance (AGENTS.md "RESOURCE-SAFE CONFORMANCE"): one Gradle/generation
+      # lane at a time, single worker, no parallel project execution, in-process Kotlin compile.
+      # github/stripe/streaming-fixture are therefore checked SEQUENTIALLY in the loop below,
+      # inside one step, rather than as a parallel matrix — see docs/release-runbook.md for why
+      # this cannot be a fan-out matrix on a memory-sensitive build.
+      #
+      # NOTE on paths: the `run` task's JavaExec working directory is `generator/cli`'s own
+      # project directory, not the repository root, so `--config` is passed as an absolute path
+      # (`$GITHUB_WORKSPACE/...`) rather than the repo-root-relative path used elsewhere in this
+      # repository's own docs — a relative path here would resolve against the wrong directory.
+      #
+      # `sdkgen check` (CheckCommand, generator/cli/.../CliModule.kt) already IS the drift
+      # detector: it regenerates into an isolated temp directory, diffs against the checked-in
+      # output, and on drift throws ProgramResult(SDKGEN_EXIT_DIAGNOSTICS) — exit 1 — after
+      # printing a diagnostic whose code is the literal string SDKGEN-CHECK-GENERATED-DRIFT (both
+      # the default human formatter and --format json include that code verbatim). This step does
+      # not reimplement that comparison.
+      #
+      # DISTINGUISHING DRIFT FROM AN INFRASTRUCTURE FAILURE (this is the one thing a drift
+      # detector must never get wrong — see the finding this fixes). Two problems stack here:
+      #   1. `:generator:cli:run` is a Gradle JavaExec task. When the underlying JVM process exits
+      #      non-zero for ANY reason, Gradle fails the whole `./gradlew` invocation; the shell only
+      #      ever observes Gradle's own generic build-failure exit, not the CLI's specific one.
+      #   2. Even at the JVM level, exit code 1 is ambiguous by itself: `CheckCommand`'s deliberate
+      #      drift path exits 1 (SDKGEN_EXIT_DIAGNOSTICS), but an uncaught exception escaping
+      #      `main()` (OOM, a bug, a dependency-resolution failure inside the pipeline) also
+      #      terminates the JVM with exit 1 by default — `main()` only special-cases `CliktError`
+      #      and `ProgramResult` (CliModule.kt: SDKGEN_EXIT_OK=0, SDKGEN_EXIT_DIAGNOSTICS=1,
+      #      SDKGEN_EXIT_USAGE=2); anything else propagates as an ordinary uncaught-exception exit.
+      # The exit code alone therefore cannot tell "drift" apart from "the check never actually
+      # ran". This step instead captures the full Gradle/CLI output to a log file and greps it for
+      # the literal diagnostic code. A non-zero result is only ever treated as drift when that
+      # string is present; every other non-zero result is an infrastructure failure and fails this
+      # step (not a silent "no drift").
+      - name: Check conformance targets for regeneration drift
+        id: detect
+        run: |
+          set -u
+          declare -A drifted=()
+          declare -A infra_failed=()
+          for target in github stripe streaming-fixture; do
+            cfg="conformance/${target}/sdkgen.yaml"
+            [ -f "$cfg" ] || continue
+            log="$(mktemp)"
+            if [ "$target" = "stripe" ]; then
+              # Full Stripe corpus is the one case AGENTS.md allows up to 8 GiB, and only with no
+              # concurrent build — this loop is sequential, satisfying that.
+              export JAVA_TOOL_OPTIONS="-Xmx8g"
+              gradle_jvm_args="-Xmx8g -Dfile.encoding=UTF-8"
+            else
+              export JAVA_TOOL_OPTIONS="-Xmx3g"
+              gradle_jvm_args="-Xmx3g -Dfile.encoding=UTF-8"
+            fi
+            ./gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false \
+              -Dorg.gradle.jvmargs="$gradle_jvm_args" \
+              -Pkotlin.compiler.execution.strategy=in-process \
+              :generator:cli:run --args="check --config ${GITHUB_WORKSPACE}/${cfg}" \
+              > "$log" 2>&1
+            status=$?
+            unset JAVA_TOOL_OPTIONS
+            cat "$log"
+            if [ "$status" -eq 0 ]; then
+              rm -f "$log"
+              continue
+            fi
+            if grep -q 'SDKGEN-CHECK-GENERATED-DRIFT' "$log"; then
+              drifted[$target]=1
+            else
+              echo "::error::${target}: sdkgen check failed for a reason other than drift (exit ${status}); this is an infrastructure failure, not 'no drift'."
+              infra_failed[$target]=1
+            fi
+            rm -f "$log"
+          done
+          if [ "${#infra_failed[@]}" -gt 0 ]; then
+            echo "::error::Infrastructure failure(s) checking: ${!infra_failed[*]}. Failing the job rather than reporting 'no drift'."
+            exit 1
+          fi
+          echo "drifted_targets=${!drifted[*]}" >> "$GITHUB_OUTPUT"
+
+      # openrouter has no committed sdkgen.yaml/generated-output pair in this tree today (it
+      # drives the parity/overlay conformance tasks instead of the check/generate CLI path) —
+      # deliberately not included above. See docs/release-runbook.md.
+
+      # For every target `detect` found genuinely drifted (not merely failed), `sdkgen generate`
+      # (in-place; `output.checkedInSources: true` per each target's sdkgen.yaml) regenerates the
+      # working tree, and `git diff`/`git add` capture the result as a patch — the one thing the
+      # CLI does not do for us (produce a portable text artifact of the working-tree effect).
+      #
+      # SNAPSHOT MODEL (generator/engine/.../output/AtomicOutputPublisher.kt): each target's
+      # `generated` path is a SYMLINK to a content-addressed `.snapshots/<sha256-digest>/`
+      # directory; `commit()` writes the new snapshot tree, atomically repoints the symlink, then
+      # deletes the old snapshot directory. A regeneration therefore touches THREE kinds of paths,
+      # not one: the symlink itself (`.../generated`, no trailing slash — it is a single symlink
+      # file, not a directory to walk into), a wholesale add of the new `.snapshots/<digest>/**`
+      # tree, and a wholesale delete of the old one. The new snapshot's files are UNTRACKED until
+      # staged, so a plain `git diff` (no `git add` first) silently omits them — capturing only the
+      # symlink-pointer change would produce a patch that can never actually update the generated
+      # content it claims to. `git add -A` (adds + deletes, not just modifies) followed by
+      # `git diff --cached` is required for this model; `git diff` alone is not enough.
+      - name: Regenerate drifted targets and capture a git diff as a patch (data only)
+        id: check
+        if: always()
+        run: |
+          set -eu
+          drifted="${{ steps.detect.outputs.drifted_targets }}"
+          paths=()
+          for target in $drifted; do
+            cfg="conformance/${target}/sdkgen.yaml"
+            if [ "$target" = "stripe" ]; then
+              export JAVA_TOOL_OPTIONS="-Xmx8g"
+              gradle_jvm_args="-Xmx8g -Dfile.encoding=UTF-8"
+            else
+              export JAVA_TOOL_OPTIONS="-Xmx3g"
+              gradle_jvm_args="-Xmx3g -Dfile.encoding=UTF-8"
+            fi
+            ./gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false \
+              -Dorg.gradle.jvmargs="$gradle_jvm_args" \
+              -Pkotlin.compiler.execution.strategy=in-process \
+              :generator:cli:run --args="generate --config ${GITHUB_WORKSPACE}/${cfg}"
+            unset JAVA_TOOL_OPTIONS
+            paths+=(
+              "conformance/${target}/generated"
+              "conformance/${target}/.snapshots"
+              "conformance/${target}/manifest.json"
+              "conformance/${target}/sdkgen.lock"
+            )
+          done
+          if [ "${#paths[@]}" -eq 0 ]; then
+            echo "has_drift=false" >> "$GITHUB_OUTPUT"
+            echo "## No drift detected" >> "$GITHUB_STEP_SUMMARY"
+          else
+            # `--no-renames`: old/new snapshot directories are unrelated paths (different digests);
+            # never let git's similarity heuristic collapse an add+delete pair into a rename entry,
+            # which would change the numstat path shape the privileged job's scope guard expects.
+            git add -A -- "${paths[@]}"
+            git diff --cached --binary --no-renames --output=drift.patch -- "${paths[@]}"
+            echo "has_drift=true" >> "$GITHUB_OUTPUT"
+            echo "## Drift detected" >> "$GITHUB_STEP_SUMMARY"
+            echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+            head -c 8000 drift.patch >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            # Unprivileged job: never commit or push. Unstage, restore tracked content to HEAD, and
+            # remove the newly-created (now untracked again) snapshot directory so this ephemeral
+            # checkout is left as this job found it.
+            git reset -- "${paths[@]}"
+            git checkout HEAD -- "${paths[@]}"
+            git clean -fd -- "${paths[@]}"
+          fi
+
+      - name: Upload drift report (data artifact — never executed by the consuming job)
+        if: steps.check.outputs.has_drift == 'true'
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: drift-patch
+          path: drift.patch
+          retention-days: 14
+
+  open-drift-pr:
+    name: Open drift PR (privileged, human-authorized only)
+    needs: detect-drift
+    # Never true on a `schedule` trigger: workflow_dispatch is required, and the human must
+    # explicitly opt in with open_pr: true. See the privilege-split header comment above.
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.open_pr == true &&
+      needs.detect-drift.outputs.has_drift == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
+
+      - name: Download drift report (treated strictly as data below)
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: drift-patch
+
+      # This job NEVER runs ./gradlew, the sdkgen CLI, or any script contained in the artifact.
+      # `git apply` cannot execute code from the patch — the patch's content is data, applied as
+      # file adds/deletes/mode-changes, never interpreted as a command. peter-evans/create-pull-
+      # request then commits exactly those file changes and opens a PR — it does not build, test,
+      # or execute the patched sources either. The path allowlist enforced above, plus nothing
+      # here ever executing the patched content, is what makes this safe — see the Minor-finding
+      # note above the allowlist step for why "only rewrites tracked text files" was the wrong
+      # framing.
+      # Defence in depth. `detect-drift` already produces the patch with explicit pathspecs, so it
+      # cannot contain workflow or build-logic edits. This job re-verifies that independently
+      # rather than trusting a downloaded artifact's provenance: the two jobs are separated by
+      # artifact storage, and the privileged side should not assume the unprivileged side's
+      # constraints held. A patch touching anything outside the generated conformance trees is a
+      # hard failure, not a warning.
+      #
+      # This allowlist must stay in lockstep with the exact paths `detect-drift`'s `check` step
+      # stages (see its "SNAPSHOT MODEL" comment above): the SYMLINK itself (`.../generated`, no
+      # trailing slash — it is one symlink file, never a directory to walk into), the sibling
+      # content-addressed `.../.snapshots/<digest>/**` tree (added and deleted wholesale on every
+      # regeneration, per AtomicOutputPublisher), and the two per-target metadata files
+      # (`manifest.json`, `sdkgen.lock`). A narrower allowlist than this silently rejects every
+      # legitimate drift-fix patch, which is exactly the failure this guard must not reintroduce.
+      - name: Verify the patch only touches generated conformance output
+        run: |
+          set -eu
+          allowed='^conformance/(github|stripe|streaming-fixture)/(generated|manifest\.json|sdkgen\.lock|\.snapshots/.+)$'
+          paths="$(git apply --numstat drift.patch | cut -f3-)"
+          if [ -z "$paths" ]; then
+            echo "::error::drift.patch declares no file changes; refusing to open a pull request."
+            exit 1
+          fi
+          # No `exit` inside a pipeline: a `while read` there runs in a subshell, so its exit would
+          # not reliably fail this step. Collect the violations first, then decide in this shell.
+          outOfScope="$(printf '%s\n' "$paths" | grep -Ev "$allowed" || true)"
+          if [ -n "$outOfScope" ]; then
+            echo "::error::drift.patch touches out-of-scope paths:"
+            printf '%s\n' "$outOfScope"
+            exit 1
+          fi
+          printf '%s\n' "$paths" | sed 's/^/in scope: /'
+
+      - name: Apply drift patch
+        run: |
+          set -eu
+          git apply --check drift.patch
+          git apply drift.patch
+
+      - name: Open drift-fix pull request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(drift): regenerate SDK output from locked specs"
+          branch: automation/drift-fix
+          delete-branch: true
+          title: "chore(drift): regenerate SDK output from locked specs"
+          body: >-
+            Opened by the `drift.yml` workflow after `detect-drift` found that the checked-in
+            generated output no longer matches what `sdkgen generate` produces from the current
+            locked spec inputs. This PR was opened by a human-dispatched run
+            (`workflow_dispatch` with `open_pr: true`); it still requires human review and this
+            repository's normal unprivileged CI before merge — nothing here bypasses review.
+          labels: automation,drift

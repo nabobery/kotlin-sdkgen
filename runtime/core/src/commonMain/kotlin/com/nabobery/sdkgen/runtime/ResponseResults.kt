@@ -86,6 +86,25 @@ public interface SdkResponseAlternativeDecoder<T> {
     ): T
 }
 
+private const val X_REQUEST_ID_HEADER: String = "X-Request-Id"
+private const val REQUEST_ID_HEADER: String = "Request-Id"
+private const val X_GITHUB_REQUEST_ID_HEADER: String = "X-GitHub-Request-Id"
+private const val STRIPE_REQUEST_ID_HEADER: String = "Stripe-Request-Id"
+private val defaultRequestIdHeaderNames: List<String> =
+    listOf(
+        X_REQUEST_ID_HEADER,
+        REQUEST_ID_HEADER,
+        X_GITHUB_REQUEST_ID_HEADER,
+        STRIPE_REQUEST_ID_HEADER,
+    )
+
+private fun List<SdkHeader>.defaultRequestId(): String? =
+    defaultRequestIdHeaderNames.firstNotNullOfOrNull { name ->
+        firstOrNull { header ->
+            header.name.equals(name, ignoreCase = true) && header.value.isNotBlank()
+        }?.value
+    }
+
 /**
  * A typed result returned by a generated `withResponse` method.
  *
@@ -100,6 +119,31 @@ public sealed interface SdkResponseResult<out T> {
 
     /** Response headers, copied before the result escapes the executor. */
     public val headers: List<SdkHeader>
+
+    /**
+     * The request ID extracted from [headers] using the standard prioritized request ID header names
+     * (`X-Request-Id`, `Request-Id`, `X-GitHub-Request-Id`, `Stripe-Request-Id`).
+     */
+    public val requestId: String?
+        get() = headers.defaultRequestId()
+
+    /**
+     * Finds the first request ID present in [headers] matching any of the candidate [headerNames]
+     * in priority order.
+     */
+    public fun findRequestId(headerNames: List<String>): String? {
+        val candidates = headerNames.toList()
+        val seen = HashSet<String>(candidates.size)
+        for (name in candidates) {
+            require(name.isNotBlank()) { "Header name in findRequestId must not be blank" }
+            require(seen.add(name.lowercase())) { "Duplicate candidate header name in findRequestId: $name" }
+        }
+        for (name in candidates) {
+            val value = headers.firstValue(name)
+            if (value != null) return value
+        }
+        return null
+    }
 
     /** A response matched by one declared response alternative. */
     public class Matched<T>(

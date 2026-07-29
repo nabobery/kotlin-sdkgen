@@ -138,6 +138,21 @@ internal data class SnapshotExclusion(
     val pointer: String,
 )
 
+internal data class SnapshotAcceptedWaiver(
+    val id: String,
+    val category: String,
+    val kind: String,
+    val symbolId: String,
+    val diagnosticCode: String,
+    val reason: String,
+    val reasonSha256: String,
+    val rationale: String,
+    val owner: String,
+    val disposition: String,
+    val documentUri: String,
+    val jsonPointer: String,
+)
+
 @Serializable
 internal data class ManifestDocument(
     val schemaVersion: String? = null,
@@ -146,6 +161,13 @@ internal data class ManifestDocument(
     val kotlinPoetVersion: String? = null,
     val configDigest: String? = null,
     val declarationModelSha256: String? = null,
+    // `v1alpha2` evidence digests (ADR 0013). The legacy diff/explain contract never reads these -- they
+    // exist here only so a freshly-written `v1alpha2` manifest (which is what every real generation now
+    // produces) still decodes under this file's strict `ignoreUnknownKeys = false` policy; adding them
+    // does not change any existing SnapshotContract field or diff/explain output shape.
+    val effectiveContractSha256: String? = null,
+    val semanticModelSha256: String? = null,
+    val kotlinApiSha256: String? = null,
     val source: ManifestInputDocument? = null,
     val references: List<ManifestInputDocument>? = null,
     val overlays: List<ManifestOverlayDocument>? = null,
@@ -157,6 +179,7 @@ internal data class ManifestDocument(
     val warningAllowlist: List<String>? = null,
     val diagnostics: List<ManifestDiagnosticDocument>? = null,
     val exclusions: List<ManifestExclusionDocument>? = null,
+    val acceptedWaivers: List<ManifestAcceptedWaiverDocument>? = null,
     val files: List<ManifestFileDocument>? = null,
 )
 
@@ -218,8 +241,26 @@ internal data class ManifestDiagnosticDocument(
 internal data class ManifestExclusionDocument(
     val symbolId: String,
     val reason: String,
+    val kind: String? = null,
+    val diagnosticCode: String? = null,
+    val reasonSha256: String? = null,
     val source: ManifestSourceDocument? = null,
     val sourcePointer: ManifestSourceDocument? = null,
+)
+
+@Serializable
+internal data class ManifestAcceptedWaiverDocument(
+    val id: String,
+    val category: String,
+    val kind: String,
+    val symbolId: String,
+    val diagnosticCode: String,
+    val reason: String,
+    val reasonSha256: String,
+    val rationale: String,
+    val owner: String,
+    val disposition: String,
+    val source: ManifestSourceDocument? = null,
 )
 
 @Serializable
@@ -243,6 +284,7 @@ internal data class SnapshotContract(
     val files: SnapshotDimension<Map<String, String>>,
     val diagnostics: SnapshotDimension<List<SnapshotDiagnostic>>,
     val exclusions: SnapshotDimension<List<SnapshotExclusion>>,
+    val acceptedWaivers: SnapshotDimension<List<SnapshotAcceptedWaiver>>,
     val warningsAsErrors: SnapshotDimension<Boolean>,
     val warningAllowlist: SnapshotDimension<List<String>>,
 )
@@ -533,6 +575,7 @@ private fun readLockSnapshot(path: Path): DiffSnapshot {
                 files = SnapshotDimension.Unavailable,
                 diagnostics = SnapshotDimension.Unavailable,
                 exclusions = SnapshotDimension.Unavailable,
+                acceptedWaivers = SnapshotDimension.Unavailable,
                 warningsAsErrors = SnapshotDimension.Unavailable,
                 warningAllowlist = SnapshotDimension.Unavailable,
             ),
@@ -605,7 +648,11 @@ private fun readManifestSnapshot(path: Path): DiffSnapshot {
         } catch (failure: SerializationException) {
             throw IllegalArgumentException("Manifest could not be decoded: ${failure.message}", failure)
         }
-    require(manifest.schemaVersion == "v1alpha1") {
+    // `v1alpha1` and `v1alpha2` are both accepted here: the legacy diff/explain contract and output shape
+    // are unaffected by this (the three new `v1alpha2` digest fields above are never read into
+    // SnapshotContract), but the writer now emits `v1alpha2` for every real generation, and this reader
+    // backs `diff`'s "config" operand kind, which regenerates fresh output and immediately reads it back.
+    require(manifest.schemaVersion == "v1alpha1" || manifest.schemaVersion == "v1alpha2") {
         "Unsupported or missing manifest schemaVersion in $path"
     }
     manifest.files?.let { entries ->
@@ -671,6 +718,11 @@ private fun readManifestSnapshot(path: Path): DiffSnapshot {
     }
     val diagnostics = manifest.diagnostics?.map(::snapshotDiagnosticDocument)?.sortedWith(snapshotDiagnosticComparator)
     val exclusions = manifest.exclusions?.map(::snapshotExclusionDocument)?.sortedWith(snapshotExclusionComparator)
+    val acceptedWaivers =
+        manifest.acceptedWaivers?.map(::snapshotAcceptedWaiverDocument)?.sortedWith(snapshotAcceptedWaiverComparator)
+    acceptedWaivers?.let { values ->
+        require(values.map { it.id }.distinct().size == values.size) { "Manifest accepted waiver IDs must be unique" }
+    }
     return DiffSnapshot(
         path = path,
         kind = "manifest",
@@ -717,6 +769,8 @@ private fun readManifestSnapshot(path: Path): DiffSnapshot {
                         )
                     } ?: SnapshotDimension.Unavailable,
                 exclusions = exclusions?.let { SnapshotDimension.Available(it) } ?: SnapshotDimension.Unavailable,
+                acceptedWaivers =
+                    acceptedWaivers?.let { SnapshotDimension.Available(it) } ?: SnapshotDimension.Unavailable,
                 warningsAsErrors =
                     manifest.warningsAsErrors?.let { SnapshotDimension.Available(it) }
                         ?: SnapshotDimension.Unavailable,
@@ -761,6 +815,22 @@ private fun snapshotExclusionDocument(value: ManifestExclusionDocument): Snapsho
         pointer = source?.jsonPointer ?: source?.pointer.orEmpty(),
     )
 }
+
+private fun snapshotAcceptedWaiverDocument(value: ManifestAcceptedWaiverDocument): SnapshotAcceptedWaiver =
+    SnapshotAcceptedWaiver(
+        id = value.id,
+        category = value.category,
+        kind = value.kind,
+        symbolId = value.symbolId,
+        diagnosticCode = value.diagnosticCode,
+        reason = value.reason,
+        reasonSha256 = value.reasonSha256,
+        rationale = value.rationale,
+        owner = value.owner,
+        disposition = value.disposition,
+        documentUri = value.source?.documentUri.orEmpty(),
+        jsonPointer = value.source?.jsonPointer ?: value.source?.pointer.orEmpty(),
+    )
 
 private fun snapshotDiagnostic(value: GenerationDiagnosticView): SnapshotDiagnostic =
     SnapshotDiagnostic(
@@ -893,6 +963,7 @@ private val snapshotDiagnosticComparator =
     )
 private val snapshotExclusionComparator =
     compareBy<SnapshotExclusion>({ it.documentUri }, { it.pointer }, { it.symbolId }, { it.reason })
+private val snapshotAcceptedWaiverComparator = compareBy<SnapshotAcceptedWaiver> { it.id }
 private val diffChangeComparator =
     compareBy<DiffChange>(
         { it.kind },
@@ -941,7 +1012,7 @@ private fun <T> compareDimension(
 
 private const val MAX_DIFF_CHANGES = 100
 private const val MAX_DIFF_DIAGNOSTICS = 100
-private const val MAX_MANIFEST_FILES = 10_000
+private const val MAX_MANIFEST_FILES = 20_000
 private const val MAX_MANIFEST_PATH_LENGTH = 4096
 private const val MAX_MANIFEST_BYTES = 16 * 1024 * 1024
 
@@ -1014,6 +1085,7 @@ internal fun compareDiffSnapshots(
     )
     addDimension("generated-semantic", "diagnostics", from.contract.diagnostics, to.contract.diagnostics)
     addDimension("generated-semantic", "exclusions", from.contract.exclusions, to.contract.exclusions)
+    addDimension("generated-semantic", "acceptedWaivers", from.contract.acceptedWaivers, to.contract.acceptedWaivers)
 
     val fromFiles = from.contract.files
     val toFiles = to.contract.files

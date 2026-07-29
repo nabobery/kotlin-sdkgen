@@ -1,8 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-07-17
-**Commit:** `818f106`
-**Branch:** `main`
+**Updated:** 2026-07-29 for the cross-corpus conformance and release-readiness changes
 
 ## OVERVIEW
 
@@ -30,7 +28,7 @@ kotlin-sdkgen/
 │   └── openrouter/consumer/ # Generated SDK conformance test
 ├── experiments-import/      # Config contract experiment (archived)
 └── docs/
-    ├── adr/                 # 10 ADRs
+    ├── adr/                 # 19 ADRs
     └── phase0/              # Phase 0 research & results
 ```
 
@@ -54,6 +52,7 @@ kotlin-sdkgen/
 | Transport contract kit            | `runtime/testing/SdkTransportContractKit.kt`        |
 | SDK conformance tests             | `conformance/openrouter/consumer/`                  |
 | ADR index                         | `docs/adr/`                                         |
+| Live cross-corpus parity gate       | `./gradlew :conformance:parity:liveParity`          |
 
 ## CONVENTIONS
 
@@ -64,7 +63,7 @@ kotlin-sdkgen/
 - **Gradle**: Configuration cache on, `org.gradle.configuration-cache.problems=fail`
 - **Ktlint**: formatting and linting enforced via convention plugins
 - **Testing**: JUnit 5 (JVM), kotlin.test (KMP), golden file tests for emitter
-- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0011)
+- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0019)
 - **Build**: Convention plugins under `build-logic/` rather than direct plugin application
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -92,6 +91,24 @@ kotlin-sdkgen/
 ./gradlew :generator:cli:run    # Run CLI
 ```
 
+## REQUESTED AGENT ROUTING
+
+- Delegate only when the user explicitly requests subagents; keep delegation one level deep.
+- Use `gpt-5.3-codex-spark` for focused implementation, and Antigravity `gemini-3.6-flash-high` when requested.
+- Use direct Claude CLI `claude-sonnet-4-6` for SDK contracts, API taste, and taste fixes.
+- Use `gpt-5.6-sol` at low reasoning effort for independent review and review-fix verification.
+- Keep code changes RED → GREEN and do not integrate a slice until the requested reviews pass.
+
+## RESOURCE-SAFE CONFORMANCE
+
+- Run only one Gradle or corpus-generation lane at a time.
+- Use `--no-daemon --max-workers=1 -Dorg.gradle.parallel=false`
+  and `-Pkotlin.compiler.execution.strategy=in-process`.
+- Set `JAVA_TOOL_OPTIONS=-Xmx2g` for focused checks and raise deliberately: 3–4 GiB for generation or emitter
+  work; up to 8 GiB only for a clean full Stripe compile, with no concurrent build.
+- Prefer focused tests and configuration-cache reuse. Never run generated-source formatting over committed corpus
+  snapshots.
+
 ## NOTES
 
 - Node.js download is DISABLED in KMP builds - must have node on PATH
@@ -100,4 +117,4 @@ kotlin-sdkgen/
 - iOS simulator ARM64 tests run only when the host has the Xcode simulator runtime; otherwise they are disabled with a loud warning (see `sdkgen.kotlin-kmp.gradle.kts`)
 - Version published via `sdkgenVersion` gradle property (currently `0.1.0-SNAPSHOT`)
 - Root `build.gradle.kts` is minimal (only `base` plugin + version propagation)
-- ~101 production Kotlin source files, ~30K lines of production code across all modules (tests excluded)
+- ~121 production Kotlin source files across all modules (tests excluded)

@@ -1,0 +1,4 @@
+{
+  "sdkIdentity": "github-fixture",
+  "jvm": { "dumpPath": "jvm.api" }
+}

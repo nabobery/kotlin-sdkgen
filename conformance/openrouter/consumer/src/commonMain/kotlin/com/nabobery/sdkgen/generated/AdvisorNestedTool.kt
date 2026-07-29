@@ -26,7 +26,13 @@ import kotlinx.serialization.json.put
 public class AdvisorNestedTool(
   public val type: String,
   public val parameters: Map<String, JsonElement?>? = null,
+  additionalProperties: Map<String, JsonElement> = emptyMap(),
 ) {
+  /**
+   * Additional JSON object members not declared as fixed properties.
+   */
+  public val additionalProperties: Map<String, JsonElement> = copyAndValidateAdvisorNestedToolAdditionalProperties(additionalProperties)
+
   public class Builder {
     private var typeValue: String? = null
 
@@ -38,11 +44,17 @@ public class AdvisorNestedTool(
 
     public var parameters: Map<String, JsonElement?>? = null
 
+    /**
+     * Additional JSON object members not declared as fixed properties.
+     */
+    public var additionalProperties: Map<String, JsonElement> = emptyMap()
+
     public fun build(): AdvisorNestedTool {
       check(typeValue != null) { "type is required" }
       return AdvisorNestedTool(
         type = type,
         parameters = parameters,
+        additionalProperties = additionalProperties,
       )
     }
   }
@@ -63,6 +75,7 @@ public class AdvisorNestedTool(
       return AdvisorNestedTool(
         type = type,
         parameters = raw["parameters"]?.let { json.decodeFromJsonElement<Map<String, JsonElement?>>(it) },
+        additionalProperties = raw.filterKeys { key -> key !in setOf("parameters", "type") }.mapValues { (_, element) -> element }.toMap(),
       )
     }
 
@@ -72,6 +85,11 @@ public class AdvisorNestedTool(
       val raw = buildJsonObject {
         put("type", value.type)
         value.parameters?.let { put("parameters", json.encodeToJsonElement(it)) }
+        value.additionalProperties.keys.sorted().forEach { key ->
+          val additionalValue = value.additionalProperties.getValue(key)
+          check(key !in setOf("parameters", "type")) { "AdvisorNestedTool additionalProperties key '" + key + "' collides with a fixed property" }
+          put(key, additionalValue)
+        }
       }
       jsonEncoder.encodeJsonElement(raw)
     }
@@ -80,6 +98,17 @@ public class AdvisorNestedTool(
 
 public fun advisorNestedTool(block: AdvisorNestedTool.Builder.() -> Unit): AdvisorNestedTool = AdvisorNestedTool
   .build(block)
+
+private fun copyAndValidateAdvisorNestedToolAdditionalProperties(
+  additionalProperties: Map<String, JsonElement>,
+): Map<String, JsonElement> {
+  val copied = additionalProperties.toMap()
+  val collision = copied.keys.sorted().firstOrNull { key -> key in setOf("parameters", "type") }
+  require(collision == null) {
+    "AdvisorNestedTool additionalProperties key '" + collision + "' collides with a fixed property"
+  }
+  return copied
+}
 
 private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
   val element = raw[name] ?: throw SerializationException("AdvisorNestedTool is missing required property '" + name +

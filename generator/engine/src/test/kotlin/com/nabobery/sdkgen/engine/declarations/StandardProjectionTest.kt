@@ -2,6 +2,7 @@ package com.nabobery.sdkgen.engine.declarations
 
 import com.nabobery.sdkgen.engine.config.RetryDefaults
 import com.nabobery.sdkgen.engine.config.RuntimeDefaults
+import com.nabobery.sdkgen.engine.emit.KotlinPoetEmitter
 import com.nabobery.sdkgen.model.DiagnosticSeverity
 import com.nabobery.sdkgen.openapi.SemanticAdapter
 import io.swagger.v3.oas.models.OpenAPI
@@ -238,7 +239,9 @@ class StandardProjectionTest {
                 """,
             )
 
-        val declarations = projectMapping(document).model.files.flatMap(KotlinFileDeclaration::declarations)
+        val mapping = projectMapping(document)
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.joinToString { it.message })
+        val declarations = mapping.model.files.flatMap(KotlinFileDeclaration::declarations)
         val operation =
             declarations
                 .filterIsInstance<OperationClientDeclaration>()
@@ -387,6 +390,7 @@ class StandardProjectionTest {
                       type: object
                       properties:
                         status: { type: string }
+                        additionalProperties: { type: string }
                         conclusion: { type: string }
                       discriminator: { propertyName: status }
                       oneOf:
@@ -1177,6 +1181,158 @@ class StandardProjectionTest {
         val details = assertIs<FormValueDeclaration.Object>(fields.getValue("details").value)
         assertEquals("postalCode", details.fields.single().accessorName)
         assertEquals("postal_code", details.fields.single().wireName)
+    }
+
+    @Test
+    fun projectsNestedFormObjectsWithPropertiesAndAbsentAdditionalPropertiesAsClosed() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Forms, version: "1" }
+                paths:
+                  /options:
+                    post:
+                      operationId: createOptions
+                      requestBody:
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                options:
+                                  type: object
+                                  properties:
+                                    mode: { type: string }
+                            encoding:
+                              options: { style: deepObject, explode: true }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val field =
+            project(document)
+                .operations
+                .single()
+                .requestBodyAlternatives
+                .single()
+                .formFields
+                .single()
+        val options = assertIs<FormValueDeclaration.Object>(field.value)
+
+        assertEquals("mode", options.fields.single().wireName)
+    }
+
+    @Test
+    fun rejectsNestedFreeFormFormObjects() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Forms, version: "1" }
+                paths:
+                  /options:
+                    post:
+                      operationId: createOptions
+                      requestBody:
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                options:
+                                  type: object
+                                  additionalProperties: true
+                            encoding:
+                              options: { style: deepObject, explode: true }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single()
+
+        assertEquals(
+            "Operation 'createOptions' cannot be represented: " +
+                "form object declares additionalProperties: true; free-form dynamic form keys are unsupported",
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun projectsNestedTypedAdditionalPropertiesWithoutFixedPropertiesAsFormMap() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Forms, version: "1" }
+                paths:
+                  /options:
+                    post:
+                      operationId: createOptions
+                      requestBody:
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                metadata:
+                                  type: object
+                                  additionalProperties: { type: string }
+                            encoding:
+                              metadata: { style: deepObject, explode: true }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val field =
+            project(document)
+                .operations
+                .single()
+                .requestBodyAlternatives
+                .single()
+                .formFields
+                .single()
+        val metadata = assertIs<FormValueDeclaration.Map>(field.value)
+
+        assertEquals(FormScalarKind.STRING, assertIs<FormValueDeclaration.Scalar>(metadata.value).kind)
+    }
+
+    @Test
+    fun rejectsNestedFormObjectsWithoutPropertiesAndAbsentAdditionalProperties() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Forms, version: "1" }
+                paths:
+                  /options:
+                    post:
+                      operationId: createOptions
+                      requestBody:
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema:
+                              type: object
+                              additionalProperties: false
+                              properties:
+                                options: { type: object }
+                            encoding:
+                              options: { style: deepObject, explode: true }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single()
+
+        assertEquals(
+            "Operation 'createOptions' cannot be represented: " +
+                "form object declares no properties and omits additionalProperties; " +
+                "a form value with no declared shape has no form wire representation",
+            diagnostic.message,
+        )
     }
 
     @Test
@@ -3241,6 +3397,598 @@ class StandardProjectionTest {
         val operation = project(document).operations.single()
         assertEquals(KotlinTypeRef("kotlin", "String", nullable = true), operation.requestType)
         assertEquals(KotlinTypeRef("kotlin", "String", nullable = true), operation.responseType)
+    }
+
+    @Test
+    fun `groups untagged operations by the first path segment that is not an api version`() {
+        val mapping =
+            projectMapping(
+                adapt(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Versioned, version: "1" }
+                    paths:
+                      /v1/accounts:
+                        get: { operationId: listAccounts, responses: { '204': { description: ok } } }
+                      /v2beta/charges:
+                        get: { operationId: listCharges, responses: { '204': { description: ok } } }
+                      /2024-01-01/events:
+                        get: { operationId: listEvents, responses: { '204': { description: ok } } }
+                      /v1/{id}:
+                        get: { operationId: versionOnly, responses: { '204': { description: ok } } }
+                      /tagged:
+                        get:
+                          operationId: tagged
+                          tags: [v1]
+                          responses: { '204': { description: ok } }
+                    """,
+                ),
+            )
+        // Two operations share the `v1` group here, so map every operation rather than assuming one each.
+        val groupsByOperation =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap { client -> client.operations.map { operation -> operation.operationIdentity to client } }
+                .toMap()
+
+        assertEquals("$GENERATED_PACKAGE.accounts", groupsByOperation.getValue("listAccounts").packageName)
+        assertEquals("$GENERATED_PACKAGE.charges", groupsByOperation.getValue("listCharges").packageName)
+        assertEquals("$GENERATED_PACKAGE.events", groupsByOperation.getValue("listEvents").packageName)
+        // Every named segment is a version, so the version is all the path says: group by it rather than lose
+        // the path entirely.
+        assertEquals("$GENERATED_PACKAGE.v1", groupsByOperation.getValue("versionOnly").packageName)
+        // Tags win, even a version-shaped one: the skip applies only to the path fallback.
+        assertEquals("$GENERATED_PACKAGE.v1", groupsByOperation.getValue("tagged").packageName)
+    }
+
+    @Test
+    fun `projects primitive oneOf parameters in path and exploded query positions`() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Unions, version: "1" }
+                paths:
+                  /workflows/{workflowId}:
+                    get:
+                      operationId: getWorkflow
+                      parameters:
+                        - { name: workflowId, in: path, required: true, style: simple, schema: { oneOf: [ { type: integer }, { type: string } ] } }
+                      responses: { '204': { description: ok } }
+                  /alerts:
+                    get:
+                      operationId: listAlerts
+                      parameters:
+                        - { name: has, in: query, style: form, explode: true, schema: { oneOf: [ { type: string }, { type: array, items: { type: string, enum: [patch] } } ] } }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+
+        assertEquals(emptyList(), mapping.diagnostics.map { it.message })
+        val parameters =
+            project(document).operations.flatMap { operation -> operation.parameters }
+        assertEquals(
+            listOf(ParameterSerialization.PrimitiveUnion, ParameterSerialization.PrimitiveUnion),
+            parameters.map { parameter -> parameter.serialization },
+            "a oneOf over primitive scalars and primitive arrays is representable in path and exploded query",
+        )
+    }
+
+    /**
+     * ADR-0016's wire-collapse argument has two halves and only one of them covers paths. A query parameter with
+     * `style: form, explode: true` is a repeated key, so a scalar branch and an array branch both serialize; a
+     * path segment is a single value, so an array branch has nowhere to go. `renderPathTemplate` requires exactly
+     * one value and throws `IllegalArgumentException` otherwise, from generated code that compiled cleanly.
+     *
+     * Note the asymmetry this closes: a *bare* `type: array` path parameter was already rejected as "only
+     * supports scalar schema"; the same array wrapped in a `oneOf` was not.
+     */
+    @Test
+    fun `rejects primitive union path parameters carrying an array branch`() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Unions, version: "1" }
+                paths:
+                  /things/{id}:
+                    get:
+                      operationId: getThing
+                      parameters:
+                        - { name: id, in: path, required: true, style: simple, schema: { oneOf: [ { type: string }, { type: array, items: { type: string } } ] } }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+
+        assertEquals(emptyList(), project(document).operations.map { it.operationIdentity })
+        assertEquals(1, mapping.diagnostics.size)
+        assertEquals(
+            GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION,
+            mapping.diagnostics.single().code,
+        )
+        assertTrue(
+            "path parameter 'id' is a primitive union with an array branch" in mapping.diagnostics.single().message,
+            mapping.diagnostics.joinToString { it.message },
+        )
+        assertTrue(
+            mapping.exclusions.any { exclusion -> exclusion.symbolId == "operation:getThing" },
+            mapping.exclusions.joinToString { exclusion -> exclusion.symbolId },
+        )
+    }
+
+    @Test
+    fun `rejects primitive union parameters that cannot be reconstructed or flattened`() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Unions, version: "1" }
+                paths:
+                  /joined:
+                    get:
+                      operationId: joined
+                      parameters:
+                        - { name: has, in: query, style: form, explode: false, schema: { oneOf: [ { type: string }, { type: array, items: { type: string } } ] } }
+                      responses: { '204': { description: ok } }
+                  /objects:
+                    get:
+                      operationId: objects
+                      parameters:
+                        - { name: filter, in: query, style: form, explode: true, schema: { oneOf: [ { type: string }, { type: object, properties: { a: { type: string } } } ] } }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+
+        assertEquals(emptyList(), project(document).operations.map { it.operationIdentity })
+        assertEquals(2, mapping.diagnostics.size)
+        // A comma-joined union is ambiguous: a scalar containing a comma is indistinguishable from a list.
+        assertTrue(
+            mapping.diagnostics.any { "is a primitive union and requires explode=true" in it.message },
+            mapping.diagnostics.joinToString { it.message },
+        )
+        // An object branch does not collapse to a flat list of wire strings.
+        assertTrue(
+            mapping.diagnostics.any {
+                "form parameter 'filter' requires a scalar or primitive array schema" in it.message
+            },
+            mapping.diagnostics.joinToString { it.message },
+        )
+    }
+
+    @Test
+    fun `excludes unsupported parameter serialization while preserving supported form arrays`() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Parameters, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      parameters:
+                        - { name: tags, in: query, style: form, explode: true, schema: { type: array, items: { type: string } } }
+                      responses: { '204': { description: ok } }
+                  /accounts:
+                    get:
+                      operationId: listAccounts
+                      parameters:
+                        - { name: expand, in: query, style: deepObject, explode: true, schema: { type: array, items: { type: string } } }
+                      responses: { '204': { description: ok } }
+                  /widgets/{ids}:
+                    get:
+                      operationId: getWidgets
+                      parameters:
+                        - { name: ids, in: path, required: true, style: simple, schema: { type: array, items: { type: string } } }
+                      responses: { '204': { description: ok } }
+                  /preview:
+                    get:
+                      operationId: preview
+                      parameters:
+                        - { name: lines, in: query, style: deepObject, explode: true, schema: { type: array, items: { type: object, properties: { amount: { type: integer } } } } }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+
+        assertEquals(
+            listOf("listAccounts", "listItems"),
+            project(document).operations.map { it.operationIdentity }.sorted(),
+        )
+        assertEquals(2, mapping.diagnostics.size)
+        assertTrue(mapping.diagnostics.all { it.code == GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION })
+        assertTrue(mapping.diagnostics.any { "path parameter 'ids' only supports scalar schema" in it.message })
+        assertTrue(
+            mapping.diagnostics.any {
+                "deepObject parameter 'lines' requires primitive array item schemas" in
+                    it.message
+            },
+        )
+        assertEquals(
+            listOf(
+                "operation:getWidgets",
+                "operation:preview",
+            ),
+            mapping.exclusions.map { it.symbolId }.sorted(),
+        )
+        assertEquals(
+            ParameterSerialization.StripeCompatibleIndexedArray,
+            project(
+                document,
+            ).operations.single { it.operationIdentity == "listAccounts" }.parameters.single().serialization,
+        )
+    }
+
+    @Test
+    fun projectsMixedAdditionalPropertiesAndDeepObjectEntries() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Dynamic filter, version: "1" }
+                paths:
+                  /widgets:
+                    get:
+                      operationId: listWidgets
+                      parameters:
+                        - name: filter
+                          in: query
+                          style: deepObject
+                          explode: true
+                          schema: { ${'$'}ref: '#/components/schemas/Filter' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Filter:
+                      type: object
+                      additionalProperties: { type: integer }
+                      properties:
+                        status: { type: string }
+                        additionalProperties: { type: string }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        val model =
+            mapping.model.files
+                .flatMap(
+                    KotlinFileDeclaration::declarations,
+                ).filterIsInstance<ModelDeclaration>()
+                .single()
+        val additional = requireNotNull(model.additionalProperties)
+        val serialization =
+            assertIs<ParameterSerialization.DeepObject>(
+                project(document)
+                    .operations
+                    .single()
+                    .parameters
+                    .single()
+                    .serialization,
+            )
+
+        assertEquals("additionalProperties2", additional.resolvedName)
+        assertEquals(KotlinTypeRef("kotlin", "Int"), additional.valueType)
+        assertEquals(setOf("status", "additionalProperties"), additional.fixedWireNames)
+        assertEquals("additionalProperties2", requireNotNull(serialization.additionalProperties).accessorName)
+        assertEquals(
+            DeepObjectAdditionalPropertiesSerialization.TO_STRING,
+            requireNotNull(serialization.additionalProperties).serialization,
+        )
+    }
+
+    @Test
+    fun projectsDeepObjectEnumAdditionalPropertiesWithWireValueSerialization() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Dynamic filter, version: "1" }
+                paths:
+                  /widgets:
+                    get:
+                      operationId: listWidgets
+                      parameters:
+                        - name: filter
+                          in: query
+                          style: deepObject
+                          explode: true
+                          schema: { ${'$'}ref: '#/components/schemas/Filter' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Filter:
+                      type: object
+                      properties:
+                        fixed: { type: string }
+                      additionalProperties: { ${'$'}ref: '#/components/schemas/Status' }
+                    Status:
+                      type: string
+                      enum: [in-progress, complete]
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        val model =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<ModelDeclaration>()
+                .single { it.resolvedName == "Filter" }
+        val serialization =
+            assertIs<ParameterSerialization.DeepObject>(
+                project(document)
+                    .operations
+                    .single()
+                    .parameters
+                    .single()
+                    .serialization,
+            )
+
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "Status"), requireNotNull(model.additionalProperties).valueType)
+        assertEquals(
+            DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE,
+            requireNotNull(serialization.additionalProperties).serialization,
+        )
+    }
+
+    @Test
+    fun formattedScalarsUseTheFrozenPortableTypesAndHonestKdoc() {
+        val mapping =
+            projectMapping(
+                adapt(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Formats, version: "1" }
+                    paths:
+                      /formats:
+                        get:
+                          operationId: getFormats
+                          parameters:
+                            - name: resource
+                              in: query
+                              description: Resource locator.
+                              schema: { type: string, format: uri-reference }
+                          responses:
+                            '200':
+                              description: ok
+                              content:
+                                application/json:
+                                  schema: { ${'$'}ref: '#/components/schemas/FormattedValues' }
+                    components:
+                      schemas:
+                        FormattedValues:
+                          type: object
+                          properties:
+                            uuid: { type: string, format: uuid }
+                            uri: { type: string, format: uri }
+                            reference: { type: string, format: uri-reference }
+                            date: { type: string, format: date }
+                            time: { type: string, format: time }
+                            dateTime: { type: string, format: date-time }
+                            instant: { type: string, format: instant }
+                            duration: { type: string, format: duration }
+                            encoded: { type: string, format: byte }
+                            base64:
+                              type: string
+                              contentEncoding: base64
+                            unknown: { type: string, format: vendor-token }
+                            number: { type: number }
+                            float: { type: number, format: float }
+                            double: { type: number, format: double }
+                            binary: { type: string, format: binary }
+                    """,
+                ),
+            )
+        val declarations = mapping.model.files.flatMap(KotlinFileDeclaration::declarations)
+        val model = declarations.filterIsInstance<ModelDeclaration>().single { it.resolvedName == "FormattedValues" }
+        val fields = model.fields.associateBy(FieldDeclaration::wireName)
+
+        listOf(
+            "uuid",
+            "uri",
+            "reference",
+            "date",
+            "time",
+            "dateTime",
+            "instant",
+            "duration",
+            "encoded",
+            "base64",
+            "unknown",
+        ).forEach { name -> assertEquals(KotlinTypeRef("kotlin", "String"), fields.getValue(name).type) }
+        listOf("number", "float", "double").forEach { name ->
+            assertEquals(KotlinTypeRef("kotlin", "Double"), fields.getValue(name).type)
+            assertEquals(
+                "Represented as IEEE-754 `Double`; values may lose decimal precision.",
+                fields.getValue(name).kdoc,
+            )
+        }
+        assertEquals(
+            KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
+            fields.getValue("binary").type,
+        )
+        assertEquals(
+            "Wire format: `uuid`. Represented as `String` in this release; SDKGen does not validate this format.",
+            fields.getValue("uuid").kdoc,
+        )
+        assertEquals(
+            "Wire format: `vendor-token`. Represented as `String` in this release; SDKGen does not validate this format.",
+            fields.getValue("unknown").kdoc,
+        )
+        assertEquals(
+            "Base64-encoded wire text. This property is not decoded into bytes.",
+            fields.getValue("encoded").kdoc,
+        )
+        assertEquals(
+            "Base64-encoded wire text. This property is not decoded into bytes.",
+            fields.getValue("base64").kdoc,
+        )
+        val parameter =
+            declarations
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+                .single()
+                .parameters
+                .single()
+        assertEquals(KotlinTypeRef("kotlin", "String"), parameter.type)
+        assertEquals(
+            "Resource locator.\n\nWire format: `uri-reference`. Represented as `String` in this release; " +
+                "SDKGen does not validate this format.",
+            parameter.kdoc,
+        )
+
+        val rendered = KotlinPoetEmitter(GENERATED_PACKAGE).render(mapping.model).files
+        val modelSource = rendered.single { it.path.endsWith("/FormattedValues.kt") }.bytes.decodeToString()
+        val clientSource =
+            rendered
+                .single { it.path.endsWith("Client.kt") && "getFormats" in it.bytes.decodeToString() }
+                .bytes
+                .decodeToString()
+        assertTrue(
+            modelSource.contains(
+                "Wire format: `uuid`. Represented as `String` in this release; SDKGen does not validate this format.",
+            ),
+        )
+        assertTrue(modelSource.contains("Base64-encoded wire text. This property is not decoded into bytes."))
+        assertTrue(modelSource.contains("Represented as IEEE-754 `Double`; values may lose decimal precision."))
+        assertTrue(
+            clientSource.contains(
+                "@param resource Resource locator.\n   *\n   * Wire format: `uri-reference`. Represented as `String` " +
+                    "in this release; SDKGen does not validate this format.",
+            ),
+            clientSource,
+        )
+        assertTrue(mapping.diagnostics.none { it.severity == DiagnosticSeverity.WARNING })
+    }
+
+    @Test
+    fun decimalAndNonStringBinarySchemasFailClosedWithActionableProvenance() {
+        fun diagnosticFor(
+            propertyName: String,
+            schema: String,
+        ): GenerationDiagnostic {
+            val mapping =
+                projectMapping(
+                    adapt(
+                        """
+                        openapi: 3.1.0
+                        info: { title: Invalid format, version: "1" }
+                        paths: {}
+                        components:
+                          schemas:
+                            Invalid:
+                              type: object
+                              properties:
+                                $propertyName: { $schema }
+                        """,
+                    ),
+                )
+            assertTrue(
+                mapping.model.files
+                    .flatMap(KotlinFileDeclaration::declarations)
+                    .none { it is ModelDeclaration && it.resolvedName == "Invalid" },
+            )
+            return mapping.diagnostics.single { it.code == GenerationDiagnosticCode.UNREPRESENTABLE_SCHEMA }
+        }
+
+        val decimal = diagnosticFor("amount", "type: number, format: decimal")
+        assertTrue(decimal.message.contains("no approved portable lossless Kotlin representation"), decimal.message)
+        assertEquals("/components/schemas/Invalid/properties/amount", decimal.source.jsonPointer)
+        assertEquals(
+            "Apply an overlay selecting an explicitly lossy number type, or wait for a portable lossless decimal vehicle.",
+            decimal.remediation,
+        )
+
+        val binary = diagnosticFor("payload", "type: number, format: binary")
+        assertTrue(binary.message.contains("format 'binary' with non-string type 'number'"), binary.message)
+        assertEquals("/components/schemas/Invalid/properties/payload", binary.source.jsonPointer)
+        assertEquals(
+            "Declare binary payloads as type 'string', remove format 'binary', or apply an overlay.",
+            binary.remediation,
+        )
+
+        val operationMapping =
+            projectMapping(
+                adapt(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Decimal parameter, version: "1" }
+                    paths:
+                      /amount:
+                        get:
+                          operationId: getAmount
+                          parameters:
+                            - name: amount
+                              in: query
+                              schema: { type: number, format: decimal }
+                          responses:
+                            '204': { description: ok }
+                    """,
+                ),
+            )
+        val operationDiagnostic =
+            operationMapping.diagnostics.single {
+                it.code == GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION
+            }
+        assertEquals("/paths/~1amount/get/parameters/0/schema", operationDiagnostic.source.jsonPointer)
+        assertEquals(
+            "Apply an overlay selecting an explicitly lossy number type, or wait for a portable lossless decimal vehicle.",
+            operationDiagnostic.remediation,
+        )
+    }
+
+    @Test
+    fun checkedInAdvisorNestedToolRetainsCurrentEmitterAdditionalPropertiesContract() {
+        val document =
+            SemanticAdapter()
+                .adapt(Path.of(requireNotNull(System.getProperty("engine.openRouterFile"))))
+                .document
+        val advisor =
+            projectMapping(document)
+                .model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<ModelDeclaration>()
+                .single { model -> model.resolvedName == "AdvisorNestedTool" }
+        val rendered =
+            KotlinPoetEmitter(GENERATED_PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(KotlinFileDeclaration(GENERATED_PACKAGE, "AdvisorNestedTool", listOf(advisor))),
+                    ),
+                ).files
+                .single { file -> file.path.endsWith("/AdvisorNestedTool.kt") }
+                .bytes
+                .decodeToString()
+        val checkedInPath =
+            Path
+                .of(requireNotNull(System.getProperty("engine.consumerSourceRoot")))
+                .resolve("com/nabobery/sdkgen/generated/AdvisorNestedTool.kt")
+        if (System.getenv("UPDATE_OPENROUTER_ADVISOR_NESTED_TOOL_FIXTURE") == "1") {
+            checkedInPath.writeText(rendered)
+        }
+        val checkedIn = checkedInPath.readText()
+
+        // This checked-in fixture predates the current file-level provenance/formatting conventions, so
+        // compare the generated mixed-object contract rather than reformatting unrelated generated text.
+        listOf(
+            "additionalProperties: Map<String, JsonElement> = emptyMap()",
+            "copyAndValidateAdvisorNestedToolAdditionalProperties(additionalProperties)",
+            "filterKeys { key -> key !in setOf(\"parameters\", \"type\") }",
+            "mapValues { (_, element) -> element }.toMap()",
+            ".toMap()",
+            "value.additionalProperties.keys.sorted().forEach { key ->",
+            "collides with a fixed property",
+        ).forEach { fragment ->
+            assertTrue(rendered.contains(fragment), "emitter missing: $fragment")
+            assertTrue(checkedIn.contains(fragment), "checked-in fixture missing: $fragment")
+        }
     }
 
     /**

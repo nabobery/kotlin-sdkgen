@@ -34,8 +34,7 @@
         "naming": {
             "clientName": "OpenRouterClient",
             "modelPrefix": null,
-            "operationPrefix": null,
-            "resourceGrouping": "tags"
+            "operationPrefix": null
         },
         "targets": ["jvm", "android", "ios", "macos", "js"]
     },

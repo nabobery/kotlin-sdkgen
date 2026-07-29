@@ -54,6 +54,28 @@ class SchemaValidationTest {
     }
 
     @Test
+    fun `removed resourceGrouping is rejected rather than silently ignored`() {
+        // ADR-0018 deleted `naming.resourceGrouping`: it was never read, yet it fed `configDigest`, so
+        // changing it moved a compatibility digest while generated output stayed byte-identical. Both the
+        // schema and the decoder reject unknown keys, so a config still carrying it fails loudly. That is the
+        // intended migration signal — a silently ignored key would leave users believing it still did
+        // something, which is the exact failure being removed.
+        val carriesRemovedKey =
+            TestFixtures.text("/fixtures/sdkgen.json").replace(
+                "\"clientName\":",
+                "\"resourceGrouping\": \"tags\", \"clientName\":",
+            )
+
+        val errors = schema.validate(carriesRemovedKey, InputFormat.JSON)
+
+        assertTrue(errors.any { error -> error.keyword == "additionalProperties" })
+        // The decoder rejects it too, independently of the schema: `ignoreUnknownKeys = false`.
+        assertThrows<ConfigContractException> {
+            ConfigLoader.decodeJson(carriesRemovedKey, "sdkgen.json")
+        }
+    }
+
+    @Test
     fun `schema rejects unknown fields and identifies the instance path`() {
         val invalid =
             TestFixtures.text("/fixtures/sdkgen.json").replace(

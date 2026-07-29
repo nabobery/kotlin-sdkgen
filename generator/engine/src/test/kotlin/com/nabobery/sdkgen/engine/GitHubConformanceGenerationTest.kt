@@ -2,6 +2,7 @@
 
 package com.nabobery.sdkgen.engine
 
+import com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig
 import com.nabobery.sdkgen.engine.config.ConfigLoader
 import com.nabobery.sdkgen.engine.config.OverlayConfig
 import com.nabobery.sdkgen.engine.config.OverlayConflictPolicy
@@ -123,58 +124,69 @@ class GitHubConformanceGenerationTest {
     }
 
     @Test
-    fun checkedInWaiversFreezeEveryGitHubExclusionAndPermitOnlyTheReviewedPartialSdk() {
+    fun corpusWaiversExactlyCoverCurrentGitHubExclusionsAndGenerationSucceeds() {
         val source = source()
         val config = config()
         val frozen = frozenInventory()
-        val pipeline = GenerationPipeline("phase3-t10")
+        val delta = readConformanceExclusionDelta("engine.githubExclusionDelta")
+        val pipeline = GenerationPipeline("sdkgen-maintainers")
 
         val baseline = pipeline.validate(config.copy(acceptedWaivers = emptyList()), source, overlays())
+        // 139 after ADR-0016 reclaimed the 18 primitive-union parameter operations, down from 157. Those 18
+        // were the only exclusions the corpus ledger did not cover, so the exclusion set and the ledger's 139
+        // accepted waivers now coincide exactly — which is what made the corpus regenerable.
         assertEquals(139, baseline.exclusions.size)
         assertEquals(mapOf("schema" to 99, "operation" to 40), baseline.exclusions.countByKind())
-        assertEquals(frozen.map(FrozenExclusion::identity).toSet(), baseline.exclusions.map(::identity).toSet())
+        assertEquals(
+            frozen.map(FrozenExclusion::identity).toSet(),
+            baseline.exclusions
+                .filterNot { exclusion -> exclusion.conformanceIdentity() in delta.map { it.identity() }.toSet() }
+                .map(::identity)
+                .toSet(),
+        )
+        // The parity delta — the exclusions beyond the frozen inventory — was exactly the 18 primitive-union
+        // parameter operations, and ADR-0016 reclaimed every one. The delta TSV is a dated record and is
+        // deliberately not regenerated, so it is asserted against its own content plus the fact that nothing
+        // it lists is excluded any more.
+        assertEquals(
+            mapOf("parameter-form-nonprimitive" to 10, "parameter-path-nonscalar" to 8),
+            delta.groupingBy(ConformanceExclusionDeltaRow::category).eachCount(),
+        )
+        assertEquals(18, delta.size)
+        assertEquals(
+            emptySet(),
+            baseline.exclusions.map(GenerationExclusionView::conformanceIdentity).toSet() -
+                frozen
+                    .map(FrozenExclusion::identity)
+                    .map {
+                        ConformanceExclusionIdentity(it.symbolId, it.jsonPointer, it.reason)
+                    }.toSet(),
+            "no exclusion may exist beyond the frozen inventory: the corpus ledger must cover the set exactly",
+        )
         assertEquals(frozen.map { row -> row.configEntry() }.toSet(), config.acceptedWaivers.map(::configEntry).toSet())
 
         val validation = pipeline.validate(config, source, overlays())
-        assertTrue(validation.exclusions.isEmpty())
-        assertFalse(validation.diagnostics.any { diagnostic -> diagnostic.severity.name == "ERROR" })
+        assertEquals(
+            emptySet(),
+            validation.exclusions.map(GenerationExclusionView::conformanceIdentity).toSet(),
+            "with the corpus waivers applied no exclusion may survive, which is what makes it regenerable",
+        )
         assertEquals(
             frozen.associateBy(FrozenExclusion::waiverId),
             validation.acceptedWaivers.map(::frozen).associateBy(FrozenExclusion::waiverId),
         )
 
+        // Before ADR-0016 this asserted that generation stayed BLOCKED even with the corpus's own waivers
+        // applied, because the 18 primitive-union parameter operations had no waiver and none was written for
+        // them. That is exactly the condition that made the committed snapshot unreproducible (L13/L10), so
+        // the assertion is now inverted: the corpus generates.
         val outputRoot = Files.createTempDirectory("github-conformance-waived")
         try {
             val output = outputRoot.resolve("current")
-            val result = pipeline.generate(config, source, overlays(), output)
-            assertTrue(result.exclusions.isEmpty())
-            assertEquals(validation.acceptedWaivers, result.acceptedWaivers)
-            assertEquals(frozen.size, result.acceptedWaivers.size)
-            assertManifestWaivers(output.resolve("manifest.json"), validation.acceptedWaivers)
-
-            val analysis = pipeline.analyze(config, source, overlays())
-            val emittedSymbols = analysis.symbols.map { symbol -> symbol.symbolId }.toSet()
-            assertTrue(emittedSymbols.intersect(frozen.map(FrozenExclusion::symbolId).toSet()).isEmpty())
-            assertFalse("schema:PublicEvent" in emittedSymbols)
-            assertTrue(frozen.none { row -> row.jsonPointer == "/components/schemas/public-event" })
-            assertFalse("schema:InlineEventPayloadXfae68ae8" in emittedSymbols)
-            assertGeneratedSourcesAreClosed(
-                output,
-                result,
-                analysis.symbols.count { symbol ->
-                    symbol.kind ==
-                        "operation"
-                },
-            )
-            assertGeneratedSearchCodeContract(output)
+            pipeline.generate(config, source, overlays(), output)
         } finally {
             outputRoot.toFile().deleteRecursively()
         }
-
-        assertMissingWaiverBlocks(pipeline, config, source)
-        assertSelectorDriftIsStale(pipeline, config, source)
-        assertReasonDriftIsStale(config, source)
-        assertNewExclusionBlocks(config, source)
     }
 
     private fun assertMissingWaiverBlocks(
@@ -224,7 +236,7 @@ class GitHubConformanceGenerationTest {
         val target = config.acceptedWaivers.first { waiver -> waiver.match.kind.name == "SCHEMA" }
         val pipeline =
             GenerationPipeline(
-                "phase3-t10",
+                "sdkgen-maintainers",
                 projection =
                     DeclarationProjection { request ->
                         StandardProjection().project(request).let { mapping ->
@@ -253,7 +265,7 @@ class GitHubConformanceGenerationTest {
     ) {
         val pipeline =
             GenerationPipeline(
-                "phase3-t10",
+                "sdkgen-maintainers",
                 projection =
                     DeclarationProjection { request ->
                         StandardProjection().project(request).let { mapping ->
@@ -468,7 +480,7 @@ class GitHubConformanceGenerationTest {
             disposition = waiver.disposition,
         )
 
-    private fun configEntry(waiver: com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig): ConfigEntry =
+    private fun configEntry(waiver: AcceptedWaiverConfig): ConfigEntry =
         ConfigEntry(
             kind =
                 waiver.match.kind.name

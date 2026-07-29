@@ -1,3 +1,4 @@
+import com.nabobery.sdkgen.buildlogic.benchmark.RecordBenchmarkMeasurement
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
@@ -6,6 +7,24 @@ plugins {
     id("sdkgen.kotlin-jvm")
     id("sdkgen.kotlin-serialization")
     id("sdkgen.publishing")
+    id("sdkgen.verify-benchmark-budget")
+}
+
+kotlin {
+    sourceSets {
+        named("main") {
+            kotlin.srcDirs(
+                project(":generator:model").layout.projectDirectory.dir("src/main/kotlin"),
+                project(":generator:openapi").layout.projectDirectory.dir("src/main/kotlin"),
+            )
+        }
+    }
+}
+
+sourceSets {
+    named("main") {
+        resources.srcDir(project(":generator:openapi").layout.projectDirectory.dir("src/main/resources"))
+    }
 }
 
 tasks.processResources {
@@ -57,18 +76,22 @@ tasks.test {
     val streamingFixtureSource =
         rootProject.layout.projectDirectory.file("conformance/streaming-fixture/openapi.yaml")
     val streamingFixtureCommitted =
-        rootProject.layout.projectDirectory.dir("conformance/streaming-fixture/consumer/src/main/kotlin")
+        rootProject.layout.projectDirectory.dir("conformance/streaming-fixture/generated")
     val fixtureOutputRoot = layout.buildDirectory.dir("tmp/fixture-reproducibility")
     val openRouterGeneratedOutput = layout.buildDirectory.dir("tmp/openrouter-baseline")
-    val t8RenameInventory = rootProject.layout.projectDirectory.file("docs/phase3/results/t8-openrouter-renames.tsv")
+    val t8RenameInventory = rootProject.layout.projectDirectory.file("docs/conformance/evidence/openrouter-renames.tsv")
     val t11StripeBlockerInventory =
-        rootProject.layout.projectDirectory.file("docs/phase3/results/t11-stripe-blockers.tsv")
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/stripe-blockers.tsv")
     val t11StripeWaiverInventory =
-        rootProject.layout.projectDirectory.file("docs/phase3/results/t11-stripe-waivers.tsv")
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/stripe-waivers.tsv")
+    val t12StripeExclusionDelta =
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/stripe-exclusion-delta.tsv")
     val t11StripeConfig = rootProject.layout.projectDirectory.file("conformance/stripe/sdkgen.yaml")
     val stripeGeneratedOutput = layout.buildDirectory.dir("tmp/stripe-conformance")
     val t10GitHubBlockerInventory =
-        rootProject.layout.projectDirectory.file("docs/phase3/results/t10-github-blockers.tsv")
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/github-blockers.tsv")
+    val t12GitHubExclusionDelta =
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/github-exclusion-delta.tsv")
     val t10GitHubConfig = rootProject.layout.projectDirectory.file("conformance/github/sdkgen.yaml")
     val t10GitHubCodeSearchOverlay =
         rootProject.layout.projectDirectory.file("conformance/github/overlays/code-search-runtime-semantics.yaml")
@@ -92,8 +115,10 @@ tasks.test {
     inputs.dir(streamingFixtureCommitted).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t11StripeBlockerInventory).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t11StripeWaiverInventory).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(t12StripeExclusionDelta).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t11StripeConfig).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t10GitHubBlockerInventory).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(t12GitHubExclusionDelta).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t10GitHubConfig).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t10GitHubCodeSearchOverlay).withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.dir(fixtureOutputRoot)
@@ -112,9 +137,11 @@ tasks.test {
     systemProperty("engine.t8RenameInventory", t8RenameInventory.asFile.absolutePath)
     systemProperty("engine.t11StripeBlockerInventory", t11StripeBlockerInventory.asFile.absolutePath)
     systemProperty("engine.t11StripeWaiverInventory", t11StripeWaiverInventory.asFile.absolutePath)
+    systemProperty("engine.stripeExclusionDelta", t12StripeExclusionDelta.asFile.absolutePath)
     systemProperty("engine.t11StripeConfig", t11StripeConfig.asFile.absolutePath)
     systemProperty("engine.stripeGeneratedOutput", stripeGeneratedOutput.get().asFile.absolutePath)
     systemProperty("engine.t10GitHubBlockerInventory", t10GitHubBlockerInventory.asFile.absolutePath)
+    systemProperty("engine.githubExclusionDelta", t12GitHubExclusionDelta.asFile.absolutePath)
     systemProperty("engine.t10GitHubConfig", t10GitHubConfig.asFile.absolutePath)
     systemProperty("engine.emitterSource", emitterSource.asFile.absolutePath)
     systemProperty("engine.emissionContextSource", emissionContextSource.asFile.absolutePath)
@@ -129,6 +156,12 @@ tasks.test {
     )
     systemProperty("engine.streaming.fixture.source", streamingFixtureSource.asFile.absolutePath)
     systemProperty("engine.streaming.fixture.committed", streamingFixtureCommitted.asFile.absolutePath)
+    systemProperty(
+        "engine.streaming.fixture.config",
+        rootProject.layout.projectDirectory
+            .file("conformance/streaming-fixture/sdkgen.yaml")
+            .asFile.absolutePath,
+    )
     systemProperty(
         "engine.streaming.fixture.output",
         fixtureOutputRoot
@@ -158,6 +191,29 @@ tasks.register<Test>("githubScaleBenchmark") {
     maxHeapSize = "2g"
 }
 
+// benchmark-budget evidence: turns githubScaleBenchmark's properties output into one committed-shape MeasurementRecord.
+// This task deliberately does NOT `dependsOn` githubScaleBenchmark: a fresh measurement and its promotion
+// into committed evidence are separate, human-gated steps (see the benchmark budget records),
+// so asking for the record must never silently trigger a ~40-second corpus benchmark. But it does read that
+// task's declared output file, and Gradle rightly rejects an undeclared implicit dependency whenever both
+// tasks land in one graph -- which is exactly what happens when a measurement run invokes them together.
+// `mustRunAfter` is the ordering that expresses this precisely: it fixes the order when both are requested
+// without pulling the benchmark in when only the record is.
+// `workerCount` is fixed at 1, not read from ambient Gradle state, so records stay comparable across runs;
+// `heapBytes` mirrors githubScaleBenchmark's own `maxHeapSize = "2g"` above rather than the executing
+// worker's ambient heap.
+tasks.register<RecordBenchmarkMeasurement>("recordGitHubScaleBenchmarkMeasurement") {
+    description = "Turns the githubScaleBenchmark properties output into a benchmark MeasurementRecord JSON file."
+    group = "verification"
+    mustRunAfter(tasks.named("githubScaleBenchmark"))
+    propertiesFile.set(layout.buildDirectory.file("reports/benchmarks/github-scale.properties"))
+    outputRecord.set(layout.buildDirectory.file("reports/benchmarks/github-scale-record.json"))
+    corpus.set("github-rest")
+    scenario.set("full-pipeline-generation")
+    workerCount.set(1)
+    heapBytes.set(2L * 1024 * 1024 * 1024)
+}
+
 configure<KtlintExtension> {
     filter {
         exclude { element -> element.file.path.contains("/goldens/") }
@@ -165,12 +221,13 @@ configure<KtlintExtension> {
 }
 
 dependencies {
-    implementation(project(":generator:model"))
-    implementation(project(":generator:openapi"))
+    implementation(libs.swagger.parser)
     implementation(libs.kotlinpoet)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kaml)
+    implementation(libs.jackson.core)
     implementation(libs.jackson.databind)
+    implementation(libs.jackson.dataformat.yaml)
 
     testImplementation(project(":runtime:core"))
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.20")

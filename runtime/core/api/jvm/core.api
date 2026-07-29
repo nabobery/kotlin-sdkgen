@@ -366,6 +366,7 @@ public final class com/nabobery/sdkgen/runtime/RedirectCapability : java/lang/En
 
 public final class com/nabobery/sdkgen/runtime/RequestParametersKt {
 	public static final fun buildRequestUri (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
+	public static final fun sdkPrimitiveUnionParameterValues (Lkotlinx/serialization/json/JsonElement;)Ljava/util/List;
 	public static final fun sdkUriEncode (Ljava/lang/String;)Ljava/lang/String;
 }
 
@@ -725,21 +726,32 @@ public final class com/nabobery/sdkgen/runtime/SdkResponseMode : java/lang/Enum 
 }
 
 public abstract interface class com/nabobery/sdkgen/runtime/SdkResponseResult {
+	public fun findRequestId (Ljava/util/List;)Ljava/lang/String;
 	public abstract fun getHeaders ()Ljava/util/List;
+	public fun getRequestId ()Ljava/lang/String;
 	public abstract fun getStatusCode ()I
+}
+
+public final class com/nabobery/sdkgen/runtime/SdkResponseResult$DefaultImpls {
+	public static fun findRequestId (Lcom/nabobery/sdkgen/runtime/SdkResponseResult;Ljava/util/List;)Ljava/lang/String;
+	public static fun getRequestId (Lcom/nabobery/sdkgen/runtime/SdkResponseResult;)Ljava/lang/String;
 }
 
 public final class com/nabobery/sdkgen/runtime/SdkResponseResult$Matched : com/nabobery/sdkgen/runtime/SdkResponseResult {
 	public fun <init> (Lcom/nabobery/sdkgen/runtime/ResponseAlternative;ILjava/util/List;Ljava/lang/Object;)V
+	public fun findRequestId (Ljava/util/List;)Ljava/lang/String;
 	public final fun getAlternative ()Lcom/nabobery/sdkgen/runtime/ResponseAlternative;
 	public fun getHeaders ()Ljava/util/List;
+	public fun getRequestId ()Ljava/lang/String;
 	public fun getStatusCode ()I
 	public final fun getValue ()Ljava/lang/Object;
 }
 
 public final class com/nabobery/sdkgen/runtime/SdkResponseResult$Unknown : com/nabobery/sdkgen/runtime/SdkResponseResult {
 	public fun <init> (ILjava/util/List;Ljava/lang/Object;)V
+	public fun findRequestId (Ljava/util/List;)Ljava/lang/String;
 	public fun getHeaders ()Ljava/util/List;
+	public fun getRequestId ()Ljava/lang/String;
 	public fun getStatusCode ()I
 	public final fun getValue ()Ljava/lang/Object;
 }

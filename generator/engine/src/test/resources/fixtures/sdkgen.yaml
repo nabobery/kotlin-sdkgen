@@ -31,7 +31,6 @@ kotlin:
     clientName: OpenRouterClient
     modelPrefix: null
     operationPrefix: null
-    resourceGrouping: tags
   targets:
     - jvm
     - android

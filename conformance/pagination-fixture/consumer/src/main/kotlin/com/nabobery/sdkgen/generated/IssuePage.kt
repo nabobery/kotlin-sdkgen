@@ -32,9 +32,9 @@ public class IssuePage(
     private var itemsValue: List<Issue>? = null
 
     public var items: List<Issue>
-      get() = requireNotNull(itemsValue) { "items is required" }
+      get() = requireNotNull(itemsValue) { "items is required" }.toList()
       set(`value`) {
-        itemsValue = value
+        itemsValue = value.toList()
       }
 
     public fun build(): IssuePage {
@@ -55,9 +55,8 @@ public class IssuePage(
     override fun deserialize(decoder: Decoder): IssuePage {
       val jsonDecoder = decoder.requireJsonDecoder("IssuePage")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("IssuePage must be a JSON object")
-      val items = json.decodeRequired<List<Issue>>(raw, "items")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("IssuePage must be a JSON object")
+      val items = json.decodeRequired<List<Issue>>(rawObject, "items")
       return IssuePage(
         items = items,
       )

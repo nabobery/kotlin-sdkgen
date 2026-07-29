@@ -39,7 +39,30 @@ internal class EmissionContext(
     internal val generatedPackage: String = "com.nabobery.sdkgen.generated",
     internal val customSerializerTypes: Set<String> = emptySet(),
 ) {
-    fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile> {
+    /**
+     * Emits [model] once and derives both outputs from that single KotlinPoet tree: the rendered files, and the
+     * [EmittedApiProjection] of what those files actually expose. Deriving the projection here -- rather than
+     * from the declaration model upstream, or by re-parsing the rendered text downstream -- is what makes it
+     * able to observe an API change the emitter itself introduces.
+     */
+    fun render(model: KotlinDeclarationModel): EmittedSources {
+        val fileSpecs = buildFileSpecs(model)
+        val files =
+            fileSpecs.map { (path, spec) ->
+                RenderedKotlinFile(path, wrapGeneratedKotlin(spec.toString()).encodeToByteArray())
+            }
+        return EmittedSources(
+            files = files,
+            publicApiProjection =
+                EmittedApiProjection.render(
+                    fileSpecs = fileSpecs.map { (_, spec) -> spec },
+                    files = files,
+                    declarationModelSha256 = model.digest(),
+                ),
+        )
+    }
+
+    private fun buildFileSpecs(model: KotlinDeclarationModel): List<Pair<String, FileSpec>> {
         val normalized = model.normalized().withUniqueInlineAnyOfViewNames()
         val sharedViews =
             normalized.files
@@ -92,7 +115,7 @@ internal class EmissionContext(
                     is OperationClientDeclaration -> emitOperationClient(builder, declaration)
                 }
             }
-            RenderedKotlinFile(file.path, wrapGeneratedKotlin(builder.build().toString()).encodeToByteArray())
+            file.path to builder.build()
         }
     }
 
@@ -219,6 +242,7 @@ internal fun KotlinTypeRef.toTypeName(): TypeName {
 }
 
 internal val STAR = com.squareup.kotlinpoet.STAR
+internal val CONSISTENT_COPY_VISIBILITY = ClassName("kotlin", "ConsistentCopyVisibility")
 internal val SERIALIZABLE = ClassName("kotlinx.serialization", "Serializable")
 internal val SERIAL_NAME = ClassName("kotlinx.serialization", "SerialName")
 internal val K_SERIALIZER = ClassName("kotlinx.serialization", "KSerializer")
@@ -285,6 +309,8 @@ internal val SPLIT_RESOLVED_URL = MemberName("com.nabobery.sdkgen.runtime.pagina
 internal val BUILD_REQUEST_URI = MemberName("com.nabobery.sdkgen.runtime", "buildRequestUri")
 internal val SDK_HEADER = ClassName("com.nabobery.sdkgen.runtime", "SdkHeader")
 internal val SDK_REQUEST_PARAMETER = ClassName("com.nabobery.sdkgen.runtime", "SdkRequestParameter")
+internal val SDK_PRIMITIVE_UNION_PARAMETER_VALUES =
+    MemberName("com.nabobery.sdkgen.runtime", "sdkPrimitiveUnionParameterValues")
 internal val SDK_PARAMETER_LOCATION = ClassName("com.nabobery.sdkgen.runtime", "SdkParameterLocation")
 internal val SDK_TRANSPORT = ClassName("com.nabobery.sdkgen.runtime", "SdkTransport")
 internal val MULTIPART_BODY = ClassName("com.nabobery.sdkgen.runtime.bodies", "MultipartBody")

@@ -19,6 +19,8 @@ import com.nabobery.sdkgen.engine.declarations.GenerationExclusionKind
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
+import com.nabobery.sdkgen.engine.declarations.kotlinApiProjectionDigest
+import com.nabobery.sdkgen.engine.declarations.semanticModelDigest
 import com.nabobery.sdkgen.engine.emit.KotlinEmitter
 import com.nabobery.sdkgen.engine.emit.KotlinPoetEmitter
 import com.nabobery.sdkgen.engine.output.AtomicOutputPublisher
@@ -52,8 +54,11 @@ import com.nabobery.sdkgen.openapi.overlays.ConflictPolicy
 import com.nabobery.sdkgen.openapi.overlays.OverlayApplicator
 import com.nabobery.sdkgen.openapi.overlays.OverlayInput
 import com.nabobery.sdkgen.openapi.overlays.ZeroMatchMode
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.security.MessageDigest
 import java.util.Locale
 import kotlin.io.path.deleteIfExists
@@ -515,7 +520,11 @@ public class GenerationPipeline private constructor(
         destination: Path,
         failAfterFiles: Int? = null,
         lock: GenerationLockPublication? = null,
+        publicApiProjectionDestination: Path? = null,
     ): GenerationResult {
+        publicApiProjectionDestination?.let { projectionPath ->
+            validateProjectionDestination(projectionPath, destination)
+        }
         verifyResolvedInputs(config, source, overlays)
         val started = System.nanoTime()
         val effectivePath = materializeEffectiveSource(config, source, overlays)
@@ -559,7 +568,8 @@ public class GenerationPipeline private constructor(
                 preparedWaivers.activeExclusions,
                 preparedWaivers.accepted,
             )
-            val files = emitter.render(mapping.model)
+            val emitted = emitter.render(mapping.model)
+            val files = emitted.files
             val outputPlugins =
                 pluginEngine.run(
                     config = config,
@@ -613,7 +623,20 @@ public class GenerationPipeline private constructor(
                     acceptedWaivers = waivers.accepted,
                     failAfterFiles = failAfterFiles,
                     lock = lock?.let { LockPublication(it.destination, it.encodedLock.encodeToByteArray()) },
+                    effectiveContractSha256 = effectivePath.readBytes().sha256(),
+                    semanticModelSha256 = preparedSemantic.semanticModelDigest(),
+                    kotlinApiSha256 = prepared.mapping.model.kotlinApiProjectionDigest(),
                 )
+            // Staged beside the run rather than published into the output tree, exactly as the parity behavior
+            // ledger and the staged ABI dumps are: it is compatibility evidence, not generated SDK source, and
+            // committing it would put a second copy of the emitted API under the manifest's own digest list.
+            publicApiProjectionDestination?.let { projectionPath ->
+                writeProjectionAtomically(
+                    projectionPath = projectionPath,
+                    generatedOutput = publication.destination,
+                    bytes = emitted.publicApiProjection.encodeToByteArray(),
+                )
+            }
             return GenerationResult(
                 snapshotSha256 = publication.digest,
                 declarationModelSha256 = prepared.mapping.model.digest(),
@@ -628,6 +651,65 @@ public class GenerationPipeline private constructor(
         } finally {
             if (effectivePath != source.path) effectivePath.deleteIfExists()
         }
+    }
+
+    private fun writeProjectionAtomically(
+        projectionPath: Path,
+        generatedOutput: Path,
+        bytes: ByteArray,
+    ) {
+        val output = generatedOutput.toRealPath()
+        val requested = projectionPath.toAbsolutePath().normalize()
+        require(!requested.startsWith(output)) {
+            "Kotlin API projection path must be outside the generated output tree: $projectionPath"
+        }
+        val parent = requireNotNull(requested.parent) { "Kotlin API projection path must have a parent" }
+        Files.createDirectories(parent)
+        val realParent = parent.toRealPath()
+        val destination = realParent.resolve(requested.fileName)
+        require(!destination.startsWith(output)) {
+            "Kotlin API projection path must be outside the generated output tree: $projectionPath"
+        }
+        val temporary = Files.createTempFile(realParent, ".${requested.fileName}-", ".tmp")
+        try {
+            temporary.writeBytes(bytes)
+            try {
+                Files.move(temporary, destination, ATOMIC_MOVE, REPLACE_EXISTING)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporary, destination, REPLACE_EXISTING)
+            }
+        } finally {
+            temporary.deleteIfExists()
+        }
+    }
+
+    private fun validateProjectionDestination(
+        projectionPath: Path,
+        generatedOutput: Path,
+    ) {
+        val requested = projectionPath.toAbsolutePath().normalize()
+        val output = generatedOutput.toAbsolutePath().normalize()
+        val resolvedRequested = resolveThroughExistingAncestor(requested)
+        val resolvedOutput = resolveThroughExistingAncestor(output)
+        require(!requested.startsWith(output) && !resolvedRequested.startsWith(resolvedOutput)) {
+            "Kotlin API projection path must be outside the generated output tree: $projectionPath"
+        }
+    }
+
+    /**
+     * Resolves every existing path prefix so a symlinked ancestor cannot disguise containment, while retaining
+     * not-yet-created suffixes for the pre-publication validation.
+     */
+    private fun resolveThroughExistingAncestor(path: Path): Path {
+        var ancestor = path.toAbsolutePath().normalize()
+        val missing = ArrayDeque<Path>()
+        while (!Files.exists(ancestor)) {
+            ancestor.fileName?.let(missing::addFirst)
+            ancestor = ancestor.parent ?: return path.toAbsolutePath().normalize()
+        }
+        var resolved = ancestor.toRealPath()
+        missing.forEach { segment -> resolved = resolved.resolve(segment) }
+        return resolved.normalize()
     }
 
     private fun project(

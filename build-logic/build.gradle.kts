@@ -1,4 +1,5 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.tasks.testing.Test
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask
 import org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask
@@ -16,6 +17,11 @@ dependencies {
     implementation(libs.android.gradle.plugin)
     implementation(libs.ktlint.gradle.plugin)
     implementation(libs.binary.compatibility.validator.gradle.plugin)
+    implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(gradleTestKit())
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -31,6 +37,10 @@ tasks.named<KtLintCheckTask>("runKtlintCheckOverMainSourceSet") {
 
 tasks.named<KtLintFormatTask>("runKtlintFormatOverMainSourceSet") {
     setSource(fileTree("src/main/kotlin"))
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 tasks.named("check") {

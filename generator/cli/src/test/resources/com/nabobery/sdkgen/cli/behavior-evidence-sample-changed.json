@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "v1alpha1",
+  "inputErrors": [],
+  "matrices": [
+    {
+      "matrix": "behavior",
+      "rows": [
+        {
+          "id": "github.behavior.pagination",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Generated Link pagination and continuation trust",
+          "fixtureId": "github.pagination",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "notRun",
+          "commitSha": null,
+          "toolchainSha256": null,
+          "corpusSha256": null,
+          "configDigest": null,
+          "configFileSha256": null,
+          "overlaySha256": null,
+          "generatedArtifactSha256": null,
+          "manifestSha256": null,
+          "evidenceProducer": "test-fixture",
+          "evidenceSha256": "daa7e69da54024a7d652356e31918bb7e121e41fdb76b7fb158c9ec843a6c709",
+          "reason": "The checked snapshot predates emitter changes.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        },
+        {
+          "id": "github.behavior.auth",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Generated bearer authentication and pre-transport failure",
+          "fixtureId": "github.auth",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "passed",
+          "commitSha": "deadbeef",
+          "toolchainSha256": null,
+          "corpusSha256": null,
+          "configDigest": null,
+          "configFileSha256": null,
+          "overlaySha256": null,
+          "generatedArtifactSha256": null,
+          "manifestSha256": null,
+          "evidenceProducer": "test-fixture-rerun",
+          "evidenceSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "reason": "Digest-bound producer result now exists and passed.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        }
+      ]
+    }
+  ],
+  "waiverLedger": [],
+  "summary": {
+    "totalRows": 3,
+    "passedRows": 1,
+    "failedRows": 0,
+    "waivedRows": 0,
+    "notApplicableRows": 0,
+    "notRunRows": 2,
+    "gateStatus": "failed"
+  }
+}

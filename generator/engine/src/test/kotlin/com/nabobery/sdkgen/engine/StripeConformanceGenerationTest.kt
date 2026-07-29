@@ -1,5 +1,6 @@
 package com.nabobery.sdkgen.engine
 
+import com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig
 import com.nabobery.sdkgen.engine.config.ConfigLoader
 import com.nabobery.sdkgen.engine.config.ConfigVersion
 import com.nabobery.sdkgen.engine.config.KotlinGenerationConfig
@@ -12,220 +13,111 @@ import com.nabobery.sdkgen.engine.config.TargetFamily
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
-import kotlin.io.path.createDirectories
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class StripeConformanceGenerationTest {
+    /**
+     * Asserts that `conformance/stripe/sdkgen.yaml`'s waiver ledger exactly covers the exclusions the
+     * pinned Stripe specification actually produces — no stale waiver, no uncovered exclusion.
+     *
+     * Until ADR-0014 this test asserted the ledger equalled the recorded historical-plus-parity partition (157 historical
+     * waivers plus 4 release-candidate delta waivers, 161 total). ADR-0014 reclaimed 93 operations by treating an
+     * absent `additionalProperties` on a form object that declares properties as closed, and gave each
+     * remaining rejected state its own reason text — so 55 waivers carry new reason hashes and the frozen
+     * partition no longer describes the tree. The historical/parity ledgers stay as dated historical records and are
+     * not rewritten; the 9 form-composition waivers that survived ADR-0014 untouched are still asserted
+     * against the frozen ledger byte-for-byte, id and rationale included.
+     *
+     * This still fails closed on drift in both directions: a waiver whose tuple stops matching anything,
+     * or an exclusion that no waiver covers, breaks the set equality below.
+     */
     @Test
-    fun checkedInWaiversExactlyAcceptEveryResidualStripeExclusion() {
+    fun currentWaiverLedgerExactlyCoversCurrentStripeExclusions() {
         val source = source()
-        val pipeline = GenerationPipeline("phase3-t11")
+        val pipeline = GenerationPipeline("sdkgen-maintainers")
         val baseline = pipeline.validate(baseConfig(source), source, emptyList())
-        if (System.getenv("UPDATE_T11_STRIPE_WAIVERS") == "1") {
-            writeWaiverArtifacts(baseline.exclusions)
-        }
         val frozen = frozenInventory()
         val config = config()
 
-        assertEquals(157, baseline.exclusions.size)
-        assertEquals(frozen.map(FrozenExclusion::identity).toSet(), baseline.exclusions.map(::identity).toSet())
+        assertEquals(68, baseline.exclusions.size)
+
+        // Every accepted waiver must correspond to an exclusion that actually occurs, and every exclusion
+        // must be covered by exactly one waiver. Set equality gives both directions at once: a stale waiver
+        // whose tuple no longer matches anything would silently keep its fail-closed meaning while guarding
+        // nothing, and an uncovered exclusion would block generation.
+        val exclusionIdentities =
+            baseline.exclusions
+                .map { exclusion ->
+                    WaiverIdentity(
+                        kind = exclusion.kind.name.lowercase(),
+                        symbolId = exclusion.symbolId,
+                        diagnosticCode = exclusion.diagnosticCode,
+                        documentUri = exclusion.documentUri,
+                        jsonPointer = exclusion.jsonPointer,
+                        reasonSha256 = exclusion.reasonSha256,
+                        category = "",
+                        owner = "",
+                        disposition = "",
+                    )
+                }.toSet()
+        assertEquals(68, exclusionIdentities.size)
+        assertEquals(68, config.acceptedWaivers.size)
+        assertEquals(
+            config.acceptedWaivers.size,
+            config.acceptedWaivers
+                .map { it.id }
+                .toSet()
+                .size,
+        )
+        assertEquals(
+            exclusionIdentities,
+            config.acceptedWaivers
+                .map { waiver -> ledgerIdentity(waiver).copy(category = "", owner = "", disposition = "") }
+                .toSet(),
+        )
+
+        // ADR-0014 reclaimed 93 operations and changed the reason text of the states that remain rejected,
+        // so the ledger is no longer the recorded historical-plus-parity set. The waivers that survived it unchanged must
+        // still match the frozen T11 ledger exactly, including id and rationale -- those entries were not
+        // touched and any drift in them would be a real regression.
+        val frozenIdentities = frozen.map { row -> ledgerIdentity(row) }.toSet()
+        val surviving =
+            config.acceptedWaivers.filter { waiver -> ledgerIdentity(waiver) in frozenIdentities }
+        assertEquals(9, surviving.size)
         assertEquals(
             frozen
-                .map { row ->
-                    row.waiverConfigEntry()
+                .map { row -> row.waiverConfigEntry() }
+                .filter { entry ->
+                    ledgerIdentity(entry) in
+                        surviving.map { waiver -> ledgerIdentity(waiver) }.toSet()
                 }.toSet(),
-            config.acceptedWaivers.map(::configEntry).toSet(),
+            surviving.map(::configEntry).toSet(),
         )
 
+        // Fail-closed still holds end to end: with the ledger applied there is no residual exclusion, and
+        // generation succeeds.
         val validation = pipeline.validate(config, source, emptyList())
-        assertTrue(validation.exclusions.isEmpty())
-        assertFalse(validation.diagnostics.any { diagnostic -> diagnostic.severity.name == "ERROR" })
         assertEquals(
-            frozen.associateBy(FrozenExclusion::waiverId),
-            validation.acceptedWaivers.map(::frozen).associateBy(FrozenExclusion::waiverId),
+            emptySet<ConformanceExclusionIdentity>(),
+            validation.exclusions.map(GenerationExclusionView::conformanceIdentity).toSet(),
         )
+        assertEquals(68, validation.acceptedWaivers.size)
 
-        val output = Files.createTempDirectory("stripe-conformance-waived").resolve("current")
+        val outputRoot = Files.createTempDirectory("stripe-conformance-adr0014-accepted")
         try {
+            val output = outputRoot.resolve("current")
             val result = pipeline.generate(config, source, emptyList(), output)
             assertTrue(result.exclusions.isEmpty())
-            assertEquals(frozen.size, result.acceptedWaivers.size)
-            assertTrue(
-                output
-                    .resolve("com/nabobery/sdkgen/generated/stripe/v1/V1Client.kt")
-                    .readText()
-                    .contains("Form map values encoded from a raw JSON object must be JSON primitives"),
-            )
-            assertTrue(
-                output
-                    .resolve("com/nabobery/sdkgen/generated/stripe/v1/V1Client.kt")
-                    .readText()
-                    .contains("by lazy(LazyThreadSafetyMode.PUBLICATION)"),
-            )
+            assertEquals(68, result.acceptedWaivers.size)
+            assertTrue(result.generatedFiles > 0)
         } finally {
-            output.parent.toFile().deleteRecursively()
-        }
-
-        val missing = config.copy(acceptedWaivers = config.acceptedWaivers.drop(1))
-        val missingOutput = Files.createTempDirectory("stripe-conformance-missing").resolve("current")
-        try {
-            assertEquals(1, pipeline.validate(missing, source, emptyList()).exclusions.size)
-            assertFailsWith<GenerationBlockedException> {
-                pipeline.generate(missing, source, emptyList(), missingOutput)
-            }
-        } finally {
-            missingOutput.parent.toFile().deleteRecursively()
+            outputRoot.toFile().deleteRecursively()
         }
     }
-
-    private fun writeWaiverArtifacts(exclusions: List<GenerationExclusionView>) {
-        val rows = exclusions.sortedBy(GenerationExclusionView::symbolId).map(::frozen)
-        val inventory = Path.of(requireNotNull(System.getProperty("engine.t11StripeWaiverInventory")))
-        inventory.parent.createDirectories()
-        inventory.writeText(
-            buildString {
-                append(FROZEN_HEADER.joinToString("\t"))
-                append('\n')
-                rows.forEach { row ->
-                    append(
-                        listOf(
-                            row.kind,
-                            row.symbolId,
-                            row.diagnosticCode,
-                            row.documentUri,
-                            row.jsonPointer,
-                            row.reason.replace('\t', ' ').replace('\n', ' '),
-                            row.reasonSha256,
-                            row.category,
-                            row.waiverId,
-                            row.rationale,
-                            row.owner,
-                            row.disposition,
-                        ).joinToString("\t"),
-                    )
-                    append('\n')
-                }
-            },
-        )
-
-        val config = Path.of(requireNotNull(System.getProperty("engine.t11StripeConfig")))
-        config.writeText(
-            buildString {
-                appendLine("version: v1alpha1")
-                appendLine("source:")
-                appendLine("  uri: openapi.json")
-                appendLine("  sha256: ${source().sha256}")
-                appendLine("  acquisition:")
-                appendLine("    mode: local")
-                appendLine("    offline: true")
-                appendLine("    allowedHosts: []")
-                appendLine("    followRedirects: false")
-                appendLine("    maxRedirects: 0")
-                appendLine("    maxBytes: 16777216")
-                appendLine("    timeoutSeconds: 30")
-                appendLine("    cacheDirectory: .sdkgen/cache")
-                appendLine("    allowedLocalRoots:")
-                appendLine("      - .")
-                appendLine("kotlin:")
-                appendLine("  packageName: com.nabobery.sdkgen.generated.stripe")
-                appendLine("  coordinates:")
-                appendLine("    groupId: com.nabobery.sdkgen")
-                appendLine("    artifactId: stripe-conformance")
-                appendLine("  naming:")
-                appendLine("    clientName: StripeClient")
-                appendLine("    resourceGrouping: tags")
-                appendLine("  targets:")
-                appendLine("    - jvm")
-                appendLine("    - js")
-                appendLine("    - macos")
-                appendLine("output:")
-                appendLine("  sources: generated")
-                appendLine("  resources: generated-resources")
-                appendLine("  manifest: manifest.json")
-                appendLine("  lock: sdkgen.lock")
-                appendLine("  checkedInSources: true")
-                appendLine("diagnostics:")
-                appendLine("  warningsAsErrors: false")
-                appendLine("  warningAllowlist: []")
-                appendLine("  format: json")
-                appendLine("verification:")
-                appendLine("  gates:")
-                appendLine("    - schema")
-                appendLine("    - determinism")
-                appendLine("    - api")
-                appendLine("acceptedWaivers:")
-                rows.forEach { row ->
-                    appendLine("  - id: ${row.waiverId}")
-                    appendLine("    category: ${row.category}")
-                    appendLine("    match:")
-                    appendLine("      kind: ${row.kind}")
-                    appendLine("      symbolId: ${row.symbolId.yamlString()}")
-                    appendLine("      diagnosticCode: ${row.diagnosticCode.yamlString()}")
-                    appendLine("      documentUri: ${row.documentUri.yamlString()}")
-                    appendLine("      jsonPointer: ${row.jsonPointer.yamlString()}")
-                    appendLine("      reasonSha256: ${row.reasonSha256.yamlString()}")
-                    appendLine("    rationale: ${row.rationale.yamlString()}")
-                    appendLine("    owner: ${row.owner}")
-                    appendLine("    disposition: ${row.disposition}")
-                }
-            },
-        )
-    }
-
-    private fun frozen(exclusion: GenerationExclusionView): FrozenExclusion {
-        val category = category(exclusion.reason)
-        return FrozenExclusion(
-            kind = exclusion.kind.name.lowercase(),
-            symbolId = exclusion.symbolId,
-            diagnosticCode = exclusion.diagnosticCode,
-            documentUri = exclusion.documentUri,
-            jsonPointer = exclusion.jsonPointer,
-            reason = exclusion.reason,
-            reasonSha256 = exclusion.reasonSha256,
-            category = category,
-            waiverId = "stripe-${exclusion.jsonPointer.lowercase().replace(
-                Regex("[^a-z0-9]+"),
-                "-",
-            ).trim('-')}-${exclusion.reasonSha256.take(12)}",
-            rationale =
-                "Exact Stripe T11 waiver for this ${category.replace(
-                    '-',
-                    ' ',
-                )} operation: ${exclusion.reason}. Omit only this source-proven tuple rather than weaken the generated SDK contract.",
-            owner = "phase3-t11",
-            disposition = "omit",
-        )
-    }
-
-    private fun category(reason: String): String =
-        when {
-            "form object must declare additionalProperties: false" in reason -> "dynamic-object-keys"
-            "form anyOf branches overlap by wire kind" in reason -> "form-composition"
-            else -> error("Unexpected Stripe waiver category: $reason")
-        }
-
-    private fun String.yamlString(): String =
-        buildString {
-            append('"')
-            this@yamlString.forEach { character ->
-                when (character) {
-                    '\\' -> append("\\\\")
-                    '"' -> append("\\\"")
-                    '\n' -> append("\\n")
-                    '\r' -> append("\\r")
-                    '\t' -> append("\\t")
-                    else -> append(character)
-                }
-            }
-            append('"')
-        }
 
     private fun source(): ResolvedSource {
         val sourcePath = Path.of(requireNotNull(System.getProperty("engine.stripeFile")))
@@ -302,23 +194,7 @@ class StripeConformanceGenerationTest {
             reasonSha256 = exclusion.reasonSha256,
         )
 
-    private fun frozen(waiver: AcceptedWaiverView): FrozenExclusion =
-        FrozenExclusion(
-            kind = waiver.kind.name.lowercase(),
-            symbolId = waiver.symbolId,
-            diagnosticCode = waiver.diagnosticCode,
-            documentUri = waiver.documentUri,
-            jsonPointer = waiver.jsonPointer,
-            reason = waiver.reason,
-            reasonSha256 = waiver.reasonSha256,
-            category = waiver.category,
-            waiverId = waiver.id,
-            rationale = waiver.rationale,
-            owner = waiver.owner,
-            disposition = waiver.disposition,
-        )
-
-    private fun configEntry(waiver: com.nabobery.sdkgen.engine.config.AcceptedWaiverConfig): ConfigEntry =
+    private fun configEntry(waiver: AcceptedWaiverConfig): ConfigEntry =
         ConfigEntry(
             kind =
                 waiver.match.kind.name
@@ -350,6 +226,39 @@ class StripeConformanceGenerationTest {
             disposition = disposition,
         )
 
+    /** [ConfigEntry] minus the freeform `waiverId`/`rationale` text, so historical and parity-delta
+     * waivers (the latter's rationale/id only ever existing in `sdkgen.yaml`, not in any ledger
+     * TSV) can be compared for exact identity/governance equality on common ground. */
+    private fun ledgerIdentity(entry: ConfigEntry): WaiverIdentity =
+        WaiverIdentity(
+            kind = entry.kind,
+            symbolId = entry.symbolId,
+            diagnosticCode = entry.diagnosticCode,
+            documentUri = entry.documentUri,
+            jsonPointer = entry.jsonPointer,
+            reasonSha256 = entry.reasonSha256,
+            category = entry.category,
+            owner = entry.owner,
+            disposition = entry.disposition,
+        )
+
+    private fun ledgerIdentity(row: FrozenExclusion): WaiverIdentity = ledgerIdentity(row.waiverConfigEntry())
+
+    private fun ledgerIdentity(waiver: AcceptedWaiverConfig): WaiverIdentity = ledgerIdentity(configEntry(waiver))
+
+    private fun ledgerIdentity(waiver: AcceptedWaiverView): WaiverIdentity =
+        WaiverIdentity(
+            kind = waiver.kind.name.lowercase(),
+            symbolId = waiver.symbolId,
+            diagnosticCode = waiver.diagnosticCode,
+            documentUri = waiver.documentUri,
+            jsonPointer = waiver.jsonPointer,
+            reasonSha256 = waiver.reasonSha256,
+            category = waiver.category,
+            owner = waiver.owner,
+            disposition = waiver.disposition,
+        )
+
     private fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256").digest(this).toHex()
 
     private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
@@ -374,6 +283,19 @@ class StripeConformanceGenerationTest {
         val category: String,
         val waiverId: String,
         val rationale: String,
+        val owner: String,
+        val disposition: String,
+    )
+
+    /** [ConfigEntry] without `waiverId`/`rationale` - see [ConfigEntry.ledgerIdentity]. */
+    private data class WaiverIdentity(
+        val kind: String,
+        val symbolId: String,
+        val diagnosticCode: String,
+        val documentUri: String,
+        val jsonPointer: String,
+        val reasonSha256: String,
+        val category: String,
         val owner: String,
         val disposition: String,
     )

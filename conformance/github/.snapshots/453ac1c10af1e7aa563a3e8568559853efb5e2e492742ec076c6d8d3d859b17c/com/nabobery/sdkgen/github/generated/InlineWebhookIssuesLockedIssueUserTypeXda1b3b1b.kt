@@ -1,0 +1,69 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-issues-locked/properties/issue/properties/user/properties/ty
+ * pe.
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-issues-locked/properties/issue/properties/user/properties/ty
+ * pe
+ */
+@Serializable(with = InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b.Serializer::class)
+public sealed class InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `Bot`.
+   */
+  public data object Bot : InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b() {
+    public override val `value`: String = "Bot"
+  }
+
+  /**
+   * Documented value. Wire value: `User`.
+   */
+  public data object User : InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b() {
+    public override val `value`: String = "User"
+  }
+
+  /**
+   * Documented value. Wire value: `Organization`.
+   */
+  public data object Organization : InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b() {
+    public override val `value`: String = "Organization"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b = when (value) {
+      Bot.value -> Bot
+      User.value -> User
+      Organization.value -> Organization
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookIssuesLockedIssueUserTypeXda1b3b1b) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

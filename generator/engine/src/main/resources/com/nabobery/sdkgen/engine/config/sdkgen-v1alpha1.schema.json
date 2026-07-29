@@ -176,10 +176,6 @@
                 "operationPrefix": {
                     "type": ["string", "null"],
                     "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
-                },
-                "resourceGrouping": {
-                    "enum": ["tags", "operation-id", "single-client"],
-                    "default": "tags"
                 }
             }
         },

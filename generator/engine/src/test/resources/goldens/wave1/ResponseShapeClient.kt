@@ -24,6 +24,7 @@ import com.nabobery.sdkgen.runtime.SdkTransport
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.TrustedHosts
 import kotlin.Int
+import kotlin.LazyThreadSafetyMode
 import kotlin.String
 import kotlin.Unit
 import kotlin.collections.List
@@ -100,11 +101,9 @@ public class ResponseShapeClient(
    *
    * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
    * into success values.
+   * @param options Execution options.
    */
-  public suspend fun jsonFirstWithResponse(options: CallOptions =
-    CallOptions()): SdkResponseResult<JsonFirstResponse> = executor.executeWithResponse<Unit,
-      JsonFirstResponse>(SdkExecutionRequest(jsonFirstMetadata, baseUri, Unit, emptyList(), emptyList()),
-        ResponseShapeCodecs.jsonFirstRequestCodecRegistry, JsonFirstResponseDecoder, options)
+  public suspend fun jsonFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<JsonFirstResponse> = executor.executeWithResponse<Unit, JsonFirstResponse>(SdkExecutionRequest(jsonFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.jsonFirstRequestCodecRegistry, JsonFirstResponseDecoder, options)
 
   /**
    * Golden response-shape regression for 'binaryFirst'.
@@ -114,11 +113,9 @@ public class ResponseShapeClient(
    *
    * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
    * into success values.
+   * @param options Execution options.
    */
-  public suspend fun binaryFirstWithResponse(options: CallOptions =
-    CallOptions()): SdkResponseResult<BinaryFirstResponse> = executor.executeWithResponse<Unit,
-      BinaryFirstResponse>(SdkExecutionRequest(binaryFirstMetadata, baseUri, Unit, emptyList(), emptyList()),
-        ResponseShapeCodecs.binaryFirstRequestCodecRegistry, BinaryFirstResponseDecoder, options)
+  public suspend fun binaryFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<BinaryFirstResponse> = executor.executeWithResponse<Unit, BinaryFirstResponse>(SdkExecutionRequest(binaryFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.binaryFirstRequestCodecRegistry, BinaryFirstResponseDecoder, options)
 
   /**
    * Golden response-shape regression for 'compatibleMedia'.
@@ -130,8 +127,7 @@ public class ResponseShapeClient(
    * @throws SdkSerializationException When a request or response cannot be serialized.
    * @throws SdkTransportException When transport execution fails.
    */
-  public suspend fun compatibleMedia(options: CallOptions = CallOptions()): String = executor
-    .executeWithTypedErrors<Unit, CompatibleMediaResponse, String>(
+  public suspend fun compatibleMedia(options: CallOptions = CallOptions()): String = executor.executeWithTypedErrors<Unit, CompatibleMediaResponse, String>(
     request = SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()),
     requestCodecs = ResponseShapeCodecs.compatibleMediaRequestCodecRegistry,
     responseDecoder = CompatibleMediaResponseDecoder,
@@ -140,21 +136,17 @@ public class ResponseShapeClient(
         is CompatibleMediaResponse.SuccessJson -> response.json
         is CompatibleMediaResponse.SuccessVndValueJson -> response.json
         is CompatibleMediaResponse.Http400Json -> response.json
-        is CompatibleMediaResponse.Http422NoContent ->
-          error("Runtime selected a non-success response for success mapping.")
-        is CompatibleMediaResponse.Unknown ->
-          error("Runtime returned an unmatched response through the typed success path.")
+        is CompatibleMediaResponse.Http422NoContent -> error("Runtime selected a non-success response for success mapping.")
+        is CompatibleMediaResponse.Unknown -> error("Runtime returned an unmatched response through the typed success path.")
       }
     },
     mapError = { response, statusCode, headers ->
       when (response) {
         is CompatibleMediaResponse.SuccessJson -> error("Runtime selected a success response for error mapping.")
-        is CompatibleMediaResponse.SuccessVndValueJson ->
-          error("Runtime selected a success response for error mapping.")
+        is CompatibleMediaResponse.SuccessVndValueJson -> error("Runtime selected a success response for error mapping.")
         is CompatibleMediaResponse.Http400Json -> CompatibleMediaApiException(response, statusCode, headers)
         is CompatibleMediaResponse.Http422NoContent -> CompatibleMediaApiException(response, statusCode, headers)
-        is CompatibleMediaResponse.Unknown ->
-          error("Runtime returned an unmatched response through the typed error path.")
+        is CompatibleMediaResponse.Unknown -> error("Runtime returned an unmatched response through the typed error path.")
       }
     },
     options = options,
@@ -165,11 +157,9 @@ public class ResponseShapeClient(
    *
    * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
    * into success values.
+   * @param options Execution options.
    */
-  public suspend fun compatibleMediaWithResponse(options: CallOptions =
-    CallOptions()): SdkResponseResult<CompatibleMediaResponse> = executor.executeWithResponse<Unit,
-      CompatibleMediaResponse>(SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()),
-        ResponseShapeCodecs.compatibleMediaRequestCodecRegistry, CompatibleMediaResponseDecoder, options)
+  public suspend fun compatibleMediaWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<CompatibleMediaResponse> = executor.executeWithResponse<Unit, CompatibleMediaResponse>(SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.compatibleMediaRequestCodecRegistry, CompatibleMediaResponseDecoder, options)
 
   /**
    * Typed response alternatives for `jsonFirst`. Non-success alternatives are not converted into success values.
@@ -211,9 +201,7 @@ public class ResponseShapeClient(
     ): SdkResponseDecodeResult<JsonFirstResponse> = when {
       alternative.id == "jsonFirst.response.alternative0" -> SdkResponseDecodeResult(
         value = JsonFirstResponse.SuccessJson(
-          json = ResponseShapeCodecs.jsonFirstResponseCodecAlternative0Registry
-            .select(listOf("jsonFirst.response.alternative0"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ResponseShapeCodecs.jsonFirstResponseCodecAlternative0Registry.select(listOf("jsonFirst.response.alternative0"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -285,9 +273,7 @@ public class ResponseShapeClient(
       )
       alternative.id == "binaryFirst.response.alternative1" -> SdkResponseDecodeResult(
         value = BinaryFirstResponse.SuccessJson(
-          json = ResponseShapeCodecs.binaryFirstResponseCodecAlternative1Registry
-            .select(listOf("binaryFirst.response.alternative1"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ResponseShapeCodecs.binaryFirstResponseCodecAlternative1Registry.select(listOf("binaryFirst.response.alternative1"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -372,9 +358,7 @@ public class ResponseShapeClient(
     ): SdkResponseDecodeResult<CompatibleMediaResponse> = when {
       alternative.id == "compatibleMedia.response.alternative0" -> SdkResponseDecodeResult(
         value = CompatibleMediaResponse.SuccessJson(
-          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative0Registry
-            .select(listOf("compatibleMedia.response.alternative0"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative0Registry.select(listOf("compatibleMedia.response.alternative0"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -382,9 +366,7 @@ public class ResponseShapeClient(
       )
       alternative.id == "compatibleMedia.response.alternative1" -> SdkResponseDecodeResult(
         value = CompatibleMediaResponse.SuccessVndValueJson(
-          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative1Registry
-            .select(listOf("compatibleMedia.response.alternative1"), mediaType ?: "application/vnd.value+json")
-              .decode(body, mediaType ?: "application/vnd.value+json"),
+          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative1Registry.select(listOf("compatibleMedia.response.alternative1"), mediaType ?: "application/vnd.value+json").decode(body, mediaType ?: "application/vnd.value+json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -392,9 +374,7 @@ public class ResponseShapeClient(
       )
       alternative.id == "compatibleMedia.response.alternative2" -> SdkResponseDecodeResult(
         value = CompatibleMediaResponse.Http400Json(
-          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative2Registry
-            .select(listOf("compatibleMedia.response.alternative2"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ResponseShapeCodecs.compatibleMediaResponseCodecAlternative2Registry.select(listOf("compatibleMedia.response.alternative2"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -419,7 +399,8 @@ public class ResponseShapeClient(
   }
 
   public companion object {
-    public val jsonFirstMetadata: OperationMetadata = OperationMetadata(
+    public val jsonFirstMetadata: OperationMetadata by
+        lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "jsonFirst",
           method = "GET",
           path = "/jsonFirst",
@@ -455,9 +436,10 @@ public class ResponseShapeClient(
           ),
           pagination = null,
           streaming = null,
-        )
+        ) }
 
-    public val binaryFirstMetadata: OperationMetadata = OperationMetadata(
+    public val binaryFirstMetadata: OperationMetadata by
+        lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "binaryFirst",
           method = "GET",
           path = "/binaryFirst",
@@ -493,9 +475,10 @@ public class ResponseShapeClient(
           ),
           pagination = null,
           streaming = null,
-        )
+        ) }
 
-    public val compatibleMediaMetadata: OperationMetadata = OperationMetadata(
+    public val compatibleMediaMetadata: OperationMetadata by
+        lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "compatibleMedia",
           method = "GET",
           path = "/compatibleMedia",
@@ -545,6 +528,6 @@ public class ResponseShapeClient(
           ),
           pagination = null,
           streaming = null,
-        )
+        ) }
   }
 }

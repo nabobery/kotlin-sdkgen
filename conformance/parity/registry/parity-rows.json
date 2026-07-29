@@ -1,0 +1,331 @@
+{
+  "schemaVersion": "v1alpha1",
+  "producers": {
+    "github-corpus": [
+      "github.behavior.auth",
+      "github.behavior.optionality",
+      "github.behavior.pagination",
+      "github.behavior.typed-errors",
+      "github.behavior.unions",
+      "github.compile.jvm",
+      "github.compile.non-jvm",
+      "github.source.portable"
+    ],
+    "java-http-transport": [
+      "java-http.transport.contract"
+    ],
+    "okhttp-transport": [
+      "okhttp.transport.contract"
+    ],
+    "openrouter-corpus": [
+      "openrouter.behavior.auth",
+      "openrouter.behavior.model-contracts",
+      "openrouter.behavior.typed-errors",
+      "openrouter.compile.jvm",
+      "openrouter.compile.representative-kmp",
+      "openrouter.source.portable"
+    ],
+    "parity-policy": [
+      "openrouter.behavior.multipart-waiver",
+      "openrouter.behavior.production-sse",
+      "runtime.behavior.android-host",
+      "runtime.behavior.js-lone-surrogate"
+    ],
+    "streaming-stress": [
+      "stress.behavior.generated-sse"
+    ],
+    "stripe-corpus": [
+      "stripe.behavior.auth-typed-errors",
+      "stripe.behavior.form",
+      "stripe.behavior.multipart",
+      "stripe.compile.jvm",
+      "stripe.compile.non-jvm",
+      "stripe.source.portable"
+    ],
+    "transport-ktor": [
+      "ktor.transport.contract"
+    ]
+  },
+  "rows": [
+    {
+      "id": "github.behavior.pagination",
+      "matrix": "behavior",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Generated Link pagination and continuation trust",
+      "fixtureId": "github.pagination",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.behavior.auth",
+      "matrix": "behavior",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Generated bearer authentication and pre-transport failure",
+      "fixtureId": "github.auth",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.behavior.typed-errors",
+      "matrix": "behavior",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Generated typed 403 and 422 response alternatives",
+      "fixtureId": "github.typed-errors",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.behavior.optionality",
+      "matrix": "behavior",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Generated absent versus explicit-null request fields",
+      "fixtureId": "github.optionality",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.behavior.unions",
+      "matrix": "behavior",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Generated primitive and object union validation",
+      "fixtureId": "github.unions",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "stripe.behavior.form",
+      "matrix": "behavior",
+      "subject": "stripe",
+      "target": "jvm",
+      "scenario": "Generated indexed form arrays and typed dynamic maps",
+      "fixtureId": "stripe.form",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "stripe.behavior.multipart",
+      "matrix": "behavior",
+      "subject": "stripe",
+      "target": "jvm",
+      "scenario": "Generated multipart indexed arrays and empty part",
+      "fixtureId": "stripe.multipart",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "stripe.behavior.auth-typed-errors",
+      "matrix": "behavior",
+      "subject": "stripe",
+      "target": "jvm",
+      "scenario": "Generated basic auth plus typed success and error alternatives",
+      "fixtureId": "stripe.auth-typed-errors",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.behavior.typed-errors",
+      "matrix": "behavior",
+      "subject": "openrouter",
+      "target": "jvm",
+      "scenario": "Generated withResponse typed non-success alternative",
+      "fixtureId": "openrouter.typed-errors",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.behavior.auth",
+      "matrix": "behavior",
+      "subject": "openrouter",
+      "target": "jvm",
+      "scenario": "Generated required-auth preflight",
+      "fixtureId": "openrouter.auth",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.behavior.model-contracts",
+      "matrix": "behavior",
+      "subject": "openrouter",
+      "target": "common",
+      "scenario": "Generated optionality, additional properties, open enums, oneOf, and anyOf",
+      "fixtureId": "openrouter.model-contracts",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.behavior.production-sse",
+      "matrix": "behavior",
+      "subject": "openrouter",
+      "target": "production-corpus",
+      "scenario": "Production generated SSE operation",
+      "fixtureId": "openrouter.overlay.full-spec-compat.sse-removals",
+      "evidenceLevel": "sourceInvariant",
+      "requiredness": "optional"
+    },
+    {
+      "id": "stress.behavior.generated-sse",
+      "matrix": "behavior",
+      "subject": "stress-streaming",
+      "target": "jvm",
+      "scenario": "Generated SSE method under hostile boundaries and cancellation",
+      "fixtureId": "stress.generated-sse",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.behavior.multipart-waiver",
+      "matrix": "behavior",
+      "subject": "openrouter",
+      "target": "production-corpus",
+      "scenario": "Production generated multipart operation",
+      "fixtureId": "openrouter.multipart.release-candidate-gap",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "optional"
+    },
+    {
+      "id": "runtime.behavior.js-lone-surrogate",
+      "matrix": "behavior",
+      "subject": "runtime-core",
+      "target": "js-node",
+      "scenario": "Form URL encoding of a lone UTF-16 surrogate",
+      "fixtureId": "FormUrlEncodedBodyTest.handlesEmptyTextUnicodeSurrogatesAndLiteralTilde",
+      "evidenceLevel": "runtimeContract",
+      "requiredness": "optional"
+    },
+    {
+      "id": "runtime.behavior.android-host",
+      "matrix": "behavior",
+      "subject": "runtime-core",
+      "target": "android-host",
+      "scenario": "Android execution of common runtime tests",
+      "fixtureId": "runtime-core.androidHostTest",
+      "evidenceLevel": "runtimeContract",
+      "requiredness": "optional"
+    },
+    {
+      "id": "github.compile.jvm",
+      "matrix": "compile",
+      "subject": "github",
+      "target": "jvm",
+      "scenario": "Current generated GitHub SDK JVM compilation",
+      "fixtureId": "github.compile-jvm",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.compile.non-jvm",
+      "matrix": "compile",
+      "subject": "github",
+      "target": "js-macos-android",
+      "scenario": "Generated GitHub SDK non-JVM compilation",
+      "fixtureId": "github.compile-non-jvm",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "optional"
+    },
+    {
+      "id": "stripe.compile.jvm",
+      "matrix": "compile",
+      "subject": "stripe",
+      "target": "jvm",
+      "scenario": "Current generated Stripe SDK JVM compilation",
+      "fixtureId": "stripe.compile-jvm",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "stripe.compile.non-jvm",
+      "matrix": "compile",
+      "subject": "stripe",
+      "target": "js-macos-android",
+      "scenario": "Generated Stripe SDK non-JVM compilation",
+      "fixtureId": "stripe.compile-non-jvm",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "optional"
+    },
+    {
+      "id": "openrouter.compile.jvm",
+      "matrix": "compile",
+      "subject": "openrouter",
+      "target": "jvm",
+      "scenario": "Current generated OpenRouter SDK JVM compilation",
+      "fixtureId": "openrouter.compile-jvm",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.compile.representative-kmp",
+      "matrix": "compile",
+      "subject": "openrouter",
+      "target": "js-android-native",
+      "scenario": "Representative broad KMP and Android compilation",
+      "fixtureId": "openrouter.compile-representative-kmp",
+      "evidenceLevel": "generatedClient",
+      "requiredness": "required"
+    },
+    {
+      "id": "github.source.portable",
+      "matrix": "sourceInvariant",
+      "subject": "github",
+      "target": "portable-source",
+      "scenario": "Generated source contains no forbidden platform APIs",
+      "fixtureId": "github.source-portable",
+      "evidenceLevel": "sourceInvariant",
+      "requiredness": "required"
+    },
+    {
+      "id": "stripe.source.portable",
+      "matrix": "sourceInvariant",
+      "subject": "stripe",
+      "target": "portable-source",
+      "scenario": "Generated source contains no forbidden platform APIs",
+      "fixtureId": "stripe.source-portable",
+      "evidenceLevel": "sourceInvariant",
+      "requiredness": "required"
+    },
+    {
+      "id": "openrouter.source.portable",
+      "matrix": "sourceInvariant",
+      "subject": "openrouter",
+      "target": "portable-source",
+      "scenario": "Generated source contains no forbidden platform APIs",
+      "fixtureId": "openrouter.source-portable",
+      "evidenceLevel": "sourceInvariant",
+      "requiredness": "required"
+    },
+    {
+      "id": "ktor.transport.contract",
+      "matrix": "transport",
+      "subject": "transport-ktor",
+      "target": "jvm",
+      "scenario": "Complete SdkTransportContractKit execution including skip report",
+      "fixtureId": "transport.ktor.contract",
+      "evidenceLevel": "runtimeContract",
+      "requiredness": "required"
+    },
+    {
+      "id": "okhttp.transport.contract",
+      "matrix": "transport",
+      "subject": "transport-okhttp",
+      "target": "jvm",
+      "scenario": "Complete SdkTransportContractKit execution including skip report",
+      "fixtureId": "transport.okhttp.contract",
+      "evidenceLevel": "runtimeContract",
+      "requiredness": "required"
+    },
+    {
+      "id": "java-http.transport.contract",
+      "matrix": "transport",
+      "subject": "transport-java-http",
+      "target": "jvm",
+      "scenario": "Complete SdkTransportContractKit execution including skip report",
+      "fixtureId": "transport.java-http.contract",
+      "evidenceLevel": "runtimeContract",
+      "requiredness": "required"
+    }
+  ]
+}

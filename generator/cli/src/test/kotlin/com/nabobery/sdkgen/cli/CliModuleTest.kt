@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.parse
 import com.github.ajalt.clikt.testing.test
 import com.nabobery.sdkgen.engine.config.LockCodec
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -466,7 +467,7 @@ internal class CliModuleTest {
         val manifest = root.resolve("manifest.json")
         val digest = "b".repeat(64)
         val files =
-            (0..10_000).joinToString(",") { index ->
+            (0..20_000).joinToString(",") { index ->
                 "{\"path\":\"$index.kt\",\"sha256\":\"$digest\"}"
             }
         manifest.writeText("{\"schemaVersion\":\"v1alpha1\",\"files\":[$files]}")
@@ -563,6 +564,140 @@ internal class CliModuleTest {
         assertTrue(warning.stdout.contains("warnings-as-errors"))
         assertEquals(0, unknown.statusCode)
         assertTrue(unknown.stdout.contains("\"severity\":\"notice\""))
+    }
+
+    @Test
+    fun diffReportsAcceptedWaiverChangesAsGeneratedSemantic() {
+        val root = Files.createTempDirectory("sdkgen-cli-accepted-waiver-test")
+        val digest = "c".repeat(64)
+
+        fun manifestWithDisposition(disposition: String): String =
+            """
+            {
+              "schemaVersion": "v1alpha1",
+              "acceptedWaivers": [
+                {
+                  "id": "waiver-1",
+                  "category": "compat",
+                  "kind": "operation",
+                  "symbolId": "op:legacyChat",
+                  "diagnosticCode": "SDKGEN-LEGACY-NULLABLE-COMPOSITION",
+                  "reason": "legacy nullable composition",
+                  "reasonSha256": "$digest",
+                  "rationale": "grandfathered for v1 clients",
+                  "owner": "sdk-team",
+                  "disposition": "$disposition",
+                  "source": {"documentUri": "source", "jsonPointer": "/"}
+                }
+              ]
+            }
+            """.trimIndent()
+        val from = root.resolve("from.json")
+        val to = root.resolve("to.json")
+        from.writeText(manifestWithDisposition("accepted"))
+        to.writeText(manifestWithDisposition("regressed"))
+
+        val result = sdkgenCommand().test("diff --from $from --to $to --format json")
+
+        assertEquals(1, result.statusCode, result.output)
+        assertFalse(result.stdout.contains("SDKGEN-DIFF-INPUT-INVALID"))
+        val document = Json.parseToJsonElement(result.stdout).jsonObject
+        assertEquals("changes", document.getValue("status").jsonPrimitive.content)
+        val change =
+            document
+                .getValue("changes")
+                .jsonArray
+                .single {
+                    it.jsonObject
+                        .getValue("subject")
+                        .jsonPrimitive.content == "acceptedWaivers"
+                }.jsonObject
+        assertEquals("generated-semantic", change.getValue("kind").jsonPrimitive.content)
+        assertEquals("changed", change.getValue("status").jsonPrimitive.content)
+    }
+
+    @Test
+    fun diffTreatsManifestWithExclusionsAsReadable() {
+        val root = Files.createTempDirectory("sdkgen-cli-exclusions-test")
+        val digest = "d".repeat(64)
+        val manifest = root.resolve("manifest.json")
+        manifest.writeText(
+            """
+            {
+              "schemaVersion": "v1alpha1",
+              "exclusions": [
+                {
+                  "kind": "operation",
+                  "symbolId": "op:legacyBeta",
+                  "diagnosticCode": "SDKGEN-EMIT-EXCLUDED",
+                  "reason": "unsupported composition",
+                  "reasonSha256": "$digest",
+                  "source": {"documentUri": "source", "jsonPointer": "/"}
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+
+        val result = sdkgenCommand().test("diff --from $manifest --to $manifest --format json")
+
+        assertEquals(0, result.statusCode, result.output)
+        assertFalse(result.stdout.contains("SDKGEN-DIFF-INPUT-INVALID"))
+    }
+
+    @Test
+    fun diffRejectsManifestWithGenuinelyUnmodeledField() {
+        val root = Files.createTempDirectory("sdkgen-cli-unmodeled-field-test")
+        val manifest = root.resolve("manifest.json")
+        manifest.writeText(
+            """
+            {
+              "schemaVersion": "v1alpha1",
+              "neverModeledField": "surprise"
+            }
+            """.trimIndent(),
+        )
+
+        val result = sdkgenCommand().test("diff --from $manifest --to $manifest --format json")
+
+        assertEquals(1, result.statusCode, result.output)
+        assertTrue(result.stdout.contains("SDKGEN-DIFF-INPUT-INVALID"))
+    }
+
+    @Test
+    fun manifestAcceptedWaiverDocumentDecodesAllFields() {
+        val digest = "e".repeat(64)
+        val json =
+            """
+            {
+              "id": "waiver-2",
+              "category": "compat",
+              "kind": "schema",
+              "symbolId": "schema:LegacyPayload",
+              "diagnosticCode": "SDKGEN-LEGACY-NULLABLE-COMPOSITION",
+              "reason": "legacy nullable composition",
+              "reasonSha256": "$digest",
+              "rationale": "grandfathered for v1 clients",
+              "owner": "sdk-team",
+              "disposition": "accepted",
+              "source": {"documentUri": "source", "jsonPointer": "/"}
+            }
+            """.trimIndent()
+
+        val decoded = MANIFEST_JSON.decodeFromString<ManifestAcceptedWaiverDocument>(json)
+
+        assertEquals("waiver-2", decoded.id)
+        assertEquals("compat", decoded.category)
+        assertEquals("schema", decoded.kind)
+        assertEquals("schema:LegacyPayload", decoded.symbolId)
+        assertEquals("SDKGEN-LEGACY-NULLABLE-COMPOSITION", decoded.diagnosticCode)
+        assertEquals("legacy nullable composition", decoded.reason)
+        assertEquals(digest, decoded.reasonSha256)
+        assertEquals("grandfathered for v1 clients", decoded.rationale)
+        assertEquals("sdk-team", decoded.owner)
+        assertEquals("accepted", decoded.disposition)
+        assertEquals("source", decoded.source?.documentUri)
+        assertEquals("/", decoded.source?.jsonPointer)
     }
 
     @Test
@@ -853,7 +988,6 @@ internal class CliModuleTest {
                 artifactId: reference-generated
               naming:
                 clientName: ReferenceClient
-                resourceGrouping: tags
               targets: [jvm]
             output:
               sources: generated/current
@@ -977,7 +1111,6 @@ internal class CliModuleTest {
                 artifactId: clean-generated
               naming:
                 clientName: OpenRouterClient
-                resourceGrouping: tags
               targets: [jvm]
             runtime:
               requestTimeoutMillis: 60000
@@ -1015,7 +1148,6 @@ internal class CliModuleTest {
                 artifactId: openrouter-generated
               naming:
                 clientName: OpenRouterClient
-                resourceGrouping: tags
               targets: [jvm]
             runtime:
               requestTimeoutMillis: 60000

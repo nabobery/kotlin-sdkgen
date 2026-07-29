@@ -14,7 +14,9 @@ node_modules/
 # Orchestration logs and staging
 claudex*.log
 /experiments-import/
+/.claude/
+/scratchpad/
 
-# Phase docs are tracked, but heavy experiment evidence stays local
-docs/phase[0-9]/
-docs/plans/
+# Internal phase plans, review notes, and raw evidence stay local.
+/docs/phase[0-9]/
+/docs/plans/

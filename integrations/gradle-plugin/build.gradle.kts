@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
     implementation(project(":generator:engine"))
-    implementation(project(":generator:openapi"))
     implementation(libs.kotlin.gradle.plugin)
     testImplementation(gradleTestKit())
 }

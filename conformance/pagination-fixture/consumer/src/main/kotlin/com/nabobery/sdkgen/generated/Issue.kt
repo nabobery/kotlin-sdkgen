@@ -64,10 +64,9 @@ public class Issue(
     override fun deserialize(decoder: Decoder): Issue {
       val jsonDecoder = decoder.requireJsonDecoder("Issue")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("Issue must be a JSON object")
-      val id = json.decodeRequired<Long>(raw, "id")
-      val title = json.decodeRequired<String>(raw, "title")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("Issue must be a JSON object")
+      val id = json.decodeRequired<Long>(rawObject, "id")
+      val title = json.decodeRequired<String>(rawObject, "title")
       return Issue(
         id = id,
         title = title,

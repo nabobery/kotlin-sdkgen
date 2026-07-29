@@ -1,9 +1,11 @@
 package com.nabobery.sdkgen.generated
 
 import com.nabobery.sdkgen.generated.chat.ChatClient
+import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkHeader
-import com.nabobery.sdkgen.runtime.SdkStreamingException
+import com.nabobery.sdkgen.runtime.SdkResponse
 import com.nabobery.sdkgen.runtime.SdkResponseResult
+import com.nabobery.sdkgen.runtime.SdkStreamingException
 import com.nabobery.sdkgen.runtime.TransportCapabilities
 import com.nabobery.sdkgen.runtime.auth.Credential
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
@@ -18,6 +20,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -101,6 +105,100 @@ class StreamingFixtureConsumerTest {
         }
 
     // --- streaming ---
+
+    @Test
+    fun generatedSseParityFixtureHandlesHostileBoundariesAndCancellation() =
+        parityFixture("stress.generated-sse") {
+            runTest {
+                val raw =
+                    "data: {\"id\":\"c1\",\"content\":\"Hel\"}\n\n" +
+                        "data: {\"id\":\"c1\",\"content\":\"lo\"}\n\n" +
+                        "data: [DONE]\n\n"
+                val normalStream =
+                    FakeByteStream(
+                        raw
+                            .encodeToByteArray()
+                            .toList()
+                            .chunked(3)
+                            .map { it.toByteArray() },
+                    )
+                val normalTransport =
+                    streamingTransport().enqueueResponse(200, headers = sseHeaders, body = normalStream)
+
+                val deltas =
+                    client(normalTransport)
+                        .sendChatCompletionStream(ChatRequest(model = "m", prompt = "p"))
+                        .toList()
+
+                assertEquals(listOf("Hel", "lo"), deltas.map { it.content })
+                normalStream.assertClosedNormally()
+
+                val cancelledStream =
+                    FakeByteStream(
+                        listOf(
+                            "data: {\"id\":\"c1\",\"content\":\"first\"}\n\n".encodeToByteArray(),
+                            "data: {\"id\":\"c1\",\"content\":\"second\"}\n\n".encodeToByteArray(),
+                        ),
+                    )
+                val cancelledTransport =
+                    streamingTransport().enqueueResponse(200, headers = sseHeaders, body = cancelledStream)
+
+                assertEquals(
+                    "first",
+                    client(cancelledTransport)
+                        .sendChatCompletionStream(ChatRequest(model = "m", prompt = "p"))
+                        .first()
+                        .content,
+                )
+                assertTrue(cancelledStream.closed)
+
+                val incrementalStream =
+                    CountingByteStream(
+                        listOf(
+                            "data: {\"id\":\"c1\",\"content\":\"incremental\"}\n\n".encodeToByteArray(),
+                            "data: {\"id\":\"c1\",\"content\":\"must-not-be-read\"}\n\n".encodeToByteArray(),
+                        ),
+                    )
+                val incrementalTransport =
+                    streamingTransport().enqueueExchange {
+                        SdkResponse(200, sseHeaders, incrementalStream)
+                    }
+
+                assertEquals(
+                    "incremental",
+                    client(incrementalTransport)
+                        .sendChatCompletionStream(ChatRequest(model = "m", prompt = "p"))
+                        .first()
+                        .content,
+                )
+                assertEquals(1, incrementalStream.reads)
+                assertTrue(incrementalStream.closed)
+
+                val eventCount = 1_024
+                val longStream =
+                    FakeByteStream(
+                        buildList {
+                            repeat(eventCount) { index ->
+                                add(
+                                    "data: {\"id\":\"c1\",\"content\":\"$index\"}\n\n".encodeToByteArray(),
+                                )
+                            }
+                            add("data: [DONE]\n\n".encodeToByteArray())
+                        },
+                    )
+                val longTransport = streamingTransport().enqueueResponse(200, headers = sseHeaders, body = longStream)
+
+                val longResult =
+                    client(longTransport)
+                        .sendChatCompletionStream(ChatRequest(model = "m", prompt = "p"))
+                        .toList()
+
+                assertEquals(eventCount, longResult.size)
+                assertEquals("0", longResult.first().content)
+                assertEquals((eventCount - 1).toString(), longResult.last().content)
+                longStream.assertClosedNormally()
+            }
+        }
 
     @Test
     fun streamDecodesEventsAcrossHostileByteBoundariesAndStopsAtSentinel() =
@@ -240,4 +338,67 @@ class StreamingFixtureConsumerTest {
 
             stream.assertClosedWith(failure)
         }
+
+    private inline fun parityFixture(
+        fixtureId: String,
+        block: () -> Unit,
+    ) {
+        val runId = System.getProperty(PARITY_RUN_ID_PROPERTY)
+        if (runId == null) {
+            block()
+            return
+        }
+        parityEvent(runId, fixtureId, "START")
+        try {
+            block()
+            parityEvent(runId, fixtureId, "PASS")
+        } catch (failure: Throwable) {
+            val failureType = failure::class.simpleName ?: "Throwable"
+            parityEvent(runId, fixtureId, "FAIL", "$fixtureId failed: $failureType")
+            throw failure
+        }
+    }
+
+    private fun parityEvent(
+        runId: String,
+        fixtureId: String,
+        event: String,
+        error: String? = null,
+    ) {
+        val frame =
+            buildJsonObject {
+                put("fixtureId", fixtureId)
+                put("event", event)
+                error?.let { put("error", it) }
+                put("runId", runId)
+            }
+        println("SDKGEN_PARITY_EVENT $frame")
+        System.out.flush()
+    }
+
+    private companion object {
+        const val PARITY_RUN_ID_PROPERTY = "sdkgen.parity.runId"
+    }
+
+    private class CountingByteStream(
+        chunks: List<ByteArray>,
+    ) : SdkByteStream {
+        private val chunks = ArrayDeque(chunks.map(ByteArray::copyOf))
+
+        var reads: Int = 0
+            private set
+
+        var closed: Boolean = false
+            private set
+
+        override suspend fun readChunk(maxBytes: Int): ByteArray? {
+            require(maxBytes > 0) { "maxBytes must be positive" }
+            reads += 1
+            return chunks.removeFirstOrNull()
+        }
+
+        override fun close(cause: Throwable?) {
+            closed = true
+        }
+    }
 }

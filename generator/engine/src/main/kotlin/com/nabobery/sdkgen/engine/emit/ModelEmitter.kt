@@ -1,6 +1,8 @@
 package com.nabobery.sdkgen.engine.emit
 
+import com.nabobery.sdkgen.engine.declarations.AdditionalPropertiesDeclaration
 import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
+import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.SimpleModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.sanitizeKDoc
@@ -10,6 +12,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.LambdaTypeName
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
@@ -24,12 +27,18 @@ internal fun EmissionContext.emitModel(
 ) {
     model.auxiliaryModels.forEach { auxiliary -> file.addType(simpleModel(model.packageName, auxiliary)) }
     file.addType(model(model))
+    model.additionalProperties?.let { additional ->
+        file.addFunction(modelAdditionalPropertiesValidator(model, additional))
+    }
     file.addFunction(modelDsl(model))
     if (model.fields.any { field -> field.required && !field.nullable }) {
         file.addFunction(decodeRequired(model.resolvedName))
     }
     if (model.usesFieldState) {
         file.addFunction(toNullableFieldState())
+        if (model.fields.any { field -> field.type.requiresOwnershipSnapshot() }) {
+            file.addFunction(copyFieldStateValue())
+        }
         file.addFunction(decodeOptional(model.resolvedName))
         file.addFunction(putState())
     }
@@ -43,8 +52,12 @@ private fun EmissionContext.simpleModel(
     val type =
         TypeSpec
             .classBuilder(ClassName(packageName, declaration.resolvedName))
-            .addModifiers(KModifier.PUBLIC, KModifier.DATA)
-            .addAnnotation(SERIALIZABLE)
+            .addModifiers(KModifier.PUBLIC)
+            .apply {
+                if (declaration.fields.none { field -> field.type.requiresOwnershipSnapshot() }) {
+                    addModifiers(KModifier.DATA)
+                }
+            }.addAnnotation(SERIALIZABLE)
             .addKdoc("%L\n", sanitizeKDoc(declaration.kdoc))
     declaration.fields.forEach { field ->
         constructor.addParameter(field.resolvedName, field.type.toTypeName())
@@ -52,8 +65,9 @@ private fun EmissionContext.simpleModel(
             PropertySpec
                 .builder(field.resolvedName, field.type.toTypeName())
                 .addModifiers(KModifier.PUBLIC)
-                .initializer(field.resolvedName)
-                .addKdoc("%L\n", sanitizeKDoc(field.kdoc))
+                .initializer(
+                    field.type.ownershipSnapshotExpression(field.resolvedName, nullable = field.type.nullable),
+                ).addKdoc("%L\n", sanitizeKDoc(field.kdoc))
         if (field.wireName != field.resolvedName) property.addAnnotation(serialName(field.wireName))
         type.addProperty(property.build())
     }
@@ -85,6 +99,14 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
             )
         }
     }
+    model.additionalProperties?.let { additional ->
+        primary.addParameter(
+            ParameterSpec
+                .builder(additional.resolvedName, additional.mapTypeName())
+                .defaultValue("emptyMap()")
+                .build(),
+        )
+    }
     val type =
         TypeSpec
             .classBuilder(model.resolvedName)
@@ -97,10 +119,8 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
             PropertySpec
                 .builder(field.resolvedName, field.type.toTypeName().copy(nullable = field.nullable))
                 .addModifiers(KModifier.PUBLIC)
-                .initializer(
-                    if (field.type.simpleName == "List" && !field.type.nullable) "%L.toList()" else "%L",
-                    field.resolvedName,
-                ).apply {
+                .initializer(field.type.ownershipSnapshotExpression(field.resolvedName, nullable = field.nullable))
+                .apply {
                     if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
                 }.build(),
         )
@@ -111,7 +131,7 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
                 PropertySpec
                     .builder("${field.resolvedName}State", fieldState.parameterizedBy(field.type.toTypeName()))
                     .addModifiers(KModifier.PRIVATE)
-                    .initializer("${field.resolvedName}State")
+                    .initializer(field.type.copyFieldStateSnapshotExpression("${field.resolvedName}State"))
                     .build(),
             )
         }
@@ -150,12 +170,25 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
                 PropertySpec
                     .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
                     .addModifiers(KModifier.PUBLIC)
-                    .initializer(field.resolvedName)
+                    .initializer(field.type.ownershipSnapshotExpression(field.resolvedName, nullable = true))
                     .apply {
                         if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
                     }.build(),
             )
         }
+    }
+    model.additionalProperties?.let { additional ->
+        type.addProperty(
+            PropertySpec
+                .builder(additional.resolvedName, additional.mapTypeName())
+                .addModifiers(KModifier.PUBLIC)
+                .initializer(
+                    "%L(%L)",
+                    modelAdditionalPropertiesValidatorName(model),
+                    additional.resolvedName,
+                ).addKdoc("%L\n", sanitizeKDoc(additional.kdoc))
+                .build(),
+        )
     }
     type.addType(modelBuilder(model, requestType))
     type.addType(
@@ -167,7 +200,7 @@ private fun EmissionContext.model(model: ModelDeclaration): TypeSpec {
                     .addModifiers(KModifier.PUBLIC)
                     .addParameter(
                         "block",
-                        com.squareup.kotlinpoet.LambdaTypeName.get(
+                        LambdaTypeName.get(
                             receiver = requestType.nestedClass("Builder"),
                             returnType = UNIT,
                         ),
@@ -193,6 +226,15 @@ private fun EmissionContext.requiredFieldsConstructor(
     val call = CodeBlock.builder()
     required.forEach { field -> call.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
     optional.forEach { field -> call.add("%LState = %T.Absent,\n", field.resolvedName, fieldState) }
+    model.additionalProperties?.let { additional ->
+        function.addParameter(
+            ParameterSpec
+                .builder(additional.resolvedName, additional.mapTypeName())
+                .defaultValue("emptyMap()")
+                .build(),
+        )
+        call.add("%L = %L,\n", additional.resolvedName, additional.resolvedName)
+    }
     @Suppress("UNUSED_VARIABLE")
     val keepType = requestType
     return function.callThisConstructor(call.build()).build()
@@ -223,16 +265,22 @@ private fun EmissionContext.modelBuilder(
                     FunSpec
                         .getterBuilder()
                         .addStatement(
-                            "return requireNotNull(%L) { %S }",
-                            "${field.resolvedName}Value",
-                            "${field.resolvedName} is required",
+                            "return %L",
+                            field.type.ownershipSnapshotExpression(
+                                "requireNotNull(${field.resolvedName}Value) { " +
+                                    "\"${field.resolvedName} is required\" }",
+                                nullable = false,
+                            ),
                         ).build(),
                 ).setter(
                     FunSpec
                         .setterBuilder()
                         .addParameter("value", field.type.toTypeName())
-                        .addStatement("%LValue = value", field.resolvedName)
-                        .build(),
+                        .addStatement(
+                            "%LValue = %L",
+                            field.resolvedName,
+                            field.type.ownershipSnapshotExpression("value", nullable = false),
+                        ).build(),
                 ).build(),
         )
     }
@@ -277,21 +325,98 @@ private fun EmissionContext.modelBuilder(
             )
         }
     } else {
-        optional.forEach { field -> builder.addProperty(plainOptionalBuilderProperty(field)) }
+        optional.forEach { field ->
+            if (field.type.requiresOwnershipSnapshot()) {
+                builder.addProperty(
+                    PropertySpec
+                        .builder("${field.resolvedName}Value", field.type.toTypeName().copy(nullable = true))
+                        .addModifiers(KModifier.PRIVATE)
+                        .mutable()
+                        .initializer("null")
+                        .build(),
+                )
+            }
+            builder.addProperty(plainOptionalBuilderProperty(field))
+        }
+    }
+    model.additionalProperties?.let { additional ->
+        val propertyName = additional.resolvedName
+        builder.addProperty(
+            PropertySpec
+                .builder("${propertyName}Value", additional.mapTypeName())
+                .addModifiers(KModifier.PRIVATE)
+                .mutable()
+                .initializer("emptyMap()")
+                .build(),
+        )
+        builder.addProperty(
+            PropertySpec
+                .builder(propertyName, additional.mapTypeName())
+                .addModifiers(KModifier.PUBLIC)
+                .mutable()
+                .getter(
+                    FunSpec
+                        .getterBuilder()
+                        .addStatement(
+                            "return %L",
+                            additional
+                                .mapTypeRef()
+                                .ownershipSnapshotExpression("${propertyName}Value", nullable = false),
+                        ).build(),
+                ).setter(
+                    FunSpec
+                        .setterBuilder()
+                        .addParameter("value", additional.mapTypeName())
+                        .addStatement(
+                            "%LValue = %L",
+                            propertyName,
+                            additional.mapTypeRef().ownershipSnapshotExpression("value", nullable = false),
+                        ).build(),
+                ).addKdoc("%L\n", sanitizeKDoc(additional.kdoc))
+                .build(),
+        )
     }
     builder.addFunction(builderBuild(model, requestType))
     return builder.build()
 }
 
-private fun plainOptionalBuilderProperty(field: FieldDeclaration): PropertySpec =
-    PropertySpec
+private fun plainOptionalBuilderProperty(field: FieldDeclaration): PropertySpec {
+    val requiresSnapshot = field.type.requiresOwnershipSnapshot()
+    return PropertySpec
         .builder(field.resolvedName, field.type.toTypeName().copy(nullable = true))
         .addModifiers(KModifier.PUBLIC)
         .mutable()
-        .initializer("null")
         .apply {
+            if (!requiresSnapshot) {
+                initializer("null")
+            } else {
+                field.type.toTypeName().copy(nullable = true).let { nullableType ->
+                    getter(
+                        FunSpec
+                            .getterBuilder()
+                            .addStatement(
+                                "return %L",
+                                field.type.ownershipSnapshotExpression(
+                                    "${field.resolvedName}Value",
+                                    nullable = true,
+                                ),
+                            ).build(),
+                    )
+                    setter(
+                        FunSpec
+                            .setterBuilder()
+                            .addParameter("value", nullableType)
+                            .addStatement(
+                                "%LValue = %L",
+                                field.resolvedName,
+                                field.type.ownershipSnapshotExpression("value", nullable = true),
+                            ).build(),
+                    )
+                }
+            }
             if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
         }.build()
+}
 
 private fun EmissionContext.nullableBuilderProperty(
     field: FieldDeclaration,
@@ -303,13 +428,25 @@ private fun EmissionContext.nullableBuilderProperty(
             field.type.toTypeName().copy(nullable = true),
         ).addModifiers(KModifier.PUBLIC)
         .mutable()
-        .getter(FunSpec.getterBuilder().addStatement("return %LState.valueOrNull()", field.resolvedName).build())
-        .setter(
+        .getter(
+            FunSpec
+                .getterBuilder()
+                .addStatement(
+                    "return %L",
+                    field.type.ownershipSnapshotExpression(
+                        "${field.resolvedName}State.valueOrNull()",
+                        nullable = true,
+                    ),
+                ).build(),
+        ).setter(
             FunSpec
                 .setterBuilder()
                 .addParameter("value", field.type.toTypeName().copy(nullable = true))
-                .addStatement("%LState = value.toNullableFieldState()", field.resolvedName)
-                .build(),
+                .addStatement(
+                    "%LState = %L.toNullableFieldState()",
+                    field.resolvedName,
+                    field.type.ownershipSnapshotExpression("value", nullable = true),
+                ).build(),
         ).apply {
             if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
         }.addKdoc(
@@ -327,8 +464,17 @@ private fun EmissionContext.nonNullableBuilderProperty(field: FieldDeclaration):
             field.type.toTypeName().copy(nullable = true),
         ).addModifiers(KModifier.PUBLIC)
         .mutable()
-        .getter(FunSpec.getterBuilder().addStatement("return %LState.valueOrNull()", field.resolvedName).build())
-        .setter(
+        .getter(
+            FunSpec
+                .getterBuilder()
+                .addStatement(
+                    "return %L",
+                    field.type.ownershipSnapshotExpression(
+                        "${field.resolvedName}State.valueOrNull()",
+                        nullable = true,
+                    ),
+                ).build(),
+        ).setter(
             FunSpec
                 .setterBuilder()
                 .addParameter("value", field.type.toTypeName().copy(nullable = true))
@@ -337,8 +483,12 @@ private fun EmissionContext.nonNullableBuilderProperty(field: FieldDeclaration):
                     "${field.resolvedName} is not nullable; call unset${field.resolvedName.replaceFirstChar(
                         Char::uppercase,
                     )}() to omit it",
-                ).addStatement("%LState = %T.Value(present)", field.resolvedName, fieldState)
-                .build(),
+                ).addStatement(
+                    "%LState = %T.Value(%L)",
+                    field.resolvedName,
+                    fieldState,
+                    field.type.ownershipSnapshotExpression("present", nullable = false),
+                ).build(),
         ).apply {
             if (field.kdoc.isNotBlank()) addKdoc("%L\n", sanitizeKDoc(field.kdoc))
         }.addKdoc("Assign a non-null value, or use the unset function to omit the property.\n")
@@ -375,6 +525,9 @@ private fun EmissionContext.builderBuild(
         optional.forEach { field -> body.add("%LState = %LState,\n", field.resolvedName, field.resolvedName) }
     } else {
         optional.forEach { field -> body.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    }
+    model.additionalProperties?.let { additional ->
+        body.add("%L = %L,\n", additional.resolvedName, additional.resolvedName)
     }
     body.unindent().add(")\n")
     return FunSpec
@@ -512,6 +665,15 @@ private fun modelDeserialize(
             )
         }
     }
+    model.additionalProperties?.let { additional ->
+        body.add(
+            "%L = %L.filterKeys { key -> key !in %L }.mapValues { (_, element) -> %L }.toMap(),\n",
+            additional.resolvedName,
+            rawObject,
+            additional.fixedWireNamesExpression(),
+            additional.decodeExpression(json),
+        )
+    }
     body.unindent().add(")\n")
     return body.build()
 }
@@ -528,6 +690,99 @@ private class ModelSerializerLocalNameAllocator(
         return "$preferredName$suffix"
     }
 }
+
+private fun AdditionalPropertiesDeclaration.mapTypeName() =
+    ClassName("kotlin.collections", "Map").parameterizedBy(STRING, valueType.toTypeName())
+
+private fun AdditionalPropertiesDeclaration.mapTypeRef() =
+    KotlinTypeRef(
+        packageName = "kotlin.collections",
+        simpleName = "Map",
+        arguments = listOf(KotlinTypeRef("kotlin", "String"), valueType),
+    )
+
+private fun AdditionalPropertiesDeclaration.fixedWireNamesExpression(): CodeBlock =
+    CodeBlock
+        .builder()
+        .add("setOf(")
+        .apply {
+            fixedWireNames.sorted().forEachIndexed { index, wireName ->
+                if (index > 0) add(", ")
+                add("%S", wireName)
+            }
+        }.add(")")
+        .build()
+
+private fun modelAdditionalPropertiesValidatorName(model: ModelDeclaration): String =
+    "copyAndValidate${model.resolvedName}AdditionalProperties"
+
+private fun modelAdditionalPropertiesValidator(
+    model: ModelDeclaration,
+    additional: AdditionalPropertiesDeclaration,
+): FunSpec =
+    FunSpec
+        .builder(modelAdditionalPropertiesValidatorName(model))
+        .addModifiers(KModifier.PRIVATE)
+        .addParameter(additional.resolvedName, additional.mapTypeName())
+        .returns(additional.mapTypeName())
+        .addStatement(
+            "val copied = %L",
+            additional.mapTypeRef().ownershipSnapshotExpression(additional.resolvedName, nullable = false),
+        ).addStatement(
+            "val collision = copied.keys.sorted().firstOrNull { key -> key in %L }",
+            additional.fixedWireNamesExpression(),
+        ).addStatement(
+            "require(collision == null) { %S + collision + %S }",
+            "${model.resolvedName} additionalProperties key '",
+            "' collides with a fixed property",
+        ).addStatement("return copied")
+        .build()
+
+private fun AdditionalPropertiesDeclaration.decodeExpression(jsonName: String): CodeBlock =
+    when {
+        valuesAreJsonElements -> {
+            CodeBlock.of("element")
+        }
+
+        valueType.nullable -> {
+            CodeBlock.of(
+                "if (element == %T) null else %L.%M<%T>(element)",
+                JSON_NULL,
+                jsonName,
+                DECODE_FROM_JSON_ELEMENT,
+                valueType.toTypeName().copy(nullable = false),
+            )
+        }
+
+        else -> {
+            CodeBlock.of(
+                "%L.%M<%T>(element)",
+                jsonName,
+                DECODE_FROM_JSON_ELEMENT,
+                valueType.toTypeName(),
+            )
+        }
+    }
+
+private fun AdditionalPropertiesDeclaration.encodeStatement(): CodeBlock =
+    when {
+        valuesAreJsonElements -> {
+            CodeBlock.of("%M(key, additionalValue)", PUT)
+        }
+
+        valueType.nullable -> {
+            CodeBlock.of(
+                "%M(key, additionalValue?.let { json.%M(it) } ?: %T)",
+                PUT,
+                ENCODE_TO_JSON_ELEMENT,
+                JSON_NULL,
+            )
+        }
+
+        else -> {
+            CodeBlock.of("%M(key, json.%M(additionalValue))", PUT, ENCODE_TO_JSON_ELEMENT)
+        }
+    }
 
 private fun modelSerialize(
     model: ModelDeclaration,
@@ -597,6 +852,18 @@ private fun modelSerialize(
             body.addStatement("value.%L?.let { %L }", field.resolvedName, encode)
         }
     }
+    model.additionalProperties?.let { additional ->
+        body.add("value.%L.keys.sorted().forEach { key ->\n", additional.resolvedName).indent()
+        body.addStatement("val additionalValue = value.%L.getValue(key)", additional.resolvedName)
+        body.addStatement(
+            "check(key !in %L) { %S + key + %S }",
+            additional.fixedWireNamesExpression(),
+            "${model.resolvedName} additionalProperties key '",
+            "' collides with a fixed property",
+        )
+        body.addStatement("%L", additional.encodeStatement())
+        body.unindent().add("}\n")
+    }
     body.unindent().add("}\n").addStatement("jsonEncoder.encodeJsonElement(raw)")
     return body.build()
 }
@@ -608,7 +875,7 @@ private fun modelDsl(model: ModelDeclaration): FunSpec {
         .addModifiers(KModifier.PUBLIC)
         .addParameter(
             "block",
-            com.squareup.kotlinpoet.LambdaTypeName.get(
+            LambdaTypeName.get(
                 receiver = requestType.nestedClass("Builder"),
                 returnType = UNIT,
             ),
@@ -616,6 +883,25 @@ private fun modelDsl(model: ModelDeclaration): FunSpec {
         .addStatement("return %T.build(block)", requestType)
         .build()
 }
+
+/**
+ * Snapshots a `FieldState`'s collection value so the model owns it.
+ *
+ * `copyValue` is `FieldState<T>.copyValue((T) -> T)`, so when the field's value type is itself nullable —
+ * `FieldState<List<String>?>`, a nullable array property under a merge-patch model — the lambda receives a
+ * nullable value and the snapshot has to be null-safe. Passing `nullable = false` here emitted
+ * `fieldValue.toList()` on a `List<String>?` receiver, which does not compile.
+ */
+private fun KotlinTypeRef.copyFieldStateSnapshotExpression(valueName: String): CodeBlock =
+    if (requiresOwnershipSnapshot()) {
+        CodeBlock.of(
+            "%L.copyValue { fieldValue -> %L }",
+            valueName,
+            ownershipSnapshotExpression("fieldValue"),
+        )
+    } else {
+        CodeBlock.of("%L", valueName)
+    }
 
 private fun EmissionContext.toNullableFieldState(): FunSpec =
     FunSpec
@@ -626,6 +912,33 @@ private fun EmissionContext.toNullableFieldState(): FunSpec =
         .returns(fieldState.parameterizedBy(TypeVariableName("T")))
         .addStatement("return if (this == null) %T.Null else %T.Value(this)", fieldState, fieldState)
         .build()
+
+private fun EmissionContext.copyFieldStateValue(): FunSpec {
+    val type = TypeVariableName("T")
+    return FunSpec
+        .builder("copyValue")
+        .addModifiers(KModifier.PRIVATE, KModifier.INLINE)
+        .addTypeVariable(type)
+        .receiver(fieldState.parameterizedBy(type))
+        .addParameter(
+            "copy",
+            LambdaTypeName.get(
+                parameters = listOf(ParameterSpec.unnamed(type)),
+                returnType = type,
+            ),
+        ).returns(fieldState.parameterizedBy(type))
+        .addCode(
+            "return when (this) {\n" +
+                "  %T.Absent -> this\n" +
+                "  %T.Null -> this\n" +
+                "  is %T.Value -> %T.Value(copy(value))\n" +
+                "}\n",
+            fieldState,
+            fieldState,
+            fieldState,
+            fieldState,
+        ).build()
+}
 
 private fun decodeRequired(modelName: String): FunSpec =
     FunSpec
@@ -683,7 +996,7 @@ private fun EmissionContext.putState(): FunSpec {
         .addParameter("state", fieldState.parameterizedBy(type))
         .addParameter(
             "encode",
-            com.squareup.kotlinpoet.LambdaTypeName.get(
+            LambdaTypeName.get(
                 parameters = listOf(ParameterSpec.unnamed(type)),
                 returnType = JSON_ELEMENT,
             ),

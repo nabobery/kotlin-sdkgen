@@ -1,0 +1,60 @@
+{
+    "schemaVersion": "v1alpha2",
+    "generatorVersion": "fixture-verification",
+    "edition": "community",
+    "kotlinPoetVersion": "2.3.0",
+    "configDigest": "8a78ef2c9474425cd6e7c23290708a06f8d4f7785d4b2bf9a4f5efefc4113d79",
+    "declarationModelSha256": "29f2531892657a43a9505c2b1ac38153f065e9f4b81f69878c1ca6b7dbf4e2f0",
+    "effectiveContractSha256": "ac0da4229f07e40bcb9b19d468cc7be26591e0ec10283dedee2300396a66e102",
+    "semanticModelSha256": "58f716009a7bb3b19de7d170126e17b6a17e2045c16d4f36d2101a30ae992762",
+    "kotlinApiSha256": "3141a579acb38b5b8fcb16ca07f25302ac2ca49dc7e7e505f5cc70a7f2caf46b",
+    "source": {
+        "canonicalUri": "sdkgen://pagination-fixture/openapi.yaml",
+        "sha256": "ac0da4229f07e40bcb9b19d468cc7be26591e0ec10283dedee2300396a66e102",
+        "contentLength": 2237
+    },
+    "references": [],
+    "overlays": [],
+    "targets": [
+        "jvm"
+    ],
+    "compatibilityProfiles": [],
+    "plugins": [],
+    "tools": [
+        {
+            "id": "kotlinpoet",
+            "version": "2.3.0"
+        }
+    ],
+    "warningsAsErrors": false,
+    "warningAllowlist": [],
+    "diagnostics": [],
+    "exclusions": [],
+    "acceptedWaivers": [],
+    "files": [
+        {
+            "path": "com/nabobery/sdkgen/generated/ErrorResponse.kt",
+            "sha256": "15435aa57def2f1cc09abe0b49a8d33481f271eea10797bf28d202d4c24eaf9e"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/Issue.kt",
+            "sha256": "d8ec047818700ef9210605b0a9b705a5790db37dc308bda7fa5a373a413d3509"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/IssuePage.kt",
+            "sha256": "1369cc30f350dca328901d637963d97f259442e8b517aa35c860c30e17f55a28"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/PaginationFixtureClient.kt",
+            "sha256": "ee190ac62759bce847268c31df17c8789fed473282ccd2604746ae7bf4613c4e"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/SerializationSupport.kt",
+            "sha256": "4c810f7e8ed56b923faa5ee907fbc26f5af9dd4550277aa8a2240d4bb340eb0d"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/repos/ReposClient.kt",
+            "sha256": "c325fe1a966afdb953e1308f0560493ae7ec60cff882d1f7587de76366db5316"
+        }
+    ]
+}

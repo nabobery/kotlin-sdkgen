@@ -57,9 +57,8 @@ public class Alpha(
     override fun deserialize(decoder: Decoder): Alpha {
       val jsonDecoder = decoder.requireJsonDecoder("Alpha")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("Alpha must be a JSON object")
-      val alpha = json.decodeRequired<String>(raw, "alpha")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("Alpha must be a JSON object")
+      val alpha = json.decodeRequired<String>(rawObject, "alpha")
       return Alpha(
         alpha = alpha,
       )
@@ -142,9 +141,8 @@ public class Beta(
     override fun deserialize(decoder: Decoder): Beta {
       val jsonDecoder = decoder.requireJsonDecoder("Beta")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("Beta must be a JSON object")
-      val beta = json.decodeRequired<String>(raw, "beta")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("Beta must be a JSON object")
+      val beta = json.decodeRequired<String>(rawObject, "beta")
       return Beta(
         beta = beta,
       )
@@ -222,9 +220,8 @@ public class Cat(
     override fun deserialize(decoder: Decoder): Cat {
       val jsonDecoder = decoder.requireJsonDecoder("Cat")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("Cat must be a JSON object")
-      val cat = json.decodeRequired<String>(raw, "cat")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("Cat must be a JSON object")
+      val cat = json.decodeRequired<String>(rawObject, "cat")
       return Cat(
         cat = cat,
       )
@@ -307,12 +304,10 @@ public class Choice internal constructor(
   private val inspection: ChoiceInspection,
 ) {
   public val alpha: AlphaView? by
-      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesAlpha) json
-        .decodeFromJsonElement<AlphaView>(raw) else null }
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesAlpha) json.decodeFromJsonElement<AlphaView>(raw) else null }
 
   public val beta: BetaView? by
-      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBeta) json
-        .decodeFromJsonElement<BetaView>(raw) else null }
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBeta) json.decodeFromJsonElement<BetaView>(raw) else null }
 
   public val matchedBranches: Set<ChoiceBranch>
     get() = buildSet {
@@ -367,8 +362,7 @@ private fun inspectChoice(element: JsonElement): ChoiceInspection {
 
 private fun JsonElement?.isString(): Boolean = this is JsonPrimitive && isString
 
-private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEmpty() && all { it is JsonPrimitive &&
-  it.isString }
+private fun JsonElement?.isStringArray(): Boolean = this is JsonArray && isNotEmpty() && all { it is JsonPrimitive && it.isString }
 
 --- com/example/generated/CompositionClient.kt ---
 package com.example.generated
@@ -454,9 +448,8 @@ public class Dog(
     override fun deserialize(decoder: Decoder): Dog {
       val jsonDecoder = decoder.requireJsonDecoder("Dog")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("Dog must be a JSON object")
-      val dog = json.decodeRequired<String>(raw, "dog")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("Dog must be a JSON object")
+      val dog = json.decodeRequired<String>(rawObject, "dog")
       return Dog(
         dog = dog,
       )
@@ -500,11 +493,9 @@ public val SdkJson: Json = Json {
       encodeDefaults = true
     }
 
-internal fun Decoder.requireJsonDecoder(typeName: String): JsonDecoder = this as? JsonDecoder ?:
-  throw SerializationException("$typeName supports JSON only")
+internal fun Decoder.requireJsonDecoder(typeName: String): JsonDecoder = this as? JsonDecoder ?: throw SerializationException("$typeName supports JSON only")
 
-internal fun Encoder.requireJsonEncoder(typeName: String): JsonEncoder = this as? JsonEncoder ?:
-  throw SerializationException("$typeName supports JSON only")
+internal fun Encoder.requireJsonEncoder(typeName: String): JsonEncoder = this as? JsonEncoder ?: throw SerializationException("$typeName supports JSON only")
 
 --- com/example/generated/Variant.kt ---
 package com.example.generated
@@ -538,6 +529,10 @@ public class VariantAmbiguityException(
   message: String,
 ) : VariantDecodingException(message)
 
+public class VariantBranchValidationException(
+  message: String,
+) : VariantDecodingException(message)
+
 /**
  * Closed oneOf union for sdkgen://source/composition-golden.yaml#/components/schemas/Variant.
  *
@@ -561,12 +556,25 @@ public sealed interface Variant {
       /**
        * Creates this branch and its canonical raw JSON representation.
        */
-      public fun of(cat: String): Cat = Cat(
-        cat = cat,
-        raw = buildJsonObject {
+      public fun of(cat: String): Cat {
+        val raw = buildJsonObject {
           put("cat", cat)
-        },
-      )
+        }
+        val inspection = inspectVariant(raw)
+        if (inspection.size == 0) {
+          throw VariantNoMatchException("Variant matched 0 branches: " + inspection.failures.joinToString("; "))
+        }
+        if (!inspection.catMatches) {
+          throw VariantBranchValidationException("Cat factory arguments do not satisfy the selected JSON Schema branch")
+        }
+        if (inspection.size > 1) {
+          throw VariantAmbiguityException("Variant matched " + inspection.size + " branches; expected exactly 1: " + inspection.names.joinToString())
+        }
+        return Cat(
+          cat = cat,
+          raw = raw,
+        )
+      }
     }
   }
 
@@ -581,12 +589,25 @@ public sealed interface Variant {
       /**
        * Creates this branch and its canonical raw JSON representation.
        */
-      public fun of(dog: String): Dog = Dog(
-        dog = dog,
-        raw = buildJsonObject {
+      public fun of(dog: String): Dog {
+        val raw = buildJsonObject {
           put("dog", dog)
-        },
-      )
+        }
+        val inspection = inspectVariant(raw)
+        if (inspection.size == 0) {
+          throw VariantNoMatchException("Variant matched 0 branches: " + inspection.failures.joinToString("; "))
+        }
+        if (!inspection.dogMatches) {
+          throw VariantBranchValidationException("Dog factory arguments do not satisfy the selected JSON Schema branch")
+        }
+        if (inspection.size > 1) {
+          throw VariantAmbiguityException("Variant matched " + inspection.size + " branches; expected exactly 1: " + inspection.names.joinToString())
+        }
+        return Dog(
+          dog = dog,
+          raw = raw,
+        )
+      }
     }
   }
 
@@ -595,19 +616,17 @@ public sealed interface Variant {
 
     override fun deserialize(decoder: Decoder): Variant {
       val jsonDecoder = decoder.requireJsonDecoder("Variant")
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw VariantNoMatchException("Variant matched 0 branches: expected JSON object")
-      val matches = inspectVariant(raw)
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw VariantNoMatchException("Variant matched 0 branches: expected JSON object")
+      val matches = inspectVariant(rawObject)
       if (matches.size == 0) {
         throw VariantNoMatchException("Variant matched 0 branches: " + matches.failures.joinToString("; "))
       }
       if (matches.size > 1) {
-        throw VariantAmbiguityException("Variant matched " + matches.size + " branches; expected exactly 1: " + matches
-          .names.joinToString())
+        throw VariantAmbiguityException("Variant matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
       }
       return when {
-        matches.catDecoded -> Cat(cat = requireNotNull(matches.cat), raw = raw)
-        matches.dogDecoded -> Dog(dog = requireNotNull(matches.dog), raw = raw)
+        matches.catMatches -> Cat(cat = requireNotNull(matches.cat), raw = rawObject)
+        matches.dogMatches -> Dog(dog = requireNotNull(matches.dog), raw = rawObject)
         else -> error("unreachable")
       }
     }
@@ -618,38 +637,47 @@ public sealed interface Variant {
   }
 }
 
-private data class VariantInspection(
+internal data class VariantInspection(
   public val cat: String?,
   public val catDecoded: Boolean,
   public val dog: String?,
   public val dogDecoded: Boolean,
+  public val catMatches: Boolean,
+  public val dogMatches: Boolean,
+  public val rawEmpty: Boolean,
   public val failures: List<String>,
 ) {
   public val names: List<String>
     get() = buildList {
-      if (catDecoded) add("Cat")
-      if (dogDecoded) add("Dog")
+      if (catMatches) add("Cat")
+      if (dogMatches) add("Dog")
     }
 
   public val size: Int
     get() = names.size
 }
 
-private fun inspectVariant(raw: JsonObject): VariantInspection {
-  val catResult = raw["cat"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+private fun inspectVariant(rawObject: JsonObject): VariantInspection {
+  val catResult = rawObject["cat"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
   val cat = catResult?.getOrNull()
   val catDecoded = catResult?.isSuccess == true
-  val dogResult = raw["dog"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
+  val dogResult = rawObject["dog"]?.let { element -> runCatching { SdkJson.decodeFromJsonElement<String>(element) } }
   val dog = dogResult?.getOrNull()
   val dogDecoded = dogResult?.isSuccess == true
+  val rawEmpty = rawObject.isEmpty()
+  val catMatches = catDecoded
+  val dogMatches = dogDecoded
   return VariantInspection(
     cat = cat,
     catDecoded = catDecoded,
     dog = dog,
     dogDecoded = dogDecoded,
+    catMatches = catMatches,
+    dogMatches = dogMatches,
+    rawEmpty = rawEmpty,
     failures = buildList {
-      if (!catDecoded) add("Cat: required properties 'cat' do not match their declared types")
-      if (!dogDecoded) add("Dog: required properties 'dog' do not match their declared types")
+      if (!catMatches) add("Cat: branch predicate did not match properties 'cat'")
+      if (!dogMatches) add("Dog: branch predicate did not match properties 'dog'")
     },
   )
 }
@@ -688,6 +716,7 @@ import com.nabobery.sdkgen.runtime.SdkTransport
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.TrustedHosts
 import kotlin.Int
+import kotlin.LazyThreadSafetyMode
 import kotlin.String
 import kotlin.Unit
 import kotlin.collections.List
@@ -734,21 +763,16 @@ public class ChoiceClient(
    * @throws SdkSerializationException When a request or response cannot be serialized.
    * @throws SdkTransportException When transport execution fails.
    */
-  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit,
-    Choice>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), listOf(ChoiceCodecs
-      .GETCHOICE_RESPONSE_CODEC_ID), ChoiceCodecs.getChoiceRequestCodecRegistry, ChoiceCodecs
-        .getChoiceResponseCodecRegistry, options)
+  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit, Choice>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), listOf(ChoiceCodecs.GETCHOICE_RESPONSE_CODEC_ID), ChoiceCodecs.getChoiceRequestCodecRegistry, ChoiceCodecs.getChoiceResponseCodecRegistry, options)
 
   /**
    * Executes 'getChoice'.
    *
    * Returns the selected exact, range, default, or unknown response alternative without converting non-success statuses
    * into success values.
+   * @param options Execution options.
    */
-  public suspend fun getChoiceWithResponse(options: CallOptions =
-    CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit,
-      GetChoiceResponse>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), ChoiceCodecs
-        .getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
+  public suspend fun getChoiceWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit, GetChoiceResponse>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), ChoiceCodecs.getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
 
   /**
    * Typed response alternatives for `getChoice`. Non-success alternatives are not converted into success values.
@@ -784,9 +808,7 @@ public class ChoiceClient(
     ): SdkResponseDecodeResult<GetChoiceResponse> = when {
       alternative.id == "getChoice.response.alternative0" -> SdkResponseDecodeResult(
         value = GetChoiceResponse.SuccessJson(
-          json = ChoiceCodecs.getChoiceResponseCodecAlternative0Registry
-            .select(listOf("getChoice.response.alternative0"), mediaType ?: "application/json").decode(body,
-              mediaType ?: "application/json"),
+          json = ChoiceCodecs.getChoiceResponseCodecAlternative0Registry.select(listOf("getChoice.response.alternative0"), mediaType ?: "application/json").decode(body, mediaType ?: "application/json"),
           statusCode = statusCode,
           headers = headers,
         ),
@@ -803,7 +825,8 @@ public class ChoiceClient(
   }
 
   public companion object {
-    public val getChoiceMetadata: OperationMetadata = OperationMetadata(
+    public val getChoiceMetadata: OperationMetadata by
+        lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "getChoice",
           method = "GET",
           path = "/choice",
@@ -832,6 +855,6 @@ public class ChoiceClient(
           ),
           pagination = null,
           streaming = null,
-        )
+        ) }
   }
 }

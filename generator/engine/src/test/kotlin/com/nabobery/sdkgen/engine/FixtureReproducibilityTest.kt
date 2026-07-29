@@ -1,5 +1,6 @@
 package com.nabobery.sdkgen.engine
 
+import com.nabobery.sdkgen.engine.config.ConfigLoader
 import com.nabobery.sdkgen.engine.config.ConfigVersion
 import com.nabobery.sdkgen.engine.config.KotlinGenerationConfig
 import com.nabobery.sdkgen.engine.config.NamingConfig
@@ -20,18 +21,24 @@ import kotlin.test.assertTrue
 
 class FixtureReproducibilityTest {
     @Test
-    fun paginationAndStreamingSnapshotsMatchRealPipelineRegeneration() {
+    fun paginationSnapshotMatchesRealPipelineRegeneration() {
         verifyFixture(
             name = "pagination",
             canonicalUri = "sdkgen://pagination-fixture/openapi.yaml",
             clientName = "PaginationFixtureClient",
             maxAttempts = 1,
         )
+    }
+
+    @Test
+    fun streamingSnapshotMatchesRealPipelineRegeneration() {
         verifyFixture(
             name = "streaming",
             canonicalUri = "sdkgen://source/openapi.yaml",
             clientName = "StreamingFixtureClient",
             maxAttempts = 3,
+            configPath = Path.of(requireNotNull(System.getProperty("engine.streaming.fixture.config"))),
+            generatorVersion = "0.1.0-alpha.1",
         )
     }
 
@@ -60,6 +67,8 @@ class FixtureReproducibilityTest {
         canonicalUri: String,
         clientName: String,
         maxAttempts: Int,
+        configPath: Path? = null,
+        generatorVersion: String = "fixture-verification",
     ) {
         val source = Path.of(requireNotNull(System.getProperty("engine.$name.fixture.source")))
         val committed = Path.of(requireNotNull(System.getProperty("engine.$name.fixture.committed")))
@@ -67,26 +76,34 @@ class FixtureReproducibilityTest {
         val bytes = source.readBytes()
         val digest = bytes.sha256()
         val config =
-            SdkgenConfigV1Alpha1(
-                version = ConfigVersion.V1_ALPHA_1,
-                source = SourceConfig(canonicalUri, digest),
-                kotlin =
-                    KotlinGenerationConfig(
-                        packageName = "com.nabobery.sdkgen.generated",
-                        coordinates = PackageCoordinates("com.nabobery.sdkgen", "$name-fixture"),
-                        naming = NamingConfig(clientName),
-                        targets = listOf(TargetFamily.JVM),
-                    ),
-                runtime = RuntimeDefaults(retries = RetryDefaults(maxAttempts = maxAttempts)),
-                output = OutputConfig("sources", "resources", "manifest.json"),
-            )
+            configPath?.let { path -> ConfigLoader.decodeYaml(Files.readString(path), path.toString()) }
+                ?: SdkgenConfigV1Alpha1(
+                    version = ConfigVersion.V1_ALPHA_1,
+                    source = SourceConfig(canonicalUri, digest),
+                    kotlin =
+                        KotlinGenerationConfig(
+                            packageName = "com.nabobery.sdkgen.generated",
+                            coordinates = PackageCoordinates("com.nabobery.sdkgen", "$name-fixture"),
+                            naming = NamingConfig(clientName),
+                            targets = listOf(TargetFamily.JVM),
+                        ),
+                    runtime = RuntimeDefaults(retries = RetryDefaults(maxAttempts = maxAttempts)),
+                    output = OutputConfig("sources", "resources", "manifest.json"),
+                )
 
-        GenerationPipeline("fixture-verification").generate(
+        GenerationPipeline(generatorVersion).generate(
             config = config,
             source = ResolvedSource(source, canonicalUri, digest, bytes.size.toLong()),
             overlays = emptyList(),
             destination = output,
         )
+
+        if (System.getenv("UPDATE_SDKGEN_FIXTURES") == "1") {
+            // Opt-in refresh, mirroring UPDATE_OPENROUTER_ADVISOR_NESTED_TOOL_FIXTURE elsewhere in this suite.
+            // Only ever run deliberately: it overwrites the committed fixture with whatever the pipeline
+            // currently produces, so a real regression would be adopted rather than reported. Review the diff.
+            output.toFile().copyRecursively(committed.toFile(), overwrite = true)
+        }
 
         assertOutputTreesMatch(name, committed, output)
     }

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "v1alpha1",
+  "inputErrors": [],
+  "matrices": [
+    {
+      "matrix": "behavior",
+      "rows": [
+        {
+          "id": "github.behavior.pagination",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Generated Link pagination and continuation trust",
+          "fixtureId": "github.pagination",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "passed",
+          "commitSha": "1111111111111111111111111111111111111111",
+          "toolchainSha256": "1e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "corpusSha256": "2e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "configDigest": "3e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "configFileSha256": "4e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "overlaySha256": null,
+          "generatedArtifactSha256": "5e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "manifestSha256": "6e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "evidenceProducer": "produceGitHubParityEvidence",
+          "evidenceSha256": "7e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "reason": "Link pagination and continuation trust observed on the generated client.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        },
+        {
+          "id": "github.behavior.auth",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Generated bearer authentication and pre-transport failure",
+          "fixtureId": "github.auth",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "passed",
+          "commitSha": "1111111111111111111111111111111111111111",
+          "toolchainSha256": "1e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "corpusSha256": "2e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "configDigest": "3e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "configFileSha256": "4e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "overlaySha256": null,
+          "generatedArtifactSha256": "5e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "manifestSha256": "6e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "evidenceProducer": "produceGitHubParityEvidence",
+          "evidenceSha256": "8e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "reason": "Bearer authentication and pre-transport failure observed on the generated client.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        },
+        {
+          "id": "github.behavior.browser",
+          "matrix": "behavior",
+          "subject": "github",
+          "target": "js-browser",
+          "scenario": "Generated browser transport smoke",
+          "fixtureId": "github.browser",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "optional",
+          "status": "notRun",
+          "commitSha": "1111111111111111111111111111111111111111",
+          "toolchainSha256": null,
+          "corpusSha256": null,
+          "configDigest": null,
+          "configFileSha256": null,
+          "overlaySha256": null,
+          "generatedArtifactSha256": null,
+          "manifestSha256": null,
+          "evidenceProducer": "produceGitHubParityEvidence",
+          "evidenceSha256": "9e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "reason": "Optional non-JVM lane is explicitly excluded from this run.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        }
+      ]
+    },
+    {
+      "matrix": "compile",
+      "rows": [
+        {
+          "id": "github.compile.jvm",
+          "matrix": "compile",
+          "subject": "github",
+          "target": "jvm",
+          "scenario": "Current generated GitHub SDK JVM compilation",
+          "fixtureId": "github.compile-jvm",
+          "evidenceLevel": "generatedClient",
+          "requiredness": "required",
+          "status": "passed",
+          "commitSha": "1111111111111111111111111111111111111111",
+          "toolchainSha256": "1e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "corpusSha256": "2e0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "configDigest": null,
+          "configFileSha256": null,
+          "overlaySha256": null,
+          "generatedArtifactSha256": null,
+          "manifestSha256": null,
+          "evidenceProducer": "produceGitHubParityEvidence",
+          "evidenceSha256": "ae0f1c2d3a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5",
+          "reason": "Isolated current-head compile producer result observed.",
+          "waiverOwner": null,
+          "disposition1_0": null
+        }
+      ]
+    }
+  ],
+  "waiverLedger": [],
+  "summary": {
+    "totalRows": 4,
+    "passedRows": 3,
+    "failedRows": 0,
+    "waivedRows": 0,
+    "notApplicableRows": 0,
+    "notRunRows": 1,
+    "gateStatus": "passed"
+  }
+}

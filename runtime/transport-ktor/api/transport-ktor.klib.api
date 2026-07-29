@@ -1,0 +1,17 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, js, linuxArm64, linuxX64, macosArm64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.nabobery:transport-ktor>
+final class com.nabobery.sdkgen.transport.ktor/KtorSdkTransport : com.nabobery.sdkgen.runtime/SdkTransport { // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport|null[0]
+    constructor <init>(io.ktor.client/HttpClient) // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.<init>|<init>(io.ktor.client.HttpClient){}[0]
+    constructor <init>(io.ktor.client/HttpClient, com.nabobery.sdkgen.runtime/TransportCapabilities) // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.<init>|<init>(io.ktor.client.HttpClient;com.nabobery.sdkgen.runtime.TransportCapabilities){}[0]
+
+    final fun capabilities(): com.nabobery.sdkgen.runtime/TransportCapabilities // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.capabilities|capabilities(){}[0]
+    final suspend fun execute(com.nabobery.sdkgen.runtime/SdkRequest): com.nabobery.sdkgen.runtime/SdkResponse // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.execute|execute(com.nabobery.sdkgen.runtime.SdkRequest){}[0]
+
+    final object Companion // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.Companion|null[0]
+}

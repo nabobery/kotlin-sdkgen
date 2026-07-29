@@ -10,10 +10,8 @@ import com.nabobery.sdkgen.engine.config.SourceConfig
 import com.nabobery.sdkgen.engine.config.TargetFamily
 import java.nio.file.Path
 import java.security.MessageDigest
-import kotlin.io.path.createDirectories
 import kotlin.io.path.readBytes
 import kotlin.io.path.readText
-import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -22,17 +20,19 @@ class StripeConformanceBlockerInventoryTest {
     @Test
     fun pinnedStripeSpecFreezesTheExactPreExistingGenerationBlockers() {
         val (config, source) = inputs()
-        val pipeline = GenerationPipeline("phase3-t11")
+        val pipeline = GenerationPipeline("sdkgen-maintainers")
         val validation = pipeline.validate(config, source, emptyList())
         val blockingDiagnostics = validation.diagnostics.filter { diagnostic -> diagnostic.severity.name == "ERROR" }
         val expectedCategories =
             mapOf(
-                "dynamic-object-keys" to 148,
-                "form-composition" to 9,
+                "form-object-no-declared-shape" to 6,
+                "form-composition" to 58,
+                "parameter-deep-object-nonprimitive-arrays" to 2,
+                "parameter-deep-object-nonprimitive-properties" to 2,
             )
 
         assertEquals(
-            mapOf("SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION" to 157),
+            mapOf("SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION" to 68),
             blockingDiagnostics.groupingBy { diagnostic -> diagnostic.code }.eachCount(),
         )
         assertEquals(
@@ -50,7 +50,7 @@ class StripeConformanceBlockerInventoryTest {
                 }.eachCount(),
         )
         assertEquals(
-            157,
+            68,
             validation.exclusions
                 .map { exclusion -> exclusion.symbolId }
                 .toSet()
@@ -58,25 +58,40 @@ class StripeConformanceBlockerInventoryTest {
         )
 
         val inventory = Path.of(requireNotNull(System.getProperty("engine.t11StripeBlockerInventory")))
-        val expected =
-            buildString {
-                append("symbolId\tcategory\tjsonPointer\treason\n")
-                validation.exclusions.sortedBy { exclusion -> exclusion.symbolId }.forEach { exclusion ->
-                    append(exclusion.symbolId)
-                    append('\t')
-                    append(category(exclusion.reason))
-                    append('\t')
-                    append(exclusion.jsonPointer)
-                    append('\t')
-                    append(exclusion.reason.replace('\t', ' ').replace('\n', ' '))
-                    append('\n')
-                }
-            }
-        if (System.getenv("UPDATE_T11_STRIPE_BLOCKERS") == "1") {
-            inventory.parent.createDirectories()
-            inventory.writeText(expected)
-        }
-        assertEquals(expected, inventory.readText())
+        val historical =
+            inventory
+                .readText()
+                .lineSequence()
+                .filter(String::isNotBlank)
+                .drop(1)
+                .map { line ->
+                    val values = line.split('\t')
+                    ConformanceExclusionIdentity(values[0], values[2], values[3])
+                }.toSet()
+        val delta = readConformanceExclusionDelta("engine.stripeExclusionDelta")
+        assertEquals(157, historical.size)
+
+        // Before ADR-0014 the current exclusion set was asserted equal to this recorded historical-plus-parity set. That
+        // equality no longer holds by design: relaxing the form-object rule reclaimed operations, and the
+        // rejected states that remain carry new reason text (so new reason hashes). The historical/parity TSVs stay
+        // as dated historical records and are not rewritten.
+        //
+        // The invariant that still matters, and is stronger than a frozen count: this change may only
+        // REMOVE exclusions. If any operation that generated before is now blocked, that is a regression
+        // and this assertion fails. Identity is compared on symbolId because reason text deliberately moved.
+        val historicalSymbolIds =
+            (historical + delta.map(ConformanceExclusionDeltaRow::identity))
+                .mapTo(mutableSetOf(), ConformanceExclusionIdentity::symbolId)
+        val currentSymbolIds =
+            validation.exclusions.mapTo(mutableSetOf(), GenerationExclusionView::symbolId)
+
+        assertEquals(161, historicalSymbolIds.size)
+        assertEquals(
+            emptySet(),
+            currentSymbolIds - historicalSymbolIds,
+            "ADR-0014 must not block any operation that was generatable before",
+        )
+        assertEquals(93, historicalSymbolIds.size - currentSymbolIds.size)
 
         val output = Path.of(requireNotNull(System.getProperty("engine.stripeGeneratedOutput"))).resolve("blocked")
         val failure =
@@ -113,16 +128,49 @@ class StripeConformanceBlockerInventoryTest {
 
     private fun category(message: String): String =
         when {
-            "deepObject form arrays require" in message -> "deep-object-arrays"
+            "deepObject parameter" in message && "requires primitive array item schemas" in message -> {
+                "parameter-deep-object-nonprimitive-arrays"
+            }
 
-            "form object must declare additionalProperties: false" in message -> "dynamic-object-keys"
+            "deepObject parameter" in message && "property" in message && "requires a primitive schema" in message -> {
+                "parameter-deep-object-nonprimitive-properties"
+            }
+
+            "deepObject parameter" in message && "requires additionalProperties: false" in message -> {
+                "parameter-deep-object-dynamic-keys"
+            }
+
+            "deepObject form arrays require" in message -> {
+                "deep-object-arrays"
+            }
+
+            // ADR-0014 replaced the single "must declare additionalProperties: false" rejection with one
+            // message per rejected state, so each is classified separately and can be waived by its own
+            // reason hash.
+            "form object declares no properties and omits additionalProperties" in message -> {
+                "form-object-no-declared-shape"
+            }
+
+            "form object declares additionalProperties: true" in message -> {
+                "form-object-free-form"
+            }
+
+            "form object mixes fixed properties with a typed additionalProperties catch-all" in message -> {
+                "form-object-mixed-typed"
+            }
 
             "form value cannot use oneOf or anyOf composition" in message ||
-                "form anyOf branches overlap by wire kind" in message -> "form-composition"
+                "form anyOf branches overlap by wire kind" in message -> {
+                "form-composition"
+            }
 
-            "multipart array part" in message -> "multipart-array"
+            "multipart array part" in message -> {
+                "multipart-array"
+            }
 
-            else -> error("Unexpected Stripe conformance blocker: $message")
+            else -> {
+                error("Unexpected Stripe conformance blocker: $message")
+            }
         }
 
     private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }

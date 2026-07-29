@@ -2,6 +2,7 @@ package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.config.RetryDefaults
 import com.nabobery.sdkgen.engine.config.RuntimeDefaults
+import com.nabobery.sdkgen.engine.declarations.AdditionalPropertiesDeclaration
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
 import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
@@ -28,9 +29,122 @@ import kotlin.test.assertTrue
 
 class KotlinPoetEmitterGoldenTest {
     @Test
+    fun collectionOwnershipModelMatchesExactGolden() {
+        val packageName = "com.example.generated"
+        val string = KotlinTypeRef("kotlin", "String")
+        val model =
+            ModelDeclaration(
+                symbolId = "schema:CollectionOwnership",
+                order = 0,
+                packageName = packageName,
+                fileName = "CollectionOwnership",
+                resolvedName = "CollectionOwnership",
+                kdoc = "Collection ownership fixture.",
+                fields =
+                    listOf(
+                        collectionOwnershipField(
+                            "requiredList",
+                            KotlinTypeRef("kotlin.collections", "List", listOf(string)),
+                            order = 0,
+                            required = true,
+                        ),
+                        collectionOwnershipField(
+                            "requiredNullableSet",
+                            KotlinTypeRef("kotlin.collections", "Set", listOf(string)),
+                            order = 1,
+                            required = true,
+                            nullable = true,
+                        ),
+                        collectionOwnershipField(
+                            "optionalNullableList",
+                            KotlinTypeRef("kotlin.collections", "List", listOf(string)),
+                            order = 2,
+                            required = false,
+                            nullable = true,
+                        ),
+                        collectionOwnershipField(
+                            "optionalMap",
+                            KotlinTypeRef("kotlin.collections", "Map", listOf(string, string)),
+                            order = 3,
+                            required = false,
+                        ),
+                    ),
+                dslFunctionName = "collectionOwnership",
+                usesFieldState = true,
+            )
+        val actual =
+            KotlinPoetEmitter(packageName)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(KotlinFileDeclaration(packageName, "CollectionOwnership", listOf(model))),
+                    ),
+                ).files
+                .single()
+                .bytes
+        val golden =
+            Path
+                .of(requireNotNull(System.getProperty("engine.wave1GoldenRoot")))
+                .resolve("CollectionOwnership.kt")
+        if (System.getenv("UPDATE_COLLECTION_OWNERSHIP_GOLDEN") == "1") golden.writeBytes(actual)
+
+        assertEquals(golden.readText(), actual.decodeToString())
+    }
+
+    @Test
+    fun mixedAdditionalPropertiesModelMatchesExactGolden() {
+        val packageName = "com.example.generated"
+        val model =
+            ModelDeclaration(
+                symbolId = "schema:DynamicTool",
+                order = 0,
+                packageName = packageName,
+                fileName = "DynamicTool",
+                resolvedName = "DynamicTool",
+                kdoc = "A fixed property with open additional values.",
+                fields =
+                    listOf(
+                        FieldDeclaration(
+                            symbolId = "schema:DynamicTool/type",
+                            order = 0,
+                            resolvedName = "type",
+                            wireName = "type",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            required = true,
+                            nullable = false,
+                            kdoc = "Fixed wire type.",
+                        ),
+                    ),
+                dslFunctionName = "dynamicTool",
+                additionalProperties =
+                    AdditionalPropertiesDeclaration(
+                        resolvedName = "additionalProperties",
+                        valueType = KotlinTypeRef("kotlinx.serialization.json", "JsonElement"),
+                        valuesAreJsonElements = true,
+                        fixedWireNames = setOf("type"),
+                        kdoc = "Open JSON object members.",
+                    ),
+            )
+        val actual =
+            KotlinPoetEmitter(packageName)
+                .render(
+                    KotlinDeclarationModel(listOf(KotlinFileDeclaration(packageName, "DynamicTool", listOf(model)))),
+                ).files
+                .single()
+                .bytes
+        val golden = Path.of(requireNotNull(System.getProperty("engine.wave1GoldenRoot"))).resolve("DynamicTool.kt")
+        val source = actual.decodeToString()
+        assertTrue(source.contains("value.additionalProperties.keys.sorted().forEach { key ->"))
+        assertTrue(source.contains("val additionalValue = value.additionalProperties.getValue(key)"))
+        assertFalse(source.contains("toSortedMap()"))
+        if (System.getenv("UPDATE_WAVE1_GOLDENS") == "1") golden.writeBytes(actual)
+
+        assertEquals(golden.readText(), actual.decodeToString())
+    }
+
+    @Test
     fun waveOneHandBuiltDeclarationsRemainByteIdentical() {
         val root = Path.of(requireNotNull(System.getProperty("engine.wave1GoldenRoot")))
-        KotlinPoetEmitter().render(goldenSliceModel()).forEach { rendered ->
+        KotlinPoetEmitter().render(goldenSliceModel()).files.forEach { rendered ->
             val golden = root.resolve(rendered.path.substringAfterLast('/'))
             if (System.getenv("UPDATE_WAVE1_GOLDENS") == "1") golden.writeBytes(rendered.bytes)
             assertContentEquals(
@@ -57,7 +171,7 @@ class KotlinPoetEmitterGoldenTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter().render(mapping.model)
+        val rendered = KotlinPoetEmitter().render(mapping.model).files
         val output =
             rendered
                 .sortedBy(RenderedKotlinFile::path)
@@ -121,7 +235,8 @@ class KotlinPoetEmitterGoldenTest {
                     KotlinDeclarationModel(
                         listOf(KotlinFileDeclaration("com.example.generated", "PlainModel", listOf(model))),
                     ),
-                ).single()
+                ).files
+                .single()
                 .bytes
                 .decodeToString()
 
@@ -134,7 +249,11 @@ class KotlinPoetEmitterGoldenTest {
 
     @Test
     fun generatedPublicModelAndUnionApisCarryContractKdoc() {
-        val rendered = KotlinPoetEmitter().render(goldenSliceModel()).associate { it.path to it.bytes.decodeToString() }
+        val rendered =
+            KotlinPoetEmitter().render(goldenSliceModel()).files.associate {
+                it.path to
+                    it.bytes.decodeToString()
+            }
         val request = rendered.getValue("com/nabobery/sdkgen/generated/ChatRequest.kt")
         val oneOf = rendered.getValue("com/nabobery/sdkgen/generated/ChatContent.kt")
         val anyOf = rendered.getValue("com/nabobery/sdkgen/generated/MessageMetadataAnyOf.kt")
@@ -203,6 +322,7 @@ class KotlinPoetEmitterGoldenTest {
         val source =
             KotlinPoetEmitter(packageName)
                 .render(model)
+                .files
                 .single()
                 .bytes
                 .decodeToString()
@@ -221,6 +341,24 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(source.contains("public val metadata: OperationMetadata"))
         assertFalse(source.contains("streaming support", ignoreCase = true))
     }
+
+    private fun collectionOwnershipField(
+        name: String,
+        type: KotlinTypeRef,
+        order: Int,
+        required: Boolean,
+        nullable: Boolean = false,
+    ): FieldDeclaration =
+        FieldDeclaration(
+            symbolId = "schema:CollectionOwnership/property:$name",
+            order = order,
+            resolvedName = name,
+            wireName = name,
+            type = type,
+            required = required,
+            nullable = nullable,
+            kdoc = "",
+        )
 
     @Test
     fun partitionedSingleOperationClientPreservesOperationDerivedMetadataName() {
@@ -265,7 +403,8 @@ class KotlinPoetEmitterGoldenTest {
                     KotlinDeclarationModel(
                         listOf(KotlinFileDeclaration(packageName, "WidgetClient", listOf(declaration))),
                     ),
-                ).single()
+                ).files
+                .single()
                 .bytes
                 .decodeToString()
 
@@ -316,6 +455,7 @@ class KotlinPoetEmitterGoldenTest {
         val source =
             KotlinPoetEmitter(packageName)
                 .render(model)
+                .files
                 .single()
                 .bytes
                 .decodeToString()

@@ -4,6 +4,8 @@ package com.nabobery.sdkgen.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.CliktError
+import com.github.ajalt.clikt.core.PrintHelpMessage
+import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.parse
 import com.github.ajalt.clikt.core.subcommands
@@ -97,7 +99,8 @@ public const val SDKGEN_EXIT_USAGE: Int = 2
  * The `sdkgen` CLI entry point: `validate` (adapt and project without writing output), `generate`
  * (write Kotlin source, optionally refusing on lock drift with `--locked`), `check` (confirm
  * committed output matches what generation would produce today), `diff` (compare effective and
- * generated contracts), and `explain` (trace a symbol or diagnostic to source). Every diagnostic
+ * generated contracts), `explain` (trace a symbol or diagnostic to source), and `compat` (render the
+ * ADR 0013 five-layer compatibility report between two compatibility manifests). Every diagnostic
  * or usage failure is reported through [SDKGEN_EXIT_DIAGNOSTICS]/[SDKGEN_EXIT_USAGE] rather than
  * an uncaught exception; `--format json` emits one JSON document per invocation carrying
  * [SDKGEN_CLI_CONTRACT_VERSION] and sorted arrays, so scripted callers never need to parse
@@ -107,15 +110,38 @@ public fun main(args: Array<String>) {
     val command = sdkgenCommand()
     try {
         command.parse(args)
+    } catch (result: ProgramResult) {
+        // Clikt 5.1.0 declares `ProgramResult : CliktError`, and `Abort : ProgramResult(statusCode = 1)`, so this
+        // branch MUST be checked before the general `CliktError` branch below. Kotlin does not reject a supertype
+        // catch clause preceding a subtype one the way Java does, so ordering these the other way around would
+        // silently make this branch unreachable: every `ProgramResult` (including every command's explicit
+        // `throw ProgramResult(SDKGEN_EXIT_DIAGNOSTICS)` / `throw ProgramResult(THRESHOLD_REACHED_EXIT_CODE)`)
+        // would be caught as a plain `CliktError` and remapped by `sdkgenExitCode` to `SDKGEN_EXIT_USAGE` (2),
+        // defeating every non-zero, non-two exit code this CLI reports.
+        exitProcess(result.statusCode)
     } catch (error: CliktError) {
+        // [PrintHelpMessage] (thrown by the built-in `--help`/`-h` eager option on the root command and on
+        // every subcommand) and [PrintMessage] (its `PrintCompletionMessage` subtype included) are requested
+        // output, not usage errors: `error.message` is null for [PrintHelpMessage], so routing them through
+        // the generic branch below previously produced the useless fallback
+        // "Invalid command usage (PrintHelpMessage). Run 'sdkgen --help'." on stderr for every `--help`
+        // invocation, telling the user to run the very thing that just failed. [CliktCommand.echoFormattedHelp]
+        // is the accessor Clikt itself uses in its own default `main()` (see
+        // `CommandLineParser.main`/`mainReturningValue` in clikt-core): for a [PrintHelpMessage] it renders the
+        // full help text for the command named by `error.context` (the subcommand's own context when `--help`
+        // was parsed as that subcommand's eager option, the root context otherwise) via the configured
+        // `HelpFormatter`; for a plain [PrintMessage] it returns `error.message` directly. Either way it echoes
+        // with `err = error.printError`, which is `false` for both types, so the text lands on stdout.
+        if (error is PrintHelpMessage || error is PrintMessage) {
+            command.echoFormattedHelp(error)
+            exitProcess(error.statusCode)
+        }
         if (sdkgenRequestedJson(args)) {
             command.echo(sdkgenUsageDocument(error))
         } else {
             command.echo(sdkgenUsageMessage(error), err = true)
         }
         exitProcess(sdkgenExitCode(error))
-    } catch (result: ProgramResult) {
-        exitProcess(result.statusCode)
     }
 }
 
@@ -138,6 +164,7 @@ internal fun sdkgenCommand(): CliktCommand =
         CheckCommand(),
         DiffCommand(),
         ExplainCommand(),
+        CompatCommand(),
     )
 
 internal fun executeCliAction(
@@ -351,13 +378,34 @@ private class GenerateCommand : ConfigCommand("generate") {
     ).flag(default = false)
     private val outputOverride: String? by option("--output", help = "Override generated source destination")
 
+    /**
+     * Writes the emitted public-API projection beside the run for `sdkgen compat --kotlin-api-from/-to`.
+     *
+     * It is staged rather than published into the output tree because it is compatibility evidence, not
+     * generated SDK source -- the same treatment the parity behavior ledger and the staged ABI dumps already get
+     * under ADR 0013. Publishing it would put a second copy of the emitted API under the manifest's own digest
+     * list and move every corpus manifest for a file no consumer compiles.
+     */
+    private val kotlinApiProjectionOutput: String? by option(
+        "--kotlin-api-projection",
+        help = "Also write the emitted public-API projection to this path, for `sdkgen compat`",
+    )
+
     override fun run() {
         execute { inputs ->
             if (locked) verifyLocked(inputs)
             val output =
                 outputOverride?.let(inputs::resolveOutput) ?: inputs.resolveOutput(inputs.config.output.sources)
             val lock = if (locked) null else generationLock(inputs)
-            val result = pipeline().generate(inputs.config, inputs.source, inputs.overlays, output, lock = lock)
+            val result =
+                pipeline().generate(
+                    inputs.config,
+                    inputs.source,
+                    inputs.overlays,
+                    output,
+                    lock = lock,
+                    publicApiProjectionDestination = kotlinApiProjectionOutput?.let(Path::of),
+                )
             emitOk(
                 "generate",
                 mapOf("files" to result.generatedFiles.toString(), "snapshotSha256" to result.snapshotSha256),

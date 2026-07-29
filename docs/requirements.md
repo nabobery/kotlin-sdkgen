@@ -839,7 +839,7 @@ Exit gates:
 - The generated OpenRouter SDK exposes the intended public API while keeping protocol glue internal and allowing handwritten composition.
 - Gradle configuration and build caches pass repeatability tests.
 
-### Phase 3: Full multi-corpus conformance and release candidate
+### release-readiness: Full multi-corpus conformance and release candidate
 
 Deliverables:
 

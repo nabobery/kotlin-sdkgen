@@ -6,10 +6,14 @@ package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.config.RetryDefaults
 import com.nabobery.sdkgen.engine.config.RuntimeDefaults
+import com.nabobery.sdkgen.engine.declarations.AdditionalPropertiesDeclaration
 import com.nabobery.sdkgen.engine.declarations.AnyOfBranchDeclaration
 import com.nabobery.sdkgen.engine.declarations.AnyOfBranchShape
 import com.nabobery.sdkgen.engine.declarations.AnyOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.DeclarationProjectionRequest
+import com.nabobery.sdkgen.engine.declarations.DeepObjectAdditionalPropertiesDeclaration
+import com.nabobery.sdkgen.engine.declarations.DeepObjectAdditionalPropertiesSerialization
+import com.nabobery.sdkgen.engine.declarations.DeepObjectParameterPropertyDeclaration
 import com.nabobery.sdkgen.engine.declarations.EnumValueDeclaration
 import com.nabobery.sdkgen.engine.declarations.FieldDeclaration
 import com.nabobery.sdkgen.engine.declarations.GenerationDiagnosticCode
@@ -35,10 +39,13 @@ import com.nabobery.sdkgen.engine.declarations.OperationSecurityRequirement
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeRef
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
+import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
 import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfCaseDeclaration
 import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfJsonKind
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
+import com.nabobery.sdkgen.engine.declarations.SimpleFieldDeclaration
+import com.nabobery.sdkgen.engine.declarations.SimpleModelDeclaration
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.declarations.StreamingDeclaration
 import com.nabobery.sdkgen.engine.declarations.SupportDeclaration
@@ -66,6 +73,856 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class KotlinPoetEmitterCompileRegressionTest {
+    @Test
+    fun nullableAuxiliaryCollectionsCompileAndDetachCallerInputs() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val auxiliary =
+            SimpleModelDeclaration(
+                resolvedName = "AuxiliaryCollections",
+                kdoc = "Nullable auxiliary collections.",
+                fields =
+                    listOf(
+                        SimpleFieldDeclaration(
+                            "items",
+                            "items",
+                            KotlinTypeRef("kotlin.collections", "List", listOf(string), nullable = true),
+                            "",
+                        ),
+                        SimpleFieldDeclaration(
+                            "labels",
+                            "labels",
+                            KotlinTypeRef("kotlin.collections", "Set", listOf(string), nullable = true),
+                            "",
+                        ),
+                        SimpleFieldDeclaration(
+                            "metadata",
+                            "metadata",
+                            KotlinTypeRef(
+                                "kotlin.collections",
+                                "Map",
+                                listOf(string, KotlinTypeRef("kotlin.collections", "List", listOf(string))),
+                                nullable = true,
+                            ),
+                            "",
+                        ),
+                    ),
+            )
+        val owner =
+            ModelDeclaration(
+                symbolId = "schema:AuxiliaryOwner",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "AuxiliaryOwner",
+                resolvedName = "AuxiliaryOwner",
+                kdoc = "",
+                fields = emptyList(),
+                dslFunctionName = "auxiliaryOwner",
+                auxiliaryModels = listOf(auxiliary),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "AuxiliaryOwner", listOf(owner)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ).files
+        val harness =
+            """
+            package $PACKAGE
+
+            fun auxiliaryCollectionOutcome(): String {
+                val items = mutableListOf("item")
+                val labels = mutableSetOf("label")
+                val nested = mutableListOf("nested")
+                val metadata = mutableMapOf("key" to nested)
+                val value = AuxiliaryCollections(items, labels, metadata)
+                items += "mutated"
+                labels += "mutated"
+                nested += "mutated"
+                metadata["other"] = mutableListOf("mutated")
+                return listOf(
+                    value.items?.joinToString(),
+                    value.labels?.joinToString(),
+                    value.metadata?.entries?.joinToString { "${'$'}{it.key}=${'$'}{it.value.joinToString()}" },
+                ).joinToString("|")
+            }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/AuxiliaryCollectionHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val outcome =
+                loader
+                    .loadClass("$PACKAGE.AuxiliaryCollectionHarnessKt")
+                    .getMethod("auxiliaryCollectionOutcome")
+            assertEquals("item|label|key=nested", outcome.invoke(null))
+        }
+    }
+
+    @Test
+    fun generatedUnionCollectionValuesStayDetachedAndConsistentWithRawJson() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val strings = KotlinTypeRef("kotlin.collections", "List", listOf(string))
+        val valuesField = UnionFieldDeclaration("values", "values", strings)
+        val objectOneOf =
+            OneOfDeclaration(
+                symbolId = "schema:CollectionOneOf",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "CollectionOneOf",
+                resolvedName = "CollectionOneOf",
+                kdoc = "",
+                cases =
+                    listOf(
+                        OneOfCaseDeclaration(
+                            symbolId = "schema:CollectionOneOf/values",
+                            order = 0,
+                            resolvedName = "Values",
+                            requiredFields = listOf(valuesField),
+                            predicate =
+                                JsonBranchPredicate.ObjectShape(
+                                    requiredNames = listOf("values"),
+                                    properties =
+                                        mapOf(
+                                            "values" to
+                                                JsonBranchPredicate.ArrayShape(
+                                                    item =
+                                                        JsonBranchPredicate.Kind(
+                                                            PrimitiveOneOfJsonKind.STRING,
+                                                        ),
+                                                ),
+                                        ),
+                                    additionalProperties = JsonAdditionalPropertiesPredicate.Closed,
+                                ),
+                        ),
+                    ),
+            )
+        val primitiveOneOf =
+            PrimitiveOneOfDeclaration(
+                symbolId = "schema:CollectionPrimitiveOneOf",
+                order = 1,
+                packageName = PACKAGE,
+                fileName = "CollectionPrimitiveOneOf",
+                resolvedName = "CollectionPrimitiveOneOf",
+                kdoc = "",
+                cases =
+                    listOf(
+                        PrimitiveOneOfCaseDeclaration(
+                            symbolId = "schema:CollectionPrimitiveOneOf/values",
+                            order = 0,
+                            resolvedName = "Values",
+                            type = strings,
+                            jsonKind = PrimitiveOneOfJsonKind.ARRAY,
+                            predicate =
+                                JsonBranchPredicate.ArrayShape(
+                                    item = JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                                ),
+                        ),
+                    ),
+            )
+        val anyOf =
+            AnyOfDeclaration(
+                symbolId = "schema:CollectionAnyOf",
+                order = 2,
+                packageName = PACKAGE,
+                fileName = "CollectionAnyOf",
+                resolvedName = "CollectionAnyOf",
+                kdoc = "",
+                branches =
+                    listOf(
+                        AnyOfBranchDeclaration(
+                            symbolId = "schema:CollectionAnyOf/values",
+                            order = 0,
+                            resolvedName = "Values",
+                            propertyName = "values",
+                            fields = listOf(valuesField),
+                            viewFields = listOf(valuesField),
+                            viewTypeName = "CollectionView",
+                        ),
+                    ),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "CollectionOneOf", listOf(objectOneOf)),
+                            KotlinFileDeclaration(PACKAGE, "CollectionPrimitiveOneOf", listOf(primitiveOneOf)),
+                            KotlinFileDeclaration(PACKAGE, "CollectionAnyOf", listOf(anyOf)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ).files
+        val harness =
+            """
+            package $PACKAGE
+
+            import kotlinx.serialization.json.JsonArray
+            import kotlinx.serialization.json.JsonObject
+            import kotlinx.serialization.json.JsonPrimitive
+
+            fun unionCollectionOutcome(): String {
+                val objectInput = mutableListOf("object")
+                val objectValue = CollectionOneOf.Values.of(objectInput)
+                objectInput += "mutated"
+                val objectRaw = ((objectValue.raw as JsonObject)["values"] as JsonArray)
+                    .joinToString { (it as JsonPrimitive).content }
+
+                val primitiveInput = mutableListOf("primitive")
+                val primitiveValue = CollectionPrimitiveOneOf.Values.of(primitiveInput)
+                primitiveInput += "mutated"
+                val primitiveRaw = (primitiveValue.raw as JsonArray)
+                    .joinToString { (it as JsonPrimitive).content }
+
+                val view = CollectionView(listOf("view"))
+                return listOf(
+                    objectValue.values.joinToString(),
+                    objectRaw,
+                    primitiveValue.value.joinToString(),
+                    primitiveRaw,
+                    view.values.joinToString(),
+                ).joinToString("|")
+            }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/UnionCollectionHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+        val anyOfSource =
+            rendered
+                .single { file -> file.path.endsWith("/CollectionAnyOf.kt") }
+                .bytes
+                .decodeToString()
+        assertTrue(anyOfSource.contains("@ConsistentCopyVisibility"))
+        assertTrue(anyOfSource.contains("public data class CollectionView internal constructor("))
+        assertTrue(anyOfSource.contains("public val values: List<String>"))
+
+        val externalRoot = Files.createTempDirectory("sdkgen-anyof-view-visibility-")
+        val externalSource =
+            externalRoot.resolve("ExternalConsumer.kt").also { path ->
+                path.writeText(
+                    """
+                    package external.consumer
+
+                    import $PACKAGE.CollectionView
+
+                    fun construct(values: MutableList<String>): CollectionView = CollectionView(values)
+
+                    fun copy(view: CollectionView, values: MutableList<String>): CollectionView =
+                        view.copy(values = values)
+                    """.trimIndent(),
+                )
+            }
+        val externalCompilerOutput = ByteArrayOutputStream()
+        val externalResult =
+            K2JVMCompiler().exec(
+                PrintStream(externalCompilerOutput),
+                "-classpath",
+                "${System.getProperty("java.class.path")}${System.getProperty("path.separator")}$output",
+                "-d",
+                externalRoot.resolve("out").also { path -> path.createDirectories() }.toString(),
+                externalSource.toString(),
+            )
+        assertEquals(ExitCode.COMPILATION_ERROR, externalResult, externalCompilerOutput.toString())
+        assertTrue(externalCompilerOutput.toString().contains("internal"), externalCompilerOutput.toString())
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val outcome =
+                loader
+                    .loadClass("$PACKAGE.UnionCollectionHarnessKt")
+                    .getMethod("unionCollectionOutcome")
+            assertEquals("object|object|primitive|primitive|view", outcome.invoke(null))
+        }
+    }
+
+    @Test
+    fun generatedModelsDefensivelyCopyConstructorAndBuilderCollections() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val stringList = KotlinTypeRef("kotlin.collections", "List", listOf(string))
+        val stringSet = KotlinTypeRef("kotlin.collections", "Set", listOf(string))
+        val stringMap = KotlinTypeRef("kotlin.collections", "Map", listOf(string, string))
+        val nullableString = string.copy(nullable = true)
+        val nullableStringList = KotlinTypeRef("kotlin.collections", "List", listOf(nullableString))
+        val nestedLists = KotlinTypeRef("kotlin.collections", "List", listOf(nullableStringList))
+        val plain =
+            ModelDeclaration(
+                symbolId = "schema:PlainCollections",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "PlainCollections",
+                resolvedName = "PlainCollections",
+                kdoc = "Plain collection ownership fixture.",
+                fields =
+                    listOf(
+                        collectionField("requiredList", stringList, order = 0, required = true),
+                        collectionField("requiredSet", stringSet, order = 1, required = true),
+                        collectionField("optionalMap", stringMap, order = 2, required = false),
+                    ),
+                dslFunctionName = "plainCollections",
+            )
+        val stateful =
+            ModelDeclaration(
+                symbolId = "schema:StatefulCollections",
+                order = 1,
+                packageName = PACKAGE,
+                fileName = "StatefulCollections",
+                resolvedName = "StatefulCollections",
+                kdoc = "Field-state collection ownership fixture.",
+                fields =
+                    listOf(
+                        collectionField("requiredList", stringList, order = 0, required = true),
+                        collectionField("requiredNullableSet", stringSet, order = 1, required = true, nullable = true),
+                        collectionField(
+                            "optionalNullableList",
+                            nestedLists,
+                            order = 2,
+                            required = false,
+                            nullable = true,
+                        ),
+                        collectionField("optionalMap", stringMap, order = 3, required = false),
+                    ),
+                dslFunctionName = "statefulCollections",
+                additionalProperties =
+                    AdditionalPropertiesDeclaration(
+                        resolvedName = "additionalProperties",
+                        valueType = nestedLists,
+                        valuesAreJsonElements = false,
+                        fixedWireNames =
+                            setOf(
+                                "requiredList",
+                                "requiredNullableSet",
+                                "optionalNullableList",
+                                "optionalMap",
+                            ),
+                        kdoc = "",
+                    ),
+                usesFieldState = true,
+            )
+        val declarations =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                symbolId = "support:serialization",
+                                order = 0,
+                                packageName = PACKAGE,
+                                fileName = "SerializationSupport",
+                                resolvedName = "SerializationSupport",
+                                kdoc = "",
+                                kind = SupportKind.Serialization,
+                            ),
+                            SupportDeclaration(
+                                symbolId = "support:field-presence",
+                                order = 1,
+                                packageName = PACKAGE,
+                                fileName = "FieldPresence",
+                                resolvedName = "FieldPresence",
+                                kdoc = "",
+                                kind = SupportKind.FieldPresence,
+                            ),
+                        ),
+                    ),
+                    KotlinFileDeclaration(PACKAGE, "PlainCollections", listOf(plain)),
+                    KotlinFileDeclaration(PACKAGE, "StatefulCollections", listOf(stateful)),
+                ),
+            )
+        val rendered = KotlinPoetEmitter(PACKAGE).render(declarations).files
+        val harness =
+            """
+            package $PACKAGE
+
+            fun collectionOwnershipOutcome(): String {
+                val required = mutableListOf("required")
+                val requiredSet = mutableSetOf("required-set")
+                val optionalMap = mutableMapOf("optional" to "map")
+                val plain = PlainCollections(
+                    requiredList = required,
+                    requiredSet = requiredSet,
+                    optionalMap = optionalMap,
+                )
+                required += "mutated"
+                requiredSet += "mutated"
+                optionalMap["mutated"] = "mutated"
+
+                val builderRequired = mutableListOf("builder-required", "second")
+                val builderSet = mutableSetOf("builder-set", "second")
+                val builderOptionalInner = mutableListOf<String?>("builder-optional", null)
+                val builderOptional = mutableListOf(builderOptionalInner, mutableListOf("second"))
+                val builderMap = mutableMapOf("builder" to "map", "second" to "value")
+                val additionalInner = mutableListOf<String?>("additional", null)
+                val additional = mutableMapOf(
+                    "dynamic" to mutableListOf(additionalInner, mutableListOf("second")),
+                    "other" to mutableListOf(mutableListOf("other"), mutableListOf("second")),
+                )
+                val builder = StatefulCollections.Builder()
+                builder.requiredList = builderRequired
+                builder.requiredNullableSet = builderSet
+                builder.optionalNullableList = builderOptional
+                builder.optionalMap = builderMap
+                builder.additionalProperties = additional
+                builderRequired += "mutated"
+                builderSet += "mutated"
+                builderOptionalInner += "mutated"
+                builderMap["mutated"] = "mutated"
+                additionalInner += "mutated"
+                (builder.requiredList as MutableList<String>) += "getter-mutated"
+                (builder.requiredNullableSet as MutableSet<String>) += "getter-mutated"
+                val builderOwnedOptional = builder.optionalNullableList as MutableList<List<String?>>
+                val builderOwnedMap = builder.optionalMap as MutableMap<String, String>
+                val builderOwnedAdditional =
+                    builder.additionalProperties as MutableMap<String, List<List<String?>>>
+                (builderOwnedOptional.first() as MutableList<String?>) += "getter-mutated"
+                builderOwnedMap["getter-mutated"] = "mutated"
+                (builderOwnedAdditional.getValue("dynamic").first() as MutableList<String?>) += "getter-mutated"
+                builderOwnedAdditional["getter-mutated"] = mutableListOf(mutableListOf("mutated"))
+                val stateful = builder.build()
+
+                return listOf(
+                    plain.requiredList.joinToString(),
+                    plain.requiredSet.joinToString(),
+                    plain.optionalMap?.entries?.joinToString { "${'$'}{it.key}=${'$'}{it.value}" },
+                    stateful.requiredList.joinToString(),
+                    stateful.requiredNullableSet?.joinToString(),
+                    stateful.optionalNullableList?.joinToString { it.joinToString() },
+                    stateful.optionalMap?.entries?.joinToString { "${'$'}{it.key}=${'$'}{it.value}" },
+                    stateful.additionalProperties.getValue("dynamic").first().joinToString(),
+                    SdkJson.encodeToString(PlainCollections.Serializer, plain),
+                    SdkJson.encodeToString(StatefulCollections.Serializer, stateful),
+                ).joinToString("|")
+            }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/CollectionOwnershipHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val outcome =
+                loader
+                    .loadClass("$PACKAGE.CollectionOwnershipHarnessKt")
+                    .getMethod("collectionOwnershipOutcome")
+            assertEquals(
+                "required|required-set|optional=map|builder-required, second|builder-set, second|" +
+                    "builder-optional, null, second|" +
+                    "builder=map, second=value|additional, null|" +
+                    """{"requiredList":["required"],"requiredSet":["required-set"],"optionalMap":{"optional":"map"}}|""" +
+                    """{"requiredList":["builder-required","second"],""" +
+                    """"requiredNullableSet":["builder-set","second"],""" +
+                    """"optionalNullableList":[["builder-optional",null],["second"]],""" +
+                    """"optionalMap":{"builder":"map","second":"value"},""" +
+                    """"dynamic":[["additional",null],["second"]],""" +
+                    """"other":[["other"],["second"]]}""",
+                outcome.invoke(null),
+            )
+        }
+    }
+
+    @Test
+    fun mixedAdditionalPropertiesModelCompilesWithCollisionSafeCodec() {
+        val model =
+            ModelDeclaration(
+                symbolId = "schema:Filter",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "Filter",
+                resolvedName = "Filter",
+                kdoc = "Dynamic filter.",
+                fields =
+                    listOf(
+                        FieldDeclaration(
+                            symbolId = "schema:Filter/property:status",
+                            order = 0,
+                            resolvedName = "status",
+                            wireName = "status",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            required = false,
+                            nullable = false,
+                            kdoc = "",
+                        ),
+                    ),
+                dslFunctionName = "filter",
+                additionalProperties =
+                    AdditionalPropertiesDeclaration(
+                        resolvedName = "additionalProperties",
+                        valueType = KotlinTypeRef("kotlin", "Int", nullable = true),
+                        valuesAreJsonElements = false,
+                        fixedWireNames = setOf("status"),
+                        kdoc = "Dynamic values.",
+                    ),
+            )
+        val declarations =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                symbolId = "support:serialization",
+                                order = 0,
+                                packageName = PACKAGE,
+                                fileName = "SerializationSupport",
+                                resolvedName = "SerializationSupport",
+                                kdoc = "",
+                                kind = SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                    KotlinFileDeclaration(PACKAGE, "Filter", listOf(model)),
+                ),
+            )
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(declarations).files
+        val filterSource = rendered.single { file -> file.path.endsWith("/Filter.kt") }.bytes.decodeToString()
+        assertTrue(filterSource.contains("value.additionalProperties.keys.sorted().forEach { key ->"))
+        assertTrue(filterSource.contains("val additionalValue = value.additionalProperties.getValue(key)"))
+        assertFalse(filterSource.contains("toSortedMap()"))
+        compileGenerated(rendered)
+    }
+
+    @Test
+    fun deepObjectEnumAdditionalPropertiesCompileWithWireValueSerialization() {
+        val status = KotlinTypeRef(PACKAGE, "Status")
+        val filter =
+            ModelDeclaration(
+                symbolId = "schema:Filter",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "Filter",
+                resolvedName = "Filter",
+                kdoc = "Dynamic filter.",
+                fields =
+                    listOf(
+                        FieldDeclaration(
+                            symbolId = "schema:Filter/property:fixed",
+                            order = 0,
+                            resolvedName = "fixed",
+                            wireName = "fixed",
+                            type = KotlinTypeRef("kotlin", "String"),
+                            required = false,
+                            nullable = false,
+                            kdoc = "",
+                        ),
+                    ),
+                dslFunctionName = "filter",
+                additionalProperties =
+                    AdditionalPropertiesDeclaration(
+                        resolvedName = "additionalProperties",
+                        valueType = status,
+                        valuesAreJsonElements = false,
+                        fixedWireNames = setOf("fixed"),
+                        kdoc = "Dynamic status values.",
+                    ),
+            )
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:listWidgets",
+                order = 0,
+                operationId = "listWidgets",
+                method = "GET",
+                path = "/widgets",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = emptyList(),
+                successStatusCodes = setOf(204),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = KotlinTypeRef("kotlin", "Unit"),
+                requestCodecPropertyName = "listWidgetsRequestCodec",
+                responseCodecPropertyName = "listWidgetsResponseCodec",
+                requestCodecConstantName = "LIST_WIDGETS_REQUEST_CODEC_ID",
+                responseCodecConstantName = "LIST_WIDGETS_RESPONSE_CODEC_ID",
+                requestCodecId = "listWidgets.request",
+                responseCodecId = "listWidgets.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(null, null, null),
+                methodKdoc = "Lists widgets.",
+                parameters =
+                    listOf(
+                        OperationParameterDeclaration(
+                            "filter",
+                            OperationParameterLocation.QUERY,
+                            KotlinTypeRef(PACKAGE, "Filter"),
+                            required = false,
+                            style = "deepObject",
+                            explode = true,
+                            serialization =
+                                ParameterSerialization.DeepObject(
+                                    properties =
+                                        listOf(
+                                            DeepObjectParameterPropertyDeclaration(
+                                                wireName = "fixed",
+                                                accessorName = "fixed",
+                                                required = false,
+                                            ),
+                                        ),
+                                    additionalProperties =
+                                        DeepObjectAdditionalPropertiesDeclaration(
+                                            accessorName = "additionalProperties",
+                                            serialization =
+                                                DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE,
+                                        ),
+                                ),
+                        ),
+                        OperationParameterDeclaration(
+                            "requiredFilter",
+                            OperationParameterLocation.QUERY,
+                            KotlinTypeRef(PACKAGE, "Filter"),
+                            required = true,
+                            style = "deepObject",
+                            explode = true,
+                            serialization =
+                                ParameterSerialization.DeepObject(
+                                    properties = emptyList(),
+                                    additionalProperties =
+                                        DeepObjectAdditionalPropertiesDeclaration(
+                                            accessorName = "additionalProperties",
+                                            serialization =
+                                                DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE,
+                                        ),
+                                ),
+                        ),
+                        OperationParameterDeclaration(
+                            "requiredNullableFilter",
+                            OperationParameterLocation.QUERY,
+                            KotlinTypeRef(PACKAGE, "Filter", nullable = true),
+                            required = true,
+                            style = "deepObject",
+                            explode = true,
+                            serialization =
+                                ParameterSerialization.DeepObject(
+                                    properties = emptyList(),
+                                    additionalProperties =
+                                        DeepObjectAdditionalPropertiesDeclaration(
+                                            accessorName = "additionalProperties",
+                                            serialization =
+                                                DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE,
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+        val declarations =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                symbolId = "support:serialization",
+                                order = 0,
+                                packageName = PACKAGE,
+                                fileName = "SerializationSupport",
+                                resolvedName = "SerializationSupport",
+                                kdoc = "",
+                                kind = SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "Status",
+                        listOf(
+                            OpenEnumDeclaration(
+                                symbolId = "schema:Status",
+                                order = 1,
+                                packageName = PACKAGE,
+                                fileName = "Status",
+                                resolvedName = "Status",
+                                kdoc = "Status.",
+                                values =
+                                    listOf(
+                                        EnumValueDeclaration(
+                                            symbolId = "schema:Status/value:in-progress",
+                                            order = 0,
+                                            resolvedName = "InProgress",
+                                            wireValue = "in-progress",
+                                            kdoc = "",
+                                        ),
+                                    ),
+                            ),
+                        ),
+                    ),
+                    KotlinFileDeclaration(PACKAGE, "Filter", listOf(filter)),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "WidgetsClient",
+                        listOf(
+                            OperationClientDeclaration(
+                                symbolId = "client:WidgetsClient",
+                                order = 0,
+                                packageName = PACKAGE,
+                                fileName = "WidgetsClient",
+                                resolvedName = "WidgetsClient",
+                                kdoc = "Widgets client.",
+                                codecsObjectName = "WidgetsCodecs",
+                                operations = listOf(operation),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        val rendered = KotlinPoetEmitter(PACKAGE).render(declarations).files
+        val clientSource = rendered.single { it.path.endsWith("/WidgetsClient.kt") }.bytes.decodeToString()
+        assertTrue(clientSource.contains("values = listOf(dynamicValue.value)"))
+        assertTrue(clientSource.contains("filter?.additionalProperties?.let { dynamicProperties ->"))
+        assertTrue(clientSource.contains("requiredFilter.additionalProperties.keys.sorted().forEach { key ->"))
+        assertTrue(
+            clientSource.contains(
+                "requiredNullableFilter?.additionalProperties?.let { dynamicProperties ->",
+            ),
+        )
+        assertTrue(clientSource.contains("dynamicProperties.keys.sorted().forEach { key ->"))
+        assertFalse(clientSource.contains("toSortedMap()"))
+
+        val harness =
+            """
+            package $PACKAGE
+
+            fun inProgressWireValue(): String = Status.InProgress.value
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/DeepObjectEnumHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            val harnessClass = loader.loadClass("$PACKAGE.DeepObjectEnumHarnessKt")
+            assertEquals("in-progress", harnessClass.getMethod("inProgressWireValue").invoke(null))
+        }
+    }
+
+    @Test
+    fun stripeCompatibleIndexedArrayParameterWithHostileNameEmissionCompiles() {
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:listItems",
+                order = 0,
+                operationId = "listItems",
+                method = "GET",
+                path = "/items",
+                requestMediaTypes = emptyList(),
+                responseMediaTypes = emptyList(),
+                successStatusCodes = setOf(204),
+                requestType = KotlinTypeRef("kotlin", "Unit"),
+                responseType = KotlinTypeRef("kotlin", "Unit"),
+                requestCodecPropertyName = "listItemsRequestCodec",
+                responseCodecPropertyName = "listItemsResponseCodec",
+                requestCodecConstantName = "LIST_ITEMS_REQUEST_CODEC_ID",
+                responseCodecConstantName = "LIST_ITEMS_RESPONSE_CODEC_ID",
+                requestCodecId = "listItems.request",
+                responseCodecId = "listItems.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(null, null, null),
+                methodKdoc = "Lists items.",
+                parameters =
+                    listOf(
+                        OperationParameterDeclaration(
+                            "expand\"\\\\\$name\nnext",
+                            OperationParameterLocation.QUERY,
+                            KotlinTypeRef(
+                                "kotlin.collections",
+                                "List",
+                                arguments = listOf(KotlinTypeRef("kotlin", "String")),
+                            ),
+                            required = false,
+                            style = "deepObject",
+                            explode = true,
+                            serialization = ParameterSerialization.StripeCompatibleIndexedArray,
+                        ),
+                    ),
+            )
+        val model =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "SerializationSupport",
+                        listOf(
+                            SupportDeclaration(
+                                symbolId = "support:serialization",
+                                order = 0,
+                                packageName = PACKAGE,
+                                fileName = "SerializationSupport",
+                                resolvedName = "SerializationSupport",
+                                kdoc = "",
+                                kind = SupportKind.Serialization,
+                            ),
+                        ),
+                    ),
+                    KotlinFileDeclaration(
+                        PACKAGE,
+                        "IndexedClient",
+                        listOf(
+                            OperationClientDeclaration(
+                                symbolId = "client:IndexedClient",
+                                order = 1,
+                                packageName = PACKAGE,
+                                fileName = "IndexedClient",
+                                resolvedName = "IndexedClient",
+                                kdoc = "Indexed parameter client.",
+                                codecsObjectName = "IndexedCodecs",
+                                operations = listOf(operation),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+        compileGenerated(KotlinPoetEmitter(PACKAGE).render(model).files)
+    }
+
     @Test
     fun affectedGeneratedClientSourcesCompileWithTypedResponsesParametersAndPagination() {
         val string = KotlinTypeRef("kotlin", "String")
@@ -175,32 +1032,33 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "CompileClient",
-                            listOf(client),
-                        ),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "CompileClient",
+                                listOf(client),
+                            ),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         compileGenerated(
             rendered +
                 RenderedKotlinFile(
@@ -263,28 +1121,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                 operations = listOf(operation),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "MetadataClient", listOf(client)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "MetadataClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val source = rendered.single { it.path.endsWith("MetadataClient.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public val metadataStream: OperationMetadata"))
@@ -334,7 +1193,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val profileSource = rendered.single { it.path.endsWith("/Profile.kt") }.bytes.decodeToString()
         assertFalse(profileSource.contains("FieldState"))
         assertTrue(profileSource.contains("if (element == JsonNull) null"))
@@ -378,9 +1237,77 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun projectedPortableFormatsAndDocumentedOperationParameterCompile() {
+        val source =
+            Files.createTempFile("sdkgen-portable-formats-", ".yaml").also { path ->
+                path.writeText(
+                    """
+                    openapi: 3.1.0
+                    info: { title: Portable formats, version: "1" }
+                    paths:
+                      /records:
+                        get:
+                          operationId: getRecord
+                          parameters:
+                            - name: id
+                              in: query
+                              description: Record identifier.
+                              schema: { type: string, format: uuid }
+                          responses:
+                            "200":
+                              description: ok
+                              content:
+                                application/json:
+                                  schema: { ${'$'}ref: '#/components/schemas/Record' }
+                      /payload:
+                        get:
+                          operationId: downloadPayload
+                          responses:
+                            "200":
+                              description: ok
+                              content:
+                                application/octet-stream:
+                                  schema: { type: string, format: binary }
+                    components:
+                      schemas:
+                        Record:
+                          type: object
+                          required: [createdAt, ratio]
+                          properties:
+                            createdAt: { type: string, format: date-time }
+                            ratio: { type: number, format: double }
+                            encoded: { type: string, format: byte }
+                    """.trimIndent(),
+                )
+            }
+        val document = SemanticAdapter().adapt(source).document
+        val mapping =
+            StandardProjection().project(
+                DeclarationProjectionRequest(
+                    document = document,
+                    packageName = PACKAGE,
+                    canonicalDocumentUri = document.documentUri,
+                    clientName = "FormatsClient",
+                    runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
+                ),
+            )
+        assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
+
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
+        val client = rendered.single { it.path.endsWith("Client.kt") && "getRecord" in it.bytes.decodeToString() }
+        val clientSource = client.bytes.decodeToString()
+        val allSources = rendered.joinToString(separator = "\n") { it.bytes.decodeToString() }
+        assertTrue(clientSource.contains("@param id Record identifier."))
+        assertTrue(clientSource.contains("Wire format: `uuid`. Represented as `String` in this release"))
+        assertTrue(allSources.contains("public suspend fun downloadPayload("))
+        assertTrue(allSources.contains("SdkByteStream"))
+        compileGenerated(rendered)
+    }
+
+    @Test
     fun edgeShapeSourcesAvoidKnownKotlinCompilerErrors() {
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(edgeShapeModel()).associate {
+            KotlinPoetEmitter(PACKAGE).render(edgeShapeModel()).files.associate {
                 it.path to
                     it.bytes.decodeToString()
             }
@@ -470,7 +1397,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                 ),
             )
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val source = rendered.single { it.path.endsWith("Timestamp.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public sealed interface Timestamp"))
@@ -715,7 +1642,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val harness =
             """
             package $PACKAGE
@@ -831,30 +1758,31 @@ class KotlinPoetEmitterCompileRegressionTest {
         val lowerBound = numericUnion("ExtremeBound", JsonBranchPredicate.Numeric(minimum = "1"))
         val multiple = numericUnion("ExtremeMultiple", JsonBranchPredicate.Numeric(multipleOf = "1"))
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "ExtremeInteger", listOf(integer)),
-                        KotlinFileDeclaration(PACKAGE, "ExtremeBound", listOf(lowerBound)),
-                        KotlinFileDeclaration(PACKAGE, "ExtremeMultiple", listOf(multiple)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "ExtremeInteger", listOf(integer)),
+                            KotlinFileDeclaration(PACKAGE, "ExtremeBound", listOf(lowerBound)),
+                            KotlinFileDeclaration(PACKAGE, "ExtremeMultiple", listOf(multiple)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val harness =
             """
             package $PACKAGE
@@ -981,28 +1909,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "FactoryChoice", listOf(union)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "FactoryChoice", listOf(union)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val harness =
             """
             package $PACKAGE
@@ -1113,14 +2042,15 @@ class KotlinPoetEmitterCompileRegressionTest {
                 SupportKind.Serialization,
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "CheckRun", listOf(choice)),
-                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "CheckRun", listOf(choice)),
+                            KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                        ),
                     ),
-                ),
-            )
+                ).files
         val harness =
             """
             package $PACKAGE
@@ -1204,7 +2134,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val source = rendered.single { it.path.endsWith("NullableChoice.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("val valueResult = rawObject[\"value\"]?.let"))
@@ -1292,7 +2222,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                 ),
             )
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val source = rendered.single { it.path.endsWith("DiscriminatedPayloadChoice.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("val payloadResult = rawObject[\"payload\"]?.let"))
@@ -1430,7 +2360,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val forwardSource = rendered.single { it.path.endsWith("SharedValueForward.kt") }.bytes.decodeToString()
         val reverseSource = rendered.single { it.path.endsWith("SharedValueReverse.kt") }.bytes.decodeToString()
 
@@ -1441,8 +2371,8 @@ class KotlinPoetEmitterCompileRegressionTest {
             assertTrue(source.contains("valueState2Result"))
             assertTrue(source.contains("valueState2Present"))
             assertFalse(source.contains("valueState1Present"))
-            assertTrue(source.contains("matches.StringValueMatches"))
-            assertTrue(source.contains("matches.NullableValueMatches"))
+            assertTrue(source.contains("matches.stringValueMatches"))
+            assertTrue(source.contains("matches.nullableValueMatches"))
         }
 
         val harness =
@@ -1633,8 +2563,8 @@ class KotlinPoetEmitterCompileRegressionTest {
                     KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
-        val rerendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
+        val rerendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val valueSource = rendered.single { it.path.endsWith("ValueCollision.kt") }.bytes.decodeToString()
         val inspectionSource = rendered.single { it.path.endsWith("InspectionCollision.kt") }.bytes.decodeToString()
 
@@ -1810,7 +2740,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(model).files
         val source = rendered.single { it.path.endsWith("BinaryClient.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public suspend fun downloadBinaryWithResponse("))
@@ -1885,28 +2815,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                 operations = listOf(operation),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "WidgetClient", listOf(client)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "WidgetClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val source = rendered.single { it.path.endsWith("WidgetClient.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public suspend fun createWidget("))
@@ -1987,28 +2918,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                 operations = listOf(operation),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "StreamingClient", listOf(client)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "StreamingClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val source = rendered.single { it.path.endsWith("StreamingClient.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public fun streamVariants("))
@@ -2081,28 +3013,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                 operations = operations,
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "MixedMediaClient", listOf(client)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "MixedMediaClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val source = rendered.single { it.path.endsWith("MixedMediaClient.kt") }.bytes.decodeToString()
 
         assertTrue(source.contains("public suspend fun jsonFirstWithResponse("))
@@ -2340,7 +3273,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             (renamedOperation.pagination as PaginationDeclaration.CursorToken).itemType,
         )
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(renamed)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(renamed).files
 
         assertTrue(rendered.any { it.path.endsWith("/RenamedChild.kt") })
         assertFalse(rendered.any { it.bytes.decodeToString().contains("com.example.generated.Child") })
@@ -2461,7 +3394,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val sourceText = rendered.joinToString("\n") { file -> file.bytes.decodeToString() }
         assertTrue(sourceText.contains("name = \"foo-bar\", stream = request.fooBar"))
         assertTrue(sourceText.contains("name = \"foo_bar\", value = request.fooBar2"))
@@ -2539,7 +3472,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val sourceText = rendered.joinToString("\n") { file -> file.bytes.decodeToString() }
         assertTrue(sourceText.contains("FormUrlEncodedBody"))
         assertTrue(sourceText.contains("form.add(\"class\", request.classValue)"))
@@ -2603,7 +3536,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val viewDeclarations =
             rendered.flatMap { file ->
                 file.bytes
@@ -2656,7 +3589,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val optionalCutoffs = rendered.single { it.path.endsWith("/OptionalCutoffs.kt") }.bytes.decodeToString()
 
         compileGenerated(rendered)
@@ -2704,7 +3637,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         val publicEndpoint = rendered.single { it.path.endsWith("/PublicEndpoint.kt") }.bytes.decodeToString()
 
         assertTrue(publicEndpoint.contains("throughputLast30m: PercentileStats?"))
@@ -2729,7 +3662,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                     ),
                 ),
             )
-        val rendered = KotlinPoetEmitter(PACKAGE).render(renamed)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(renamed).files
         val fieldPresence = rendered.single { it.path.endsWith("/FieldPresence.kt") }.bytes.decodeToString()
         val serializationSupport =
             rendered
@@ -2788,7 +3721,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
         assertTrue(mapping.diagnostics.isEmpty(), mapping.diagnostics.toString())
 
-        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model)
+        val rendered = KotlinPoetEmitter(PACKAGE).render(mapping.model).files
         compileGenerated(rendered)
     }
 
@@ -2831,14 +3764,15 @@ class KotlinPoetEmitterCompileRegressionTest {
                 SupportKind.Serialization,
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "RawPropertyModel", listOf(model)),
-                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "RawPropertyModel", listOf(model)),
+                            KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                        ),
                     ),
-                ),
-            )
+                ).files
         val source = rendered.single { file -> file.path.endsWith("RawPropertyModel.kt") }.bytes.decodeToString()
 
         compileGenerated(rendered)
@@ -2886,7 +3820,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             )
 
         assertTrue(mapping.diagnostics.any { diagnostic -> diagnostic.symbolId == "schema:IssueEvent" })
-        compileGenerated(KotlinPoetEmitter(PACKAGE).render(mapping.model))
+        compileGenerated(KotlinPoetEmitter(PACKAGE).render(mapping.model).files)
     }
 
     @Test
@@ -2992,17 +3926,18 @@ class KotlinPoetEmitterCompileRegressionTest {
                 SupportKind.Serialization,
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "LongPredicate", listOf(primitive)),
-                        KotlinFileDeclaration(PACKAGE, "RawFieldChoice", listOf(rawFieldChoice)),
-                        KotlinFileDeclaration(PACKAGE, "FirstAnyOf", listOf(firstAnyOf)),
-                        KotlinFileDeclaration(PACKAGE, "SecondAnyOf", listOf(secondAnyOf)),
-                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "LongPredicate", listOf(primitive)),
+                            KotlinFileDeclaration(PACKAGE, "RawFieldChoice", listOf(rawFieldChoice)),
+                            KotlinFileDeclaration(PACKAGE, "FirstAnyOf", listOf(firstAnyOf)),
+                            KotlinFileDeclaration(PACKAGE, "SecondAnyOf", listOf(secondAnyOf)),
+                            KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                        ),
                     ),
-                ),
-            )
+                ).files
         val emptyViewSources =
             rendered.filter { file -> file.bytes.decodeToString().contains("class Branch2View") }
 
@@ -3062,21 +3997,22 @@ class KotlinPoetEmitterCompileRegressionTest {
                 SupportKind.Serialization,
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "MixedPredicateEmptyChoice", listOf(choice)),
-                        KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "MixedPredicateEmptyChoice", listOf(choice)),
+                            KotlinFileDeclaration(PACKAGE, "SerializationSupport", listOf(support)),
+                        ),
                     ),
-                ),
-            )
+                ).files
         val source =
             rendered
                 .single { file -> file.path.endsWith("MixedPredicateEmptyChoice.kt") }
                 .bytes
                 .decodeToString()
 
-        assertTrue(source.indexOf("val rawEmpty = rawObject.isEmpty()") < source.indexOf("val EmptyMatches = rawEmpty"))
+        assertTrue(source.indexOf("val rawEmpty = rawObject.isEmpty()") < source.indexOf("val emptyMatches = rawEmpty"))
         compileGenerated(rendered)
     }
 
@@ -3131,28 +4067,29 @@ class KotlinPoetEmitterCompileRegressionTest {
                 listOf(operation),
             )
         val rendered =
-            KotlinPoetEmitter(PACKAGE).render(
-                KotlinDeclarationModel(
-                    listOf(
-                        KotlinFileDeclaration(PACKAGE, "OptionalCollectionClient", listOf(client)),
-                        KotlinFileDeclaration(
-                            PACKAGE,
-                            "SerializationSupport",
-                            listOf(
-                                SupportDeclaration(
-                                    "support:serialization",
-                                    0,
-                                    PACKAGE,
-                                    "SerializationSupport",
-                                    "SerializationSupport",
-                                    "",
-                                    SupportKind.Serialization,
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "OptionalCollectionClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
                                 ),
                             ),
                         ),
                     ),
-                ),
-            )
+                ).files
         val source =
             rendered
                 .single { file -> file.path.endsWith("OptionalCollectionClient.kt") }
@@ -3228,6 +4165,24 @@ class KotlinPoetEmitterCompileRegressionTest {
         )
 
     private fun sourcePointer(): SourcePointer = SourcePointer("sdkgen://test", "/", SourceLocation(1, 1, 0))
+
+    private fun collectionField(
+        name: String,
+        type: KotlinTypeRef,
+        order: Int,
+        required: Boolean,
+        nullable: Boolean = false,
+    ): FieldDeclaration =
+        FieldDeclaration(
+            symbolId = "schema:CollectionOwnership/property:$name",
+            order = order,
+            resolvedName = name,
+            wireName = name,
+            type = type,
+            required = required,
+            nullable = nullable,
+            kdoc = "",
+        )
 
     private fun compileGenerated(files: List<RenderedKotlinFile>): Path {
         val root = Files.createTempDirectory("sdkgen-generated-compile-")

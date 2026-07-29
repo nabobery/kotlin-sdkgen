@@ -1,0 +1,1 @@
+{"corpus":"github-rest","scenario":"full-pipeline-generation","value":37526.0,"unit":"MILLISECONDS","sampleCount":1,"environment":{"jvmVersion":"21.0.8","osName":"Mac OS X","osArch":"aarch64","workerCount":1,"heapBytes":2147483648}}

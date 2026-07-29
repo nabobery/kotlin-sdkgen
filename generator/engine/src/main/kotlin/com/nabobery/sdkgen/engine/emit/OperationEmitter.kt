@@ -1,5 +1,6 @@
 package com.nabobery.sdkgen.engine.emit
 
+import com.nabobery.sdkgen.engine.declarations.DeepObjectAdditionalPropertiesSerialization
 import com.nabobery.sdkgen.engine.declarations.FormFieldDeclaration
 import com.nabobery.sdkgen.engine.declarations.FormScalarKind
 import com.nabobery.sdkgen.engine.declarations.FormValueDeclaration
@@ -15,6 +16,7 @@ import com.nabobery.sdkgen.engine.declarations.OperationResponseAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaration
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
+import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
 import com.nabobery.sdkgen.engine.declarations.RetryDeclaration
 import com.nabobery.sdkgen.engine.declarations.StreamingDeclaration
@@ -48,11 +50,7 @@ internal fun EmissionContext.emitOperationClient(
     }
     val clientType = ClassName(declaration.packageName, declaration.resolvedName)
     val codecsType = ClassName(declaration.packageName, declaration.codecsObjectName)
-    val codecsBuilder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.PUBLIC)
-    declaration.operations.forEach { operation ->
-        addOperationCodecs(codecsBuilder, operation)
-    }
-    file.addType(codecsBuilder.build())
+    file.addType(codecsObject(declaration, codecsType))
 
     val singleOperation = declaration.operations.singleOrNull()
     val methodNames = operationMethodNames(declaration.operations)
@@ -818,7 +816,7 @@ private fun withResponseFunction(
             operationParameterSpecs(operation, names).forEach(::addParameter)
         }.addParameter(optionsParameter())
         .returns(SDK_RESPONSE_RESULT.parameterizedBy(responseInterface))
-        .addKdoc("%L", withResponseKDoc(operation))
+        .addKdoc("%L", withResponseKDoc(operation, names))
         .addStatement(
             "return executor.executeWithResponse<%T, %T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L, options)",
             requestType,
@@ -842,9 +840,121 @@ private fun OperationDeclaration.responseAlternativeCodecPropertyName(index: Int
 private fun OperationDeclaration.responseAlternativeCodecRegistryName(index: Int): String =
     "${responseCodecPropertyName}Alternative${index}Registry"
 
+/**
+ * The maximum number of stored (non-`const`) properties one codecs initializer may hold.
+ *
+ * Every non-`const` property of a Kotlin `object` is assigned in that object's `<clinit>`, and the JVM caps a
+ * single method's bytecode at 65535 bytes (JVMS §4.9.1). A codecs object holding every operation in a client
+ * therefore has a hard ceiling on client size — one this generator crossed on the Stripe corpus at 519
+ * operations, where `V1Codecs.<clinit>` failed to compile with "Method too large".
+ *
+ * Above this many stored properties the codecs object moves them into nested partition objects, each with its
+ * own `<clinit>`, and re-exposes the public ones as forwarding accessors. See ADR-0015.
+ *
+ * **The bound is on properties, not operations.** One operation emits an unbounded number of stored properties
+ * — two per typed response alternative — so an operation-count bound would not bound initializer size at all.
+ * Each individual assignment is a constructor call with a handful of arguments, on the order of 30 bytes, so
+ * bounding the count does bound the initializer. The measured failure was ~3,116 assignments; 400 leaves
+ * roughly a five-fold margin.
+ *
+ * One residual case is not structurally bounded: a *single* operation declaring more than this many stored
+ * properties cannot be split, because the private codec a public registry wraps must stay its sibling. That
+ * needs on the order of two thousand response alternatives on one operation, and no corpus approaches it.
+ */
+private const val CODEC_PARTITION_STORED_PROPERTIES = 400
+
+/** One operation's emitted codec members, split by where each part has to live. */
+private class OperationCodecMembers(
+    val outerMembers: TypeSpec,
+    val storedProperties: List<PropertySpec>,
+)
+
+/**
+ * Builds the codecs object for [declaration], partitioning its stored properties when they would otherwise
+ * risk the JVM `<clinit>` limit described on [CODEC_PARTITION_STORED_PROPERTIES].
+ */
+private fun EmissionContext.codecsObject(
+    declaration: OperationClientDeclaration,
+    codecsType: ClassName,
+): TypeSpec {
+    val builder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.PUBLIC)
+    // Emit once unpartitioned to measure. Below the bound this is also the final output, so small clients are
+    // byte-for-byte unaffected by partitioning existing at all.
+    val flat = declaration.operations.map { operation -> operationCodecMembers(operation, outerOwner = null) }
+    if (flat.sumOf { members -> members.storedProperties.size } <= CODEC_PARTITION_STORED_PROPERTIES) {
+        declaration.operations.forEach { operation -> addOperationCodecs(builder, builder, operation, null) }
+        return builder.build()
+    }
+
+    // Re-emit with references qualified, since a partition can no longer see the outer object's members as
+    // siblings, and group operations so no partition exceeds the bound. An operation is never split.
+    val partitions = mutableListOf<MutableList<OperationCodecMembers>>()
+    var storedInCurrent = 0
+    declaration.operations.forEach { operation ->
+        val members = operationCodecMembers(operation, outerOwner = codecsType)
+        val overflows = storedInCurrent + members.storedProperties.size > CODEC_PARTITION_STORED_PROPERTIES
+        if (partitions.isEmpty() || overflows) {
+            partitions += mutableListOf<OperationCodecMembers>()
+            storedInCurrent = 0
+        }
+        partitions.last() += members
+        storedInCurrent += members.storedProperties.size
+    }
+
+    partitions.forEachIndexed { index, members ->
+        val partitionName = "Partition$index"
+        val partition = TypeSpec.objectBuilder(partitionName).addModifiers(KModifier.PRIVATE)
+        members.forEach { operation ->
+            // `const val` costs no `<clinit>` bytecode, and nested `object` declarations initialize lazily in
+            // their own `<clinit>`, so both stay on the outer object where callers can still reach them.
+            operation.outerMembers.propertySpecs.forEach(builder::addProperty)
+            operation.outerMembers.typeSpecs.forEach(builder::addType)
+            operation.storedProperties.forEach(partition::addProperty)
+        }
+        builder.addType(partition.build())
+        members
+            .flatMap(OperationCodecMembers::storedProperties)
+            .filter { property -> KModifier.PUBLIC in property.modifiers }
+            .forEach { property ->
+                builder.addProperty(
+                    PropertySpec
+                        .builder(property.name, property.type)
+                        .addModifiers(KModifier.PUBLIC)
+                        .getter(
+                            FunSpec
+                                .getterBuilder()
+                                .addStatement("return %L.%N", partitionName, property)
+                                .build(),
+                        ).build(),
+                )
+            }
+    }
+    return builder.build()
+}
+
+/** Emits one operation's codecs into scratch builders so they can be measured and placed. */
+private fun EmissionContext.operationCodecMembers(
+    operation: OperationDeclaration,
+    outerOwner: ClassName?,
+): OperationCodecMembers {
+    val outer = TypeSpec.objectBuilder("Scratch")
+    val stored = TypeSpec.objectBuilder("Scratch")
+    addOperationCodecs(outer, stored, operation, outerOwner)
+    return OperationCodecMembers(outer.build(), stored.build().propertySpecs)
+}
+
+/**
+ * Adds one operation's codecs. [outerBuilder] receives the parts that must stay on the codecs object itself —
+ * the `const val` codec identifiers and the nested form/multipart codec objects, both of which are public API
+ * and neither of which costs `<clinit>` bytecode. [membersBuilder] receives the stored properties. They are
+ * the same builder unless the codecs object is partitioned. [outerOwner] qualifies references from a partition
+ * back to [outerBuilder]'s members, and is null when the two are the same object.
+ */
 private fun EmissionContext.addOperationCodecs(
+    outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
     operation: OperationDeclaration,
+    outerOwner: ClassName?,
 ) {
     val requestType = operation.requestType.toTypeName()
     val responseType = operation.responseType.toTypeName()
@@ -857,8 +967,11 @@ private fun EmissionContext.addOperationCodecs(
     val multipartRequest = operation.multipartRequestBody()
     val formRequest = operation.formRequestBody()
 
+    fun outerReference(name: String): CodeBlock =
+        if (outerOwner == null) CodeBlock.of("%L", name) else CodeBlock.of("%T.%L", outerOwner, name)
+
     if (requestCodecSupported) {
-        codecsBuilder.addProperty(
+        outerBuilder.addProperty(
             PropertySpec
                 .builder(operation.requestCodecConstantName, STRING)
                 .addModifiers(KModifier.PUBLIC, KModifier.CONST)
@@ -866,9 +979,16 @@ private fun EmissionContext.addOperationCodecs(
                 .build(),
         )
         if (formRequest != null) {
-            addFormRequestCodec(codecsBuilder, operation, formRequest, requestCodecType)
+            addFormRequestCodec(outerBuilder, codecsBuilder, operation, formRequest, requestCodecType, ::outerReference)
         } else if (multipartRequest != null) {
-            addMultipartRequestCodec(codecsBuilder, operation, multipartRequest, requestCodecType)
+            addMultipartRequestCodec(
+                outerBuilder,
+                codecsBuilder,
+                operation,
+                multipartRequest,
+                requestCodecType,
+                ::outerReference,
+            )
         } else {
             codecsBuilder.addProperty(
                 PropertySpec
@@ -877,7 +997,7 @@ private fun EmissionContext.addOperationCodecs(
                     .initializer(
                         "%T(%L, %L, %M)",
                         KOTLINX_SERIALIZATION_CODEC,
-                        operation.requestCodecConstantName,
+                        outerReference(operation.requestCodecConstantName),
                         serializerExpression(operation.requestType),
                         sdkJson,
                     ).build(),
@@ -885,25 +1005,25 @@ private fun EmissionContext.addOperationCodecs(
         }
     }
     if (responseCodecSupported) {
-        codecsBuilder
-            .addProperty(
-                PropertySpec
-                    .builder(operation.responseCodecConstantName, STRING)
-                    .addModifiers(KModifier.PUBLIC, KModifier.CONST)
-                    .initializer("%S", operation.responseCodecId)
-                    .build(),
-            ).addProperty(
-                PropertySpec
-                    .builder(operation.responseCodecPropertyName, responseCodecType)
-                    .addModifiers(KModifier.PRIVATE)
-                    .initializer(
-                        "%T(%L, %L, %M)",
-                        KOTLINX_SERIALIZATION_CODEC,
-                        operation.responseCodecConstantName,
-                        serializerExpression(operation.responseType),
-                        sdkJson,
-                    ).build(),
-            )
+        outerBuilder.addProperty(
+            PropertySpec
+                .builder(operation.responseCodecConstantName, STRING)
+                .addModifiers(KModifier.PUBLIC, KModifier.CONST)
+                .initializer("%S", operation.responseCodecId)
+                .build(),
+        )
+        codecsBuilder.addProperty(
+            PropertySpec
+                .builder(operation.responseCodecPropertyName, responseCodecType)
+                .addModifiers(KModifier.PRIVATE)
+                .initializer(
+                    "%T(%L, %L, %M)",
+                    KOTLINX_SERIALIZATION_CODEC,
+                    outerReference(operation.responseCodecConstantName),
+                    serializerExpression(operation.responseType),
+                    sdkJson,
+                ).build(),
+        )
     }
     if (typedResponseAlternativesSupported(operation)) {
         operation.responseAlternatives.forEachIndexed { index, alternative ->
@@ -975,10 +1095,12 @@ private fun OperationDeclaration.multipartRequestBody(): OperationRequestBodyAlt
     requestBodyAlternatives.firstOrNull { alternative -> alternative.multipartParts.isNotEmpty() }
 
 private fun EmissionContext.addFormRequestCodec(
+    outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
     operation: OperationDeclaration,
     form: OperationRequestBodyAlternative,
     requestCodecType: TypeName,
+    outerReference: (String) -> CodeBlock,
 ) {
     val codecObjectName = operation.formCodecObjectName()
     val codecObject =
@@ -1000,15 +1122,14 @@ private fun EmissionContext.addFormRequestCodec(
             ).addFunction(formEncodeFunction(operation, form))
             .addFunction(formDecodeFunction(operation))
             .build()
-    codecsBuilder
-        .addType(codecObject)
-        .addProperty(
-            PropertySpec
-                .builder(operation.requestCodecPropertyName, requestCodecType)
-                .addModifiers(KModifier.PRIVATE)
-                .initializer("%L", codecObjectName)
-                .build(),
-        )
+    outerBuilder.addType(codecObject)
+    codecsBuilder.addProperty(
+        PropertySpec
+            .builder(operation.requestCodecPropertyName, requestCodecType)
+            .addModifiers(KModifier.PRIVATE)
+            .initializer("%L", outerReference(codecObjectName))
+            .build(),
+    )
 }
 
 private fun OperationDeclaration.formCodecObjectName(): String =
@@ -1180,10 +1301,12 @@ private fun EmissionContext.formDecodeFunction(operation: OperationDeclaration):
         .build()
 
 private fun EmissionContext.addMultipartRequestCodec(
+    outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
     operation: OperationDeclaration,
     multipart: OperationRequestBodyAlternative,
     requestCodecType: TypeName,
+    outerReference: (String) -> CodeBlock,
 ) {
     val codecObjectName = operation.multipartCodecObjectName()
     val codecObject =
@@ -1205,15 +1328,14 @@ private fun EmissionContext.addMultipartRequestCodec(
             ).addFunction(multipartEncodeFunction(operation, multipart))
             .addFunction(multipartDecodeFunction(operation))
             .build()
-    codecsBuilder
-        .addType(codecObject)
-        .addProperty(
-            PropertySpec
-                .builder(operation.requestCodecPropertyName, requestCodecType)
-                .addModifiers(KModifier.PRIVATE)
-                .initializer("%L", codecObjectName)
-                .build(),
-        )
+    outerBuilder.addType(codecObject)
+    codecsBuilder.addProperty(
+        PropertySpec
+            .builder(operation.requestCodecPropertyName, requestCodecType)
+            .addModifiers(KModifier.PRIVATE)
+            .initializer("%L", outerReference(codecObjectName))
+            .build(),
+    )
 }
 
 private fun OperationDeclaration.multipartCodecObjectName(): String =
@@ -1867,7 +1989,7 @@ private fun EmissionContext.streamingOperationFunction(
         functionName = names.operationName,
         elementType = operation.responseType,
         names = names,
-        kdoc = streamingKDoc(operation),
+        kdoc = streamingKDoc(operation, names),
     )
 }
 
@@ -1898,7 +2020,7 @@ private fun EmissionContext.mixedStreamOperationFunction(
         functionName = requireNotNull(names.streamName),
         elementType = elementType,
         names = names,
-        kdoc = mixedStreamKDoc(operation, elementType),
+        kdoc = mixedStreamKDoc(operation, names, elementType),
     )
 }
 
@@ -2077,6 +2199,7 @@ private fun EmissionContext.paginationPagesFunction(
         .addKdoc(
             "%L",
             "Returns a cold page flow for ${sanitizeKDoc(operation.operationIdentity)}.\n\n" +
+                operationParameterKDoc(operation, names) +
                 "@param options Execution options, including pagination bounds.\n",
         ).addStatement(
             "return %L.pages(fetch = { pageRequest -> %L(%L, pageRequest, options) }, pagination = options.pagination)",
@@ -2306,22 +2429,118 @@ private fun parameterListExpression(
     result.add("buildList {\n").indent()
     operation.parameters.forEach { parameter ->
         val parameterName = requireNotNull(names.parameterNames[parameter])
-        val valueExpression =
-            if (pageRequestAware && pagination?.requestCursorParam == parameter.name &&
-                names.cursorParameterName != null
-            ) {
-                CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
-            } else {
-                parameterValuesExpression(parameter, parameterName)
+        when (val serialization = parameter.serialization) {
+            ParameterSerialization.StripeCompatibleIndexedArray -> {
+                if (parameter.required && !parameter.type.nullable) {
+                    result.add("%L.forEachIndexed { index, value ->\n", parameterName)
+                } else {
+                    result.add("%L?.forEachIndexed { index, value ->\n", parameterName)
+                }
+                result
+                    .indent()
+                    .add(
+                        "add(%T(location = %T.%L, name = %S + \"[\" + index + \"]\", values = listOf(value.toString())))\n",
+                        SDK_REQUEST_PARAMETER,
+                        SDK_PARAMETER_LOCATION,
+                        parameter.location.name,
+                        parameter.name,
+                    ).unindent()
+                    .add("}\n")
             }
-        result.add(
-            "add(%T(location = %T.%L, name = %S, values = %L))\n",
-            SDK_REQUEST_PARAMETER,
-            SDK_PARAMETER_LOCATION,
-            parameter.location.name,
-            parameter.name,
-            valueExpression,
-        )
+
+            is ParameterSerialization.DeepObject -> {
+                serialization.properties.forEach { property ->
+                    result.add(
+                        "add(%T(location = %T.%L, name = %S, values = %L))\n",
+                        SDK_REQUEST_PARAMETER,
+                        SDK_PARAMETER_LOCATION,
+                        parameter.location.name,
+                        "${parameter.name}[${property.wireName}]",
+                        deepObjectPropertyValuesExpression(parameter, parameterName, property.accessorName),
+                    )
+                }
+                serialization.additionalProperties?.let { additional ->
+                    val mapExpression =
+                        if (parameter.required && !parameter.type.nullable) {
+                            "$parameterName.${additional.accessorName}"
+                        } else {
+                            "$parameterName?.${additional.accessorName}"
+                        }
+                    val requiredAdditionalProperties = parameter.required && !parameter.type.nullable
+                    if (!requiredAdditionalProperties) {
+                        result.add("%L?.let { dynamicProperties ->\n", mapExpression).indent()
+                    }
+                    val mapAccessor = if (requiredAdditionalProperties) mapExpression else "dynamicProperties"
+                    result.add("%L.keys.sorted().forEach { key ->\n", mapAccessor).indent()
+                    result.addStatement("val dynamicValue = %L.getValue(key)", mapAccessor)
+                    when (additional.serialization) {
+                        DeepObjectAdditionalPropertiesSerialization.JSON_PRIMITIVE_CONTENT -> {
+                            result.addStatement(
+                                "val primitive = dynamicValue as? %T ?: error(%S + key + %S)",
+                                JSON_PRIMITIVE,
+                                "deepObject parameter '${parameter.name}' additionalProperties entry '",
+                                "' requires a primitive JSON value",
+                            )
+                            result.add(
+                                "add(%T(location = %T.%L, name = %S + \"[\" + key + \"]\", values = listOf(primitive.content)))\n",
+                                SDK_REQUEST_PARAMETER,
+                                SDK_PARAMETER_LOCATION,
+                                parameter.location.name,
+                                parameter.name,
+                            )
+                        }
+
+                        DeepObjectAdditionalPropertiesSerialization.OPEN_ENUM_VALUE -> {
+                            result.add(
+                                "add(%T(location = %T.%L, name = %S + \"[\" + key + \"]\", values = listOf(dynamicValue.value)))\n",
+                                SDK_REQUEST_PARAMETER,
+                                SDK_PARAMETER_LOCATION,
+                                parameter.location.name,
+                                parameter.name,
+                            )
+                        }
+
+                        DeepObjectAdditionalPropertiesSerialization.TO_STRING -> {
+                            result.add(
+                                "add(%T(location = %T.%L, name = %S + \"[\" + key + \"]\", values = listOf(dynamicValue.toString())))\n",
+                                SDK_REQUEST_PARAMETER,
+                                SDK_PARAMETER_LOCATION,
+                                parameter.location.name,
+                                parameter.name,
+                            )
+                        }
+                    }
+                    result.unindent().add("}\n")
+                    if (!requiredAdditionalProperties) {
+                        result.unindent().add("}\n")
+                    }
+                }
+            }
+
+            ParameterSerialization.CommaJoined,
+            ParameterSerialization.Repeated,
+            ParameterSerialization.StripeCompatibleScalar,
+            ParameterSerialization.StripeCompatibleJsonScalar,
+            ParameterSerialization.PrimitiveUnion,
+            -> {
+                val valueExpression =
+                    if (pageRequestAware && pagination?.requestCursorParam == parameter.name &&
+                        names.cursorParameterName != null
+                    ) {
+                        CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
+                    } else {
+                        parameterValuesExpression(parameter, parameterName)
+                    }
+                result.add(
+                    "add(%T(location = %T.%L, name = %S, values = %L))\n",
+                    SDK_REQUEST_PARAMETER,
+                    SDK_PARAMETER_LOCATION,
+                    parameter.location.name,
+                    parameter.name,
+                    valueExpression,
+                )
+            }
+        }
     }
     result.unindent().add("}")
     if (pageRequestAware && pagination != null && names.cursorParameterName != null) {
@@ -2334,7 +2553,23 @@ private fun parameterValuesExpression(
     parameter: OperationParameterDeclaration,
     parameterName: String,
 ): CodeBlock =
-    if (parameter.type.isRepeatedParameter()) {
+    if (parameter.serialization == ParameterSerialization.StripeCompatibleJsonScalar) {
+        stripeCompatibleJsonScalarValuesExpression(parameter, parameterName)
+    } else if (parameter.serialization == ParameterSerialization.PrimitiveUnion) {
+        // Every case of a generated primitive union retains the JSON it was built from, so one projection
+        // covers all branches without emitting a `when` over case names. See ADR-0016.
+        if (!parameter.required || parameter.type.nullable) {
+            CodeBlock.of("%L?.let { %M(it.raw) }.orEmpty()", parameterName, SDK_PRIMITIVE_UNION_PARAMETER_VALUES)
+        } else {
+            CodeBlock.of("%M(%L.raw)", SDK_PRIMITIVE_UNION_PARAMETER_VALUES, parameterName)
+        }
+    } else if (parameter.serialization == ParameterSerialization.CommaJoined) {
+        if (!parameter.required || parameter.type.nullable) {
+            CodeBlock.of("%L?.let { listOf(it.joinToString(\",\")) }.orEmpty()", parameterName)
+        } else {
+            CodeBlock.of("listOf(%L.joinToString(\",\"))", parameterName)
+        }
+    } else if (parameter.type.isRepeatedParameter()) {
         if (!parameter.required || parameter.type.nullable) {
             CodeBlock.of("%L?.map { it.toString() }.orEmpty()", parameterName)
         } else {
@@ -2345,6 +2580,36 @@ private fun parameterValuesExpression(
     } else {
         CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", parameterName)
     }
+
+private fun stripeCompatibleJsonScalarValuesExpression(
+    parameter: OperationParameterDeclaration,
+    parameterName: String,
+): CodeBlock {
+    val valueExpression =
+        CodeBlock.of(
+            "{ value ->\nval primitive = value.raw as? %T ?: error(%S)\nlistOf(primitive.content)\n}",
+            JSON_PRIMITIVE,
+            "Stripe-compatible deepObject scalar fallback requires a JSON primitive value",
+        )
+    return if (parameter.required && !parameter.type.nullable) {
+        CodeBlock.of("%L.let %L", parameterName, valueExpression)
+    } else {
+        CodeBlock.of("%L?.let %L.orEmpty()", parameterName, valueExpression)
+    }
+}
+
+private fun deepObjectPropertyValuesExpression(
+    parameter: OperationParameterDeclaration,
+    parameterName: String,
+    accessorName: String,
+): CodeBlock {
+    val propertyExpression = "$parameterName.$accessorName"
+    return if (parameter.required && !parameter.type.nullable) {
+        CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", propertyExpression)
+    } else {
+        CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", "$parameterName?.$accessorName")
+    }
+}
 
 private fun KotlinTypeRef.isRepeatedParameter(): Boolean =
     packageName == "kotlin.collections" && simpleName in setOf("List", "Set")
@@ -2411,7 +2676,10 @@ private fun responseCodecIds(
         CodeBlock.of("emptyList()")
     }
 
-private fun withResponseKDoc(operation: OperationDeclaration): String =
+private fun withResponseKDoc(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
+): String =
     buildString {
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
@@ -2425,6 +2693,9 @@ private fun withResponseKDoc(operation: OperationDeclaration): String =
             "Returns the selected exact, range, default, or unknown response alternative without converting " +
                 "non-success statuses into success values.\n",
         )
+        if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
+        append(operationParameterKDoc(operation, names))
+        append("@param options Execution options.\n")
     }
 
 private fun bufferedKDoc(
@@ -2435,6 +2706,7 @@ private fun bufferedKDoc(
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
         if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
+        append(operationParameterKDoc(operation, names))
         append("@param options Execution options.\n")
         append(
             when {
@@ -2453,11 +2725,15 @@ private fun bufferedKDoc(
         append("@throws SdkTransportException When transport execution fails.\n")
     }
 
-private fun streamingKDoc(operation: OperationDeclaration): String =
+private fun streamingKDoc(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
+): String =
     buildString {
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
         if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
+        append(operationParameterKDoc(operation, names))
         append("@param options Execution options.\n")
         append("@return A cold flow decoded by the declared streaming descriptor.\n")
         append("@throws SdkApiException When the service returns a non-success response.\n")
@@ -2473,6 +2749,7 @@ private fun streamingKDoc(operation: OperationDeclaration): String =
  */
 private fun mixedStreamKDoc(
     operation: OperationDeclaration,
+    names: OperationMethodNames,
     elementType: KotlinTypeRef,
 ): String =
     buildString {
@@ -2506,11 +2783,22 @@ private fun mixedStreamKDoc(
             )
         }
         if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
+        append(operationParameterKDoc(operation, names))
         append("@param options Execution options.\n")
         append("@return A cold flow of decoded streaming events; never resolves to a single response value.\n")
         append("@throws SdkApiException When the service returns a non-success response.\n")
         append("@throws SdkSerializationException When a request or stream item cannot be decoded.\n")
         append("@throws SdkStreamingException When the stream framing or declared in-band error fails.\n")
+    }
+
+private fun operationParameterKDoc(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
+): String =
+    operation.parameters.joinToString(separator = "") { parameter ->
+        val resolvedName = requireNotNull(names.parameterNames[parameter])
+        val description = parameter.kdoc.ifBlank { "Wire parameter `${parameter.name}`." }
+        "@param $resolvedName ${sanitizeKDoc(description)}\n"
     }
 
 private fun OperationDeclaration.metadataPropertyName(

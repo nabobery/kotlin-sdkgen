@@ -1,6 +1,7 @@
 package com.nabobery.sdkgen.github.consumer
 
 import com.nabobery.sdkgen.github.generated.GitHubClient
+import com.nabobery.sdkgen.github.generated.InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0
 import com.nabobery.sdkgen.github.generated.InlineRepositoryRuleCreationTypeX8824ca31
 import com.nabobery.sdkgen.github.generated.InlineUserPatchRequestJsonXcc70b87c
 import com.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchRequestJsonFieldsItemValueXa6dfecba
@@ -8,6 +9,7 @@ import com.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchReque
 import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93c
 import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cBranchValidationException
 import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cNoMatchException
+import com.nabobery.sdkgen.github.generated.InlineWorkflowIdParameterX9533605b
 import com.nabobery.sdkgen.github.generated.RepositoryRule
 import com.nabobery.sdkgen.github.generated.RepositoryRuleBranchValidationException
 import com.nabobery.sdkgen.github.generated.RepositoryRuleNoMatchException
@@ -26,6 +28,7 @@ import com.nabobery.sdkgen.runtime.auth.Credential
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.Secret
 import com.nabobery.sdkgen.runtime.firstValue
+import com.nabobery.sdkgen.runtime.sdkPrimitiveUnionParameterValues
 import com.nabobery.sdkgen.testing.FakeByteStream
 import com.nabobery.sdkgen.testing.FakeTransport
 import kotlinx.coroutines.flow.toList
@@ -34,8 +37,11 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+import java.io.File
 import java.security.MessageDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,7 +51,86 @@ import kotlin.test.assertTrue
 
 class GitHubConsumerConformanceTest {
     @Test
-    fun searchCodeFirstPageDecodesPinnedOfficialExampleAndCapturesOneRequest() =
+    fun githubPaginationParityFixture() =
+        parityFixture("github.pagination") {
+            searchCodeFirstPageDecodesPinnedOfficialExampleAndCapturesOneRequest()
+            searchCodePagesFollowsRelativeThenAbsoluteSameOriginLinksWithoutPrefetch()
+            searchCodeItemsFlattensDistinguishableItemsInOrder()
+            crossOriginContinuationFailsBeforeSecondRequestAndCannotLeakCredentials()
+        }
+
+    @Test
+    fun githubAuthenticationParityFixture() =
+        parityFixture("github.auth") {
+            githubBearerReplacesCallerAuthorizationOnEveryPhysicalPageRequest()
+            missingGithubBearerProviderFailsBeforeTransport()
+        }
+
+    @Test
+    fun githubTypedErrorsParityFixture() =
+        parityFixture("github.typed-errors") {
+            searchCodeWithResponsePreservesTypedBasicAndValidationErrors()
+        }
+
+    @Test
+    fun githubOptionalityParityFixture() =
+        parityFixture("github.optionality") {
+            usersPatchPreservesAbsentOptionalFieldsAndPermittedExplicitNull()
+        }
+
+    @Test
+    fun githubUnionsParityFixture() =
+        parityFixture("github.unions") {
+            primitiveTimestampOneOfFactoriesValidateAndRoundTrip()
+            repositoryRulesDecodeExactBranchesAndValidateSelectedFactories()
+            scalarOrArrayParameterUnionsDecodeBothBranches()
+            pathUnionBranchesEachRenderExactlyOnePathSegment()
+        }
+
+    @Test
+    fun githubJvmCompilationParityFixture() =
+        parityFixture("github.compile-jvm") {
+            // This test runs only after Gradle has compiled the complete generated main source set.
+            // Referencing a representative generated public type prevents an empty-source-set false positive.
+            assertEquals("search/code", SearchClient.searchCodeMetadata.operationId)
+        }
+
+    @Test
+    fun githubPortableSourceParityFixture() =
+        parityFixture("github.source-portable") {
+            val generatedRoot = File("../generated")
+            val forbiddenTokens =
+                listOf(
+                    "import java.",
+                    "import javax.",
+                    "import kotlin.jvm.",
+                    "javaClass",
+                    "Class.forName",
+                )
+            val violations =
+                generatedRoot
+                    .walkTopDown()
+                    .filter { file -> file.isFile && file.extension == "kt" }
+                    .flatMap { file ->
+                        file.useLines { lines ->
+                            lines
+                                .mapIndexedNotNull { index, line ->
+                                    forbiddenTokens
+                                        .firstOrNull(line::contains)
+                                        ?.let { token ->
+                                            "${file.relativeTo(generatedRoot).invariantSeparatorsPath}:" +
+                                                "${index + 1}:$token"
+                                        }
+                                }.toList()
+                                .asSequence()
+                        }
+                    }.toList()
+
+            assertTrue(generatedRoot.isDirectory, "Generated GitHub source directory is missing")
+            assertTrue(violations.isEmpty(), violations.joinToString(separator = "\n"))
+        }
+
+    private fun searchCodeFirstPageDecodesPinnedOfficialExampleAndCapturesOneRequest() =
         runTest {
             val transport = FakeTransport().enqueueResponse(200, body = exampleBody())
 
@@ -60,8 +145,7 @@ class GitHubConsumerConformanceTest {
             )
         }
 
-    @Test
-    fun searchCodePagesFollowsRelativeThenAbsoluteSameOriginLinksWithoutPrefetch() =
+    private fun searchCodePagesFollowsRelativeThenAbsoluteSameOriginLinksWithoutPrefetch() =
         runTest {
             val transport =
                 FakeTransport()
@@ -99,8 +183,7 @@ class GitHubConsumerConformanceTest {
             assertEquals(3, transport.capturedRequests.size)
         }
 
-    @Test
-    fun searchCodeItemsFlattensDistinguishableItemsInOrder() =
+    private fun searchCodeItemsFlattensDistinguishableItemsInOrder() =
         runTest {
             val transport =
                 FakeTransport()
@@ -115,8 +198,7 @@ class GitHubConsumerConformanceTest {
             assertEquals(listOf("first.js", "second.js"), items.map { item -> item.name })
         }
 
-    @Test
-    fun githubBearerReplacesCallerAuthorizationOnEveryPhysicalPageRequest() =
+    private fun githubBearerReplacesCallerAuthorizationOnEveryPhysicalPageRequest() =
         runTest {
             val transport =
                 FakeTransport()
@@ -142,8 +224,7 @@ class GitHubConsumerConformanceTest {
             }
         }
 
-    @Test
-    fun missingGithubBearerProviderFailsBeforeTransport() =
+    private fun missingGithubBearerProviderFailsBeforeTransport() =
         runTest {
             val transport = FakeTransport()
             val client = GitHubClient(transport, BASE_URI)
@@ -154,8 +235,7 @@ class GitHubConsumerConformanceTest {
             assertEquals(0, transport.capturedRequests.size)
         }
 
-    @Test
-    fun crossOriginContinuationFailsBeforeSecondRequestAndCannotLeakCredentials() =
+    private fun crossOriginContinuationFailsBeforeSecondRequestAndCannotLeakCredentials() =
         runTest {
             val transport =
                 FakeTransport().enqueueResponse(
@@ -177,8 +257,7 @@ class GitHubConsumerConformanceTest {
             )
         }
 
-    @Test
-    fun searchCodeWithResponsePreservesTypedBasicAndValidationErrors() =
+    private fun searchCodeWithResponsePreservesTypedBasicAndValidationErrors() =
         runTest {
             val forbidden =
                 FakeTransport().enqueueResponse(
@@ -208,8 +287,7 @@ class GitHubConsumerConformanceTest {
             assertEquals(1, validationError.json.errors?.size)
         }
 
-    @Test
-    fun usersPatchPreservesAbsentOptionalFieldsAndPermittedExplicitNull() =
+    private fun usersPatchPreservesAbsentOptionalFieldsAndPermittedExplicitNull() =
         runTest {
             val transport = FakeTransport().enqueueResponse(304)
             val request = InlineUserPatchRequestJsonXcc70b87c.build { twitterUsername = null }
@@ -250,7 +328,7 @@ class GitHubConsumerConformanceTest {
         }
 
     @Test
-    fun committedManifestPinsTheExactWaiverInventoryAndRetainedCallsRemainReachable() {
+    fun currentManifestPinsTheExactWaiverInventoryAndRetainedCallsRemainReachable() {
         val manifestBytes = requireNotNull(javaClass.getResource("/manifest.json")).readBytes()
         val manifest = Json.parseToJsonElement(manifestBytes.decodeToString()).jsonObject
         val waiverIds =
@@ -273,8 +351,87 @@ class GitHubConsumerConformanceTest {
         assertTrue("gitignore/get-template" == GitignoreClient.gitignoreGetTemplateMetadata.operationId)
     }
 
-    @Test
-    fun primitiveTimestampOneOfFactoriesValidateAndRoundTrip() {
+    /**
+     * Decodes both branches of the scalar-or-array parameter unions ADR-0016 made reachable.
+     *
+     * These types shipped broken: the emitted array-shape predicate was `element is JsonArray && element !is
+     * JsonArray || (element as JsonArray)...`, and because `&&` binds tighter than `||` the left side was
+     * always false, so the unguarded cast ran for every non-array and threw `ClassCastException`. Compiling
+     * the corpus did not catch it because nothing decoded these types — which is the gap this test closes.
+     */
+    private fun scalarOrArrayParameterUnionsDecodeBothBranches() {
+        val freeFormString =
+            SdkJson.decodeFromString<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0>("\"patch\"")
+        assertEquals(
+            "patch",
+            assertIs<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0.StringValue>(freeFormString).value,
+        )
+
+        // The string branch is free-form: a value outside the array branch's enum must still decode. This is
+        // the branch ADR-0016 declines to narrow away.
+        val undocumented =
+            SdkJson.decodeFromString<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0>("\"custom-value\"")
+        assertEquals(
+            "custom-value",
+            assertIs<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0.StringValue>(undocumented).value,
+        )
+
+        val list =
+            SdkJson.decodeFromString<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0>("[\"patch\"]")
+        assertEquals(
+            listOf("patch"),
+            assertIs<InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0.ListValue>(list).value.map { it.value },
+        )
+
+        // Both wire forms of a path union: "an ID or a name".
+        val numericWorkflow = SdkJson.decodeFromString<InlineWorkflowIdParameterX9533605b>("42")
+        assertEquals(42, assertIs<InlineWorkflowIdParameterX9533605b.IntValue>(numericWorkflow).value)
+        val namedWorkflow = SdkJson.decodeFromString<InlineWorkflowIdParameterX9533605b>("\"ci.yml\"")
+        assertEquals("ci.yml", assertIs<InlineWorkflowIdParameterX9533605b.StringValue>(namedWorkflow).value)
+
+        // The scalar and single-element-array branches must project to the same wire values: that
+        // indistinguishability is what makes ADR-0016's repeated-parameter projection lossless.
+        assertEquals(
+            sdkPrimitiveUnionParameterValues(freeFormString.raw),
+            sdkPrimitiveUnionParameterValues(list.raw),
+        )
+    }
+
+    /**
+     * Decoding a path union proves the type exists; it does not prove the URI it produces is correct. Both
+     * branches must render into the single segment `renderPathTemplate` allows, and they must render to the
+     * same shape of URI — that is the whole content of "an ID or a name is not observable on the wire".
+     *
+     * This calls the generated operation rather than inspecting the union, because the defect class this guards
+     * against — a union branch expanding to zero or many path values — compiles cleanly and only fails when the
+     * request is actually built.
+     */
+    private fun pathUnionBranchesEachRenderExactlyOnePathSegment() =
+        runTest {
+            val transport = FakeTransport().enqueueResponse(204).enqueueResponse(204)
+            val client = authenticatedClient(transport)
+
+            client.actions.actionsEnableWorkflow(
+                owner = "octocat",
+                repo = "hello-world",
+                workflowId = SdkJson.decodeFromString<InlineWorkflowIdParameterX9533605b>("42"),
+            )
+            client.actions.actionsEnableWorkflow(
+                owner = "octocat",
+                repo = "hello-world",
+                workflowId = SdkJson.decodeFromString<InlineWorkflowIdParameterX9533605b>("\"ci.yml\""),
+            )
+
+            assertEquals(
+                listOf(
+                    "https://api.github.test/repos/octocat/hello-world/actions/workflows/42/enable",
+                    "https://api.github.test/repos/octocat/hello-world/actions/workflows/ci.yml/enable",
+                ),
+                transport.capturedRequests.map { request -> request.uri },
+            )
+        }
+
+    private fun primitiveTimestampOneOfFactoriesValidateAndRoundTrip() {
         val timestamp =
             InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93c.StringValue.of(
                 "2024-01-02T03:04:05Z",
@@ -302,8 +459,7 @@ class GitHubConsumerConformanceTest {
         }
     }
 
-    @Test
-    fun repositoryRulesDecodeExactBranchesAndValidateSelectedFactories() {
+    private fun repositoryRulesDecodeExactBranchesAndValidateSelectedFactories() {
         val creation = SdkJson.decodeFromString<RepositoryRule>("""{"type":"creation"}""")
         val update = SdkJson.decodeFromString<RepositoryRule>("""{"type":"update"}""")
         val ruleset =
@@ -368,11 +524,59 @@ class GitHubConsumerConformanceTest {
     private fun List<SdkHeader>.singleAuthorization(): String =
         single { header -> header.name.equals("Authorization", ignoreCase = true) }.value
 
+    private inline fun parityFixture(
+        fixtureId: String,
+        block: () -> Unit,
+    ) {
+        val runId = System.getProperty(PARITY_RUN_ID_PROPERTY)
+        if (runId == null) {
+            block()
+            return
+        }
+        parityEvent(runId, fixtureId, "START")
+        try {
+            block()
+            parityEvent(runId, fixtureId, "PASS")
+        } catch (failure: Throwable) {
+            val failureType = failure::class.simpleName ?: "Throwable"
+            parityEvent(runId, fixtureId, "FAIL", "$fixtureId failed: $failureType")
+            throw failure
+        }
+    }
+
+    private fun parityEvent(
+        runId: String,
+        fixtureId: String,
+        event: String,
+        error: String? = null,
+    ) {
+        val frame =
+            buildJsonObject {
+                put("fixtureId", fixtureId)
+                put("event", event)
+                error?.let { put("error", it) }
+                put("runId", runId)
+            }
+        println("SDKGEN_PARITY_EVENT $frame")
+        System.out.flush()
+    }
+
     private fun ByteArray.sha256(): String =
         MessageDigest.getInstance("SHA-256").digest(this).joinToString("") { byte -> "%02x".format(byte) }
 
     private companion object {
         const val BASE_URI = "https://api.github.test"
-        const val MANIFEST_SHA256 = "42cfd1f296c93be7213dcf7cf59dee0ee2aca8a879220b036c1226664623893f"
+        const val PARITY_RUN_ID_PROPERTY = "sdkgen.parity.runId"
+
+        /**
+         * Digest of the committed corpus manifest. Moves with any regenerated byte, so it may only be
+         * updated together with a reviewed corpus change.
+         *
+         * Last moved by the regeneration that fixed the array-shape predicate's operator precedence, which
+         * had made every scalar-or-array parameter union throw ClassCastException on its string branch. Before it, this corpus could not be
+         * regenerated at all, so every assertion in this module was pinned to a snapshot no generator in the
+         * tree could reproduce.
+         */
+        const val MANIFEST_SHA256 = "d9fc8a189c65f184bfcf6441f6ad78a9367353fa4d825660f912c3edddfc3ea3"
     }
 }

@@ -4,6 +4,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -24,6 +25,44 @@ import kotlin.test.assertTrue
  * third, unconstrained `anyOf` branch.
  */
 class OpenRouterGeneratedBehaviorTest {
+    @Test
+    fun advisorNestedToolRetainsLosslessAdditionalProperties() {
+        val raw = """{"type":"openrouter:web_search","display_name":null,"future":"kept"}"""
+
+        val decoded = SdkJson.decodeFromString<AdvisorNestedTool>(raw)
+
+        assertTrue(decoded.additionalProperties.containsKey("display_name"))
+        assertEquals(JsonNull, decoded.additionalProperties["display_name"])
+        assertEquals(JsonPrimitive("kept"), decoded.additionalProperties["future"])
+        assertEquals(raw, SdkJson.encodeToString(decoded))
+
+        val mutable = linkedMapOf("future" to JsonPrimitive("original"))
+        val constructed = AdvisorNestedTool(type = "openrouter:web_search", additionalProperties = mutable)
+        mutable["future"] = JsonPrimitive("changed")
+        assertEquals(JsonPrimitive("original"), constructed.additionalProperties["future"])
+        assertFailsWith<IllegalArgumentException> {
+            AdvisorNestedTool(
+                type = "openrouter:web_search",
+                additionalProperties = mapOf("type" to JsonPrimitive("collision")),
+            )
+        }
+        val collision =
+            assertFailsWith<IllegalArgumentException> {
+                AdvisorNestedTool(
+                    type = "openrouter:web_search",
+                    additionalProperties =
+                        linkedMapOf(
+                            "type" to JsonPrimitive("collision"),
+                            "parameters" to JsonPrimitive("collision"),
+                        ),
+                )
+            }
+        assertEquals(
+            "AdvisorNestedTool additionalProperties key 'parameters' collides with a fixed property",
+            collision.message,
+        )
+    }
+
     @Test
     fun presenceRoundTripsAbsentNullAndValue() {
         val absent = byokKey()

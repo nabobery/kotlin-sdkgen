@@ -30,7 +30,7 @@ class NamingInventoryTest {
         val inline = schemaDeclarations.filter { declaration -> declaration.resolvedName.startsWith("Inline") }
 
         assertEquals(
-            933,
+            927,
             inline.size,
             "total=${schemaDeclarations.size}; identityKinds=${schemaDeclarations.groupingBy { declaration ->
                 document.schemas[declaration.sourceSchemaId()]?.identityKind

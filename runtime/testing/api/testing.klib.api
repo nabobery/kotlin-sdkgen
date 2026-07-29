@@ -1,0 +1,314 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, js, linuxArm64, linuxX64, macosArm64, mingwX64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.nabobery:testing>
+final enum class com.nabobery.sdkgen.testing/ContractCapability : kotlin/Enum<com.nabobery.sdkgen.testing/ContractCapability> { // com.nabobery.sdkgen.testing/ContractCapability|null[0]
+    enum entry ATTEMPT_DEADLINE // com.nabobery.sdkgen.testing/ContractCapability.ATTEMPT_DEADLINE|null[0]
+    enum entry CALLER_OWNED_ENGINE // com.nabobery.sdkgen.testing/ContractCapability.CALLER_OWNED_ENGINE|null[0]
+    enum entry STREAMING // com.nabobery.sdkgen.testing/ContractCapability.STREAMING|null[0]
+    enum entry STREAM_IDLE_DEADLINE // com.nabobery.sdkgen.testing/ContractCapability.STREAM_IDLE_DEADLINE|null[0]
+
+    final val entries // com.nabobery.sdkgen.testing/ContractCapability.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.nabobery.sdkgen.testing/ContractCapability> // com.nabobery.sdkgen.testing/ContractCapability.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.nabobery.sdkgen.testing/ContractCapability // com.nabobery.sdkgen.testing/ContractCapability.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.nabobery.sdkgen.testing/ContractCapability> // com.nabobery.sdkgen.testing/ContractCapability.values|values#static(){}[0]
+}
+
+final enum class com.nabobery.sdkgen.testing/TransferCallbackKind : kotlin/Enum<com.nabobery.sdkgen.testing/TransferCallbackKind> { // com.nabobery.sdkgen.testing/TransferCallbackKind|null[0]
+    enum entry COMPLETION // com.nabobery.sdkgen.testing/TransferCallbackKind.COMPLETION|null[0]
+    enum entry FAILURE // com.nabobery.sdkgen.testing/TransferCallbackKind.FAILURE|null[0]
+    enum entry PROGRESS // com.nabobery.sdkgen.testing/TransferCallbackKind.PROGRESS|null[0]
+    enum entry START // com.nabobery.sdkgen.testing/TransferCallbackKind.START|null[0]
+
+    final val entries // com.nabobery.sdkgen.testing/TransferCallbackKind.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.nabobery.sdkgen.testing/TransferCallbackKind> // com.nabobery.sdkgen.testing/TransferCallbackKind.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.nabobery.sdkgen.testing/TransferCallbackKind // com.nabobery.sdkgen.testing/TransferCallbackKind.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.nabobery.sdkgen.testing/TransferCallbackKind> // com.nabobery.sdkgen.testing/TransferCallbackKind.values|values#static(){}[0]
+}
+
+abstract interface com.nabobery.sdkgen.testing/ContractServer { // com.nabobery.sdkgen.testing/ContractServer|null[0]
+    abstract fun assertResponseClosed(kotlin/Int, kotlin/Throwable?) // com.nabobery.sdkgen.testing/ContractServer.assertResponseClosed|assertResponseClosed(kotlin.Int;kotlin.Throwable?){}[0]
+    abstract fun close() // com.nabobery.sdkgen.testing/ContractServer.close|close(){}[0]
+    abstract fun enqueue(com.nabobery.sdkgen.testing/ScriptedExchange) // com.nabobery.sdkgen.testing/ContractServer.enqueue|enqueue(com.nabobery.sdkgen.testing.ScriptedExchange){}[0]
+    abstract fun url(kotlin/String = ...): kotlin/String // com.nabobery.sdkgen.testing/ContractServer.url|url(kotlin.String){}[0]
+}
+
+abstract interface com.nabobery.sdkgen.testing/EngineOwnershipProbe { // com.nabobery.sdkgen.testing/EngineOwnershipProbe|null[0]
+    abstract fun assertUnchanged(kotlin/Any) // com.nabobery.sdkgen.testing/EngineOwnershipProbe.assertUnchanged|assertUnchanged(kotlin.Any){}[0]
+    abstract fun snapshot(): kotlin/Any // com.nabobery.sdkgen.testing/EngineOwnershipProbe.snapshot|snapshot(){}[0]
+}
+
+sealed interface com.nabobery.sdkgen.testing/ResponseBodyScript { // com.nabobery.sdkgen.testing/ResponseBodyScript|null[0]
+    final class Chunks : com.nabobery.sdkgen.testing/ResponseBodyScript { // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks|null[0]
+        constructor <init>(kotlin.collections/List<kotlin/ByteArray>, com.nabobery.sdkgen.testing/ChunkGate? = ..., kotlin/Int? = ..., kotlin/Throwable? = ...) // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.<init>|<init>(kotlin.collections.List<kotlin.ByteArray>;com.nabobery.sdkgen.testing.ChunkGate?;kotlin.Int?;kotlin.Throwable?){}[0]
+
+        final val chunks // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.chunks|{}chunks[0]
+            final fun <get-chunks>(): kotlin.collections/List<kotlin/ByteArray> // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.chunks.<get-chunks>|<get-chunks>(){}[0]
+        final val failure // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.failure|{}failure[0]
+            final fun <get-failure>(): kotlin/Throwable? // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.failure.<get-failure>|<get-failure>(){}[0]
+        final val failureAfterChunk // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.failureAfterChunk|{}failureAfterChunk[0]
+            final fun <get-failureAfterChunk>(): kotlin/Int? // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.failureAfterChunk.<get-failureAfterChunk>|<get-failureAfterChunk>(){}[0]
+        final val gate // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.gate|{}gate[0]
+            final fun <get-gate>(): com.nabobery.sdkgen.testing/ChunkGate? // com.nabobery.sdkgen.testing/ResponseBodyScript.Chunks.gate.<get-gate>|<get-gate>(){}[0]
+    }
+
+    final object Empty : com.nabobery.sdkgen.testing/ResponseBodyScript { // com.nabobery.sdkgen.testing/ResponseBodyScript.Empty|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.nabobery.sdkgen.testing/ResponseBodyScript.Empty.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.nabobery.sdkgen.testing/ResponseBodyScript.Empty.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.nabobery.sdkgen.testing/ResponseBodyScript.Empty.toString|toString(){}[0]
+    }
+}
+
+abstract class com.nabobery.sdkgen.testing/SdkTransportContractKit { // com.nabobery.sdkgen.testing/SdkTransportContractKit|null[0]
+    constructor <init>() // com.nabobery.sdkgen.testing/SdkTransportContractKit.<init>|<init>(){}[0]
+
+    abstract val capabilitySkipReasons // com.nabobery.sdkgen.testing/SdkTransportContractKit.capabilitySkipReasons|{}capabilitySkipReasons[0]
+        abstract fun <get-capabilitySkipReasons>(): kotlin.collections/Map<com.nabobery.sdkgen.testing/ContractCapability, kotlin/String> // com.nabobery.sdkgen.testing/SdkTransportContractKit.capabilitySkipReasons.<get-capabilitySkipReasons>|<get-capabilitySkipReasons>(){}[0]
+    abstract val expectedCapabilities // com.nabobery.sdkgen.testing/SdkTransportContractKit.expectedCapabilities|{}expectedCapabilities[0]
+        abstract fun <get-expectedCapabilities>(): com.nabobery.sdkgen.runtime/TransportCapabilities // com.nabobery.sdkgen.testing/SdkTransportContractKit.expectedCapabilities.<get-expectedCapabilities>|<get-expectedCapabilities>(){}[0]
+    final val skippedRows // com.nabobery.sdkgen.testing/SdkTransportContractKit.skippedRows|{}skippedRows[0]
+        final fun <get-skippedRows>(): kotlin.collections/Map<kotlin/String, kotlin/String> // com.nabobery.sdkgen.testing/SdkTransportContractKit.skippedRows.<get-skippedRows>|<get-skippedRows>(){}[0]
+
+    abstract fun createServer(): com.nabobery.sdkgen.testing/ContractServer // com.nabobery.sdkgen.testing/SdkTransportContractKit.createServer|createServer(){}[0]
+    abstract fun createTransport(com.nabobery.sdkgen.testing/ContractServer): com.nabobery.sdkgen.runtime/SdkTransport // com.nabobery.sdkgen.testing/SdkTransportContractKit.createTransport|createTransport(com.nabobery.sdkgen.testing.ContractServer){}[0]
+    abstract fun runTest(kotlin.coroutines/SuspendFunction0<kotlin/Unit>) // com.nabobery.sdkgen.testing/SdkTransportContractKit.runTest|runTest(kotlin.coroutines.SuspendFunction0<kotlin.Unit>){}[0]
+    open fun abruptMidStreamFailureIsTypedAndCloseCauseIsRecorded() // com.nabobery.sdkgen.testing/SdkTransportContractKit.abruptMidStreamFailureIsTypedAndCloseCauseIsRecorded|abruptMidStreamFailureIsTypedAndCloseCauseIsRecorded(){}[0]
+    open fun bufferedResponseDoesNotReadAheadBeforeConsumerDemand() // com.nabobery.sdkgen.testing/SdkTransportContractKit.bufferedResponseDoesNotReadAheadBeforeConsumerDemand|bufferedResponseDoesNotReadAheadBeforeConsumerDemand(){}[0]
+    open fun bufferedRoundTripPreservesRequestAndRepeatedHeaders() // com.nabobery.sdkgen.testing/SdkTransportContractKit.bufferedRoundTripPreservesRequestAndRepeatedHeaders|bufferedRoundTripPreservesRequestAndRepeatedHeaders(){}[0]
+    open fun bytesAndReplayFactoryAreIdenticalAcrossAttempts() // com.nabobery.sdkgen.testing/SdkTransportContractKit.bytesAndReplayFactoryAreIdenticalAcrossAttempts|bytesAndReplayFactoryAreIdenticalAcrossAttempts(){}[0]
+    open fun callerOwnedEngineRemainsUnchanged() // com.nabobery.sdkgen.testing/SdkTransportContractKit.callerOwnedEngineRemainsUnchanged|callerOwnedEngineRemainsUnchanged(){}[0]
+    open fun cancellationIdentityIsPreservedMidBody() // com.nabobery.sdkgen.testing/SdkTransportContractKit.cancellationIdentityIsPreservedMidBody|cancellationIdentityIsPreservedMidBody(){}[0]
+    open fun capabilitiesMatchExpectations() // com.nabobery.sdkgen.testing/SdkTransportContractKit.capabilitiesMatchExpectations|capabilitiesMatchExpectations(){}[0]
+    open fun closingStreamMidBodyCancelsExchange() // com.nabobery.sdkgen.testing/SdkTransportContractKit.closingStreamMidBodyCancelsExchange|closingStreamMidBodyCancelsExchange(){}[0]
+    open fun connectionFailureBeforeSendIsTypedAndPreservesCause() // com.nabobery.sdkgen.testing/SdkTransportContractKit.connectionFailureBeforeSendIsTypedAndPreservesCause|connectionFailureBeforeSendIsTypedAndPreservesCause(){}[0]
+    open fun contractSkipReportIsConsistent() // com.nabobery.sdkgen.testing/SdkTransportContractKit.contractSkipReportIsConsistent|contractSkipReportIsConsistent(){}[0]
+    open fun declaredAttemptDeadlineIsHonored() // com.nabobery.sdkgen.testing/SdkTransportContractKit.declaredAttemptDeadlineIsHonored|declaredAttemptDeadlineIsHonored(){}[0]
+    open fun declaredIdleDeadlineRejectsSlowLorisBody() // com.nabobery.sdkgen.testing/SdkTransportContractKit.declaredIdleDeadlineRejectsSlowLorisBody|declaredIdleDeadlineRejectsSlowLorisBody(){}[0]
+    open fun emptyResponseBodyReachesEof() // com.nabobery.sdkgen.testing/SdkTransportContractKit.emptyResponseBodyReachesEof|emptyResponseBodyReachesEof(){}[0]
+    open fun engineOwnershipProbe(): com.nabobery.sdkgen.testing/EngineOwnershipProbe? // com.nabobery.sdkgen.testing/SdkTransportContractKit.engineOwnershipProbe|engineOwnershipProbe(){}[0]
+    open fun executorAttemptDeadlineIsHonored() // com.nabobery.sdkgen.testing/SdkTransportContractKit.executorAttemptDeadlineIsHonored|executorAttemptDeadlineIsHonored(){}[0]
+    open fun hostileChunkSizesPreserveBytes() // com.nabobery.sdkgen.testing/SdkTransportContractKit.hostileChunkSizesPreserveBytes|hostileChunkSizesPreserveBytes(){}[0]
+    open fun multipartBodyExecutesWithExactBytesAndReplays() // com.nabobery.sdkgen.testing/SdkTransportContractKit.multipartBodyExecutesWithExactBytesAndReplays|multipartBodyExecutesWithExactBytesAndReplays(){}[0]
+    open fun nonSuccessResponseBodyIsAvailable() // com.nabobery.sdkgen.testing/SdkTransportContractKit.nonSuccessResponseBodyIsAvailable|nonSuccessResponseBodyIsAvailable(){}[0]
+    open fun oneMiBResponseBodyIsByteFaithful() // com.nabobery.sdkgen.testing/SdkTransportContractKit.oneMiBResponseBodyIsByteFaithful|oneMiBResponseBodyIsByteFaithful(){}[0]
+    open fun oneShotBodyIsConsumedExactlyOnce() // com.nabobery.sdkgen.testing/SdkTransportContractKit.oneShotBodyIsConsumedExactlyOnce|oneShotBodyIsConsumedExactlyOnce(){}[0]
+    open fun redirectsAreSurfacedWithoutAutomaticFollowing() // com.nabobery.sdkgen.testing/SdkTransportContractKit.redirectsAreSurfacedWithoutAutomaticFollowing|redirectsAreSurfacedWithoutAutomaticFollowing(){}[0]
+    open fun responseClosePreservesNormalAndFailureCauses() // com.nabobery.sdkgen.testing/SdkTransportContractKit.responseClosePreservesNormalAndFailureCauses|responseClosePreservesNormalAndFailureCauses(){}[0]
+    open fun sseBytesAreIncrementalAndUnmodified() // com.nabobery.sdkgen.testing/SdkTransportContractKit.sseBytesAreIncrementalAndUnmodified|sseBytesAreIncrementalAndUnmodified(){}[0]
+    open fun streamingChunksArriveIncrementally() // com.nabobery.sdkgen.testing/SdkTransportContractKit.streamingChunksArriveIncrementally|streamingChunksArriveIncrementally(){}[0]
+    open fun tearDownTransport(com.nabobery.sdkgen.runtime/SdkTransport) // com.nabobery.sdkgen.testing/SdkTransportContractKit.tearDownTransport|tearDownTransport(com.nabobery.sdkgen.runtime.SdkTransport){}[0]
+    open fun unsupportedStreamingIsDeclaredForRuntimePreflight() // com.nabobery.sdkgen.testing/SdkTransportContractKit.unsupportedStreamingIsDeclaredForRuntimePreflight|unsupportedStreamingIsDeclaredForRuntimePreflight(){}[0]
+}
+
+final class <#A: kotlin/Any?, #B: kotlin/Any?> com.nabobery.sdkgen.testing/ScriptedPageFetcher { // com.nabobery.sdkgen.testing/ScriptedPageFetcher|null[0]
+    constructor <init>() // com.nabobery.sdkgen.testing/ScriptedPageFetcher.<init>|<init>(){}[0]
+
+    final val fetch // com.nabobery.sdkgen.testing/ScriptedPageFetcher.fetch|{}fetch[0]
+        final fun <get-fetch>(): kotlin.coroutines/SuspendFunction1<com.nabobery.sdkgen.runtime.pagination/PageRequest, com.nabobery.sdkgen.runtime.pagination/PageEnvelope<#A, #B>> // com.nabobery.sdkgen.testing/ScriptedPageFetcher.fetch.<get-fetch>|<get-fetch>(){}[0]
+    final val requests // com.nabobery.sdkgen.testing/ScriptedPageFetcher.requests|{}requests[0]
+        final fun <get-requests>(): kotlin.collections/List<com.nabobery.sdkgen.runtime.pagination/PageRequest> // com.nabobery.sdkgen.testing/ScriptedPageFetcher.requests.<get-requests>|<get-requests>(){}[0]
+
+    final fun enqueueEnvelope(com.nabobery.sdkgen.runtime.pagination/PageEnvelope<#A, #B>): com.nabobery.sdkgen.testing/ScriptedPageFetcher<#A, #B> // com.nabobery.sdkgen.testing/ScriptedPageFetcher.enqueueEnvelope|enqueueEnvelope(com.nabobery.sdkgen.runtime.pagination.PageEnvelope<1:0,1:1>){}[0]
+    final fun enqueueFailure(kotlin/Throwable): com.nabobery.sdkgen.testing/ScriptedPageFetcher<#A, #B> // com.nabobery.sdkgen.testing/ScriptedPageFetcher.enqueueFailure|enqueueFailure(kotlin.Throwable){}[0]
+    final fun enqueueSuspending(kotlin.coroutines/SuspendFunction0<com.nabobery.sdkgen.runtime.pagination/PageEnvelope<#A, #B>>): com.nabobery.sdkgen.testing/ScriptedPageFetcher<#A, #B> // com.nabobery.sdkgen.testing/ScriptedPageFetcher.enqueueSuspending|enqueueSuspending(kotlin.coroutines.SuspendFunction0<com.nabobery.sdkgen.runtime.pagination.PageEnvelope<1:0,1:1>>){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/ChunkGate { // com.nabobery.sdkgen.testing/ChunkGate|null[0]
+    constructor <init>() // com.nabobery.sdkgen.testing/ChunkGate.<init>|<init>(){}[0]
+
+    final fun markProduced(kotlin/Int) // com.nabobery.sdkgen.testing/ChunkGate.markProduced|markProduced(kotlin.Int){}[0]
+    final fun release(kotlin/Int) // com.nabobery.sdkgen.testing/ChunkGate.release|release(kotlin.Int){}[0]
+    final suspend fun awaitProduced(kotlin/Int) // com.nabobery.sdkgen.testing/ChunkGate.awaitProduced|awaitProduced(kotlin.Int){}[0]
+    final suspend fun awaitRelease(kotlin/Int) // com.nabobery.sdkgen.testing/ChunkGate.awaitRelease|awaitRelease(kotlin.Int){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/ChunkedByteStream : com.nabobery.sdkgen.runtime/SdkByteStream { // com.nabobery.sdkgen.testing/ChunkedByteStream|null[0]
+    constructor <init>(kotlin/ByteArray, kotlin.collections/List<kotlin/Int> = ..., kotlin/Int? = ..., kotlin/Throwable? = ...) // com.nabobery.sdkgen.testing/ChunkedByteStream.<init>|<init>(kotlin.ByteArray;kotlin.collections.List<kotlin.Int>;kotlin.Int?;kotlin.Throwable?){}[0]
+
+    final var closeCause // com.nabobery.sdkgen.testing/ChunkedByteStream.closeCause|{}closeCause[0]
+        final fun <get-closeCause>(): kotlin/Throwable? // com.nabobery.sdkgen.testing/ChunkedByteStream.closeCause.<get-closeCause>|<get-closeCause>(){}[0]
+    final var closed // com.nabobery.sdkgen.testing/ChunkedByteStream.closed|{}closed[0]
+        final fun <get-closed>(): kotlin/Boolean // com.nabobery.sdkgen.testing/ChunkedByteStream.closed.<get-closed>|<get-closed>(){}[0]
+
+    final fun close(kotlin/Throwable?) // com.nabobery.sdkgen.testing/ChunkedByteStream.close|close(kotlin.Throwable?){}[0]
+    final suspend fun readChunk(kotlin/Int): kotlin/ByteArray? // com.nabobery.sdkgen.testing/ChunkedByteStream.readChunk|readChunk(kotlin.Int){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/ConnectionFailure { // com.nabobery.sdkgen.testing/ConnectionFailure|null[0]
+    constructor <init>(kotlin/Throwable, kotlin/Boolean) // com.nabobery.sdkgen.testing/ConnectionFailure.<init>|<init>(kotlin.Throwable;kotlin.Boolean){}[0]
+
+    final val cause // com.nabobery.sdkgen.testing/ConnectionFailure.cause|{}cause[0]
+        final fun <get-cause>(): kotlin/Throwable // com.nabobery.sdkgen.testing/ConnectionFailure.cause.<get-cause>|<get-cause>(){}[0]
+    final val requestMayHaveReachedServer // com.nabobery.sdkgen.testing/ConnectionFailure.requestMayHaveReachedServer|{}requestMayHaveReachedServer[0]
+        final fun <get-requestMayHaveReachedServer>(): kotlin/Boolean // com.nabobery.sdkgen.testing/ConnectionFailure.requestMayHaveReachedServer.<get-requestMayHaveReachedServer>|<get-requestMayHaveReachedServer>(){}[0]
+
+    final fun component1(): kotlin/Throwable // com.nabobery.sdkgen.testing/ConnectionFailure.component1|component1(){}[0]
+    final fun component2(): kotlin/Boolean // com.nabobery.sdkgen.testing/ConnectionFailure.component2|component2(){}[0]
+    final fun copy(kotlin/Throwable = ..., kotlin/Boolean = ...): com.nabobery.sdkgen.testing/ConnectionFailure // com.nabobery.sdkgen.testing/ConnectionFailure.copy|copy(kotlin.Throwable;kotlin.Boolean){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.nabobery.sdkgen.testing/ConnectionFailure.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.nabobery.sdkgen.testing/ConnectionFailure.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.nabobery.sdkgen.testing/ConnectionFailure.toString|toString(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/FakeByteStream : com.nabobery.sdkgen.runtime/SdkByteStream { // com.nabobery.sdkgen.testing/FakeByteStream|null[0]
+    constructor <init>(kotlin.collections/List<kotlin/ByteArray> = ..., kotlin/Throwable? = ..., kotlin/Int? = ...) // com.nabobery.sdkgen.testing/FakeByteStream.<init>|<init>(kotlin.collections.List<kotlin.ByteArray>;kotlin.Throwable?;kotlin.Int?){}[0]
+
+    final var closeCause // com.nabobery.sdkgen.testing/FakeByteStream.closeCause|{}closeCause[0]
+        final fun <get-closeCause>(): kotlin/Throwable? // com.nabobery.sdkgen.testing/FakeByteStream.closeCause.<get-closeCause>|<get-closeCause>(){}[0]
+    final var closed // com.nabobery.sdkgen.testing/FakeByteStream.closed|{}closed[0]
+        final fun <get-closed>(): kotlin/Boolean // com.nabobery.sdkgen.testing/FakeByteStream.closed.<get-closed>|<get-closed>(){}[0]
+
+    final fun close(kotlin/Throwable?) // com.nabobery.sdkgen.testing/FakeByteStream.close|close(kotlin.Throwable?){}[0]
+    final suspend fun readChunk(kotlin/Int): kotlin/ByteArray? // com.nabobery.sdkgen.testing/FakeByteStream.readChunk|readChunk(kotlin.Int){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/FakeContractServer : com.nabobery.sdkgen.testing/ContractServer { // com.nabobery.sdkgen.testing/FakeContractServer|null[0]
+    constructor <init>(com.nabobery.sdkgen.runtime/TransportCapabilities = ...) // com.nabobery.sdkgen.testing/FakeContractServer.<init>|<init>(com.nabobery.sdkgen.runtime.TransportCapabilities){}[0]
+
+    final val capabilities // com.nabobery.sdkgen.testing/FakeContractServer.capabilities|{}capabilities[0]
+        final fun <get-capabilities>(): com.nabobery.sdkgen.runtime/TransportCapabilities // com.nabobery.sdkgen.testing/FakeContractServer.capabilities.<get-capabilities>|<get-capabilities>(){}[0]
+    final val exchanges // com.nabobery.sdkgen.testing/FakeContractServer.exchanges|{}exchanges[0]
+        final fun <get-exchanges>(): kotlin.collections/List<com.nabobery.sdkgen.testing/RecordedExchange> // com.nabobery.sdkgen.testing/FakeContractServer.exchanges.<get-exchanges>|<get-exchanges>(){}[0]
+    final val transport // com.nabobery.sdkgen.testing/FakeContractServer.transport|{}transport[0]
+        final fun <get-transport>(): com.nabobery.sdkgen.testing/FakeTransport // com.nabobery.sdkgen.testing/FakeContractServer.transport.<get-transport>|<get-transport>(){}[0]
+
+    final fun assertExhausted() // com.nabobery.sdkgen.testing/FakeContractServer.assertExhausted|assertExhausted(){}[0]
+    final fun assertResponseClosed(kotlin/Int, kotlin/Throwable?) // com.nabobery.sdkgen.testing/FakeContractServer.assertResponseClosed|assertResponseClosed(kotlin.Int;kotlin.Throwable?){}[0]
+    final fun close() // com.nabobery.sdkgen.testing/FakeContractServer.close|close(){}[0]
+    final fun enqueue(com.nabobery.sdkgen.testing/ScriptedExchange) // com.nabobery.sdkgen.testing/FakeContractServer.enqueue|enqueue(com.nabobery.sdkgen.testing.ScriptedExchange){}[0]
+    final fun url(kotlin/String): kotlin/String // com.nabobery.sdkgen.testing/FakeContractServer.url|url(kotlin.String){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/FakeTransport : com.nabobery.sdkgen.runtime/SdkTransport { // com.nabobery.sdkgen.testing/FakeTransport|null[0]
+    constructor <init>(com.nabobery.sdkgen.runtime/TransportCapabilities = ...) // com.nabobery.sdkgen.testing/FakeTransport.<init>|<init>(com.nabobery.sdkgen.runtime.TransportCapabilities){}[0]
+
+    final val capturedRequests // com.nabobery.sdkgen.testing/FakeTransport.capturedRequests|{}capturedRequests[0]
+        final fun <get-capturedRequests>(): kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkRequest> // com.nabobery.sdkgen.testing/FakeTransport.capturedRequests.<get-capturedRequests>|<get-capturedRequests>(){}[0]
+
+    final fun capabilities(): com.nabobery.sdkgen.runtime/TransportCapabilities // com.nabobery.sdkgen.testing/FakeTransport.capabilities|capabilities(){}[0]
+    final fun enqueueExchange(kotlin.coroutines/SuspendFunction1<com.nabobery.sdkgen.runtime/SdkRequest, com.nabobery.sdkgen.runtime/SdkResponse>): com.nabobery.sdkgen.testing/FakeTransport // com.nabobery.sdkgen.testing/FakeTransport.enqueueExchange|enqueueExchange(kotlin.coroutines.SuspendFunction1<com.nabobery.sdkgen.runtime.SdkRequest,com.nabobery.sdkgen.runtime.SdkResponse>){}[0]
+    final fun enqueueFailure(kotlin/Throwable): com.nabobery.sdkgen.testing/FakeTransport // com.nabobery.sdkgen.testing/FakeTransport.enqueueFailure|enqueueFailure(kotlin.Throwable){}[0]
+    final fun enqueueResponse(kotlin/Int, kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> = ..., com.nabobery.sdkgen.testing/FakeByteStream = ...): com.nabobery.sdkgen.testing/FakeTransport // com.nabobery.sdkgen.testing/FakeTransport.enqueueResponse|enqueueResponse(kotlin.Int;kotlin.collections.List<com.nabobery.sdkgen.runtime.SdkHeader>;com.nabobery.sdkgen.testing.FakeByteStream){}[0]
+    final suspend fun execute(com.nabobery.sdkgen.runtime/SdkRequest): com.nabobery.sdkgen.runtime/SdkResponse // com.nabobery.sdkgen.testing/FakeTransport.execute|execute(com.nabobery.sdkgen.runtime.SdkRequest){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/RecordedExchange { // com.nabobery.sdkgen.testing/RecordedExchange|null[0]
+    final val request // com.nabobery.sdkgen.testing/RecordedExchange.request|{}request[0]
+        final fun <get-request>(): com.nabobery.sdkgen.runtime/SdkRequest // com.nabobery.sdkgen.testing/RecordedExchange.request.<get-request>|<get-request>(){}[0]
+    final val requestBody // com.nabobery.sdkgen.testing/RecordedExchange.requestBody|{}requestBody[0]
+        final fun <get-requestBody>(): kotlin/ByteArray? // com.nabobery.sdkgen.testing/RecordedExchange.requestBody.<get-requestBody>|<get-requestBody>(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/RecordedTransferCallback { // com.nabobery.sdkgen.testing/RecordedTransferCallback|null[0]
+    constructor <init>(com.nabobery.sdkgen.testing/TransferCallbackKind, com.nabobery.sdkgen.runtime.bodies/TransferEvent, kotlin/Throwable? = ...) // com.nabobery.sdkgen.testing/RecordedTransferCallback.<init>|<init>(com.nabobery.sdkgen.testing.TransferCallbackKind;com.nabobery.sdkgen.runtime.bodies.TransferEvent;kotlin.Throwable?){}[0]
+
+    final val event // com.nabobery.sdkgen.testing/RecordedTransferCallback.event|{}event[0]
+        final fun <get-event>(): com.nabobery.sdkgen.runtime.bodies/TransferEvent // com.nabobery.sdkgen.testing/RecordedTransferCallback.event.<get-event>|<get-event>(){}[0]
+    final val failure // com.nabobery.sdkgen.testing/RecordedTransferCallback.failure|{}failure[0]
+        final fun <get-failure>(): kotlin/Throwable? // com.nabobery.sdkgen.testing/RecordedTransferCallback.failure.<get-failure>|<get-failure>(){}[0]
+    final val kind // com.nabobery.sdkgen.testing/RecordedTransferCallback.kind|{}kind[0]
+        final fun <get-kind>(): com.nabobery.sdkgen.testing/TransferCallbackKind // com.nabobery.sdkgen.testing/RecordedTransferCallback.kind.<get-kind>|<get-kind>(){}[0]
+
+    final fun component1(): com.nabobery.sdkgen.testing/TransferCallbackKind // com.nabobery.sdkgen.testing/RecordedTransferCallback.component1|component1(){}[0]
+    final fun component2(): com.nabobery.sdkgen.runtime.bodies/TransferEvent // com.nabobery.sdkgen.testing/RecordedTransferCallback.component2|component2(){}[0]
+    final fun component3(): kotlin/Throwable? // com.nabobery.sdkgen.testing/RecordedTransferCallback.component3|component3(){}[0]
+    final fun copy(com.nabobery.sdkgen.testing/TransferCallbackKind = ..., com.nabobery.sdkgen.runtime.bodies/TransferEvent = ..., kotlin/Throwable? = ...): com.nabobery.sdkgen.testing/RecordedTransferCallback // com.nabobery.sdkgen.testing/RecordedTransferCallback.copy|copy(com.nabobery.sdkgen.testing.TransferCallbackKind;com.nabobery.sdkgen.runtime.bodies.TransferEvent;kotlin.Throwable?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.nabobery.sdkgen.testing/RecordedTransferCallback.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.nabobery.sdkgen.testing/RecordedTransferCallback.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.nabobery.sdkgen.testing/RecordedTransferCallback.toString|toString(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/RecordingTransferObserver : com.nabobery.sdkgen.runtime.bodies/TransferObserver { // com.nabobery.sdkgen.testing/RecordingTransferObserver|null[0]
+    constructor <init>() // com.nabobery.sdkgen.testing/RecordingTransferObserver.<init>|<init>(){}[0]
+
+    final val events // com.nabobery.sdkgen.testing/RecordingTransferObserver.events|{}events[0]
+        final fun <get-events>(): kotlin.collections/List<com.nabobery.sdkgen.testing/RecordedTransferCallback> // com.nabobery.sdkgen.testing/RecordingTransferObserver.events.<get-events>|<get-events>(){}[0]
+
+    final fun onCompletion(com.nabobery.sdkgen.runtime.bodies/TransferEvent) // com.nabobery.sdkgen.testing/RecordingTransferObserver.onCompletion|onCompletion(com.nabobery.sdkgen.runtime.bodies.TransferEvent){}[0]
+    final fun onFailure(com.nabobery.sdkgen.runtime.bodies/TransferEvent, kotlin/Throwable) // com.nabobery.sdkgen.testing/RecordingTransferObserver.onFailure|onFailure(com.nabobery.sdkgen.runtime.bodies.TransferEvent;kotlin.Throwable){}[0]
+    final fun onProgress(com.nabobery.sdkgen.runtime.bodies/TransferEvent) // com.nabobery.sdkgen.testing/RecordingTransferObserver.onProgress|onProgress(com.nabobery.sdkgen.runtime.bodies.TransferEvent){}[0]
+    final fun onStart(com.nabobery.sdkgen.runtime.bodies/TransferEvent) // com.nabobery.sdkgen.testing/RecordingTransferObserver.onStart|onStart(com.nabobery.sdkgen.runtime.bodies.TransferEvent){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/RequestExpectation { // com.nabobery.sdkgen.testing/RequestExpectation|null[0]
+    constructor <init>(kotlin/String, kotlin/String, kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> = ..., kotlin/ByteArray? = ...) // com.nabobery.sdkgen.testing/RequestExpectation.<init>|<init>(kotlin.String;kotlin.String;kotlin.collections.List<com.nabobery.sdkgen.runtime.SdkHeader>;kotlin.ByteArray?){}[0]
+
+    final val body // com.nabobery.sdkgen.testing/RequestExpectation.body|{}body[0]
+        final fun <get-body>(): kotlin/ByteArray? // com.nabobery.sdkgen.testing/RequestExpectation.body.<get-body>|<get-body>(){}[0]
+    final val headers // com.nabobery.sdkgen.testing/RequestExpectation.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> // com.nabobery.sdkgen.testing/RequestExpectation.headers.<get-headers>|<get-headers>(){}[0]
+    final val method // com.nabobery.sdkgen.testing/RequestExpectation.method|{}method[0]
+        final fun <get-method>(): kotlin/String // com.nabobery.sdkgen.testing/RequestExpectation.method.<get-method>|<get-method>(){}[0]
+    final val uri // com.nabobery.sdkgen.testing/RequestExpectation.uri|{}uri[0]
+        final fun <get-uri>(): kotlin/String // com.nabobery.sdkgen.testing/RequestExpectation.uri.<get-uri>|<get-uri>(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/ResponseScript { // com.nabobery.sdkgen.testing/ResponseScript|null[0]
+    constructor <init>(kotlin/Int = ..., kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> = ..., com.nabobery.sdkgen.testing/ResponseBodyScript = ..., com.nabobery.sdkgen.testing/ConnectionFailure? = ...) // com.nabobery.sdkgen.testing/ResponseScript.<init>|<init>(kotlin.Int;kotlin.collections.List<com.nabobery.sdkgen.runtime.SdkHeader>;com.nabobery.sdkgen.testing.ResponseBodyScript;com.nabobery.sdkgen.testing.ConnectionFailure?){}[0]
+
+    final val body // com.nabobery.sdkgen.testing/ResponseScript.body|{}body[0]
+        final fun <get-body>(): com.nabobery.sdkgen.testing/ResponseBodyScript // com.nabobery.sdkgen.testing/ResponseScript.body.<get-body>|<get-body>(){}[0]
+    final val failure // com.nabobery.sdkgen.testing/ResponseScript.failure|{}failure[0]
+        final fun <get-failure>(): com.nabobery.sdkgen.testing/ConnectionFailure? // com.nabobery.sdkgen.testing/ResponseScript.failure.<get-failure>|<get-failure>(){}[0]
+    final val headers // com.nabobery.sdkgen.testing/ResponseScript.headers|{}headers[0]
+        final fun <get-headers>(): kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> // com.nabobery.sdkgen.testing/ResponseScript.headers.<get-headers>|<get-headers>(){}[0]
+    final val statusCode // com.nabobery.sdkgen.testing/ResponseScript.statusCode|{}statusCode[0]
+        final fun <get-statusCode>(): kotlin/Int // com.nabobery.sdkgen.testing/ResponseScript.statusCode.<get-statusCode>|<get-statusCode>(){}[0]
+
+    final fun component1(): kotlin/Int // com.nabobery.sdkgen.testing/ResponseScript.component1|component1(){}[0]
+    final fun component2(): kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> // com.nabobery.sdkgen.testing/ResponseScript.component2|component2(){}[0]
+    final fun component3(): com.nabobery.sdkgen.testing/ResponseBodyScript // com.nabobery.sdkgen.testing/ResponseScript.component3|component3(){}[0]
+    final fun component4(): com.nabobery.sdkgen.testing/ConnectionFailure? // com.nabobery.sdkgen.testing/ResponseScript.component4|component4(){}[0]
+    final fun copy(kotlin/Int = ..., kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkHeader> = ..., com.nabobery.sdkgen.testing/ResponseBodyScript = ..., com.nabobery.sdkgen.testing/ConnectionFailure? = ...): com.nabobery.sdkgen.testing/ResponseScript // com.nabobery.sdkgen.testing/ResponseScript.copy|copy(kotlin.Int;kotlin.collections.List<com.nabobery.sdkgen.runtime.SdkHeader>;com.nabobery.sdkgen.testing.ResponseBodyScript;com.nabobery.sdkgen.testing.ConnectionFailure?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.nabobery.sdkgen.testing/ResponseScript.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.nabobery.sdkgen.testing/ResponseScript.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.nabobery.sdkgen.testing/ResponseScript.toString|toString(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/ScriptedExchange { // com.nabobery.sdkgen.testing/ScriptedExchange|null[0]
+    constructor <init>(com.nabobery.sdkgen.testing/RequestExpectation, com.nabobery.sdkgen.testing/ResponseScript) // com.nabobery.sdkgen.testing/ScriptedExchange.<init>|<init>(com.nabobery.sdkgen.testing.RequestExpectation;com.nabobery.sdkgen.testing.ResponseScript){}[0]
+
+    final val request // com.nabobery.sdkgen.testing/ScriptedExchange.request|{}request[0]
+        final fun <get-request>(): com.nabobery.sdkgen.testing/RequestExpectation // com.nabobery.sdkgen.testing/ScriptedExchange.request.<get-request>|<get-request>(){}[0]
+    final val response // com.nabobery.sdkgen.testing/ScriptedExchange.response|{}response[0]
+        final fun <get-response>(): com.nabobery.sdkgen.testing/ResponseScript // com.nabobery.sdkgen.testing/ScriptedExchange.response.<get-response>|<get-response>(){}[0]
+
+    final fun component1(): com.nabobery.sdkgen.testing/RequestExpectation // com.nabobery.sdkgen.testing/ScriptedExchange.component1|component1(){}[0]
+    final fun component2(): com.nabobery.sdkgen.testing/ResponseScript // com.nabobery.sdkgen.testing/ScriptedExchange.component2|component2(){}[0]
+    final fun copy(com.nabobery.sdkgen.testing/RequestExpectation = ..., com.nabobery.sdkgen.testing/ResponseScript = ...): com.nabobery.sdkgen.testing/ScriptedExchange // com.nabobery.sdkgen.testing/ScriptedExchange.copy|copy(com.nabobery.sdkgen.testing.RequestExpectation;com.nabobery.sdkgen.testing.ResponseScript){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.nabobery.sdkgen.testing/ScriptedExchange.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.nabobery.sdkgen.testing/ScriptedExchange.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.nabobery.sdkgen.testing/ScriptedExchange.toString|toString(){}[0]
+}
+
+final class com.nabobery.sdkgen.testing/TestClock : com.nabobery.sdkgen.runtime.resilience/SdkClock, com.nabobery.sdkgen.runtime.resilience/SdkDelayer, com.nabobery.sdkgen.runtime.resilience/SdkTimeoutGuard, com.nabobery.sdkgen.runtime.resilience/SdkWallClock { // com.nabobery.sdkgen.testing/TestClock|null[0]
+    constructor <init>(kotlin/Long = ..., kotlin/Long = ...) // com.nabobery.sdkgen.testing/TestClock.<init>|<init>(kotlin.Long;kotlin.Long){}[0]
+
+    final val delays // com.nabobery.sdkgen.testing/TestClock.delays|{}delays[0]
+        final fun <get-delays>(): kotlin.collections/List<kotlin/Long> // com.nabobery.sdkgen.testing/TestClock.delays.<get-delays>|<get-delays>(){}[0]
+    final val timeoutGuards // com.nabobery.sdkgen.testing/TestClock.timeoutGuards|{}timeoutGuards[0]
+        final fun <get-timeoutGuards>(): kotlin.collections/List<kotlin/Long> // com.nabobery.sdkgen.testing/TestClock.timeoutGuards.<get-timeoutGuards>|<get-timeoutGuards>(){}[0]
+
+    final fun advanceBy(kotlin/Long) // com.nabobery.sdkgen.testing/TestClock.advanceBy|advanceBy(kotlin.Long){}[0]
+    final fun epochMillis(): kotlin/Long // com.nabobery.sdkgen.testing/TestClock.epochMillis|epochMillis(){}[0]
+    final fun monotonicMillis(): kotlin/Long // com.nabobery.sdkgen.testing/TestClock.monotonicMillis|monotonicMillis(){}[0]
+    final fun timeoutNextGuard() // com.nabobery.sdkgen.testing/TestClock.timeoutNextGuard|timeoutNextGuard(){}[0]
+    final suspend fun delay(kotlin/Long) // com.nabobery.sdkgen.testing/TestClock.delay|delay(kotlin.Long){}[0]
+    final suspend fun runWithTimeout(kotlin/Long, kotlin.coroutines/SuspendFunction0<kotlin/Unit>): kotlin/Boolean // com.nabobery.sdkgen.testing/TestClock.runWithTimeout|runWithTimeout(kotlin.Long;kotlin.coroutines.SuspendFunction0<kotlin.Unit>){}[0]
+}
+
+final object com.nabobery.sdkgen.testing/ContractRequestVerification { // com.nabobery.sdkgen.testing/ContractRequestVerification|null[0]
+    final fun verify(com.nabobery.sdkgen.testing/RequestExpectation, com.nabobery.sdkgen.runtime/SdkRequest, kotlin/ByteArray?) // com.nabobery.sdkgen.testing/ContractRequestVerification.verify|verify(com.nabobery.sdkgen.testing.RequestExpectation;com.nabobery.sdkgen.runtime.SdkRequest;kotlin.ByteArray?){}[0]
+}
+
+final fun (com.nabobery.sdkgen.testing/FakeByteStream).com.nabobery.sdkgen.testing/assertClosedNormally() // com.nabobery.sdkgen.testing/assertClosedNormally|assertClosedNormally@com.nabobery.sdkgen.testing.FakeByteStream(){}[0]
+final fun (com.nabobery.sdkgen.testing/FakeByteStream).com.nabobery.sdkgen.testing/assertClosedWith(kotlin/Throwable) // com.nabobery.sdkgen.testing/assertClosedWith|assertClosedWith@com.nabobery.sdkgen.testing.FakeByteStream(kotlin.Throwable){}[0]
+final fun com.nabobery.sdkgen.testing/sseCommentFixture(kotlin/String): kotlin/String // com.nabobery.sdkgen.testing/sseCommentFixture|sseCommentFixture(kotlin.String){}[0]
+final fun com.nabobery.sdkgen.testing/sseEventFixture(kotlin/String, kotlin/String? = ..., kotlin/String? = ..., kotlin/Long? = ...): kotlin/String // com.nabobery.sdkgen.testing/sseEventFixture|sseEventFixture(kotlin.String;kotlin.String?;kotlin.String?;kotlin.Long?){}[0]
+final fun com.nabobery.sdkgen.testing/sseStreamFixture(kotlin/Array<out kotlin/String>..., kotlin/Boolean = ..., kotlin/String = ...): kotlin/ByteArray // com.nabobery.sdkgen.testing/sseStreamFixture|sseStreamFixture(kotlin.Array<out|kotlin.String>...;kotlin.Boolean;kotlin.String){}[0]

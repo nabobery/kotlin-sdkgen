@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkgen.nabobery.com/schemas/compatibility/report.schema.json",
+  "title": "sdkgen compat --format json report",
+  "description": "Draft-2020-12 schema for the exact JSON object CompatibilityReportRenderer.render(report, JSON) emits (generator/cli/src/main/kotlin/com/nabobery/sdkgen/cli/CompatibilityReportRenderer.kt, CompatibilityReport.toJson()). Derived from real `sdkgen compat --format json` invocations against committed manifests, not written ahead of the renderer. The renderer emits compact single-line JSON (kotlinx.serialization's COMPACT_JSON); this schema does not imply pretty-printing. Field order in this document follows toJson()'s emission order but JSON objects are unordered, so a consumer must not depend on key order. This schema describes ADR 0013's report contract as currently implemented; it is not itself part of the frozen ADR text and must be kept in sync with the renderer rather than read as a second source of truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "aggregateOutcome",
+    "totalChangeCount",
+    "changeCountsByClassification",
+    "mostSevereClassification",
+    "layers",
+    "changes"
+  ],
+  "properties": {
+    "aggregateOutcome": {
+      "description": "Derived, never renderer-selected (ADR 0013, 'Classification and aggregate outcome'). incomplete if any of the 5 layers is unavailable or any change is unknown; compatible if all 5 layers are unchanged and there are no changes; changed otherwise.",
+      "type": "string",
+      "enum": ["incomplete", "compatible", "changed"]
+    },
+    "totalChangeCount": {
+      "description": "Count of the full, untruncated change set (not just displayed rows).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "changeCountsByClassification": {
+      "description": "Sparse map: only classifications with a nonzero count are present. Absent key means zero, not unknown.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "breaking": { "type": "integer", "minimum": 1 },
+        "unknown": { "type": "integer", "minimum": 1 },
+        "behaviorallyRisky": { "type": "integer", "minimum": 1 },
+        "additive": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mostSevereClassification": {
+      "description": "Classification of changes[0] after severity-then-change-ID sort, or null when there are no changes. Severity order (most to least severe): breaking, unknown, behaviorallyRisky, additive.",
+      "oneOf": [
+        { "type": "string", "enum": ["breaking", "unknown", "behaviorallyRisky", "additive"] },
+        { "type": "null" }
+      ]
+    },
+    "truncation": {
+      "description": "Present only when maximumDisplayedChanges hid rows. Absence means every change is displayed. Truncation can never hide a breaking, unknown, or incomplete-causing layer -- it only reduces how many change rows print.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayedChangeCount", "omittedChangeCount"],
+      "properties": {
+        "displayedChangeCount": { "type": "integer", "minimum": 0 },
+        "omittedChangeCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "layers": {
+      "description": "Always exactly 5 entries, one per canonical layer, in ADR 0013's canonical order: sourceContract, semanticModel, kotlinApi, behavior, abi.",
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/layerReport" }
+    },
+    "changes": {
+      "description": "Displayed changes only (see truncation), sorted by severity then by full change ID. totalChangeCount/changeCountsByClassification/mostSevereClassification are computed from the full set, not this array.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/change" }
+    }
+  },
+  "$defs": {
+    "layer": {
+      "type": "string",
+      "enum": ["sourceContract", "semanticModel", "kotlinApi", "behavior", "abi"]
+    },
+    "layerOutcome": {
+      "type": "string",
+      "enum": ["unchanged", "changed", "unavailable"]
+    },
+    "unavailableReason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "description": "Stable machine-readable reason code. Observed in real corpus reports today: missing-layer-evidence (sourceContract/semanticModel/kotlinApi/abi -- no v1alpha2 digest, or no staged ABI dump, present in the manifest), missing-behavior-evidence (behavior -- no parity scenario/wire evidence wired). The vocabulary is open (classifiers may add codes such as an ABI validation-failure code); consumers must not assume this closed set.",
+          "type": "string"
+        },
+        "detail": {
+          "description": "Optional free-text diagnostic. Not present in any real corpus report captured for this document.",
+          "type": "string"
+        }
+      }
+    },
+    "layerReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "outcome"],
+      "properties": {
+        "layer": { "$ref": "#/$defs/layer" },
+        "outcome": { "$ref": "#/$defs/layerOutcome" },
+        "unavailableReason": {
+          "description": "Present if and only if outcome is 'unavailable'.",
+          "$ref": "#/$defs/unavailableReason"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "const": "unavailable" } } },
+          "then": { "required": ["unavailableReason"] }
+        },
+        {
+          "if": { "properties": { "outcome": { "enum": ["unchanged", "changed"] } } },
+          "then": { "not": { "required": ["unavailableReason"] } }
+        }
+      ]
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["breaking", "unknown", "behaviorallyRisky", "additive"]
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identity", "sha256"],
+      "properties": {
+        "kind": {
+          "description": "Append-only documented vocabulary (ADR 0013). Observed: effective-contract, semantic-model, declaration-projection. Also documented for behavior/abi once wired: parity-scenario, parity-wire, jvm-abi-dump, klib-abi-dump.",
+          "type": "string"
+        },
+        "identity": {
+          "description": "Stable corpus/fixture/artifact/scenario identity. Never an absolute host path.",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Canonical lowercase hex SHA-256 fingerprint of the referenced evidence.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "location": {
+          "description": "Optional normalized location within the evidence (not an absolute host path).",
+          "type": "string"
+        }
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "layer", "classification", "summary", "evidence"],
+      "properties": {
+        "id": {
+          "description": "compat-v1:<layer>:<subject-kind>:<digest16> -- deterministic, sortable, identical across JSON/Markdown/human renderings (ADR 0013, 'Stable change identifiers').",
+          "type": "string",
+          "pattern": "^compat-v1:[a-zA-Z]+:[a-z]+(-[a-z0-9]+)*:[0-9a-f]{16}$"
+        },
+        "layer": { "$ref": "#/$defs/layer" },
+        "classification": { "$ref": "#/$defs/classification" },
+        "summary": { "type": "string" },
+        "evidence": {
+          "description": "Never empty (CompatibilityChange enforces evidence.isNotEmpty() at construction).",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidenceReference" }
+        }
+      }
+    }
+  }
+}

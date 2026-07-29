@@ -1,3 +1,6 @@
+import com.nabobery.sdkgen.buildlogic.publication.Adr0008ProductArtifactIds
+import kotlinx.validation.ApiValidationExtension
+import kotlinx.validation.ExperimentalBCVApi
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 
@@ -7,6 +10,16 @@ plugins {
 }
 
 group = "com.nabobery"
+
+// ADR-0007 treats KLib dumps as required (if experimental, target-specific) ABI evidence. BCV keeps KLib
+// validation off unless it is explicitly opted into, so without this block every `klibApiCheck` task reports
+// SKIPPED and the build passes while producing no KLib evidence at all.
+configure<ApiValidationExtension> {
+    @OptIn(ExperimentalBCVApi::class)
+    klib {
+        enabled = true
+    }
+}
 
 // Remote repositories and credentials are intentionally deferred until release automation exists.
 
@@ -35,19 +48,11 @@ plugins.withId("java-library") {
 // artifact ID is rewritten by substituting the desired base name for that prefix; per-target KMP
 // publication suffixes (e.g. `-jvm`, `-iosarm64`) and the Gradle plugin marker publication
 // (already named after the plugin id, per Gradle's own convention) are left untouched.
-private val adr0008ArtifactIds =
-    mapOf(
-        ":generator:engine" to "kotlin-sdkgen-engine",
-        ":generator:cli" to "kotlin-sdkgen-cli",
-        ":runtime:core" to "kotlin-sdkgen-runtime",
-        ":runtime:testing" to "kotlin-sdkgen-testing",
-        ":runtime:transport-ktor" to "kotlin-sdkgen-transport-ktor",
-        ":runtime:transport-okhttp" to "kotlin-sdkgen-transport-okhttp",
-        ":runtime:transport-java-http" to "kotlin-sdkgen-transport-java-http",
-        ":integrations:gradle-plugin" to "kotlin-sdkgen-gradle-plugin",
-    )
-
-adr0008ArtifactIds[project.path]?.let { desiredBaseArtifactId ->
+//
+// The project-path -> artifactId map itself lives in Adr0008ProductArtifactIds (shared with
+// StagedArtifactRepositoryScanner's staged-artifact target derivation) so the eight product
+// coordinates cannot drift apart between publishing and staged-artifact inventory scanning.
+Adr0008ProductArtifactIds.projectPathToArtifactId[project.path]?.let { desiredBaseArtifactId ->
     plugins.withId("maven-publish") {
         configure<PublishingExtension> {
             publications.withType<MavenPublication>().configureEach {

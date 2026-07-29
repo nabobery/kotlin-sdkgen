@@ -1,0 +1,70 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1checkout~1sessions~1{session}/post/requestBody/content/application~1x-www-f
+ * orm-urlencoded/schema/properties/shipping_options/anyOf/0/items/properties/shipping_rate_data/properties/tax_behavior
+ * .
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1checkout~1sessions~1{session}/post/requestBody/content/application~1x-www-f
+ * orm-urlencoded/schema/properties/shipping_options/anyOf/0/items/properties/shipping_rate_data/properties/tax_behavior
+ */
+@Serializable(with = InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d.Serializer::class)
+public sealed class InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `exclusive`.
+   */
+  public data object Exclusive : InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d() {
+    public override val `value`: String = "exclusive"
+  }
+
+  /**
+   * Documented value. Wire value: `inclusive`.
+   */
+  public data object Inclusive : InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d() {
+    public override val `value`: String = "inclusive"
+  }
+
+  /**
+   * Documented value. Wire value: `unspecified`.
+   */
+  public data object Unspecified : InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d() {
+    public override val `value`: String = "unspecified"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d = when (value) {
+      Exclusive.value -> Exclusive
+      Inclusive.value -> Inclusive
+      Unspecified.value -> Unspecified
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.generated.stripe.InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1CheckoutSessionsPostRequestFormShippingOptionsAnyOf1TaxBehaviorXb57dac8d) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

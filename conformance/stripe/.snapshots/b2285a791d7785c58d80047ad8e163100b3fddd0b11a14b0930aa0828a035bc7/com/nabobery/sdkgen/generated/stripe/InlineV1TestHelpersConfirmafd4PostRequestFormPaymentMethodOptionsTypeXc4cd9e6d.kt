@@ -1,0 +1,71 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1test_helpers~1confirmation_tokens/post/requestBody/content/application~1x-w
+ * ww-form-urlencoded/schema/properties/payment_method_options/properties/card/properties/installments/properties/plan/p
+ * roperties/type.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1test_helpers~1confirmation_tokens/post/requestBody/content/application~1x-w
+ * ww-form-urlencoded/schema/properties/payment_method_options/properties/card/properties/installments/properties/plan/p
+ * roperties/type
+ */
+@Serializable(with = InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d.Serializer::class)
+public sealed class InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `bonus`.
+   */
+  public data object Bonus : InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d() {
+    public override val `value`: String = "bonus"
+  }
+
+  /**
+   * Documented value. Wire value: `fixed_count`.
+   */
+  public data object FixedCount : InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d() {
+    public override val `value`: String = "fixed_count"
+  }
+
+  /**
+   * Documented value. Wire value: `revolving`.
+   */
+  public data object Revolving : InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d() {
+    public override val `value`: String = "revolving"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d = when (value) {
+      Bonus.value -> Bonus
+      FixedCount.value -> FixedCount
+      Revolving.value -> Revolving
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.generated.stripe.InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1TestHelpersConfirmafd4PostRequestFormPaymentMethodOptionsTypeXc4cd9e6d) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

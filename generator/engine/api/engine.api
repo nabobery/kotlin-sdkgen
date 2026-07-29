@@ -122,8 +122,8 @@ public final class com/nabobery/sdkgen/engine/GenerationPipeline {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun analyze (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/GenerationAnalysisResult;
-	public final fun generate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;)Lcom/nabobery/sdkgen/engine/GenerationResult;
-	public static synthetic fun generate$default (Lcom/nabobery/sdkgen/engine/GenerationPipeline;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public final fun generate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;Ljava/nio/file/Path;)Lcom/nabobery/sdkgen/engine/GenerationResult;
+	public static synthetic fun generate$default (Lcom/nabobery/sdkgen/engine/GenerationPipeline;Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;Ljava/nio/file/Path;Ljava/lang/Integer;Lcom/nabobery/sdkgen/engine/GenerationLockPublication;Ljava/nio/file/Path;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/GenerationResult;
 	public final fun validate (Lcom/nabobery/sdkgen/engine/config/SdkgenConfigV1Alpha1;Lcom/nabobery/sdkgen/engine/ResolvedSource;Ljava/util/List;)Lcom/nabobery/sdkgen/engine/ValidationResult;
 }
 
@@ -868,19 +868,17 @@ public final class com/nabobery/sdkgen/engine/config/MissingLockVersionException
 
 public final class com/nabobery/sdkgen/engine/config/NamingConfig {
 	public static final field Companion Lcom/nabobery/sdkgen/engine/config/NamingConfig$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
-	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/engine/config/NamingConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/engine/config/NamingConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getClientName ()Ljava/lang/String;
 	public final fun getModelPrefix ()Ljava/lang/String;
 	public final fun getOperationPrefix ()Ljava/lang/String;
-	public final fun getResourceGrouping ()Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -1047,20 +1045,6 @@ public final synthetic class com/nabobery/sdkgen/engine/config/PluginConfig$$ser
 }
 
 public final class com/nabobery/sdkgen/engine/config/PluginConfig$Companion {
-	public final fun serializer ()Lkotlinx/serialization/KSerializer;
-}
-
-public final class com/nabobery/sdkgen/engine/config/ResourceGrouping : java/lang/Enum {
-	public static final field Companion Lcom/nabobery/sdkgen/engine/config/ResourceGrouping$Companion;
-	public static final field OPERATION_ID Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-	public static final field SINGLE_CLIENT Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-	public static final field TAGS Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-	public static fun values ()[Lcom/nabobery/sdkgen/engine/config/ResourceGrouping;
-}
-
-public final class com/nabobery/sdkgen/engine/config/ResourceGrouping$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
@@ -1744,5 +1728,1184 @@ public final class com/nabobery/sdkgen/engine/spi/ValidationPhaseValue {
 
 public abstract interface class com/nabobery/sdkgen/engine/spi/ValidationPlugin : com/nabobery/sdkgen/engine/spi/SdkGenPlugin {
 	public abstract fun validate (Lcom/nabobery/sdkgen/engine/spi/ValidationPhaseValue;Lcom/nabobery/sdkgen/engine/spi/PluginContext;)Lcom/nabobery/sdkgen/engine/spi/PluginPhaseResult;
+}
+
+public final class com/nabobery/sdkgen/model/AcquisitionPolicy : java/lang/Enum {
+	public static final field LOCAL_FILE Lcom/nabobery/sdkgen/model/AcquisitionPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/AcquisitionPolicy;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/AcquisitionPolicy;
+}
+
+public abstract interface class com/nabobery/sdkgen/model/AdditionalPropertiesModel : com/nabobery/sdkgen/model/MaterialNode {
+}
+
+public final class com/nabobery/sdkgen/model/AdditionalPropertiesModel$Closed : com/nabobery/sdkgen/model/AdditionalPropertiesModel {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Closed;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Closed;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Closed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/AdditionalPropertiesModel$FreeForm : com/nabobery/sdkgen/model/AdditionalPropertiesModel {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$FreeForm;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$FreeForm;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$FreeForm;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/AdditionalPropertiesModel$Typed : com/nabobery/sdkgen/model/AdditionalPropertiesModel {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Typed;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Typed;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel$Typed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getValueSchema ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/CompositionKind : java/lang/Enum {
+	public static final field ALL_OF Lcom/nabobery/sdkgen/model/CompositionKind;
+	public static final field ANY_OF Lcom/nabobery/sdkgen/model/CompositionKind;
+	public static final field ONE_OF Lcom/nabobery/sdkgen/model/CompositionKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/CompositionKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/CompositionKind;
+}
+
+public final class com/nabobery/sdkgen/model/CompositionModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Lcom/nabobery/sdkgen/model/CompositionKind;Ljava/util/List;Lcom/nabobery/sdkgen/model/DiscriminatorModel;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/CompositionKind;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/DiscriminatorModel;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/CompositionKind;Ljava/util/List;Lcom/nabobery/sdkgen/model/DiscriminatorModel;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/CompositionModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/CompositionModel;Lcom/nabobery/sdkgen/model/CompositionKind;Ljava/util/List;Lcom/nabobery/sdkgen/model/DiscriminatorModel;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/CompositionModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBranches ()Ljava/util/List;
+	public final fun getDiscriminator ()Lcom/nabobery/sdkgen/model/DiscriminatorModel;
+	public final fun getKind ()Lcom/nabobery/sdkgen/model/CompositionKind;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/Diagnostic : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Lcom/nabobery/sdkgen/model/DiagnosticCode;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/model/DiagnosticCode;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun copy (Lcom/nabobery/sdkgen/model/DiagnosticCode;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;)Lcom/nabobery/sdkgen/model/Diagnostic;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/Diagnostic;Lcom/nabobery/sdkgen/model/DiagnosticCode;Lcom/nabobery/sdkgen/model/DiagnosticSeverity;Lcom/nabobery/sdkgen/model/DiagnosticPhase;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/Diagnostic;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getPhase ()Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public final fun getRelatedSymbolId ()Ljava/lang/String;
+	public final fun getRemediation ()Ljava/lang/String;
+	public final fun getSeverity ()Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/DiagnosticCode : java/lang/Enum {
+	public static final field AMBIGUOUS_PARAMETER_SCHEMA_AND_CONTENT Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field CONTENT_KEYWORD_NORMALIZED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field EXCLUSIVE_BOUND_NORMALIZED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field INVALID_CANONICAL_EXTENSION Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field INVALID_DISCRIMINATOR_MAPPING Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field LEGACY_NULLABLE_COMPOSITION Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field NON_STANDARD_PARAMETER_SERIALIZATION_EXTENSION Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field NULLABLE_ENUM_NULL_INJECTED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field NULLABLE_REFERENCE_SIBLING Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field NULLABLE_TYPE_NORMALIZED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field ONE_OF_NULL_AMBIGUOUS Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field OPENAPI_3_0_DOCUMENT_NORMALIZED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field OPERATION_ADAPTATION_FAILED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field PARSER_RESOLVED_MESSAGE Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field PARSER_UNRESOLVED_MESSAGE Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field SCHEMA_ADAPTATION_FAILED Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNRESOLVED_REFERENCE Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNSUPPORTED_BOOLEAN_SCHEMA Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNSUPPORTED_PARAMETER_CONTENT_SERIALIZATION Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNSUPPORTED_PARAMETER_STYLE Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNSUPPORTED_PARAMETER_STYLE_SCHEMA_KIND Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static final field UNSUPPORTED_SCHEMA_KEYWORD Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/DiagnosticCode;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/DiagnosticCode;
+}
+
+public final class com/nabobery/sdkgen/model/DiagnosticPhase : java/lang/Enum {
+	public static final field ACQUISITION Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public static final field ADAPTATION Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public static final field NORMALIZATION Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public static final field PARSE Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/DiagnosticPhase;
+}
+
+public final class com/nabobery/sdkgen/model/DiagnosticSeverity : java/lang/Enum {
+	public static final field ERROR Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public static final field INFO Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public static final field WARNING Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/DiagnosticSeverity;
+}
+
+public final class com/nabobery/sdkgen/model/DiscriminatorModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/Map;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/DiscriminatorModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/DiscriminatorModel;Ljava/lang/String;Ljava/util/Map;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/DiscriminatorModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getMapping ()Ljava/util/Map;
+	public final fun getPropertyName ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getUnmappedBranches ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/EncodingModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/Boolean;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/lang/Boolean;
+	public final fun component8 ()Ljava/lang/Boolean;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/Boolean;)Lcom/nabobery/sdkgen/model/EncodingModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/EncodingModel;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;Ljava/lang/Boolean;Ljava/lang/Boolean;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/EncodingModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllowReserved ()Ljava/lang/Boolean;
+	public final fun getContentType ()Ljava/lang/String;
+	public final fun getExplode ()Ljava/lang/Boolean;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getPartName ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getStyle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/EnumModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumOpenness;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/EnumOpenness;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumOpenness;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/EnumModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/EnumModel;Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumOpenness;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/EnumModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOpenness ()Lcom/nabobery/sdkgen/model/EnumOpenness;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getValues ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/EnumOpenness : java/lang/Enum {
+	public static final field CLOSED Lcom/nabobery/sdkgen/model/EnumOpenness;
+	public static final field OPEN Lcom/nabobery/sdkgen/model/EnumOpenness;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/EnumOpenness;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/EnumOpenness;
+}
+
+public final class com/nabobery/sdkgen/model/HeaderModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/lang/String;ZLjava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/util/Map;
+	public final fun component7 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/lang/String;ZLjava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/HeaderModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/HeaderModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/lang/String;ZLjava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/HeaderModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRequiredness ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun getSchema ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/IdempotencyModel {
+	public fun <init> (Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun copy (Ljava/lang/String;Z)Lcom/nabobery/sdkgen/model/IdempotencyModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/IdempotencyModel;Ljava/lang/String;ZILjava/lang/Object;)Lcom/nabobery/sdkgen/model/IdempotencyModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getClientGenerated ()Z
+	public final fun getKeyHeader ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/IdentityKind : java/lang/Enum {
+	public static final field COMPONENT Lcom/nabobery/sdkgen/model/IdentityKind;
+	public static final field EXTERNAL Lcom/nabobery/sdkgen/model/IdentityKind;
+	public static final field INLINE Lcom/nabobery/sdkgen/model/IdentityKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/IdentityKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/IdentityKind;
+}
+
+public final class com/nabobery/sdkgen/model/JsonPointer {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/JsonPointer;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonPointer;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonPointer;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSegments ()Ljava/util/List;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/model/JsonValue {
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$ArrayValue : com/nabobery/sdkgen/model/JsonValue {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/nabobery/sdkgen/model/JsonValue$ArrayValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonValue$ArrayValue;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonValue$ArrayValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValues ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$BooleanValue : com/nabobery/sdkgen/model/JsonValue {
+	public fun <init> (Z)V
+	public final fun component1 ()Z
+	public final fun copy (Z)Lcom/nabobery/sdkgen/model/JsonValue$BooleanValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonValue$BooleanValue;ZILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonValue$BooleanValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$Null : com/nabobery/sdkgen/model/JsonValue {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/model/JsonValue$Null;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$NumberValue : com/nabobery/sdkgen/model/JsonValue {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/JsonValue$NumberValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonValue$NumberValue;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonValue$NumberValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLexicalValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$ObjectValue : com/nabobery/sdkgen/model/JsonValue {
+	public fun <init> (Ljava/util/Map;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/Map;)Lcom/nabobery/sdkgen/model/JsonValue$ObjectValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonValue$ObjectValue;Ljava/util/Map;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonValue$ObjectValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getProperties ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/JsonValue$StringValue : com/nabobery/sdkgen/model/JsonValue {
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/JsonValue$StringValue;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/JsonValue$StringValue;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/JsonValue$StringValue;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/model/MaterialNode {
+	public abstract fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+}
+
+public final class com/nabobery/sdkgen/model/MediaTypeModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/Map;Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun component6 ()Ljava/util/Map;
+	public final fun component7 ()Z
+	public final fun component8 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/Map;Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/MediaTypeModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/MediaTypeModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/Map;Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/MediaTypeModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEncoding ()Ljava/util/List;
+	public final fun getExample ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun getExamples ()Ljava/util/Map;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getMediaType ()Ljava/lang/String;
+	public final fun getSchema ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getStreaming ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/Nullability : java/lang/Enum {
+	public static final field NON_NULL Lcom/nabobery/sdkgen/model/Nullability;
+	public static final field NULLABLE Lcom/nabobery/sdkgen/model/Nullability;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/Nullability;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/Nullability;
+}
+
+public final class com/nabobery/sdkgen/model/NullabilityOrigin : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Lcom/nabobery/sdkgen/model/NullabilitySurface;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/NullabilitySurface;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/NullabilityOrigin;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/NullabilityOrigin;Lcom/nabobery/sdkgen/model/NullabilitySurface;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/NullabilityOrigin;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getSurface ()Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/NullabilitySurface : java/lang/Enum {
+	public static final field JSON_SCHEMA_TYPE_ARRAY Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public static final field NULL_COMPOSITION Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public static final field OPENAPI_3_0_NULLABLE Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/NullabilitySurface;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/NullabilitySurface;
+}
+
+public final class com/nabobery/sdkgen/model/OperationModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Lcom/nabobery/sdkgen/model/RequestBodyModel;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/model/PaginationModel;Lcom/nabobery/sdkgen/model/StreamingModel;Lcom/nabobery/sdkgen/model/IdempotencyModel;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Lcom/nabobery/sdkgen/model/RequestBodyModel;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/model/PaginationModel;Lcom/nabobery/sdkgen/model/StreamingModel;Lcom/nabobery/sdkgen/model/IdempotencyModel;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Lcom/nabobery/sdkgen/model/PaginationModel;
+	public final fun component11 ()Lcom/nabobery/sdkgen/model/StreamingModel;
+	public final fun component12 ()Lcom/nabobery/sdkgen/model/IdempotencyModel;
+	public final fun component13 ()Ljava/util/Map;
+	public final fun component14 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component15 ()Ljava/util/List;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Lcom/nabobery/sdkgen/model/RequestBodyModel;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Lcom/nabobery/sdkgen/model/RequestBodyModel;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/model/PaginationModel;Lcom/nabobery/sdkgen/model/StreamingModel;Lcom/nabobery/sdkgen/model/IdempotencyModel;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/List;)Lcom/nabobery/sdkgen/model/OperationModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/OperationModel;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/util/List;Lcom/nabobery/sdkgen/model/RequestBodyModel;Ljava/util/List;Ljava/util/List;Lcom/nabobery/sdkgen/model/PaginationModel;Lcom/nabobery/sdkgen/model/StreamingModel;Lcom/nabobery/sdkgen/model/IdempotencyModel;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/OperationModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getIdempotency ()Lcom/nabobery/sdkgen/model/IdempotencyModel;
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getOperationId ()Ljava/lang/String;
+	public final fun getPagination ()Lcom/nabobery/sdkgen/model/PaginationModel;
+	public final fun getParameters ()Ljava/util/List;
+	public final fun getPath ()Ljava/lang/String;
+	public final fun getRequestBody ()Lcom/nabobery/sdkgen/model/RequestBodyModel;
+	public final fun getResponses ()Ljava/util/List;
+	public final fun getSecurityAlternatives ()Ljava/util/List;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getStreaming ()Lcom/nabobery/sdkgen/model/StreamingModel;
+	public final fun getTags ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/nabobery/sdkgen/model/PaginationModel {
+}
+
+public final class com/nabobery/sdkgen/model/PaginationModel$Cursor : com/nabobery/sdkgen/model/PaginationModel {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;)Lcom/nabobery/sdkgen/model/PaginationModel$Cursor;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/PaginationModel$Cursor;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/PaginationModel$Cursor;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequestCursor ()Ljava/lang/String;
+	public final fun getRequestLimit ()Ljava/lang/String;
+	public final fun getResponseItems ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun getResponseNextCursor ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/PaginationModel$HeaderNextUrl : com/nabobery/sdkgen/model/PaginationModel {
+	public fun <init> (Lcom/nabobery/sdkgen/model/JsonPointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/JsonPointer;)Lcom/nabobery/sdkgen/model/PaginationModel$HeaderNextUrl;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/PaginationModel$HeaderNextUrl;Lcom/nabobery/sdkgen/model/JsonPointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/PaginationModel$HeaderNextUrl;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getResponseItems ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/ParameterLocation : java/lang/Enum {
+	public static final field COOKIE Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public static final field HEADER Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public static final field PATH Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public static final field QUERY Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/ParameterLocation;
+}
+
+public final class com/nabobery/sdkgen/model/ParameterModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/lang/Boolean;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Ljava/lang/String;ZLjava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/Map;
+	public final fun component11 ()Ljava/util/Map;
+	public final fun component12 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/Boolean;
+	public final fun component6 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Z
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/lang/Boolean;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Ljava/lang/String;ZLjava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/ParameterModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/ParameterModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/lang/Boolean;Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/util/List;Ljava/lang/String;ZLjava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/ParameterModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContent ()Ljava/util/List;
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExamples ()Ljava/util/Map;
+	public final fun getExplode ()Ljava/lang/Boolean;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getLocation ()Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRequiredness ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun getSchema ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getStyle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/PresenceState : java/lang/Enum {
+	public static final field ABSENT Lcom/nabobery/sdkgen/model/PresenceState;
+	public static final field NULL Lcom/nabobery/sdkgen/model/PresenceState;
+	public static final field VALUE Lcom/nabobery/sdkgen/model/PresenceState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/PresenceState;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/PresenceState;
+}
+
+public final class com/nabobery/sdkgen/model/PropertyModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;ZZLjava/lang/String;ZLcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun component11 ()Ljava/util/List;
+	public final fun component12 ()Ljava/util/Map;
+	public final fun component13 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/Nullability;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Z
+	public final fun component7 ()Z
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Z
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;ZZLjava/lang/String;ZLcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/PropertyModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/PropertyModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/Requiredness;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;ZZLjava/lang/String;ZLcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/PropertyModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDefaultValue ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExamples ()Ljava/util/List;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getNullability ()Lcom/nabobery/sdkgen/model/Nullability;
+	public final fun getPresenceStates ()Ljava/util/List;
+	public final fun getReadOnly ()Z
+	public final fun getRequiredness ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun getSchema ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getWriteOnly ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/PropertyOwnership : com/nabobery/sdkgen/model/MaterialNode {
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2-tiv6Oio ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy-zteUzjM (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/PropertyOwnership;
+	public static synthetic fun copy-zteUzjM$default (Lcom/nabobery/sdkgen/model/PropertyOwnership;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/PropertyOwnership;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConstraints ()Ljava/util/Map;
+	public final fun getOwnerSchemaId-tiv6Oio ()Ljava/lang/String;
+	public final fun getPropertyName ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/RequestBodyModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/RequestBodyModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/RequestBodyModel;Lcom/nabobery/sdkgen/model/Requiredness;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/RequestBodyModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContent ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getRequiredness ()Lcom/nabobery/sdkgen/model/Requiredness;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/Requiredness : java/lang/Enum {
+	public static final field OPTIONAL Lcom/nabobery/sdkgen/model/Requiredness;
+	public static final field REQUIRED Lcom/nabobery/sdkgen/model/Requiredness;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/Requiredness;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/Requiredness;
+}
+
+public final class com/nabobery/sdkgen/model/ResponseModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/StatusSelectorKind;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/Map;
+	public final fun component7 ()Ljava/util/Map;
+	public final fun component8 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/model/StatusSelectorKind;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/ResponseModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/ResponseModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/StatusSelectorKind;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/ResponseModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContent ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getHeaders ()Ljava/util/List;
+	public final fun getLinks ()Ljava/util/Map;
+	public final fun getSelector ()Ljava/lang/String;
+	public final fun getSelectorKind ()Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SchemaId : java/lang/Comparable {
+	public static final synthetic fun box-impl (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/SchemaId;
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public fun compareTo-xc9JBWg (Ljava/lang/String;)I
+	public static fun compareTo-xc9JBWg (Ljava/lang/String;Ljava/lang/String;)I
+	public static fun constructor-impl (Ljava/lang/String;)Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Ljava/lang/String;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Ljava/lang/String;Ljava/lang/String;)Z
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static fun hashCode-impl (Ljava/lang/String;)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SchemaModel : com/nabobery/sdkgen/model/MaterialNode {
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/IdentityKind;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;Ljava/lang/String;ZZZLjava/util/Map;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumModel;Ljava/util/List;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ZLjava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/IdentityKind;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;Ljava/lang/String;ZZZLjava/util/Map;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumModel;Ljava/util/List;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ZLjava/lang/String;Ljava/lang/String;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-tiv6Oio ()Ljava/lang/String;
+	public final fun component10 ()Z
+	public final fun component11 ()Z
+	public final fun component12 ()Ljava/util/Map;
+	public final fun component13 ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun component14 ()Ljava/util/List;
+	public final fun component15 ()Lcom/nabobery/sdkgen/model/EnumModel;
+	public final fun component16 ()Ljava/util/List;
+	public final fun component17 ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun component18 ()Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;
+	public final fun component19 ()Ljava/util/List;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/IdentityKind;
+	public final fun component20 ()Ljava/util/List;
+	public final fun component21 ()Ljava/util/Map;
+	public final fun component22 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component23 ()Z
+	public final fun component24 ()Ljava/lang/String;
+	public final fun component25 ()Ljava/lang/String;
+	public final fun component26 ()Ljava/util/List;
+	public final fun component3-FFnoL2c ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Lcom/nabobery/sdkgen/model/Nullability;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Z
+	public final fun copy-JSUao3I (Ljava/lang/String;Lcom/nabobery/sdkgen/model/IdentityKind;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;Ljava/lang/String;ZZZLjava/util/Map;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumModel;Ljava/util/List;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ZLjava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/nabobery/sdkgen/model/SchemaModel;
+	public static synthetic fun copy-JSUao3I$default (Lcom/nabobery/sdkgen/model/SchemaModel;Ljava/lang/String;Lcom/nabobery/sdkgen/model/IdentityKind;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lcom/nabobery/sdkgen/model/Nullability;Ljava/util/List;Ljava/lang/String;ZZZLjava/util/Map;Lcom/nabobery/sdkgen/model/JsonValue;Ljava/util/List;Lcom/nabobery/sdkgen/model/EnumModel;Ljava/util/List;Lcom/nabobery/sdkgen/model/SchemaRef;Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Lcom/nabobery/sdkgen/model/SourcePointer;ZLjava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SchemaModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcceptsOnlyNull ()Z
+	public final fun getAdditionalProperties ()Lcom/nabobery/sdkgen/model/AdditionalPropertiesModel;
+	public final fun getAllOfPropertyOwnership ()Ljava/util/List;
+	public final fun getCompositions ()Ljava/util/List;
+	public final fun getConstraints ()Ljava/util/Map;
+	public final fun getContentEncoding ()Ljava/lang/String;
+	public final fun getContentMediaType ()Ljava/lang/String;
+	public final fun getDefaultValue ()Lcom/nabobery/sdkgen/model/JsonValue;
+	public final fun getDeprecated ()Z
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getEnum ()Lcom/nabobery/sdkgen/model/EnumModel;
+	public final fun getExamples ()Ljava/util/List;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getFormat ()Ljava/lang/String;
+	public final fun getId-tiv6Oio ()Ljava/lang/String;
+	public final fun getIdentityKind ()Lcom/nabobery/sdkgen/model/IdentityKind;
+	public final fun getItems ()Lcom/nabobery/sdkgen/model/SchemaRef;
+	public final fun getNullability ()Lcom/nabobery/sdkgen/model/Nullability;
+	public final fun getNullabilityOrigins ()Ljava/util/List;
+	public final fun getProperties ()Ljava/util/List;
+	public final fun getReadOnly ()Z
+	public final fun getReferenceTarget-FFnoL2c ()Ljava/lang/String;
+	public final fun getRequiredPropertyNames ()Ljava/util/List;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getTypes ()Ljava/util/List;
+	public final fun getWriteOnly ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SchemaRef : com/nabobery/sdkgen/model/MaterialNode {
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-tiv6Oio ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy-CpbAGg8 (Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/SchemaRef;
+	public static synthetic fun copy-CpbAGg8$default (Lcom/nabobery/sdkgen/model/SchemaRef;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SchemaRef;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSchemaId-tiv6Oio ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SecurityRequirementModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun component2 ()Z
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/SecurityRequirementModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SecurityRequirementModel;Ljava/util/Map;ZLcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SecurityRequirementModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAnonymous ()Z
+	public final fun getSchemes ()Ljava/util/Map;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SecuritySchemeKind : java/lang/Enum {
+	public static final field API_KEY Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static final field HTTP Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static final field MUTUAL_TLS Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static final field OAUTH2 Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static final field OPEN_ID_CONNECT Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+}
+
+public final class com/nabobery/sdkgen/model/SecuritySchemeModel : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SecuritySchemeKind;Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/model/SecuritySchemeKind;Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Lcom/nabobery/sdkgen/model/SecuritySchemeKind;Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/SecuritySchemeModel;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SecuritySchemeModel;Lcom/nabobery/sdkgen/model/SecuritySchemeKind;Ljava/lang/String;Lcom/nabobery/sdkgen/model/ParameterLocation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SecuritySchemeModel;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBearerFormat ()Ljava/lang/String;
+	public final fun getKind ()Lcom/nabobery/sdkgen/model/SecuritySchemeKind;
+	public final fun getLocation ()Lcom/nabobery/sdkgen/model/ParameterLocation;
+	public final fun getOpenIdConnectUrl ()Ljava/lang/String;
+	public final fun getParameterName ()Ljava/lang/String;
+	public final fun getScheme ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SemanticDocument : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun component11 ()Ljava/util/Map;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/Map;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/Map;)Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SemanticDocument;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Ljava/util/List;Ljava/util/Map;Ljava/util/List;Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/util/Map;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnostics ()Ljava/util/List;
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getOperations ()Ljava/util/List;
+	public final fun getSchemas ()Ljava/util/Map;
+	public final fun getSecurityAlternatives ()Ljava/util/List;
+	public final fun getSecuritySchemes ()Ljava/util/Map;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun getSourceDocuments ()Ljava/util/List;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SnapshotRenderer {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/model/SnapshotRenderer;
+	public final fun render (Lcom/nabobery/sdkgen/model/SemanticDocument;)Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SourceDocumentIdentity : com/nabobery/sdkgen/model/MaterialNode {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;JLcom/nabobery/sdkgen/model/AcquisitionPolicy;Lcom/nabobery/sdkgen/model/SourcePointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/AcquisitionPolicy;
+	public final fun component5 ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;JLcom/nabobery/sdkgen/model/AcquisitionPolicy;Lcom/nabobery/sdkgen/model/SourcePointer;)Lcom/nabobery/sdkgen/model/SourceDocumentIdentity;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SourceDocumentIdentity;Ljava/lang/String;Ljava/lang/String;JLcom/nabobery/sdkgen/model/AcquisitionPolicy;Lcom/nabobery/sdkgen/model/SourcePointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SourceDocumentIdentity;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcquisitionPolicy ()Lcom/nabobery/sdkgen/model/AcquisitionPolicy;
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun getSource ()Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SourceLocation {
+	public fun <init> (IIJ)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()J
+	public final fun copy (IIJ)Lcom/nabobery/sdkgen/model/SourceLocation;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SourceLocation;IIJILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SourceLocation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getByteOffset ()J
+	public final fun getColumn ()I
+	public final fun getLine ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/SourcePointer {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/SourceLocation;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;)Lcom/nabobery/sdkgen/model/SourcePointer;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/SourcePointer;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/SourceLocation;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/SourcePointer;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocumentUri ()Ljava/lang/String;
+	public final fun getJsonPointer ()Ljava/lang/String;
+	public final fun getLocation ()Lcom/nabobery/sdkgen/model/SourceLocation;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/model/StatusSelectorKind : java/lang/Enum {
+	public static final field DEFAULT Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public static final field EXACT Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public static final field RANGE Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/model/StatusSelectorKind;
+}
+
+public abstract interface class com/nabobery/sdkgen/model/StreamingModel {
+}
+
+public final class com/nabobery/sdkgen/model/StreamingModel$Sse : com/nabobery/sdkgen/model/StreamingModel {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/model/StreamingModel$Sse;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/StreamingModel$Sse;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/StreamingModel$Sse;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequestFlag ()Ljava/lang/String;
+	public final fun getResponseContentType ()Ljava/lang/String;
+	public final fun getSentinel ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/AdaptationMetrics {
+	public fun <init> (IIIIIIIIIII)V
+	public final fun component1 ()I
+	public final fun component10 ()I
+	public final fun component11 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7 ()I
+	public final fun component8 ()I
+	public final fun component9 ()I
+	public final fun copy (IIIIIIIIIII)Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;IIIIIIIIIIIILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getComponentSchemasDiagnosed ()I
+	public final fun getComponentSchemasRepresented ()I
+	public final fun getComponentSchemasTotal ()I
+	public final fun getInlineSchemas ()I
+	public final fun getOperationsDiagnosed ()I
+	public final fun getOperationsRepresented ()I
+	public final fun getOperationsTotal ()I
+	public final fun getResolvedParserMessages ()I
+	public final fun getResolvedSharedIdentityTargets ()I
+	public final fun getSilentOperationOmissions ()I
+	public final fun getSilentSchemaOmissions ()I
+	public final fun getSourceMappedNodes ()I
+	public final fun getUnresolvedParserMessages ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/AdaptationResult {
+	public fun <init> (Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;)V
+	public final fun component1 ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public final fun component2 ()Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;
+	public final fun copy (Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;)Lcom/nabobery/sdkgen/openapi/AdaptationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/AdaptationResult;Lcom/nabobery/sdkgen/model/SemanticDocument;Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/AdaptationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDocument ()Lcom/nabobery/sdkgen/model/SemanticDocument;
+	public final fun getMetrics ()Lcom/nabobery/sdkgen/openapi/AdaptationMetrics;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/LocalReferenceClosure {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/openapi/LocalReferenceClosure;
+	public final fun resolve (Ljava/nio/file/Path;)Ljava/util/List;
+	public final fun resolve (Ljava/nio/file/Path;Ljava/util/List;)Ljava/util/List;
+	public final fun resolveAndStage (Ljava/nio/file/Path;Ljava/util/List;Lkotlin/jvm/functions/Function2;)Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/openapi/LocalSourceDocument {
+	public fun <init> (Ljava/lang/String;Ljava/nio/file/Path;Ljava/nio/file/Path;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/nio/file/Path;
+	public final fun component3 ()Ljava/nio/file/Path;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()J
+	public final fun copy (Ljava/lang/String;Ljava/nio/file/Path;Ljava/nio/file/Path;Ljava/lang/String;J)Lcom/nabobery/sdkgen/openapi/LocalSourceDocument;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/LocalSourceDocument;Ljava/lang/String;Ljava/nio/file/Path;Ljava/nio/file/Path;Ljava/lang/String;JILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/LocalSourceDocument;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCanonicalUri ()Ljava/lang/String;
+	public final fun getContentLength ()J
+	public final fun getPath ()Ljava/nio/file/Path;
+	public final fun getRelativePath ()Ljava/nio/file/Path;
+	public final fun getSha256 ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/ReferenceNotRegularFileException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/nio/file/Path;)V
+	public final fun getPath ()Ljava/nio/file/Path;
+}
+
+public final class com/nabobery/sdkgen/openapi/ReferenceOutsideTrustedRootsException : java/lang/IllegalArgumentException {
+	public fun <init> (Ljava/nio/file/Path;)V
+	public final fun getPath ()Ljava/nio/file/Path;
+}
+
+public final class com/nabobery/sdkgen/openapi/SemanticAdapter {
+	public fun <init> ()V
+	public final fun adapt (Ljava/nio/file/Path;Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/AdaptationResult;
+	public static synthetic fun adapt$default (Lcom/nabobery/sdkgen/openapi/SemanticAdapter;Ljava/nio/file/Path;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/AdaptationResult;
+}
+
+public final class com/nabobery/sdkgen/openapi/jsonpath/JsonPathMatch {
+	public fun <init> (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/jsonpath/JsonPathMatch;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/jsonpath/JsonPathMatch;Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/jsonpath/JsonPathMatch;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNormalizedPath ()Ljava/lang/String;
+	public final fun getPointer ()Ljava/lang/String;
+	public final fun getValue ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/jsonpath/Rfc9535Evaluator {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/openapi/jsonpath/Rfc9535Evaluator;
+	public final fun select (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)Ljava/util/List;
+	public static synthetic fun select$default (Lcom/nabobery/sdkgen/openapi/jsonpath/Rfc9535Evaluator;Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;ILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/openapi/jsonpath/Rfc9535GrammarValidator {
+	public static final field INSTANCE Lcom/nabobery/sdkgen/openapi/jsonpath/Rfc9535GrammarValidator;
+	public final fun validate (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/AppliedAction {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)Lcom/nabobery/sdkgen/openapi/overlays/AppliedAction;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/AppliedAction;Ljava/lang/String;ILjava/lang/String;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/AppliedAction;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionIndex ()I
+	public final fun getCopyFrom ()Ljava/lang/String;
+	public final fun getKind ()Ljava/lang/String;
+	public final fun getMatchedPointers ()Ljava/util/List;
+	public final fun getOverlayIdentity ()Ljava/lang/String;
+	public final fun getSourcePointers ()Ljava/util/List;
+	public final fun getTarget ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/AppliedOverlay {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()I
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)Lcom/nabobery/sdkgen/openapi/overlays/AppliedOverlay;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/AppliedOverlay;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/AppliedOverlay;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionCount ()I
+	public final fun getIdentity ()Ljava/lang/String;
+	public final fun getSha256 ()Ljava/lang/String;
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/ChangeKind : java/lang/Enum {
+	public static final field ADD Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public static final field REMOVE Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public static final field REPLACE Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public static fun values ()[Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/ConflictPolicy : java/lang/Enum {
+	public static final field FAIL Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;
+	public static final field LAST_WRITE_WINS Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;
+	public static fun values ()[Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/CopySourceMatchException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/EffectiveChange {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;Lcom/fasterxml/jackson/databind/JsonNode;Lcom/fasterxml/jackson/databind/JsonNode;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public final fun component3 ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun component4 ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun copy (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;Lcom/fasterxml/jackson/databind/JsonNode;Lcom/fasterxml/jackson/databind/JsonNode;)Lcom/nabobery/sdkgen/openapi/overlays/EffectiveChange;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/EffectiveChange;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;Lcom/fasterxml/jackson/databind/JsonNode;Lcom/fasterxml/jackson/databind/JsonNode;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/EffectiveChange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAfter ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun getBefore ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun getKind ()Lcom/nabobery/sdkgen/openapi/overlays/ChangeKind;
+	public final fun getPointer ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/ExtensionValidationException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public abstract interface class com/nabobery/sdkgen/openapi/overlays/JsonPathSelector {
+	public abstract fun selectPointers (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)Ljava/util/List;
+	public static synthetic fun selectPointers$default (Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSelector;Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;ILjava/lang/Object;)Ljava/util/List;
+	public abstract fun validate (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/JsonPathSelector$DefaultImpls {
+	public static synthetic fun selectPointers$default (Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSelector;Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;ILjava/lang/Object;)Ljava/util/List;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/JsonPathSource {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;
+	public final fun describe ()Ljava/lang/String;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionIndex ()Ljava/lang/Integer;
+	public final fun getCaseName ()Ljava/lang/String;
+	public final fun getField ()Ljava/lang/String;
+	public final fun getOverlayIdentity ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/JsonPathValidationException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;ILjava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;ILjava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getExpression ()Ljava/lang/String;
+	public final fun getOffset ()I
+	public final fun getSource ()Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/OverlayApplicationResult {
+	public fun <init> (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public final fun component1 ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lcom/nabobery/sdkgen/openapi/overlays/OverlayApplicationResult;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/OverlayApplicationResult;Lcom/fasterxml/jackson/databind/JsonNode;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/OverlayApplicationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActions ()Ljava/util/List;
+	public final fun getChanges ()Ljava/util/List;
+	public final fun getDocument ()Lcom/fasterxml/jackson/databind/JsonNode;
+	public final fun getOverlays ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/OverlayApplicator {
+	public fun <init> ()V
+	public fun <init> (Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSelector;)V
+	public synthetic fun <init> (Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;Lcom/nabobery/sdkgen/openapi/overlays/ConflictPolicy;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSelector;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun apply ([BLjava/util/List;)Lcom/nabobery/sdkgen/openapi/overlays/OverlayApplicationResult;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/OverlayConflictException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public class com/nabobery/sdkgen/openapi/overlays/OverlayException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/OverlayFormatException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/OverlayInput {
+	public fun <init> (Ljava/lang/String;[B)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()[B
+	public final fun copy (Ljava/lang/String;[B)Lcom/nabobery/sdkgen/openapi/overlays/OverlayInput;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/openapi/overlays/OverlayInput;Ljava/lang/String;[BILjava/lang/Object;)Lcom/nabobery/sdkgen/openapi/overlays/OverlayInput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContent ()[B
+	public final fun getIdentity ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/Rfc9535Selector : com/nabobery/sdkgen/openapi/overlays/JsonPathSelector {
+	public fun <init> ()V
+	public fun selectPointers (Lcom/fasterxml/jackson/databind/JsonNode;Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)Ljava/util/List;
+	public fun validate (Ljava/lang/String;Lcom/nabobery/sdkgen/openapi/overlays/JsonPathSource;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/ZeroMatchException : com/nabobery/sdkgen/openapi/overlays/OverlayException {
+	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class com/nabobery/sdkgen/openapi/overlays/ZeroMatchMode : java/lang/Enum {
+	public static final field COMPAT Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;
+	public static final field STRICT Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;
+	public static fun values ()[Lcom/nabobery/sdkgen/openapi/overlays/ZeroMatchMode;
 }
 

@@ -51,7 +51,7 @@ class GitHubScaleBenchmarkTest {
                         ),
                     )
                 }
-            val emission = measure { KotlinPoetEmitter().render(projection.value.model) }
+            val emission = measure { KotlinPoetEmitter().render(projection.value.model).files }
             val publication =
                 measure {
                     AtomicOutputPublisher().publish(
@@ -73,7 +73,7 @@ class GitHubScaleBenchmarkTest {
                         runtimeDefaults = RuntimeDefaults(retries = RetryDefaults(maxAttempts = 3)),
                     ),
                 )
-            val repeatFiles = KotlinPoetEmitter().render(repeatProjection.model)
+            val repeatFiles = KotlinPoetEmitter().render(repeatProjection.model).files
             val repeatPublication =
                 AtomicOutputPublisher().publish(
                     destination = working.resolve("second"),
@@ -158,7 +158,7 @@ class GitHubScaleBenchmarkTest {
             source = ManifestInput(GITHUB_URI, sha256(bytes), bytes.size.toLong()),
             references = emptyList(),
             overlays = emptyList(),
-            generatorVersion = "phase3-t9",
+            generatorVersion = "conformance-test",
             edition = "community",
             kotlinPoetVersion = "benchmark",
             targets = listOf("jvm", "js", "macos"),

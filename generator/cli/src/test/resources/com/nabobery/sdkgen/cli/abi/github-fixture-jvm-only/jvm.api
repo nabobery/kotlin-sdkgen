@@ -1,0 +1,4 @@
+public final class com/ex/gen/Widget {
+	public final fun getId ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+}

@@ -1,0 +1,63 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1disputes~1{dispute}/post/requestBody/content/application~1x-www-form-urlenc
+ * oded/schema/properties/evidence/properties/enhanced_evidence/anyOf/0/properties/visa_compelling_evidence_3/properties
+ * /disputed_transaction/properties/merchandise_or_services.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1disputes~1{dispute}/post/requestBody/content/application~1x-www-form-urlenc
+ * oded/schema/properties/evidence/properties/enhanced_evidence/anyOf/0/properties/visa_compelling_evidence_3/properties
+ * /disputed_transaction/properties/merchandise_or_services
+ */
+@Serializable(with = InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61.Serializer::class)
+public sealed class InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61 {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `merchandise`.
+   */
+  public data object Merchandise : InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61() {
+    public override val `value`: String = "merchandise"
+  }
+
+  /**
+   * Documented value. Wire value: `services`.
+   */
+  public data object Services : InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61() {
+    public override val `value`: String = "services"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61 = when (value) {
+      Merchandise.value -> Merchandise
+      Services.value -> Services
+      else -> SdkUnknown(value)
+    }
+  }
+
+  public object Serializer : KSerializer<InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.generated.stripe.InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61 = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1DisputesPostRequestFormEvidenceMerchandiseOrServicesXbd715b61) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

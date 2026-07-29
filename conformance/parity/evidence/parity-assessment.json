@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "assessment",
+  "producer": "parity-assessment",
+  "execution": {
+    "task": "assessment",
+    "status": "notRun",
+    "requestedFixtureIds": [
+      "github.auth",
+      "github.compile-jvm",
+      "github.compile-non-jvm",
+      "github.optionality",
+      "github.pagination",
+      "github.source-portable",
+      "github.typed-errors",
+      "github.unions",
+      "openrouter.auth",
+      "openrouter.compile-jvm",
+      "openrouter.compile-representative-kmp",
+      "openrouter.model-contracts",
+      "openrouter.source-portable",
+      "openrouter.typed-errors",
+      "stress.generated-sse",
+      "stripe.auth-typed-errors",
+      "stripe.compile-jvm",
+      "stripe.compile-non-jvm",
+      "stripe.form",
+      "stripe.multipart",
+      "stripe.source-portable",
+      "transport.java-http.contract",
+      "transport.ktor.contract",
+      "transport.okhttp.contract"
+    ],
+    "reason": "No isolated current-head producer artifacts have been collected."
+  },
+  "rows": [
+    {
+      "id": "github.behavior.auth",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "github.behavior.optionality",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "github.behavior.pagination",
+      "status": "notRun",
+      "reason": "The checked T10 snapshot predates parity emitter changes."
+    },
+    {
+      "id": "github.behavior.typed-errors",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "github.behavior.unions",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "github.compile.jvm",
+      "status": "notRun",
+      "reason": "No isolated current-head compile producer result exists."
+    },
+    {
+      "id": "github.compile.non-jvm",
+      "status": "notRun",
+      "reason": "The current GitHub consumer is JVM-only."
+    },
+    {
+      "id": "github.source.portable",
+      "status": "notRun",
+      "reason": "No current-head digest-bound source scan exists."
+    },
+    {
+      "id": "java-http.transport.contract",
+      "status": "notRun",
+      "reason": "No digest-bound adapter-suite producer result exists."
+    },
+    {
+      "id": "ktor.transport.contract",
+      "status": "notRun",
+      "reason": "No digest-bound adapter-suite producer result exists."
+    },
+    {
+      "id": "okhttp.transport.contract",
+      "status": "notRun",
+      "reason": "No digest-bound adapter-suite producer result exists."
+    },
+    {
+      "id": "openrouter.behavior.auth",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "openrouter.behavior.model-contracts",
+      "status": "notRun",
+      "reason": "No current-head digest-bound producer result exists."
+    },
+    {
+      "id": "openrouter.behavior.typed-errors",
+      "status": "notRun",
+      "reason": "OpenRouter has no checked manifest or current-head producer result."
+    },
+    {
+      "id": "openrouter.compile.jvm",
+      "status": "notRun",
+      "reason": "No digest-bound current-head compile producer result exists."
+    },
+    {
+      "id": "openrouter.compile.representative-kmp",
+      "status": "notRun",
+      "reason": "No representative KMP producer result exists."
+    },
+    {
+      "id": "openrouter.source.portable",
+      "status": "notRun",
+      "reason": "No current-head digest-bound source scan exists."
+    },
+    {
+      "id": "stress.behavior.generated-sse",
+      "status": "notRun",
+      "reason": "No digest-bound current-head stress-fixture result exists."
+    },
+    {
+      "id": "stripe.behavior.auth-typed-errors",
+      "status": "notRun",
+      "reason": "No refreshed current-head producer result exists."
+    },
+    {
+      "id": "stripe.behavior.form",
+      "status": "notRun",
+      "reason": "The checked T11 snapshot does not match current parity projection."
+    },
+    {
+      "id": "stripe.behavior.multipart",
+      "status": "notRun",
+      "reason": "No refreshed current-head producer result exists."
+    },
+    {
+      "id": "stripe.compile.jvm",
+      "status": "notRun",
+      "reason": "No isolated current-head compile producer result exists."
+    },
+    {
+      "id": "stripe.compile.non-jvm",
+      "status": "notRun",
+      "reason": "No representative non-JVM producer result exists."
+    },
+    {
+      "id": "stripe.source.portable",
+      "status": "notRun",
+      "reason": "No current-head digest-bound source scan exists."
+    }
+  ]
+}

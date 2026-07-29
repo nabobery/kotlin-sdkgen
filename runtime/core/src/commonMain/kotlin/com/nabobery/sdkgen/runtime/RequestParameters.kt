@@ -1,5 +1,10 @@
 package com.nabobery.sdkgen.runtime
 
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+
 /** The wire location of one generated operation parameter. */
 public enum class SdkParameterLocation {
     PATH,
@@ -176,3 +181,49 @@ internal fun buildRequestHeaders(
 }
 
 private val URI_UNRESERVED = (('A'..'Z') + ('a'..'z') + ('0'..'9') + listOf('-', '_', '.', '~')).toSet()
+
+/**
+ * Projects a generated primitive-union parameter value to its wire strings.
+ *
+ * A parameter whose schema is a `oneOf` over primitive scalars and primitive arrays — GitHub's "an ID or a
+ * name" path parameters and "one value or a list" query parameters, for example — is generated as a sealed
+ * union whose every case carries the [raw] JSON it was built from. Because every branch of such a union is a
+ * scalar or an array of scalars, the union collapses on the wire: a scalar branch contributes exactly one
+ * value and an array branch contributes one per element. The branch itself is not observable in the request.
+ *
+ * Values are taken from [raw] rather than from the case's typed value so that one projection covers every
+ * branch without the generator having to emit a `when` over case names. `JsonPrimitive.content` is used
+ * deliberately: it yields the unquoted lexical form, which is what a path segment or query value carries.
+ *
+ * @throws IllegalArgumentException if [raw] is an object, or an array containing anything but primitives —
+ *   shapes the projection is documented not to accept, so reaching them means the generator emitted a call it
+ *   should not have.
+ */
+public fun sdkPrimitiveUnionParameterValues(raw: JsonElement): List<String> =
+    when (raw) {
+        is JsonNull -> {
+            emptyList()
+        }
+
+        is JsonPrimitive -> {
+            listOf(raw.content)
+        }
+
+        is JsonArray -> {
+            raw.map { element ->
+                val primitive =
+                    element as? JsonPrimitive
+                        ?: throw IllegalArgumentException(
+                            "primitive-union parameter array element is not a primitive: $element",
+                        )
+                if (primitive is JsonNull) {
+                    throw IllegalArgumentException("primitive-union parameter array element is null")
+                }
+                primitive.content
+            }
+        }
+
+        else -> {
+            throw IllegalArgumentException("primitive-union parameter value is not a primitive or array: $raw")
+        }
+    }

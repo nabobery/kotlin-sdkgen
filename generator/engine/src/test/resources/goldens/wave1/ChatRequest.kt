@@ -105,9 +105,9 @@ public class ChatRequest internal constructor(
     private var messagesValue: List<ChatMessage>? = null
 
     public var messages: List<ChatMessage>
-      get() = requireNotNull(messagesValue) { "messages is required" }
+      get() = requireNotNull(messagesValue) { "messages is required" }.toList()
       set(`value`) {
-        messagesValue = value
+        messagesValue = value.toList()
       }
 
     private var sessionIdState: FieldState<String> = FieldState.Absent
@@ -185,21 +185,19 @@ public class ChatRequest internal constructor(
     override fun deserialize(decoder: Decoder): ChatRequest {
       val jsonDecoder = decoder.requireJsonDecoder("ChatRequest")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("ChatRequest must be a JSON object")
-      val model = json.decodeRequired<String>(raw, "model")
-      val messages = json.decodeRequired<List<ChatMessage>>(raw, "messages")
-      if (!raw.containsKey("session_id")) {
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("ChatRequest must be a JSON object")
+      val model = json.decodeRequired<String>(rawObject, "model")
+      val messages = json.decodeRequired<List<ChatMessage>>(rawObject, "messages")
+      if (!rawObject.containsKey("session_id")) {
         throw SerializationException("ChatRequest is missing required property 'session_id'")
       }
-      val sessionId = raw["session_id"].let { element -> if (element == JsonNull) null else json
-        .decodeFromJsonElement<String>(requireNotNull(element)) }
+      val sessionId = rawObject["session_id"].let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String>(requireNotNull(element)) }
       return ChatRequest(
         model = model,
         messages = messages,
         sessionId = sessionId,
-        temperatureState = json.decodeOptional(raw, "temperature", nullable = true),
-        maxTokensState = json.decodeOptional(raw, "max_tokens", nullable = false),
+        temperatureState = json.decodeOptional(rawObject, "temperature", nullable = true),
+        maxTokensState = json.decodeOptional(rawObject, "max_tokens", nullable = false),
       )
     }
 
@@ -226,6 +224,12 @@ private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String
 }
 
 private fun <T> T?.toNullableFieldState(): FieldState<T> = if (this == null) FieldState.Null else FieldState.Value(this)
+
+private inline fun <T> FieldState<T>.copyValue(copy: (T) -> T): FieldState<T> = when (this) {
+  FieldState.Absent -> this
+  FieldState.Null -> this
+  is FieldState.Value -> FieldState.Value(copy(value))
+}
 
 private inline fun <reified T> Json.decodeOptional(
   raw: JsonObject,

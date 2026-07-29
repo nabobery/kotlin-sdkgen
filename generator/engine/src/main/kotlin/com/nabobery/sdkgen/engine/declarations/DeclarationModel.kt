@@ -268,9 +268,23 @@ internal data class ModelDeclaration(
     override val kdoc: String,
     val fields: List<FieldDeclaration>,
     val dslFunctionName: String,
+    val additionalProperties: AdditionalPropertiesDeclaration? = null,
     val auxiliaryModels: List<SimpleModelDeclaration> = emptyList(),
     val usesFieldState: Boolean = false,
 ) : Declaration
+
+/**
+ * A generated catch-all property for an object that declares both fixed properties and
+ * `additionalProperties`. The value type carries nullability so codecs can distinguish a
+ * missing dynamic member from an explicitly-null one.
+ */
+internal data class AdditionalPropertiesDeclaration(
+    val resolvedName: String,
+    val valueType: KotlinTypeRef,
+    val valuesAreJsonElements: Boolean,
+    val fixedWireNames: Set<String>,
+    val kdoc: String,
+)
 
 internal data class SimpleModelDeclaration(
     val resolvedName: String,
@@ -791,6 +805,57 @@ internal data class OperationParameterDeclaration(
     val required: Boolean,
     val style: String? = null,
     val explode: Boolean? = null,
+    val serialization: ParameterSerialization = ParameterSerialization.Repeated,
+    val kdoc: String = "",
+)
+
+internal sealed interface ParameterSerialization {
+    data object Repeated : ParameterSerialization
+
+    data object CommaJoined : ParameterSerialization
+
+    /** Non-standard Stripe convention: `name[0]=first&name[1]=second` for deepObject arrays. */
+    data object StripeCompatibleIndexedArray : ParameterSerialization
+
+    /** Non-standard Stripe convention: deepObject scalars are sent as ordinary `name=value` query pairs. */
+    data object StripeCompatibleScalar : ParameterSerialization
+
+    /** Stripe-compatible scalar fallback for value unions; object branches are rejected at call time. */
+    data object StripeCompatibleJsonScalar : ParameterSerialization
+
+    /**
+     * A `oneOf` over primitive scalars and primitive arrays, projected from the union's retained `raw` JSON.
+     * A scalar branch contributes one wire value and an array branch one per element, so the caller's branch
+     * choice is not observable in the request. See ADR-0016.
+     *
+     * This object carries no location, and the two locations do not accept the same branches. Query `form` with
+     * `explode: true` is a repeated key and takes either shape; a path segment is a single value and takes only
+     * the scalar shape, so `StandardProjection` rejects an array branch there rather than emitting a call that
+     * compiles and then throws from `renderPathTemplate`.
+     */
+    data object PrimitiveUnion : ParameterSerialization
+
+    data class DeepObject(
+        val properties: List<DeepObjectParameterPropertyDeclaration>,
+        val additionalProperties: DeepObjectAdditionalPropertiesDeclaration? = null,
+    ) : ParameterSerialization
+}
+
+internal data class DeepObjectParameterPropertyDeclaration(
+    val wireName: String,
+    val accessorName: String,
+    val required: Boolean,
+)
+
+internal enum class DeepObjectAdditionalPropertiesSerialization {
+    JSON_PRIMITIVE_CONTENT,
+    OPEN_ENUM_VALUE,
+    TO_STRING,
+}
+
+internal data class DeepObjectAdditionalPropertiesDeclaration(
+    val accessorName: String,
+    val serialization: DeepObjectAdditionalPropertiesSerialization,
 )
 
 internal class MultipartPartDeclaration(
@@ -1089,6 +1154,10 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
             is ModelDeclaration -> {
                 copy(
                     fields = fields.map { field -> field.rewritten() },
+                    additionalProperties =
+                        additionalProperties?.copy(
+                            valueType = additionalProperties.valueType.rewritten(),
+                        ),
                     auxiliaryModels =
                         auxiliaryModels.map { auxiliary ->
                             auxiliary.copy(fields = auxiliary.fields.map { field -> field.rewritten() })
@@ -1165,6 +1234,18 @@ private fun Declaration.canonicalText(): String =
                         .append(field.nullable)
                         .append(':')
                         .append(sanitizeKDoc(field.kdoc))
+                }
+                additionalProperties?.let { additional ->
+                    append("|additional:")
+                        .append(additional.resolvedName)
+                        .append(':')
+                        .append(additional.valueType.canonicalText())
+                        .append(':')
+                        .append(additional.valuesAreJsonElements)
+                        .append(':')
+                        .append(additional.fixedWireNames.sorted().joinToString(","))
+                        .append(':')
+                        .append(sanitizeKDoc(additional.kdoc))
                 }
                 append("|dsl:").append(dslFunctionName)
                 auxiliaryModels.forEach { auxiliary ->
@@ -1506,7 +1587,7 @@ private fun JsonAdditionalPropertiesPredicate.canonicalText(): String =
         is JsonAdditionalPropertiesPredicate.Typed -> "typed:${predicate.canonicalText()}"
     }
 
-private fun JsonValue.canonicalText(): String =
+internal fun JsonValue.canonicalText(): String =
     when (this) {
         JsonValue.Null -> "null"
 

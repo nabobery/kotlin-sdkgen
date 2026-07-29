@@ -742,7 +742,6 @@ internal class SdkGenPluginTestKitTest {
             artifactId: generated
           naming:
             clientName: TestClient
-            resourceGrouping: tags
           targets:
             - jvm
         output:

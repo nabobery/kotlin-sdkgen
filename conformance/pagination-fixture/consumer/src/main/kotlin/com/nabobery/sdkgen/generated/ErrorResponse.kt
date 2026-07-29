@@ -51,9 +51,8 @@ public class ErrorResponse(
     override fun deserialize(decoder: Decoder): ErrorResponse {
       val jsonDecoder = decoder.requireJsonDecoder("ErrorResponse")
       val json = jsonDecoder.json
-      val raw = jsonDecoder.decodeJsonElement() as? JsonObject ?:
-        throw SerializationException("ErrorResponse must be a JSON object")
-      val message = json.decodeRequired<String>(raw, "message")
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("ErrorResponse must be a JSON object")
+      val message = json.decodeRequired<String>(rawObject, "message")
       return ErrorResponse(
         message = message,
       )

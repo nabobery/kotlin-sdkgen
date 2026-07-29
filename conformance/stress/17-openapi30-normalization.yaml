@@ -1,4 +1,4 @@
-# Stress: OpenAPI 3.0.x -> 3.1 normalization at the ingestion seam (Phase 3 T2).
+# Stress: OpenAPI 3.0.x -> 3.1 normalization at the ingestion seam (normalization fixture).
 # Expected: nullable scalars/enums/refs/oneOf, boolean exclusive bounds, and format binary/byte
 # all adapt losslessly, each leaving a traceable diagnostic for the applied mapping.
 openapi: 3.0.3

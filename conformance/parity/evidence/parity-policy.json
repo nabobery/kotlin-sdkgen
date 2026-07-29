@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "v1alpha1",
+  "producer": "parity-policy",
+  "rows": [
+    {
+      "id": "openrouter.behavior.multipart-waiver",
+      "status": "waived",
+      "reason": "The production OpenRouter corpus does not currently generate multipart request bodies.",
+      "waiverOwner": "generator-engine",
+      "disposition1_0": "Implement production-corpus multipart generation or remove this operation from the 1.0 support claim."
+    },
+    {
+      "id": "openrouter.behavior.production-sse",
+      "status": "notApplicable",
+      "reason": "The compatibility overlay structurally removes production SSE operations; stress SSE is tracked separately."
+    },
+    {
+      "id": "runtime.behavior.android-host",
+      "status": "waived",
+      "reason": "No Android host runner is available in the current resource-bounded execution lane.",
+      "waiverOwner": "release-engineering",
+      "disposition1_0": "Run the common runtime contract on an Android CI host before 1.0."
+    },
+    {
+      "id": "runtime.behavior.js-lone-surrogate",
+      "status": "waived",
+      "reason": "The JS engine rejects construction of the lone-surrogate fixture before runtime encoding.",
+      "waiverOwner": "runtime-core",
+      "disposition1_0": "Add an engine-independent JS fixture or document the platform limitation before 1.0."
+    }
+  ]
+}

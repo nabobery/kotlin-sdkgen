@@ -191,7 +191,15 @@ private fun oneOfInspectionPlan(model: OneOfDeclaration): OneOfInspectionPlan {
 
     val caseMatchNames =
         model.cases.associateWith { case ->
-            nameAllocator.allocate("${case.resolvedName}Matches")
+            // case.resolvedName is the branch's class name (UpperCamelCase); decapitalize just the first
+            // character to form a property name, matching Kotlin's usual field-naming convention (and the
+            // sibling per-field `*Matches` names derived at [preferredStateNames] above, which are already
+            // field-cased). Only the leading character is touched, so acronym-style names like "APIError"
+            // become "aPIError" rather than "apiError" -- an intentional, simple, unambiguous rule that
+            // avoids guessing where an acronym run ends. Digit-leading and already-lowercase names are
+            // unaffected since replaceFirstChar is a no-op for non-letter/non-uppercase leading characters.
+            // Collisions (including with a real wire property) are still resolved by nameAllocator.allocate.
+            nameAllocator.allocate("${case.resolvedName.replaceFirstChar(Char::lowercaseChar)}Matches")
         }
     return OneOfInspectionPlan(
         states = fields.map(statesByField::getValue),
@@ -260,7 +268,7 @@ private fun oneOfCase(
             PropertySpec
                 .builder(field.resolvedName, field.type.toTypeName())
                 .addModifiers(KModifier.PUBLIC)
-                .initializer(field.resolvedName)
+                .initializer(field.type.ownershipSnapshotExpression(field.resolvedName))
                 .build(),
         )
     }
@@ -306,41 +314,58 @@ private fun oneOfFactory(
             .addKdoc("Creates this branch and its canonical raw JSON representation.\n")
             .returns(caseType)
     case.requiredFields.forEach { field -> function.addParameter(field.resolvedName, field.type.toTypeName()) }
+    val ownedValueNames =
+        case.requiredFields.associateWith { field ->
+            if (field.type.requiresOwnershipSnapshot()) {
+                "${field.resolvedName}OwnershipSnapshot"
+            } else {
+                field.resolvedName
+            }
+        }
     val requiredWireNames = case.requiredFields.map(UnionFieldDeclaration::wireName).toSet()
     val expectedValues =
         case.matchFields
             .filterNot { field -> field.wireName in requiredWireNames }
             .associate { field -> field.wireName to field.expectedStringValues.singleOrNull() }
-    val raw = CodeBlock.builder().add("%M {\n", BUILD_JSON_OBJECT).indent()
+    val call = CodeBlock.builder()
+    case.requiredFields.filter { it.type.requiresOwnershipSnapshot() }.forEach { field ->
+        call.addStatement(
+            "val %L = %L",
+            ownedValueNames.getValue(field),
+            field.type.ownershipSnapshotExpression(field.resolvedName),
+        )
+    }
+    // Build the "raw" buildJsonObject block inline in the enclosing `call` builder (rather than in a
+    // separately-indented CodeBlock.Builder that gets spliced in via %L) so the indent()/unindent() calls
+    // below operate on `call`'s own indentation level. Matches the pattern in ModelEmitter#modelSerialize.
+    call.add("val raw = %M {\n", BUILD_JSON_OBJECT).indent()
     case.requiredFields.forEach { field ->
         val expected = expectedValues[field.wireName]
         if (expected != null) {
-            raw.add("%M(%S, %S)\n", PUT, field.wireName, expected)
+            call.addStatement("%M(%S, %S)", PUT, field.wireName, expected)
         } else if (field.type.packageName == "kotlin" && field.type.simpleName == "String") {
-            raw.add("%M(%S, %L)\n", PUT, field.wireName, field.resolvedName)
+            call.addStatement("%M(%S, %L)", PUT, field.wireName, field.resolvedName)
         } else {
-            raw.add(
-                "%M(%S, SdkJson.%M(%L))\n",
+            call.addStatement(
+                "%M(%S, SdkJson.%M(%L))",
                 PUT,
                 field.wireName,
                 ENCODE_TO_JSON_ELEMENT,
-                field.resolvedName,
+                ownedValueNames.getValue(field),
             )
         }
     }
     case.matchFields
         .filter { expectedValues[it.wireName] != null && it.wireName !in requiredWireNames }
         .forEach { field ->
-            raw.add(
-                "%M(%S, %S)\n",
+            call.addStatement(
+                "%M(%S, %S)",
                 PUT,
                 field.wireName,
                 requireNotNull(expectedValues.getValue(field.wireName)),
             )
         }
-    raw.unindent().add("}")
-    val call = CodeBlock.builder()
-    call.addStatement("val raw = %L", raw.build())
+    call.unindent().add("}\n")
     call.addStatement("val inspection = inspect%L(raw)", model.resolvedName)
     call.beginControlFlow("if (inspection.size == 0)")
     call.addStatement(
@@ -366,7 +391,9 @@ private fun oneOfFactory(
     )
     call.endControlFlow()
     call.add("return %T(\n", caseType).indent()
-    case.requiredFields.forEach { field -> call.add("%L = %L,\n", field.resolvedName, field.resolvedName) }
+    case.requiredFields.forEach { field ->
+        call.add("%L = %L,\n", field.resolvedName, ownedValueNames.getValue(field))
+    }
     call.add("raw = raw,\n").unindent().add(")")
     return function.addCode(call.build()).build()
 }
@@ -683,8 +710,10 @@ private fun EmissionContext.primitiveOneOfCase(
     val caseType = unionType.nestedClass(case.resolvedName)
     return TypeSpec
         .classBuilder(case.resolvedName)
-        .addModifiers(KModifier.PUBLIC, KModifier.DATA)
-        .primaryConstructor(
+        .addModifiers(KModifier.PUBLIC)
+        .apply {
+            if (!case.type.requiresOwnershipSnapshot()) addModifiers(KModifier.DATA)
+        }.primaryConstructor(
             FunSpec
                 .constructorBuilder()
                 .addModifiers(KModifier.INTERNAL)
@@ -696,7 +725,7 @@ private fun EmissionContext.primitiveOneOfCase(
             PropertySpec
                 .builder("value", case.type.toTypeName())
                 .addModifiers(KModifier.PUBLIC)
-                .initializer("value")
+                .initializer(case.type.ownershipSnapshotExpression("value"))
                 .build(),
         ).addProperty(
             PropertySpec
@@ -715,15 +744,29 @@ private fun EmissionContext.primitiveOneOfCase(
                         .addKdoc("Creates this branch and its canonical raw JSON representation.\n")
                         .addParameter("value", case.type.toTypeName())
                         .returns(caseType)
-                        .addStatement("val raw = %M.%M(value)", sdkJson, ENCODE_TO_JSON_ELEMENT)
-                        .beginControlFlow("if (!matches%L(raw))", case.resolvedName)
+                        .apply {
+                            if (case.type.requiresOwnershipSnapshot()) {
+                                addStatement(
+                                    "val ownershipSnapshot = %L",
+                                    case.type.ownershipSnapshotExpression("value"),
+                                )
+                            }
+                        }.addStatement(
+                            "val raw = %M.%M(%L)",
+                            sdkJson,
+                            ENCODE_TO_JSON_ELEMENT,
+                            if (case.type.requiresOwnershipSnapshot()) "ownershipSnapshot" else "value",
+                        ).beginControlFlow("if (!matches%L(raw))", case.resolvedName)
                         .addStatement(
                             "throw %T(%S)",
                             branchValidationException,
                             "${case.resolvedName} value does not satisfy its JSON Schema branch predicate",
                         ).endControlFlow()
-                        .addStatement("return %T(value, raw)", caseType)
-                        .build(),
+                        .addStatement(
+                            "return %T(%L, raw)",
+                            caseType,
+                            if (case.type.requiresOwnershipSnapshot()) "ownershipSnapshot" else "value",
+                        ).build(),
                 ).build(),
         ).build()
 }
@@ -886,7 +929,11 @@ private fun primitivePredicateExpression(
                 checks +=
                     "$array.indices.none { left -> (left + 1 until $array.size).any { right -> $array[left].jsonSchemaEquals($array[right]) } }"
             }
-            "$element !is JsonArray || (${checks.joinToString(" && ").ifEmpty { "true" }})"
+            // Self-parenthesizing: this expression's top-level operator is `||`, and callers embed it in
+            // `&&` joins (`AllOf`). Without the outer parentheses, `element is JsonArray && <this>` parses as
+            // `(element is JsonArray && element !is JsonArray) || (element as JsonArray)…` — always false on
+            // the left, so the cast on the right runs for every non-array and throws ClassCastException.
+            "($element !is JsonArray || (${checks.joinToString(" && ").ifEmpty { "true" }}))"
         }
 
         is JsonBranchPredicate.ObjectShape -> {
@@ -920,7 +967,7 @@ private fun primitivePredicateExpression(
                         "$jsonObject.all { (name, value) -> name in setOf($declaredNames) || $additionalPredicate }"
                 }
             }
-            "$element !is JsonObject || (${checks.joinToString(" && ").ifEmpty { "true" }})"
+            "($element !is JsonObject || (${checks.joinToString(" && ").ifEmpty { "true" }}))"
         }
     }
 
@@ -1703,9 +1750,7 @@ internal fun EmissionContext.emitAnyOf(
     file: FileSpec.Builder,
     model: AnyOfDeclaration,
 ) {
-    if (model.branches.all { it.shape == AnyOfBranchShape.VALUE } ||
-        model.branches.any { it.shape == AnyOfBranchShape.VALUE }
-    ) {
+    if (model.branches.any { it.shape == AnyOfBranchShape.VALUE }) {
         require(model.branches.all { it.type != null }) {
             "Mixed anyOf branches require a typed value for every branch"
         }
@@ -1736,12 +1781,16 @@ internal fun EmissionContext.emitAnyOf(
 internal fun anyOfViewType(branch: AnyOfBranchDeclaration): TypeSpec {
     val name = branch.viewTypeName
     val constructor = FunSpec.constructorBuilder()
+    val hasOwnershipSensitiveField =
+        branch.viewFields.any { field -> field.type.requiresOwnershipSnapshot() }
+    if (hasOwnershipSensitiveField) constructor.addModifiers(KModifier.INTERNAL)
     val type =
         TypeSpec
             .classBuilder(name)
             .addModifiers(KModifier.PUBLIC)
             .apply {
                 if (branch.viewFields.isNotEmpty()) addModifiers(KModifier.DATA)
+                if (hasOwnershipSensitiveField) addAnnotation(CONSISTENT_COPY_VISIBILITY)
             }.addAnnotation(SERIALIZABLE)
     branch.viewFields.forEach { field ->
         val parameter = ParameterSpec.builder(field.resolvedName, field.type.toTypeName())
@@ -1751,6 +1800,9 @@ internal fun anyOfViewType(branch: AnyOfBranchDeclaration): TypeSpec {
             PropertySpec
                 .builder(field.resolvedName, field.type.toTypeName())
                 .addModifiers(KModifier.PUBLIC)
+                // View values are serialization projections decoded from the wrapper's authoritative raw JSON.
+                // Collection-bearing views have no public constructor or copy path; keeping these parameters as
+                // properties is required by the kotlinx.serialization compiler plugin.
                 .initializer(field.resolvedName)
         if (field.wireName != field.resolvedName) property.addAnnotation(serialName(field.wireName))
         type.addProperty(property.build())

@@ -1,6 +1,6 @@
 {
   "version": "v1alpha1",
-  "configDigest": "e2d4f83591c44b2e08910787f76f12b6da05bdba7c44f680d587f80bb623a458",
+  "configDigest": "d06b28d6d4a751f780ff38119ce361bb0aac623c69d16bd11980b883573b7c49",
   "source": {
     "canonicalUri": "sdkgen://source/openapi.yaml",
     "sha256": "350102b39f8575f9ef0eb7db96fc2f80f5cbfefbfbaf64d243bc696348d00b63",

@@ -41,21 +41,21 @@ class OpenRouterBlockerInventoryTest {
                     ),
                 output = OutputConfig("generated", "resources", "manifest.json"),
             )
-        val pipeline = GenerationPipeline("phase3-t8")
+        val pipeline = GenerationPipeline("conformance-test")
         val validation = pipeline.validate(config, source, emptyList())
 
         val blockingDiagnostics = validation.diagnostics.filter { diagnostic -> diagnostic.severity.name == "ERROR" }
         assertEquals(
             mapOf(
-                "SDKGEN-PROJECTION-UNREPRESENTABLE-SCHEMA" to 35,
-                "SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION" to 3,
+                "SDKGEN-PROJECTION-UNREPRESENTABLE-SCHEMA" to 48,
+                "SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION" to 5,
             ),
             blockingDiagnostics.groupingBy { diagnostic -> diagnostic.code }.eachCount(),
         )
         val expectedCategories =
             mapOf(
-                "conflicting-allOf" to 18,
-                "missing-declaration" to 18,
+                "conflicting-allOf" to 14,
+                "missing-declaration" to 37,
                 "primitive-oneOf" to 1,
                 "incompatible-request-media" to 1,
             )
@@ -77,7 +77,7 @@ class OpenRouterBlockerInventoryTest {
         when {
             "conflicting allOf property" in message -> "conflicting-allOf"
             "has no emitted declaration" in message -> "missing-declaration"
-            "primitive oneOf branch" in message -> "primitive-oneOf"
+            "has no exact JSON kind" in message -> "primitive-oneOf"
             "incompatible request schemas" in message -> "incompatible-request-media"
             else -> error("Unexpected OpenRouter blocker: $message")
         }

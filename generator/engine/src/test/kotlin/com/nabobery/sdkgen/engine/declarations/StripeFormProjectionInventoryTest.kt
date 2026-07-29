@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.nabobery.sdkgen.engine.config.RetryDefaults
 import com.nabobery.sdkgen.engine.config.RuntimeDefaults
+import com.nabobery.sdkgen.engine.readConformanceExclusionDelta
 import com.nabobery.sdkgen.model.DiagnosticSeverity
 import com.nabobery.sdkgen.openapi.SemanticAdapter
 import java.nio.file.Path
@@ -61,8 +62,8 @@ class StripeFormProjectionInventoryTest {
                 .toSet()
 
         assertEquals(586, formOperationIds.size)
-        assertEquals(429, projected.size)
-        assertEquals(157, diagnosed.size)
+        assertEquals(518, projected.size)
+        assertEquals(68, diagnosed.size)
         assertTrue(projected.intersect(diagnosed).isEmpty())
         assertEquals(formOperationIds, projected + diagnosed)
         projectedDeclarations.forEach { declaration ->
@@ -82,6 +83,25 @@ class StripeFormProjectionInventoryTest {
                 assertTrue(diagnostic.source.documentUri.isNotBlank())
                 assertTrue(diagnostic.source.jsonPointer.isNotBlank())
             }
+        val delta = readConformanceExclusionDelta("engine.stripeExclusionDelta")
+        assertEquals(
+            mapOf(
+                "parameter-deep-object-nonprimitive-array" to 2,
+                "parameter-deep-object-nonprimitive-property" to 2,
+            ),
+            delta.groupingBy { row -> row.category }.eachCount(),
+        )
+        assertEquals(
+            delta.map { row -> row.symbolId }.toSet(),
+            diagnosed.filter { symbolId -> symbolId in delta.map { row -> row.symbolId }.toSet() }.toSet(),
+        )
+        assertEquals(
+            delta.map { row -> row.jsonPointer }.toSet(),
+            mapping.diagnostics
+                .filter { diagnostic -> diagnostic.symbolId in delta.map { row -> row.symbolId }.toSet() }
+                .map { diagnostic -> diagnostic.source.jsonPointer }
+                .toSet(),
+        )
     }
 
     private fun rawFormOperations(root: JsonNode): List<RawFormOperation> =

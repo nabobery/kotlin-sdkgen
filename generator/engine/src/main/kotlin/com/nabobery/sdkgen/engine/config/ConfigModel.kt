@@ -180,20 +180,7 @@ public data class NamingConfig(
     public val clientName: String,
     public val modelPrefix: String? = null,
     public val operationPrefix: String? = null,
-    public val resourceGrouping: ResourceGrouping = ResourceGrouping.TAGS,
 )
-
-@Serializable
-public enum class ResourceGrouping {
-    @SerialName("tags")
-    TAGS,
-
-    @SerialName("operation-id")
-    OPERATION_ID,
-
-    @SerialName("single-client")
-    SINGLE_CLIENT,
-}
 
 @Serializable
 public enum class TargetFamily {

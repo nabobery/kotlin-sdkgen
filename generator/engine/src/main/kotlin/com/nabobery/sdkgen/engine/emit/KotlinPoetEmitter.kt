@@ -8,14 +8,28 @@ import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration
 import com.nabobery.sdkgen.engine.declarations.PrimitiveOneOfDeclaration
 
 internal fun interface KotlinEmitter {
-    fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile>
+    fun render(model: KotlinDeclarationModel): EmittedSources
 }
+
+/**
+ * The whole result of one emission: the files to publish, and the public-API projection derived from the very
+ * same KotlinPoet tree those files were rendered from.
+ *
+ * The two travel together deliberately. An emitter that could return sources without a projection would let the
+ * `kotlinApi` compatibility layer fall back to evidence that cannot observe emission -- the exact defect this
+ * projection exists to close. Bundling them means one traversal, and no way for the projection to silently go
+ * missing or drift from what was actually written.
+ */
+internal data class EmittedSources(
+    val files: List<RenderedKotlinFile>,
+    val publicApiProjection: String,
+)
 
 /** Dispatches a normalized declaration model to the internal KotlinPoet emission context. */
 internal class KotlinPoetEmitter(
     private val generatedPackage: String? = null,
 ) : KotlinEmitter {
-    override fun render(model: KotlinDeclarationModel): List<RenderedKotlinFile> {
+    override fun render(model: KotlinDeclarationModel): EmittedSources {
         val normalized = model.normalized()
         val packageName = generatedPackage ?: normalized.files.firstOrNull()?.packageName ?: DEFAULT_GENERATED_PACKAGE
         val customSerializerTypes =

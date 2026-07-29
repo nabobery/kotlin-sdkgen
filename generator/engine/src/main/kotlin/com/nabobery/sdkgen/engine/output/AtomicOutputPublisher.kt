@@ -97,6 +97,16 @@ internal class AtomicOutputPublisher(
         failAfterFiles: Int? = null,
         lock: LockPublication? = null,
         verifier: (Path) -> Unit = {},
+        /**
+         * The three `v1alpha2` evidence digests (ADR 0013, "Manifest transition and bounded input"),
+         * alongside the always-present [declarationModel] digest. Defaults are fixed, syntactically-valid
+         * placeholders for callers (mostly tests of publication mechanics) that do not care about the
+         * evidence content; [com.nabobery.sdkgen.engine.GenerationPipeline] always supplies the genuine,
+         * independently-computed digests for a real generation.
+         */
+        effectiveContractSha256: String = PLACEHOLDER_EFFECTIVE_CONTRACT_SHA256,
+        semanticModelSha256: String = PLACEHOLDER_SEMANTIC_MODEL_SHA256,
+        kotlinApiSha256: String = PLACEHOLDER_KOTLIN_API_SHA256,
     ): PublicationResult {
         val parent = requireNotNull(destination.parent) { "destination must have a parent" }
         parent.createDirectories()
@@ -120,7 +130,17 @@ internal class AtomicOutputPublisher(
             verify(temp, declarationModel, sortedFiles)
             verifier(temp)
             val manifest =
-                manifestBytes(declarationModel, sortedFiles, identity, diagnostics, exclusions, acceptedWaivers)
+                manifestBytes(
+                    declarationModel,
+                    sortedFiles,
+                    identity,
+                    diagnostics,
+                    exclusions,
+                    acceptedWaivers,
+                    effectiveContractSha256,
+                    semanticModelSha256,
+                    kotlinApiSha256,
+                )
             temp.resolve("manifest.json").writeBytes(manifest)
             val snapshotDigest = directoryDigest(sortedFiles, manifest)
             val snapshot = snapshots.resolve(snapshotDigest)
@@ -422,15 +442,21 @@ internal class AtomicOutputPublisher(
         diagnostics: List<GenerationDiagnostic>,
         exclusions: List<GenerationExclusion>,
         acceptedWaivers: List<AcceptedWaiverView>,
+        effectiveContractSha256: String,
+        semanticModelSha256: String,
+        kotlinApiSha256: String,
     ): ByteArray {
         val manifest =
             buildJsonObject {
-                put("schemaVersion", "v1alpha1")
+                put("schemaVersion", "v1alpha2")
                 put("generatorVersion", identity.generatorVersion)
                 put("edition", identity.edition)
                 put("kotlinPoetVersion", identity.kotlinPoetVersion)
                 put("configDigest", identity.configDigest)
                 put("declarationModelSha256", model.digest())
+                put("effectiveContractSha256", effectiveContractSha256)
+                put("semanticModelSha256", semanticModelSha256)
+                put("kotlinApiSha256", kotlinApiSha256)
                 put("source", manifestInput(identity.source))
                 put(
                     "references",
@@ -726,6 +752,13 @@ internal class AtomicOutputPublisher(
         const val MAX_MANIFEST_PATH_LENGTH = 4096
         val MANIFEST_JSON: Json = Json { prettyPrint = true }
         val PUBLICATION_LOCKS = ConcurrentHashMap<Path, ReentrantLock>()
+
+        // Fixed, canonical-hex placeholders for tests of publication mechanics that do not construct real
+        // evidence. Each is a distinct repeated hex digit so a test that (mis)uses one where another was
+        // intended fails loudly instead of silently aliasing two of the four `v1alpha2` digests.
+        val PLACEHOLDER_EFFECTIVE_CONTRACT_SHA256 = "1".repeat(64)
+        val PLACEHOLDER_SEMANTIC_MODEL_SHA256 = "2".repeat(64)
+        val PLACEHOLDER_KOTLIN_API_SHA256 = "3".repeat(64)
     }
 }
 

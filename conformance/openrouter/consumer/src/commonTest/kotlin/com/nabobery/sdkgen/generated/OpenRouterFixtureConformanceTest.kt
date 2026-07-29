@@ -1,5 +1,6 @@
 package com.nabobery.sdkgen.generated
 
+import com.nabobery.sdkgen.generated.chat.ChatClient.SendChatCompletionRequestResponse
 import com.nabobery.sdkgen.runtime.BackoffHints
 import com.nabobery.sdkgen.runtime.CallOptions
 import com.nabobery.sdkgen.runtime.PaginationDescriptor
@@ -8,8 +9,10 @@ import com.nabobery.sdkgen.runtime.PropertyPath
 import com.nabobery.sdkgen.runtime.ResponseSelector
 import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkAuthentication
+import com.nabobery.sdkgen.runtime.SdkAuthenticationException
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkRequestBody
+import com.nabobery.sdkgen.runtime.SdkResponseResult
 import com.nabobery.sdkgen.runtime.StreamingDescriptor
 import com.nabobery.sdkgen.runtime.bodies.MultipartBody
 import com.nabobery.sdkgen.runtime.bodies.TransferEvent
@@ -35,6 +38,7 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -229,6 +233,86 @@ class OpenRouterFixtureConformanceTest {
 
             assertContentEquals(byteArrayOf(4, 5, 6), consume(stream))
             assertTrue(body.closed)
+        }
+
+    @Test
+    fun generatedWithResponseTypedSuccessPreservesStatusAndRepeatedHeaders() =
+        runTest {
+            val body =
+                FakeByteStream(
+                    listOf(
+                        (
+                            "{\"choices\":[],\"created\":1,\"id\":\"chat-with-response-success\",\"model\":\"test\"," +
+                                "\"object\":\"chat.completion\",\"system_fingerprint\":null}"
+                        ).encodeToByteArray(),
+                    ),
+                )
+            val repeatedHeaders =
+                listOf(
+                    SdkHeader("Content-Type", "application/json"),
+                    SdkHeader("X-OpenRouter-Trace", "trace-1"),
+                    SdkHeader("X-OpenRouter-Trace", "trace-2"),
+                )
+            val transport = FakeTransport().enqueueResponse(200, repeatedHeaders, body)
+
+            val result =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
+                ).chat.sendChatCompletionRequestWithResponse(chatRequest())
+
+            assertIs<SdkResponseResult.Matched<SendChatCompletionRequestResponse>>(result)
+            assertEquals(200, result.statusCode)
+            assertEquals(repeatedHeaders, result.headers)
+
+            val value = result.value
+            assertIs<SendChatCompletionRequestResponse.SuccessJson>(value)
+            assertEquals(200, value.statusCode)
+            assertEquals(repeatedHeaders, value.headers)
+            assertEquals("chat-with-response-success", value.json.id)
+            assertTrue(body.closed)
+        }
+
+    @Test
+    fun generatedWithResponseDeclaredTypedNonSuccess() =
+        runTest {
+            val errorBodyJson =
+                """{"error":{"code":400,"message":"Invalid chat prompt format"}}"""
+            val body = FakeByteStream(listOf(errorBodyJson.encodeToByteArray()))
+            val responseHeaders = listOf(SdkHeader("Content-Type", "application/json"))
+            val transport = FakeTransport().enqueueResponse(400, responseHeaders, body)
+
+            val result =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
+                ).chat.sendChatCompletionRequestWithResponse(chatRequest())
+
+            assertIs<SdkResponseResult.Matched<SendChatCompletionRequestResponse>>(result)
+            assertEquals(400, result.statusCode)
+            assertEquals(responseHeaders, result.headers)
+
+            val value = result.value
+            assertIs<SendChatCompletionRequestResponse.Http400Json>(value)
+            assertEquals(400, value.statusCode)
+            assertEquals(responseHeaders, value.headers)
+            assertEquals("Invalid chat prompt format", value.json.error.message)
+            assertTrue(body.closed)
+        }
+
+    @Test
+    fun missingRequiredAuthFailsBeforeTransportIsInvoked() =
+        runTest {
+            val transport = FakeTransport()
+            val client = OpenRouterClient(transport, "https://openrouter.test")
+
+            assertFailsWith<SdkAuthenticationException> {
+                client.chat.sendChatCompletionRequest(chatRequest())
+            }
+
+            assertTrue(transport.capturedRequests.isEmpty())
         }
 
     private fun chatRequest(): ChatRequest =

@@ -1,0 +1,401 @@
+---
+# Release-candidate verification and local rehearsal — read-only, manual-only.
+#
+# This workflow runs as much of the verification gate docs/release-runbook.md ("Real release",
+# step 3) and the rehearsal steps ("Rehearsal", steps 1-5) as EXISTING Gradle tasks currently
+# support — cross-corpus parity, the standard build/check/ktlint/apiCheck gates, and
+# publication-inventory/metadata verification against an isolated local repository. It does not
+# implement any new verification logic itself. One runbook step still cannot be composed because
+# the tasks it needs do not exist in this tree: the Gradle Plugin Portal's
+# `validatePlugins`/`publishPlugins` come from a plugin that is not applied to
+# `integrations/gradle-plugin`. (An earlier revision of this comment also listed the benchmark-budget task
+# `verifyBenchmarkBudget` as unapplied; that task exists and is invoked below.) See the comment at
+# the omitted step and docs/release-runbook.md. It never publishes anywhere:
+#   - No signing key, Central Portal credential, or Gradle Plugin Portal credential is referenced
+#     anywhere in this file.
+#   - It never calls `publish` against any remote repository, `publishToMavenCentral`, or
+#     `publishPlugins` — the only `publish` invocation targets the isolated local repository via
+#     `publish-to-isolated-repository.init.gradle.kts` (publication rehearsal), which redirects `maven-publish`
+#     away from any remote coordinate.
+#   - `permissions: contents: read` at both workflow and job scope; no job in this file is ever
+#     granted `contents: write`, `id-token: write`, or `packages: write`. There is nothing here to
+#     poison, because there is no write-capable job in this workflow at all — release credentials
+#     do not exist in this repository yet (docs/release-runbook.md: "Remote repository credentials
+#     are intentionally not configured yet"), and per that runbook, real publication is always a
+#     separate, explicitly human-authorized action outside of any automatic CI trigger.
+#
+# Trigger is workflow_dispatch only — never schedule, never push, never pull_request — because a
+# release-candidate rehearsal is exactly the kind of thing docs/release-runbook.md says "must
+# never be a side effect of merging to main or of a scheduled workflow."
+
+name: Release verification (manual rehearsal)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_candidate_version:
+        description: >-
+          sdkgenVersion to rehearse (e.g. a non-SNAPSHOT release-candidate version). Left blank
+          rehearses the current sdkgenVersion gradle property unchanged.
+        type: string
+        default: ""
+
+concurrency:
+  # Shared with drift.yml's `sdkgen-heavy-gradle-lane` group — GitHub only serializes runs whose
+  # group names match exactly, so this MUST be the same literal string used there, not merely a
+  # similarly-named one. Without this, a scheduled drift run and a dispatched release rehearsal
+  # could run their own Gradle/generation lanes at the same time, which
+  # AGENTS.md ("Resource-safe verification") explicitly
+  # forbids ("Never run GitHub, Stripe, OpenRouter, publication rehearsal, or benchmark
+  # measurement concurrently"). `cancel-in-progress: false` here (deliberately not `true`): a
+  # release rehearsal must never be silently killed mid-run by an unrelated drift check starting —
+  # an overlapping run queues behind whichever one is already in progress instead.
+  group: sdkgen-heavy-gradle-lane
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Linux lane: JVM + JS(node+browser) + Android + Linux native targets, plus every task that
+  # composes parity, compatibility reporting, publication rehearsal, and performance-budget
+  # verification. ADR-0007's Apple targets cannot be produced here (see the `macos`
+  # job below) — this job does not attempt them.
+  verify-linux:
+    name: Verify (JVM/JS/Android/Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      GRADLE_ARGS: >-
+        --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+        -Pkotlin.compiler.execution.strategy=in-process
+      # The dispatcher-supplied input is placed into an environment variable by the runner (GitHub
+      # expands `${{ }}` into the *value* of this mapping entry, not into any script's source
+      # text), and every step below reads it back only as `"$RC_VERSION"` — a quoted shell
+      # variable reference, never spliced into a script body. That is what actually prevents
+      # command injection here; see the "Validate release_candidate_version" step for the
+      # accompanying grammar check, and docs/release-runbook.md for the full audit of every
+      # `${{ }}` interpolation in this file.
+      RC_VERSION: ${{ inputs.release_candidate_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      # Fails closed on anything that is not empty or a plain <major>.<minor>.<patch>[-<pre>]
+      # version string, before the value is used to build any `-PsdkgenVersion=...` argument
+      # below. This is defense in depth on top of the env-variable passing pattern (a value that
+      # can never reach a shell as unquoted script text has no injection surface regardless of its
+      # grammar), not a substitute for it.
+      - name: Validate release_candidate_version
+        run: |
+          set -eu
+          # `grep -Eq` anchors per LINE, not per value, so a multiline input such as
+          # "1.2.3\ninvalid!" would match on its first line and pass the whole value through as
+          # the -PsdkgenVersion argument. Reject any embedded newline explicitly first, then apply
+          # the grammar to what is now guaranteed to be a single line.
+          if [ -n "$RC_VERSION" ]; then
+            if [ "$(printf '%s' "$RC_VERSION" | wc -l | tr -d ' ')" != "0" ]; then
+              echo "::error::release_candidate_version must be a single line; it contains a line break."
+              exit 1
+            fi
+            if ! printf '%s' "$RC_VERSION" \
+              | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'; then
+              echo "::error::release_candidate_version '${RC_VERSION}' is not a plain <major>.<minor>.<patch>[-<prerelease>] version string."
+              exit 1
+            fi
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Node (KMP node-download is disabled; Node must be on PATH)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Set up Chrome (Karma + ChromeHeadless JS browser tests)
+        id: chrome
+        uses: browser-actions/setup-chrome@facf10a55b9caf92e0cc749b4f82bf8220989148 # v1.7.2
+
+      - name: Set up Android SDK (ANDROID_HOME)
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+
+      # Every step below is sequential within this single job — not a parallel matrix — per
+      # AGENTS.md "RESOURCE-SAFE CONFORMANCE" ("Run only one Gradle or corpus-generation lane at
+      # a time") and the plan's explicit ban on overlapping GitHub/Stripe/OpenRouter/publication/
+      # benchmark lanes. See docs/release-runbook.md for the full rationale.
+      #
+      # `version_arg` is built once as a bash array and reused by every gradlew invocation in this
+      # job that needs it (this step, and every publication step below) so that a dispatched
+      # release-candidate version is honored consistently everywhere, not just by whichever
+      # invocation happened to receive it — `--no-daemon` means a property given to one Gradle
+      # invocation never persists into the next.
+      - name: Full build, check, ktlint, and BCV apiCheck
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" build check ktlintCheck apiCheck "${version_arg[@]}"
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx4g"
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+
+      # cross-corpus parity gate — composed, not reimplemented. `parityGate` verifies the already-committed
+      # parity evidence/registry (conformance/parity/evidence, registry/parity-rows.json) against the
+      # corpus inputs at this exact commit; it `dependsOn(tasks.test)` so it re-runs this module's
+      # own tests but reads recorded, not freshly re-measured, per-corpus evidence. That is not a
+      # release gate: the committed ledger records `gateStatus: failed`, 0 passed rows and 24
+      # `notRun`, by design — live producer evidence is deliberately never checked in — so
+      # `parityGate` verifies that the tree still satisfies a record of work that was not run.
+      #
+      # `:conformance:parity:liveParity` is the real gate. It owns the whole sequence in one
+      # invocation: clear run-scoped evidence, run each corpus consumer test, record outcomes,
+      # produce evidence, enforce. An earlier revision of this file declined to compose the live
+      # gate because its cross-project task wiring "was not fully verified by inspection alone" —
+      # correctly, because at that time `liveParityGate` declared no task dependencies at all and
+      # invoking it scheduled no producer. That is fixed; the graph is now verified by a dry run.
+      - name: Live cross-corpus parity gate
+        run: ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" :conformance:parity:liveParity
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx4g"
+
+      # `generateParityMatrices` writes into the *source tree*
+      # (docs/conformance/evidence/parity-matrices.{md,json}), so running it in CI without checking the
+      # result silently regenerates a committed artifact and discards the difference. The diff below
+      # turns it into a drift check: if the committed matrices do not match what this tree produces,
+      # the step fails instead of quietly rewriting them.
+      - name: Cross-corpus parity matrices (verify committed matrices are current)
+        run: |
+          set -eu
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" :conformance:parity:generateParityMatrices
+          git diff --exit-code -- docs/conformance/evidence/parity-matrices.md \
+            docs/conformance/evidence/parity-matrices.json
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      # benchmark budget verification: `:generator:engine:verifyBenchmarkBudget` now exists and
+      # verifies the three committed records in `generator/engine/benchmarks/records/` against
+      # `generator/engine/benchmarks/budget.json` (median of three, fail-closed on any mismatch —
+      # see BenchmarkBudgetVerifier). It does NOT run a fresh benchmark: `githubScaleBenchmark` and
+      # `recordGitHubScaleBenchmarkMeasurement` are deliberately not invoked here, because a fresh
+      # measurement becomes committed evidence only via a human deliberately promoting it (see
+      # the benchmark budget records). Composing the live measurement into CI is
+      # left for a future packet once records exist for the designated CI runner (the committed
+      # records today are host-local to a developer Mac; the verifier's environment-matching guard
+      # means CI-runner records must be captured on that runner and committed separately before this
+      # step can be anything more than "does the tree still satisfy the current host-local budget").
+      - name: benchmark budget verification (against committed records)
+        run: ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" :generator:engine:verifyBenchmarkBudget
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      # publication rehearsal — isolated local file repository only, never a real remote
+      # repository. `sdkgen.publishing.gradle.kts` declares no repository at all ("Remote
+      # repositories and credentials are intentionally deferred until release automation exists");
+      # the ONLY repository `publish` can target here is the "isolated" one this init script adds
+      # (build-logic has no other repository declaration anywhere). `-PpublicationRepository` is
+      # passed explicitly so this step and the two verification tasks below agree on the same
+      # directory rather than relying on their independently-defined defaults happening to match.
+      # `-PsdkgenVersion` is passed explicitly here too (not just to the "Full build" step above):
+      # `--no-daemon` means each `./gradlew` invocation is a fresh process, so a property given to
+      # one invocation does not persist into the next. Without repeating it, a dispatched
+      # release-candidate version would compile correctly above but this step would still publish
+      # and verify the default `sdkgenVersion` (0.1.0-SNAPSHOT) — rehearsing a different version
+      # than the one asked for while reporting success.
+      - name: Publish to isolated local repository (rehearsal only, never remote)
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" -PpublicationRepository=build/publication-repository \
+            "${version_arg[@]}" \
+            --init-script conformance/publication/publish-to-isolated-repository.init.gradle.kts \
+            publish
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx3g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx3g"
+
+      - name: Verify publication metadata
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" -PpublicationRepository=build/publication-repository \
+            "${version_arg[@]}" \
+            :conformance:publication:verifyPublicationMetadata
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      - name: Generate and verify staged artifact inventory
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" -PpublicationRepository=build/publication-repository \
+            "${version_arg[@]}" \
+            :conformance:publication:generateStagedArtifactInventory \
+            :conformance:publication:verifyStagedArtifactInventory
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      - name: Compile isolated consumers against staged artifacts
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" -PpublicationRepository=build/publication-repository \
+            "${version_arg[@]}" \
+            :conformance:publication:executeIsolatedConsumerBuild
+        env:
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      # docs/release-runbook.md, "Rehearsal" step 5 calls for `validatePlugins` and
+      # `publishPlugins --validate-only`. Both tasks come from the `com.gradle.plugin-publish`
+      # Gradle plugin, which `integrations/gradle-plugin/build.gradle.kts` does not apply (it
+      # only applies `java-gradle-plugin` + `sdkgen.publishing`) — those tasks do not exist in
+      # this tree today. Adding `com.gradle.plugin-publish` is a real new build dependency and a
+      # Gradle Plugin Portal identity/credential decision the runbook flags as deferred; not added
+      # here. Left out; see docs/release-runbook.md.
+
+      # five-layer compatibility report is NOT enforced here, and the reason matters.
+      #
+      # An earlier revision of this comment said there is "no `sdkgen compat`". That is false:
+      # CompatCommand is registered in sdkgenCommand() (generator/cli/.../CliModule.kt) with
+      # --from/--to/--format/--fail-on and four evidence flags, and is covered by CompatCommandTest
+      # and CompatCommandEvidenceWiringTest. Only the second half of that comment held — there is
+      # genuinely no `verifyCompatibility`-style Gradle task to compose.
+      #
+      # The emitted `kotlinApi` projection is now signature-aware and bound to the corresponding
+      # manifest's declaration-model and generated-file digests. The remaining gap is orchestration:
+      # the workflow has no checked-in before/after manifest, behavior, ABI, and projection evidence
+      # pair to pass to `sdkgen compat`. Do not describe compatibility as CI-enforced until that
+      # evidence lifecycle and task exist.
+
+  # macOS lane: ADR-0007 — Apple targets (iosArm64, iosSimulatorArm64, macosArm64) cannot be
+  # produced on any other host. Sequenced after verify-linux (needs:) rather than run in parallel,
+  # matching the resource-safe-verification requirement to not overlap heavy build lanes; on
+  # separate runners this is a belt-and-suspenders sequencing choice, not a shared-memory
+  # necessity, but it keeps this workflow's behavior consistent with the plan's stated intent and
+  # keeps failures easy to attribute to one lane at a time.
+  verify-macos:
+    name: Verify (Apple targets, ADR-0007)
+    needs: verify-linux
+    runs-on: macos-14
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      # Same pattern and same reasoning as `verify-linux`: the input is read only via the `env:`
+      # mechanism, never spliced into a `run:` script body. This job is a separate runner/process
+      # from `verify-linux`, so it re-validates independently below rather than trusting that
+      # `verify-linux`'s validation ran — `needs: verify-linux` only guarantees that job succeeded
+      # before this one starts, it does not share state with it.
+      RC_VERSION: ${{ inputs.release_candidate_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Validate release_candidate_version
+        run: |
+          set -eu
+          # `grep -Eq` anchors per LINE, not per value, so a multiline input such as
+          # "1.2.3\ninvalid!" would match on its first line and pass the whole value through as
+          # the -PsdkgenVersion argument. Reject any embedded newline explicitly first, then apply
+          # the grammar to what is now guaranteed to be a single line.
+          if [ -n "$RC_VERSION" ]; then
+            if [ "$(printf '%s' "$RC_VERSION" | wc -l | tr -d ' ')" != "0" ]; then
+              echo "::error::release_candidate_version must be a single line; it contains a line break."
+              exit 1
+            fi
+            if ! printf '%s' "$RC_VERSION" \
+              | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'; then
+              echo "::error::release_candidate_version '${RC_VERSION}' is not a plain <major>.<minor>.<patch>[-<prerelease>] version string."
+              exit 1
+            fi
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Node (KMP node-download is disabled; Node must be on PATH)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+
+      - name: Build and check Apple targets
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          ./gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false \
+            -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" \
+            -Pkotlin.compiler.execution.strategy=in-process \
+            iosArm64Test iosSimulatorArm64Test macosArm64Test apiCheck "${version_arg[@]}"
+        env:
+          # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
+          # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
+          # daemon, and it silently applies to every other JVM the build launches (test workers,
+          # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
+          # independent of the daemon model.
+          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx4g"

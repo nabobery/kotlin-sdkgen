@@ -1,0 +1,6 @@
+{
+  "corpus": "github-rest",
+  "scenario": "full-pipeline-generation",
+  "unit": "MILLISECONDS",
+  "maxValue": 45000.0
+}
