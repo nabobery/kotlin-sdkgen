@@ -76,9 +76,9 @@ See [`docs/threat-model.md`](docs/threat-model.md) for the full threat model.
   deleted, only superseded by a new version. See
   [`docs/release-runbook.md`](docs/release-runbook.md) for the staged rehearsal and the explicit
   human-authorized publication step; publication is never an automatic side effect of CI.
-- Full signing, checksums, SBOM, and provenance evidence are tracked under publication readiness and are
-  **not yet complete**; do not assume a published artifact today carries that evidence until the
-  runbook and traceability table say otherwise.
+- Signing, checksums, CycloneDX SBOM generation, and GitHub provenance attestation are implemented and
+  exercised by the protected release rehearsal. No artifact has been published yet; verify the runbook,
+  attestation, and portal records for the specific version once a real release exists.
 
 ## Scope
 

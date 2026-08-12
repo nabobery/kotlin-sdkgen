@@ -379,7 +379,7 @@ internal class SdkGenPluginTestKitTest {
             }
             includeBuild("$sdkgenRoot") {
                 dependencySubstitution {
-                    substitute(module("com.nabobery:kotlin-sdkgen-runtime"))
+                    substitute(module("io.github.nabobery:kotlin-sdkgen-runtime"))
                         .using(project(":runtime:core"))
                 }
             }
@@ -397,13 +397,13 @@ internal class SdkGenPluginTestKitTest {
             plugins {
                 id("org.jetbrains.kotlin.jvm") version "2.3.20"
                 id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             repositories {
                 mavenCentral()
             }
             dependencies {
-                implementation("com.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
+                implementation("io.github.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
             }
             kotlin {
                 jvmToolchain(17)
@@ -439,7 +439,7 @@ internal class SdkGenPluginTestKitTest {
             plugins {
                 id("org.jetbrains.kotlin.multiplatform") version "2.3.20"
                 id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             repositories {
                 mavenCentral()
@@ -449,7 +449,7 @@ internal class SdkGenPluginTestKitTest {
                 jvmToolchain(17)
                 sourceSets {
                     commonMain.dependencies {
-                        implementation("com.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
+                        implementation("io.github.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
                     }
                 }
             }
@@ -491,7 +491,7 @@ internal class SdkGenPluginTestKitTest {
             """
             plugins {
                 id("base")
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             sdkgen {
                 configurations {
@@ -507,7 +507,7 @@ internal class SdkGenPluginTestKitTest {
             """
             plugins {
                 id("base")
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             sdkgen {
                 configurations {
@@ -530,7 +530,7 @@ internal class SdkGenPluginTestKitTest {
             """
             plugins {
                 id("base")
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             sdkgen {
                 configurations {
@@ -549,7 +549,7 @@ internal class SdkGenPluginTestKitTest {
             """
             plugins {
                 id("base")
-                id("com.nabobery.kotlin-sdkgen")
+                id("io.github.nabobery.kotlin-sdkgen")
             }
             sdkgen {
                 configurations {

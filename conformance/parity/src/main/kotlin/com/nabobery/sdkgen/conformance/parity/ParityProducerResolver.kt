@@ -45,14 +45,11 @@ internal data class ProducerInputPaths(
         fun openRouter(repositoryRoot: File): ProducerInputPaths =
             ProducerInputPaths(
                 corpus = repositoryRoot.resolve("conformance/openrouter/openapi.yaml"),
-                config = null,
-                lock = null,
+                config = repositoryRoot.resolve("conformance/openrouter/sdkgen.yaml"),
+                lock = repositoryRoot.resolve("conformance/openrouter/sdkgen.lock"),
                 overlay = repositoryRoot.resolve("conformance/openrouter/overlays/full-spec-compat.yaml"),
                 toolchain = repositoryRoot.resolve("gradle/libs.versions.toml"),
-                generatedDirectory =
-                    repositoryRoot.resolve(
-                        "conformance/openrouter/consumer/src/commonMain/kotlin/com/nabobery/sdkgen/generated",
-                    ),
+                generatedDirectory = repositoryRoot.resolve("conformance/openrouter/generated"),
             )
     }
 }

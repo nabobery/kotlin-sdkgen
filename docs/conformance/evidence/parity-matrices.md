@@ -1,12 +1,6 @@
 # Cross-Corpus Parity & Matrices
 
-> **Task-level status here is superseded by [`STATUS.md`](STATUS.md)**, the single authoritative record as of `p3r/remediation@a814ec6c`. This document remains the account of how the work was built and measured; where it states a verdict, read STATUS.md instead.
-
 This checkpoint aggregates checked evidence; it does not execute corpus or transport producers. Absent digest-bound executions from the current commit remain `notRun`.
-
-### Stripe scope status
-
-- The Stripe parity fixture IDs and producer wiring are now registered in the matrix pipeline (`stripe.form`, `stripe.multipart`, `stripe.auth-typed-errors`, `stripe.compile-jvm`, `stripe.source-portable`) with an optional `stripe.compile-non-jvm` slot held open.
 
 ## Executive Summary
 
@@ -84,31 +78,31 @@ All declared corpus, config, and toolchain digests match the repository inputs.
 
 | Corpus / Transport | Capability ID | Commit SHA | Config Digest | Config File SHA | Evidence Digest |
 | --- | --- | --- | --- | --- | --- |
-| `github` | `github.behavior.pagination` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.behavior.auth` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.behavior.typed-errors` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.behavior.optionality` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.behavior.unions` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.behavior.form` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.behavior.multipart` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.behavior.auth-typed-errors` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.behavior.typed-errors` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.behavior.auth` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.behavior.model-contracts` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.behavior.production-sse` | `null` | `n/a` | `n/a` | `400342b97b3a...` |
-| `stress-streaming` | `stress.behavior.generated-sse` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.behavior.multipart-waiver` | `null` | `n/a` | `n/a` | `400342b97b3a...` |
-| `runtime-core` | `runtime.behavior.js-lone-surrogate` | `null` | `n/a` | `n/a` | `400342b97b3a...` |
-| `runtime-core` | `runtime.behavior.android-host` | `null` | `n/a` | `n/a` | `400342b97b3a...` |
-| `github` | `github.compile.jvm` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.compile.non-jvm` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.compile.jvm` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.compile.non-jvm` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.compile.jvm` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.compile.representative-kmp` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `transport-ktor` | `ktor.transport.contract` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `transport-okhttp` | `okhttp.transport.contract` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `transport-java-http` | `java-http.transport.contract` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `github` | `github.source.portable` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `stripe` | `stripe.source.portable` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
-| `openrouter` | `openrouter.source.portable` | `null` | `n/a` | `n/a` | `daa7e69da540...` |
+| `github` | `github.behavior.pagination` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.behavior.auth` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.behavior.typed-errors` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.behavior.optionality` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.behavior.unions` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.behavior.form` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.behavior.multipart` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.behavior.auth-typed-errors` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.behavior.typed-errors` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.behavior.auth` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.behavior.model-contracts` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.behavior.production-sse` | `null` | `n/a` | `n/a` | `9c6d42ebede0...` |
+| `stress-streaming` | `stress.behavior.generated-sse` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.behavior.multipart-waiver` | `null` | `n/a` | `n/a` | `9c6d42ebede0...` |
+| `runtime-core` | `runtime.behavior.js-lone-surrogate` | `null` | `n/a` | `n/a` | `9c6d42ebede0...` |
+| `runtime-core` | `runtime.behavior.android-host` | `null` | `n/a` | `n/a` | `9c6d42ebede0...` |
+| `github` | `github.compile.jvm` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.compile.non-jvm` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.compile.jvm` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.compile.non-jvm` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.compile.jvm` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.compile.representative-kmp` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `transport-ktor` | `ktor.transport.contract` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `transport-okhttp` | `okhttp.transport.contract` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `transport-java-http` | `java-http.transport.contract` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `github` | `github.source.portable` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `stripe` | `stripe.source.portable` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |
+| `openrouter` | `openrouter.source.portable` | `null` | `n/a` | `n/a` | `c3288a9eec37...` |

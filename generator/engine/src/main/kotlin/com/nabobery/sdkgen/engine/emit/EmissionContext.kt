@@ -35,9 +35,14 @@ internal data class RenderedKotlinFile(
  * family emitters (see `ModelEmitter.kt`, `UnionEmitter.kt`, `EnumEmitter.kt`, `OperationEmitter.kt`,
  * `SupportEmitter.kt`) and hosts the ClassName/MemberName/type-conversion utilities they share.
  */
+internal enum class SerializerPlacement {
+    NESTED,
+    TOP_LEVEL,
+}
+
 internal class EmissionContext(
     internal val generatedPackage: String = "com.nabobery.sdkgen.generated",
-    internal val customSerializerTypes: Set<String> = emptySet(),
+    internal val customSerializerTypes: Map<String, SerializerPlacement> = emptyMap(),
 ) {
     /**
      * Emits [model] once and derives both outputs from that single KotlinPoet tree: the rendered files, and the

@@ -327,7 +327,7 @@ class KotlinPoetEmitterGoldenTest {
                 .bytes
                 .decodeToString()
 
-        assertTrue(source.contains("public object WidgetCodecs"))
+        assertTrue(source.contains("internal object WidgetCodecs"))
         assertTrue(source.contains("widgets.request"))
         assertTrue(source.contains("SdkResponseMode.BUFFERED"))
         assertTrue(source.contains("SdkDeadlines(10_000, 5_000, 1_000)"))
@@ -338,7 +338,7 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(source.contains("@throws SdkApiException"))
         assertTrue(source.contains("@throws SdkSerializationException"))
         assertTrue(source.contains("@throws SdkTransportException"))
-        assertTrue(source.contains("public val metadata: OperationMetadata"))
+        assertTrue(source.contains("internal val metadata: OperationMetadata"))
         assertFalse(source.contains("streaming support", ignoreCase = true))
     }
 
@@ -408,8 +408,8 @@ class KotlinPoetEmitterGoldenTest {
                 .bytes
                 .decodeToString()
 
-        assertTrue(source.contains("public val createWidgetMetadata: OperationMetadata"))
-        assertFalse(source.contains("public val metadata: OperationMetadata"))
+        assertTrue(source.contains("internal val createWidgetMetadata: OperationMetadata"))
+        assertFalse(source.contains("val metadata: OperationMetadata"))
     }
 
     @Test

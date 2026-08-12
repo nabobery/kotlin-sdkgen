@@ -81,3 +81,11 @@ from covering the configuration exhaustively.
   reintroducing an option — designed against a real caller rather than speculatively.
 - Any other configuration field found to feed `configDigest` without affecting generated output; the same
   argument applies to it.
+
+## Correction (2026-07-30)
+
+The fallback summary in this ADR's Decision section oversimplifies the actual behavior. When every named path
+segment is version-shaped, such as an untagged API whose paths are only under `/v1`, the first version segment is
+retained as the group rather than falling through to the default group. The default group is used only when the
+path has no named segments at all; ADR-0017's Decision section records the precise rule so an untagged
+`/v1`-only operation is not mistakenly understood to land in `default`.

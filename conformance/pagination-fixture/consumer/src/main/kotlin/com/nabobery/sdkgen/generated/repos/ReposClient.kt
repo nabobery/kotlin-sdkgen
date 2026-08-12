@@ -51,8 +51,8 @@ import kotlin.collections.List
 import kotlin.collections.Map
 import kotlinx.coroutines.flow.Flow
 
-public object ReposCodecs {
-  public const val LISTISSUES_RESPONSE_CODEC_ID: String = "listIssues.response"
+internal object ReposCodecs {
+  internal const val LISTISSUES_RESPONSE_CODEC_ID: String = "listIssues.response"
 
   private val listIssuesResponseCodec: MediaTypeCodec<IssuePage> =
       KotlinxSerializationCodec(LISTISSUES_RESPONSE_CODEC_ID, IssuePage.Serializer, SdkJson)
@@ -60,25 +60,25 @@ public object ReposCodecs {
   private val listIssuesResponseCodecAlternative0Codec: MediaTypeCodec<IssuePage> =
       KotlinxSerializationCodec("listIssues.response.alternative0", IssuePage.Serializer, SdkJson)
 
-  public val listIssuesResponseCodecAlternative0Registry: MediaTypeCodecRegistry<IssuePage> =
+  internal val listIssuesResponseCodecAlternative0Registry: MediaTypeCodecRegistry<IssuePage> =
       MediaTypeCodecRegistry.of(listIssuesResponseCodecAlternative0Codec)
 
   private val listIssuesResponseCodecAlternative1Codec: MediaTypeCodec<ErrorResponse> =
       KotlinxSerializationCodec("listIssues.response.alternative1", ErrorResponse.Serializer, SdkJson)
 
-  public val listIssuesResponseCodecAlternative1Registry: MediaTypeCodecRegistry<ErrorResponse> =
+  internal val listIssuesResponseCodecAlternative1Registry: MediaTypeCodecRegistry<ErrorResponse> =
       MediaTypeCodecRegistry.of(listIssuesResponseCodecAlternative1Codec)
 
   private val listIssuesResponseCodecAlternative2Codec: MediaTypeCodec<ErrorResponse> =
       KotlinxSerializationCodec("listIssues.response.alternative2", ErrorResponse.Serializer, SdkJson)
 
-  public val listIssuesResponseCodecAlternative2Registry: MediaTypeCodecRegistry<ErrorResponse> =
+  internal val listIssuesResponseCodecAlternative2Registry: MediaTypeCodecRegistry<ErrorResponse> =
       MediaTypeCodecRegistry.of(listIssuesResponseCodecAlternative2Codec)
 
-  public val listIssuesRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+  internal val listIssuesRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
-  public val listIssuesResponseCodecRegistry: MediaTypeCodecRegistry<IssuePage> =
+  internal val listIssuesResponseCodecRegistry: MediaTypeCodecRegistry<IssuePage> =
       MediaTypeCodecRegistry.of(listIssuesResponseCodec)
 }
 
@@ -327,7 +327,7 @@ public class ReposClient(
   }
 
   public companion object {
-    public val listIssuesMetadata: OperationMetadata by
+    internal val listIssuesMetadata: OperationMetadata by
         lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "listIssues",
           method = "GET",

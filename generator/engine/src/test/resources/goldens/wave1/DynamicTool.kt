@@ -66,7 +66,7 @@ public class DynamicTool(
     public fun build(block: Builder.() -> Unit): DynamicTool = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<DynamicTool> {
+  internal object Serializer : KSerializer<DynamicTool> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): DynamicTool {

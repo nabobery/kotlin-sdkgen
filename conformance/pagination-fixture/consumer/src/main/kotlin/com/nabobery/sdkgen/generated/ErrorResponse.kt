@@ -45,7 +45,7 @@ public class ErrorResponse(
     public fun build(block: Builder.() -> Unit): ErrorResponse = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<ErrorResponse> {
+  internal object Serializer : KSerializer<ErrorResponse> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): ErrorResponse {

@@ -1146,7 +1146,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                 ).files
         val source = rendered.single { it.path.endsWith("MetadataClient.kt") }.bytes.decodeToString()
 
-        assertTrue(source.contains("public val metadataStream: OperationMetadata"))
+        assertTrue(source.contains("internal val metadataStream: OperationMetadata"))
         assertEquals(2, Regex("lazy\\(LazyThreadSafetyMode\\.PUBLICATION\\)").findAll(source).count())
         assertFalse(source.contains("LazyThreadSafetyMode.NONE"))
         compileGenerated(rendered)
@@ -1412,7 +1412,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun classifyTimestamp(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(Timestamp.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(TimestampSerializer, raw)) {
                         is Timestamp.EpochValue -> "epoch"
                         is Timestamp.DateTimeValue -> "date-time"
                     }
@@ -1423,7 +1423,7 @@ class KotlinPoetEmitterCompileRegressionTest {
                 }
 
             fun roundTripTimestamp(raw: String): String =
-                SdkJson.encodeToString(Timestamp.Serializer, SdkJson.decodeFromString(Timestamp.Serializer, raw))
+                SdkJson.encodeToString(TimestampSerializer, SdkJson.decodeFromString(TimestampSerializer, raw))
             """.trimIndent()
         val output =
             compileGenerated(
@@ -1649,14 +1649,14 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun enumConst(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(EnumAndConst.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(EnumAndConstSerializer, raw)) {
                         is EnumAndConst.Enum -> "Enum"
                         is EnumAndConst.Constant -> "Constant"
                     }
                 } catch (_: Throwable) { "no-match" }
             fun numeric(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(Numeric.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(NumericSerializer, raw)) {
                         is Numeric.Integer -> "Integer"
                         is Numeric.Half -> "Half"
                     }
@@ -1664,16 +1664,16 @@ class KotlinPoetEmitterCompileRegressionTest {
                 catch (_: Throwable) { "no-match" }
             fun dates(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(Dates.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(DatesSerializer, raw)) {
                         is Dates.Date -> "Date"
                         is Dates.DateTime -> "DateTime"
                     }
                 } catch (_: Throwable) { "no-match" }
-            fun lengths(raw: String): String = try { SdkJson.decodeFromString(Lengths.Serializer, raw); "Short" } catch (_: Throwable) { "no-match" }
-            fun arrays(raw: String): String = try { SdkJson.decodeFromString(Arrays.Serializer, raw); "IntegerArray" } catch (_: Throwable) { "no-match" }
-            fun closed(raw: String): String = try { SdkJson.decodeFromString(ClosedObject.Serializer, raw); "Identifier" } catch (_: Throwable) { "no-match" }
-            fun open(raw: String): String = try { SdkJson.decodeFromString(OpenObject.Serializer, raw); "Anything" } catch (_: Throwable) { "no-match" }
-            fun roundTrip(raw: String): String = SdkJson.encodeToString(Numeric.Serializer, SdkJson.decodeFromString(Numeric.Serializer, raw))
+            fun lengths(raw: String): String = try { SdkJson.decodeFromString(LengthsSerializer, raw); "Short" } catch (_: Throwable) { "no-match" }
+            fun arrays(raw: String): String = try { SdkJson.decodeFromString(ArraysSerializer, raw); "IntegerArray" } catch (_: Throwable) { "no-match" }
+            fun closed(raw: String): String = try { SdkJson.decodeFromString(ClosedObjectSerializer, raw); "Identifier" } catch (_: Throwable) { "no-match" }
+            fun open(raw: String): String = try { SdkJson.decodeFromString(OpenObjectSerializer, raw); "Anything" } catch (_: Throwable) { "no-match" }
+            fun roundTrip(raw: String): String = SdkJson.encodeToString(NumericSerializer, SdkJson.decodeFromString(NumericSerializer, raw))
             """.trimIndent()
         val output =
             compileGenerated(
@@ -2058,7 +2058,7 @@ class KotlinPoetEmitterCompileRegressionTest {
             fun checkRunFactory(value: String): String =
                 try {
                     val result = CheckRun.Completed.of(value)
-                    val roundTripped = SdkJson.decodeFromString(CheckRun.Serializer, SdkJson.encodeToString(CheckRun.Serializer, result))
+                    val roundTripped = SdkJson.decodeFromString(CheckRunSerializer, SdkJson.encodeToString(CheckRunSerializer, result))
                     if (roundTripped is CheckRun.Completed && roundTripped.type == value) "round-trip" else "wrong-branch"
                 } catch (failure: Throwable) {
                     failure::class.simpleName.orEmpty()
@@ -2381,7 +2381,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             private fun classifyForward(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(SharedValueForward.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(SharedValueForwardSerializer, raw)) {
                         is SharedValueForward.StringValue -> "non-nullable"
                         is SharedValueForward.NullableValue -> "nullable"
                         else -> "unknown"
@@ -2396,7 +2396,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun discriminator(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(SharedValueDiscriminator.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(SharedValueDiscriminatorSerializer, raw)) {
                         is SharedValueDiscriminator.Alpha -> "alpha"
                         is SharedValueDiscriminator.Beta -> "beta"
                         else -> "unknown"
@@ -2407,7 +2407,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun emptyActor(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(EmptyObjectActor.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(EmptyObjectActorSerializer, raw)) {
                         is EmptyObjectActor.Empty -> "empty"
                         is EmptyObjectActor.User -> "user"
                         else -> "unknown"
@@ -2420,7 +2420,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             private fun classifyReverse(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(SharedValueReverse.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(SharedValueReverseSerializer, raw)) {
                         is SharedValueReverse.StringValue -> "non-nullable"
                         is SharedValueReverse.NullableValue -> "nullable"
                         else -> "unknown"
@@ -2585,7 +2585,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun valueCollision(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(ValueCollision.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(ValueCollisionSerializer, raw)) {
                         is ValueCollision.Foo -> "foo"
                         is ValueCollision.FooDecoded -> "foo-decoded"
                         else -> "unknown"
@@ -2596,7 +2596,7 @@ class KotlinPoetEmitterCompileRegressionTest {
 
             fun inspectionCollision(raw: String): String =
                 try {
-                    when (SdkJson.decodeFromString(InspectionCollision.Serializer, raw)) {
+                    when (SdkJson.decodeFromString(InspectionCollisionSerializer, raw)) {
                         is InspectionCollision.Alpha -> "alpha"
                         is InspectionCollision.Beta -> "beta"
                         else -> "unknown"

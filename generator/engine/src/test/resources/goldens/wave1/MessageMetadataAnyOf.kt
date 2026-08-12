@@ -92,7 +92,7 @@ public class MessageMetadataAnyOf internal constructor(
     }
   }
 
-  public object Serializer : KSerializer<MessageMetadataAnyOf> {
+  internal object Serializer : KSerializer<MessageMetadataAnyOf> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): MessageMetadataAnyOf {

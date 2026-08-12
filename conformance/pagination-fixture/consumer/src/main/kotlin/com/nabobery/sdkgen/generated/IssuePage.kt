@@ -49,7 +49,7 @@ public class IssuePage(
     public fun build(block: Builder.() -> Unit): IssuePage = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<IssuePage> {
+  internal object Serializer : KSerializer<IssuePage> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): IssuePage {

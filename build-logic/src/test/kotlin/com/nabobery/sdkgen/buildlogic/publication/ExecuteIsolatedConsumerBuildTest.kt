@@ -17,7 +17,7 @@ import kotlin.io.path.writeText
  * against the staged repository rather than reading the consumer build files as text.
  *
  * [PublicationMetadataTopology.verifyConsumerFixtures] greps: it asserts substrings are present, counts
- * `maven {` blocks with a regex, and checks `"com.nabobery:$artifact:" in buildText`. Every one of those is
+ * `maven {` blocks with a regex, and checks `"io.github.nabobery:$artifact:" in buildText`. Every one of those is
  * satisfied by a fixture whose declared dependency does not exist, whose Gradle Module Metadata does not
  * resolve, or whose public types are not visible — which is the entire question a consumer fixture exists to
  * answer. `unresolvableDependencyFailsEvenThoughTheBuildFilesLookCorrect` is that exact case: the fixture
@@ -108,7 +108,7 @@ internal class ExecuteIsolatedConsumerBuildTest {
     private fun stageResolvableLibrary(repository: Path) {
         val directory =
             repository
-                .resolve("com/nabobery/kotlin-sdkgen-runtime/$STAGED_VERSION")
+                .resolve("io/github/nabobery/kotlin-sdkgen-runtime/$STAGED_VERSION")
                 .also(Path::createDirectories)
         // A real (empty but well-formed) jar. An empty *file* is not a jar: javac reports
         // "zip END header not found" and the build fails for the wrong reason.
@@ -120,7 +120,7 @@ internal class ExecuteIsolatedConsumerBuildTest {
             <?xml version="1.0" encoding="UTF-8"?>
             <project xmlns="http://maven.apache.org/POM/4.0.0">
               <modelVersion>4.0.0</modelVersion>
-              <groupId>com.nabobery</groupId>
+              <groupId>io.github.nabobery</groupId>
               <artifactId>kotlin-sdkgen-runtime</artifactId>
               <version>$STAGED_VERSION</version>
               <packaging>jar</packaging>
@@ -150,7 +150,7 @@ internal class ExecuteIsolatedConsumerBuildTest {
                             }
                         }
                         filter {
-                            includeGroup("com.nabobery")
+                            includeGroup("io.github.nabobery")
                         }
                     }
                 }
@@ -168,7 +168,7 @@ internal class ExecuteIsolatedConsumerBuildTest {
             }
 
             dependencies {
-                implementation("com.nabobery:kotlin-sdkgen-runtime:$dependencyVersion")
+                implementation("io.github.nabobery:kotlin-sdkgen-runtime:$dependencyVersion")
             }
             """.trimIndent(),
         )

@@ -3,5 +3,5 @@ plugins {
 }
 
 dependencies {
-    implementation("com.nabobery:kotlin-sdkgen-engine:${providers.gradleProperty("sdkgenVersion").get()}")
+    implementation("io.github.nabobery:kotlin-sdkgen-engine:${providers.gradleProperty("sdkgenVersion").get()}")
 }

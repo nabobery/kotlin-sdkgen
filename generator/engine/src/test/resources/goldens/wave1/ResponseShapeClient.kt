@@ -31,26 +31,26 @@ import kotlin.collections.List
 import kotlin.collections.Map
 import kotlinx.serialization.builtins.serializer
 
-public object ResponseShapeCodecs {
+internal object ResponseShapeCodecs {
   private val jsonFirstResponseCodecAlternative0Codec: MediaTypeCodec<String> =
       KotlinxSerializationCodec("jsonFirst.response.alternative0", String.serializer(), SdkJson)
 
-  public val jsonFirstResponseCodecAlternative0Registry: MediaTypeCodecRegistry<String> =
+  internal val jsonFirstResponseCodecAlternative0Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(jsonFirstResponseCodecAlternative0Codec)
 
-  public val jsonFirstRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+  internal val jsonFirstRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
   private val binaryFirstResponseCodecAlternative1Codec: MediaTypeCodec<String> =
       KotlinxSerializationCodec("binaryFirst.response.alternative1", String.serializer(), SdkJson)
 
-  public val binaryFirstResponseCodecAlternative1Registry: MediaTypeCodecRegistry<String> =
+  internal val binaryFirstResponseCodecAlternative1Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(binaryFirstResponseCodecAlternative1Codec)
 
-  public val binaryFirstRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+  internal val binaryFirstRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
-  public const val COMPATIBLEMEDIA_RESPONSE_CODEC_ID: String = "compatibleMedia.response"
+  internal const val COMPATIBLEMEDIA_RESPONSE_CODEC_ID: String = "compatibleMedia.response"
 
   private val compatibleMediaResponseCodec: MediaTypeCodec<String> =
       KotlinxSerializationCodec(COMPATIBLEMEDIA_RESPONSE_CODEC_ID, String.serializer(), SdkJson)
@@ -58,25 +58,25 @@ public object ResponseShapeCodecs {
   private val compatibleMediaResponseCodecAlternative0Codec: MediaTypeCodec<String> =
       KotlinxSerializationCodec("compatibleMedia.response.alternative0", String.serializer(), SdkJson)
 
-  public val compatibleMediaResponseCodecAlternative0Registry: MediaTypeCodecRegistry<String> =
+  internal val compatibleMediaResponseCodecAlternative0Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(compatibleMediaResponseCodecAlternative0Codec)
 
   private val compatibleMediaResponseCodecAlternative1Codec: MediaTypeCodec<String> =
       KotlinxSerializationCodec("compatibleMedia.response.alternative1", String.serializer(), SdkJson)
 
-  public val compatibleMediaResponseCodecAlternative1Registry: MediaTypeCodecRegistry<String> =
+  internal val compatibleMediaResponseCodecAlternative1Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(compatibleMediaResponseCodecAlternative1Codec)
 
   private val compatibleMediaResponseCodecAlternative2Codec: MediaTypeCodec<String> =
       KotlinxSerializationCodec("compatibleMedia.response.alternative2", String.serializer(), SdkJson)
 
-  public val compatibleMediaResponseCodecAlternative2Registry: MediaTypeCodecRegistry<String> =
+  internal val compatibleMediaResponseCodecAlternative2Registry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(compatibleMediaResponseCodecAlternative2Codec)
 
-  public val compatibleMediaRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+  internal val compatibleMediaRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
-  public val compatibleMediaResponseCodecRegistry: MediaTypeCodecRegistry<String> =
+  internal val compatibleMediaResponseCodecRegistry: MediaTypeCodecRegistry<String> =
       MediaTypeCodecRegistry.of(compatibleMediaResponseCodec)
 }
 
@@ -399,7 +399,7 @@ public class ResponseShapeClient(
   }
 
   public companion object {
-    public val jsonFirstMetadata: OperationMetadata by
+    internal val jsonFirstMetadata: OperationMetadata by
         lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "jsonFirst",
           method = "GET",
@@ -438,7 +438,7 @@ public class ResponseShapeClient(
           streaming = null,
         ) }
 
-    public val binaryFirstMetadata: OperationMetadata by
+    internal val binaryFirstMetadata: OperationMetadata by
         lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "binaryFirst",
           method = "GET",
@@ -477,7 +477,7 @@ public class ResponseShapeClient(
           streaming = null,
         ) }
 
-    public val compatibleMediaMetadata: OperationMetadata by
+    internal val compatibleMediaMetadata: OperationMetadata by
         lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "compatibleMedia",
           method = "GET",

@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.ktlint.gradle.plugin)
     implementation(libs.binary.compatibility.validator.gradle.plugin)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.dokka.gradle.plugin)
 
     testImplementation(gradleTestKit())
     testImplementation(libs.junit.jupiter)

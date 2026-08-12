@@ -34,15 +34,15 @@
     "files": [
         {
             "path": "com/nabobery/sdkgen/generated/ErrorResponse.kt",
-            "sha256": "15435aa57def2f1cc09abe0b49a8d33481f271eea10797bf28d202d4c24eaf9e"
+            "sha256": "e390d176b7805749ba2015ab65b02a2bbbac29b76ba2390c8f14088d6df7802d"
         },
         {
             "path": "com/nabobery/sdkgen/generated/Issue.kt",
-            "sha256": "d8ec047818700ef9210605b0a9b705a5790db37dc308bda7fa5a373a413d3509"
+            "sha256": "6f9ea802055dfa508e49d904e7e8d78a78a39138664177c76d74f71558c5986b"
         },
         {
             "path": "com/nabobery/sdkgen/generated/IssuePage.kt",
-            "sha256": "1369cc30f350dca328901d637963d97f259442e8b517aa35c860c30e17f55a28"
+            "sha256": "b909bec713d0af2bda659ceee05defe76eb7a97461dc4cc8ba78cf8d00545231"
         },
         {
             "path": "com/nabobery/sdkgen/generated/PaginationFixtureClient.kt",
@@ -54,7 +54,7 @@
         },
         {
             "path": "com/nabobery/sdkgen/generated/repos/ReposClient.kt",
-            "sha256": "c325fe1a966afdb953e1308f0560493ae7ec60cff882d1f7587de76366db5316"
+            "sha256": "021400eb08d43e4f686d442dc1add8da27f856b0fcc7dcbb59a10774f1252c2a"
         }
     ]
 }

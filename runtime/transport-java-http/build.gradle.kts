@@ -1,6 +1,6 @@
 plugins {
-    id("sdkgen.kotlin-jvm")
     id("sdkgen.publishing")
+    id("sdkgen.kotlin-jvm")
 }
 
 dependencies {

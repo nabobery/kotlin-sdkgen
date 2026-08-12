@@ -36,7 +36,7 @@ public class ChatContentBranchValidationException(
 /**
  * Closed non-discriminated oneOf. Exactly one branch must structurally match.
  */
-@Serializable(with = ChatContent.Serializer::class)
+@Serializable(with = ChatContentSerializer::class)
 public sealed interface ChatContent {
   /**
    * Raw JSON retained as the serialization authority.
@@ -144,31 +144,31 @@ public sealed interface ChatContent {
       }
     }
   }
+}
 
-  public object Serializer : KSerializer<ChatContent> {
-    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+internal object ChatContentSerializer : KSerializer<ChatContent> {
+  override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
-    override fun deserialize(decoder: Decoder): ChatContent {
-      val jsonDecoder = decoder.requireJsonDecoder("ChatContent")
-      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw ChatContentNoMatchException("ChatContent matched 0 branches: expected JSON object")
-      val matches = inspectChatContent(rawObject)
-      if (matches.size == 0) {
-        throw ChatContentNoMatchException("ChatContent matched 0 branches: " + matches.failures.joinToString("; "))
-      }
-      if (matches.size > 1) {
-        throw ChatContentAmbiguityException("ChatContent matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
-      }
-      return when {
-        matches.textMatches -> Text(text = requireNotNull(matches.text), raw = rawObject)
-        matches.imageMatches -> Image(imageUrl = requireNotNull(matches.imageUrl), raw = rawObject)
-        matches.audioMatches -> Audio(audioData = requireNotNull(matches.audioData), format = requireNotNull(matches.format), raw = rawObject)
-        else -> error("unreachable")
-      }
+  override fun deserialize(decoder: Decoder): ChatContent {
+    val jsonDecoder = decoder.requireJsonDecoder("ChatContent")
+    val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw ChatContentNoMatchException("ChatContent matched 0 branches: expected JSON object")
+    val matches = inspectChatContent(rawObject)
+    if (matches.size == 0) {
+      throw ChatContentNoMatchException("ChatContent matched 0 branches: " + matches.failures.joinToString("; "))
     }
-
-    override fun serialize(encoder: Encoder, `value`: ChatContent) {
-      encoder.requireJsonEncoder("ChatContent").encodeJsonElement(value.raw)
+    if (matches.size > 1) {
+      throw ChatContentAmbiguityException("ChatContent matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
     }
+    return when {
+      matches.textMatches -> ChatContent.Text(text = requireNotNull(matches.text), raw = rawObject)
+      matches.imageMatches -> ChatContent.Image(imageUrl = requireNotNull(matches.imageUrl), raw = rawObject)
+      matches.audioMatches -> ChatContent.Audio(audioData = requireNotNull(matches.audioData), format = requireNotNull(matches.format), raw = rawObject)
+      else -> error("unreachable")
+    }
+  }
+
+  override fun serialize(encoder: Encoder, `value`: ChatContent) {
+    encoder.requireJsonEncoder("ChatContent").encodeJsonElement(value.raw)
   }
 }
 

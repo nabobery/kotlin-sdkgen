@@ -63,12 +63,12 @@ internal class StagedArtifactInventoryJsonTest {
               "schemaVersion": "sdkgen-staged-artifact-inventory-v1",
               "artifacts": [
                 {
-                  "group": "com.nabobery",
+                  "group": "io.github.nabobery",
                   "artifactId": "kotlin-sdkgen-engine",
                   "version": "1.2.3",
                   "classifier": null,
                   "extension": "jar",
-                  "relativePath": "com/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
+                  "relativePath": "io/github/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
                   "sha256": "${"a".repeat(64)}"
                 }
               ]
@@ -89,13 +89,13 @@ internal class StagedArtifactInventoryJsonTest {
               "schemaVersion": "sdkgen-staged-artifact-inventory-v1",
               "artifacts": [
                 {
-                  "group": "com.nabobery",
+                  "group": "io.github.nabobery",
                   "artifactId": "kotlin-sdkgen-engine",
                   "version": "1.2.3",
                   "classifier": null,
                   "extension": "jar",
                   "target": null,
-                  "relativePath": "com/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
+                  "relativePath": "io/github/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
                   "sha256": "${"a".repeat(64)}"
                 }
               ]
@@ -117,12 +117,12 @@ internal class StagedArtifactInventoryJsonTest {
               "schemaVersion": "sdkgen-staged-artifact-inventory-v2",
               "artifacts": [
                 {
-                  "group": "com.nabobery",
+                  "group": "io.github.nabobery",
                   "artifactId": "kotlin-sdkgen-engine",
                   "version": "1.2.3",
                   "classifier": null,
                   "extension": "jar",
-                  "relativePath": "com/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
+                  "relativePath": "io/github/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar",
                   "sha256": "${"a".repeat(64)}"
                 }
               ]
@@ -155,11 +155,11 @@ internal class StagedArtifactInventoryJsonTest {
         target: String?,
     ): SdkgenProductStagedArtifact =
         SdkgenProductStagedArtifact(
-            coordinate = SdkgenProductCoordinate("com.nabobery", artifactId, "1.2.3"),
+            coordinate = SdkgenProductCoordinate("io.github.nabobery", artifactId, "1.2.3"),
             classifier = null,
             extension = "klib",
             target = target,
-            relativePath = "com/nabobery/$artifactId/1.2.3/$artifactId-1.2.3.klib",
+            relativePath = "io/github/nabobery/$artifactId/1.2.3/$artifactId-1.2.3.klib",
             sha256 = "a".repeat(64),
         )
 }

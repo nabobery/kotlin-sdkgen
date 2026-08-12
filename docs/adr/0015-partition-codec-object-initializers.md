@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for the pre-1.0 generated API.
+Accepted for the pre-1.0 generated API. Amended by [ADR 0020](0020-internal-visibility-for-generated-protocol-glue.md),
+which makes the declarations shown below internal; the partitioning structure described here is unchanged.
 
 ## Context
 
@@ -35,37 +36,38 @@ API would be the wrong lever: a client with 519 operations should compile whethe
 ## Decision
 
 When a client's codecs object would hold more than **400 stored (non-`const`) properties**, those properties
-move into nested `private object Partition<N>` holders, each with its own `<clinit>`, and the public ones are
-re-exposed from the outer object as forwarding accessors:
+move into nested `private object Partition<N>` holders, each with its own `<clinit>`, and the outer registry
+properties remain available as forwarding accessors:
 
 ```kotlin
-public object V1Codecs {
-  public const val GETACCOUNTS_RESPONSE_CODEC_ID: String = "GetAccounts.response"
+internal object V1Codecs {
+  internal const val GETACCOUNTS_RESPONSE_CODEC_ID: String = "GetAccounts.response"
 
-  public object PostAccountsFormCodec : MediaTypeCodec<JsonObject?> { /* ... */ }
+  internal object PostAccountsFormCodec : MediaTypeCodec<JsonObject?> { /* ... */ }
 
   private object Partition0 {
     private val getAccountsResponseCodec: MediaTypeCodec<Account> =
         KotlinxSerializationCodec(V1Codecs.GETACCOUNTS_RESPONSE_CODEC_ID, Account.Serializer, SdkJson)
-    public val getAccountsResponseCodecRegistry: MediaTypeCodecRegistry<Account> =
+    internal val getAccountsResponseCodecRegistry: MediaTypeCodecRegistry<Account> =
         MediaTypeCodecRegistry.of(getAccountsResponseCodec)
   }
 
-  public val getAccountsResponseCodecRegistry: MediaTypeCodecRegistry<Account>
+  internal val getAccountsResponseCodecRegistry: MediaTypeCodecRegistry<Account>
     get() = Partition0.getAccountsResponseCodecRegistry
 }
 ```
 
 Three consequences are load-bearing:
 
-- **Only stored properties move.** `const val` codec ids and the nested `public object <Op>FormCodec` /
-  `<Op>MultipartCodec` declarations stay on the codecs object. Neither costs `<clinit>` bytecode — a constant
-  is inlined, and a nested `object` initializes lazily in its own `<clinit>` — and both are public generated
-  API. A partition reaches them qualified (`V1Codecs.PostAccountsFormCodec`).
-- **The public surface is unchanged, and that is tested at the level where it can break.** A public member of
-  a `private object` is not reachable: `private` on the enclosing scope wins. So the guard must inventory
-  public *nested types* as well as public properties. `CodecPartitioningTest` does both, and
-  `partitioningKeepsPublicNestedCodecObjectsReachable` pins the specific case.
+- **Only stored properties move.** `const val` codec ids and the nested `internal object <Op>FormCodec` /
+  `<Op>MultipartCodec` declarations stay on the codecs object as internal protocol glue, per
+  [ADR 0020](0020-internal-visibility-for-generated-protocol-glue.md). Neither costs `<clinit>` bytecode — a
+  constant is inlined, and a nested `object` initializes lazily in its
+  own `<clinit>`. A partition reaches them qualified (`V1Codecs.PostAccountsFormCodec`).
+- **The outer protocol structure is tested at the level where it can break.** A member of a `private object`
+  is not reachable: `private` on the enclosing scope wins. So the guard must inventory nested types as well as
+  properties. `CodecPartitioningTest` does both, and `partitioningKeepsPublicNestedCodecObjectsReachable` pins
+  the specific case.
 - **Partitions are bounded by stored-property count, not operation count.** One operation emits an unbounded
   number of stored properties — two per typed response alternative — so an operation-count bound would not
   bound initializer size at all.
@@ -81,11 +83,11 @@ assignment. Each assignment is a constructor call with a handful of arguments �
 because each individual assignment's size is itself bounded and small.
 
 One residual case is **not** structurally bounded: a single operation declaring more than 400 stored properties
-cannot be split, because the private codec that a public registry wraps must remain its sibling. That needs on
+cannot be split, because the private codec that an internal registry wraps must remain its sibling. That needs on
 the order of two thousand response alternatives on one operation, and no corpus approaches it. This is a known
 gap, not a claim of universal safety.
 
-The cost of the margin is one extra nesting level and one accessor per public member on clients above it.
+The cost of the margin is one extra nesting level and one accessor per outer registry property on clients above it.
 
 ## Alternatives considered
 

@@ -179,7 +179,7 @@ public class ChatRequest internal constructor(
     public fun build(block: Builder.() -> Unit): ChatRequest = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<ChatRequest> {
+  internal object Serializer : KSerializer<ChatRequest> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): ChatRequest {

@@ -26,5 +26,8 @@ tasks.register<VerifyStagedArtifactInventory>("verifyStagedArtifactInventory") {
     repositoryDirectory.set(publicationRepository)
     inventoryFile.set(generateStagedArtifactInventory.flatMap { it.inventoryFile })
     expectedVersion.set(providers.gradleProperty("sdkgenVersion"))
+    requireReleaseArtifacts.set(
+        providers.gradleProperty("sdkgenVerifyReleaseArtifacts").map(String::toBoolean).orElse(false),
+    )
     verificationMarker.set(layout.buildDirectory.file("reports/publication/staged-artifact-inventory-verified.txt"))
 }

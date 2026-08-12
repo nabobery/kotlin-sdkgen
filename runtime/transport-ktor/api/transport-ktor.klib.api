@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.nabobery:transport-ktor>
+// Library unique name: <io.github.nabobery:transport-ktor>
 final class com.nabobery.sdkgen.transport.ktor/KtorSdkTransport : com.nabobery.sdkgen.runtime/SdkTransport { // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport|null[0]
     constructor <init>(io.ktor.client/HttpClient) // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.<init>|<init>(io.ktor.client.HttpClient){}[0]
     constructor <init>(io.ktor.client/HttpClient, com.nabobery.sdkgen.runtime/TransportCapabilities) // com.nabobery.sdkgen.transport.ktor/KtorSdkTransport.<init>|<init>(io.ktor.client.HttpClient;com.nabobery.sdkgen.runtime.TransportCapabilities){}[0]

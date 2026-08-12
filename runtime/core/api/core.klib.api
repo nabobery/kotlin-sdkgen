@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.nabobery:core>
+// Library unique name: <io.github.nabobery:core>
 final enum class com.nabobery.sdkgen.runtime.bodies/MultipartCompatibility : kotlin/Enum<com.nabobery.sdkgen.runtime.bodies/MultipartCompatibility> { // com.nabobery.sdkgen.runtime.bodies/MultipartCompatibility|null[0]
     enum entry LEGACY_BRACKETS // com.nabobery.sdkgen.runtime.bodies/MultipartCompatibility.LEGACY_BRACKETS|null[0]
     enum entry STANDARDS // com.nabobery.sdkgen.runtime.bodies/MultipartCompatibility.STANDARDS|null[0]

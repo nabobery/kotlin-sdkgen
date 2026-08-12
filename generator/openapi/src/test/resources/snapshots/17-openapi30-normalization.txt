@@ -1,12 +1,12 @@
 document sdkgen://source/17-openapi30-normalization.yaml
 title "OpenAPI 3.0 normalization stress"
 version "1.0.0"
-sourceDocument sdkgen://source/17-openapi30-normalization.yaml sha256=845264f1fc2228618c2eaa0bb17a78b095728d46b6cb362031d146947833c688 bytes=1661 policy=LOCAL_FILE @sdkgen://source/17-openapi30-normalization.yaml#:4:1:262
-source sdkgen://source/17-openapi30-normalization.yaml#:4:1:262
+sourceDocument sdkgen://source/17-openapi30-normalization.yaml sha256=f71a663d138f278604b13b8be35b7b218226481e8e36ace7ed759b72dffe461f bytes=1672 policy=LOCAL_FILE @sdkgen://source/17-openapi30-normalization.yaml#:4:1:273
+source sdkgen://source/17-openapi30-normalization.yaml#:4:1:273
 extensions {}
 security
 schemas 17
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address:38:7:985
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address:38:7:996
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -15,9 +15,9 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Addre
   constraints {}
   default -
   examples []
-  property city OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city:41:11:1040
+  property city OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city:41:11:1051
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city:41:11:1040
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address/properties/city:41:11:1051
   reference -
   types string nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -27,7 +27,7 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Addre
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore:66:7:1553
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore:66:7:1564
   reference -
   types number nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -37,7 +37,7 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Bound
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat:51:7:1247
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat:51:7:1258
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -46,9 +46,9 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat C
   constraints {}
   default -
   examples []
-  property meow OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow:54:11:1302
+  property meow OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow:54:11:1313
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow:54:11:1302
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/properties/meow:54:11:1313
   reference -
   types boolean nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -58,7 +58,7 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat/p
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog:56:7:1331
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog:56:7:1342
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -67,9 +67,9 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog C
   constraints {}
   default -
   examples []
-  property bark OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark:59:11:1386
+  property bark OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark:59:11:1397
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark:59:11:1386
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/properties/bark:59:11:1397
   reference -
   types boolean nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -79,28 +79,28 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog/p
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName:30:7:821
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName:30:7:832
   reference -
   types string nullability=NULLABLE format=-
-  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName/nullable:31:17:850]
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName/nullable:31:17:861]
   flags deprecated=false readOnly=false writeOnly=false
   description -
   constraints {maxLength=40}
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus:34:7:901
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus:34:7:912
   reference -
   types string nullability=NULLABLE format=-
-  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/nullable:35:17:930]
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/nullable:35:17:941]
   flags deprecated=false readOnly=false writeOnly=false
   description -
   constraints {}
   default -
   examples []
-  enum OPEN ["active", "inactive", null] @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/enum:36:13:947
+  enum OPEN ["active", "inactive", null] @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/enum:36:13:958
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person:43:7:1071
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person:43:7:1082
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -109,20 +109,20 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Perso
   constraints {}
   default -
   examples []
-  property homeAddress OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress:48:11:1170
-  property name OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name:46:11:1126
+  property homeAddress OPTIONAL/NULLABLE presence=ABSENT,NULL,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress:48:11:1181
+  property name OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name:46:11:1137
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress:48:11:1170
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress:48:11:1181
   reference sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Address
   types  nullability=NULLABLE format=-
-  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress/nullable:49:21:1227]
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress/nullable:49:21:1238]
   flags deprecated=false readOnly=false writeOnly=false
   description -
   constraints {}
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name:46:11:1126
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/name:46:11:1137
   reference -
   types string nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -132,18 +132,18 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Perso
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet:61:7:1415
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet COMPONENT @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet:61:7:1426
   reference -
   types  nullability=NULLABLE format=-
-  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1425]
+  nullabilityOrigins [OPENAPI_3_0_NULLABLE@sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1436]
   flags deprecated=false readOnly=false writeOnly=false
   description -
   constraints {}
   default -
   examples []
-  ONE_OF sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat, sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog, sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf/x-sdkgen-normalized-null-branch @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf:63:9:1451
+  ONE_OF sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Cat, sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Dog, sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf/x-sdkgen-normalized-null-branch @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf:63:9:1462
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf/x-sdkgen-normalized-null-branch INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1425
+schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/oneOf/x-sdkgen-normalized-null-branch INLINE @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1436
   reference -
   types  nullability=NON_NULL format=-
   normalized nullOnly=true contentEncoding=- contentMediaType=-
@@ -154,7 +154,7 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/o
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema:16:15:503
+schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema:16:15:514
   reference -
   types object nullability=NON_NULL format=-
   nullabilityOrigins []
@@ -163,10 +163,10 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/req
   constraints {}
   default -
   examples []
-  property checksum OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum:22:19:672
-  property file OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:19:19:582
+  property checksum OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum:22:19:683
+  property file OPTIONAL/NON_NULL presence=ABSENT,VALUE -> sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file readOnly=false writeOnly=false deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:19:19:593
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum:22:19:672
+schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum:22:19:683
   reference -
   types string nullability=NON_NULL format=byte
   normalized nullOnly=false contentEncoding=base64 contentMediaType=-
@@ -177,7 +177,7 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/req
   default -
   examples []
   extensions {}
-schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:19:19:582
+schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file INLINE @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file:19:19:593
   reference -
   types string nullability=NON_NULL format=binary
   normalized nullOnly=false contentEncoding=- contentMediaType=application/octet-stream
@@ -189,20 +189,20 @@ schema sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/req
   examples []
   extensions {}
 operations 1
-operation POST /uploads id=uploadAsset deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post:11:7:377
+operation POST /uploads id=uploadAsset deprecated=false @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post:11:7:388
   description -
-  request OPTIONAL @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody:13:9:429
-    media multipart/form-data schema=sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema streaming=false encoding=[] @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data:15:13:481
-  response EXACT:200 @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/responses/200:26:11:758
+  request OPTIONAL @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody:13:9:440
+    media multipart/form-data schema=sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema streaming=false encoding=[] @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data:15:13:492
+  response EXACT:200 @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/responses/200:26:11:769
   extensions {}
 diagnostics 10
-diagnostic INFO:EXCLUSIVE_BOUND_NORMALIZED phase=NORMALIZATION message="'exclusiveMaximum: false' (OpenAPI 3.0) is a no-op and was normalized away; 'maximum' remains inclusive." remediation="No action required." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore/exclusiveMaximum:70:25:1655
-diagnostic INFO:EXCLUSIVE_BOUND_NORMALIZED phase=NORMALIZATION message="Boolean 'exclusiveMinimum: true' with 'minimum: 0' (OpenAPI 3.0) was normalized to the OpenAPI 3.1 numeric form 'exclusiveMinimum: 0'." remediation="No action required; this is a lossless, well-defined migration-guide mapping." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore/exclusiveMinimum:69:25:1626
-diagnostic INFO:NULLABLE_TYPE_NORMALIZED phase=NORMALIZATION message="'nullable: true' on a typed OpenAPI 3.0 schema was normalized to nullable OpenAPI 3.1 type-union semantics." remediation="Replace 'nullable: true' with a type array containing 'null' in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName/nullable:31:17:850
-diagnostic INFO:NULLABLE_ENUM_NULL_INJECTED phase=NORMALIZATION message="'nullable: true' is set but 'enum' does not list 'null'; SDKGen injects 'null' into the allowed value set instead of leaving the schema nullable while its own enum rejects null." remediation="Add 'null' to the 'enum' array explicitly, matching OpenAPI 3.1 JSON Schema semantics." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/enum:36:13:947
-diagnostic INFO:NULLABLE_TYPE_NORMALIZED phase=NORMALIZATION message="'nullable: true' on a typed OpenAPI 3.0 schema was normalized to nullable OpenAPI 3.1 type-union semantics." remediation="Replace 'nullable: true' with a type array containing 'null' in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/nullable:35:17:930
-diagnostic WARNING:NULLABLE_REFERENCE_SIBLING phase=NORMALIZATION message="'nullable: true' alongside '$ref' is invalid in OpenAPI 3.0 (sibling keywords next to '$ref' are ignored); SDKGen treats it as a nullable reference wrapper instead of dropping it silently." remediation="Rewrite as 'allOf: [{ $ref: ... }]' with 'nullable: true' on the wrapper, or use OpenAPI 3.1's type/null union directly." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress/nullable:49:21:1227
-diagnostic WARNING:NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE phase=NORMALIZATION message="'nullable: true' alongside 'oneOf' (with no own 'type') has no clean OpenAPI 3.1 mapping; SDKGen's policy adds an explicit null-only branch to 'oneOf'." remediation="Use an explicit null branch without the legacy nullable keyword in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1425
-diagnostic INFO:OPENAPI_3_0_DOCUMENT_NORMALIZED phase=NORMALIZATION message="Document declares 'openapi: 3.0.3'; SDKGen normalizes its OpenAPI 3.0.x constructs (nullable, boolean exclusive bounds, nullable $ref siblings, nullable enums, nullable compositions) to OpenAPI 3.1 semantics at the ingestion seam." remediation="No action required; this is an informational record of the applied normalization." @sdkgen://source/17-openapi30-normalization.yaml#/openapi:4:10:271
-diagnostic INFO:CONTENT_KEYWORD_NORMALIZED phase=NORMALIZATION message="OpenAPI 3.0 'format: byte' was normalized to OpenAPI 3.1 content-keyword semantics (contentEncoding=base64, contentMediaType=-)." remediation="Use the corresponding contentEncoding/contentMediaType keyword directly in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum/format:23:27:711
-diagnostic INFO:CONTENT_KEYWORD_NORMALIZED phase=NORMALIZATION message="OpenAPI 3.0 'format: binary' was normalized to OpenAPI 3.1 content-keyword semantics (contentEncoding=-, contentMediaType=application/octet-stream)." remediation="Use the corresponding contentEncoding/contentMediaType keyword directly in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file/format:20:27:621
+diagnostic INFO:EXCLUSIVE_BOUND_NORMALIZED phase=NORMALIZATION message="'exclusiveMaximum: false' (OpenAPI 3.0) is a no-op and was normalized away; 'maximum' remains inclusive." remediation="No action required." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore/exclusiveMaximum:70:25:1666
+diagnostic INFO:EXCLUSIVE_BOUND_NORMALIZED phase=NORMALIZATION message="Boolean 'exclusiveMinimum: true' with 'minimum: 0' (OpenAPI 3.0) was normalized to the OpenAPI 3.1 numeric form 'exclusiveMinimum: 0'." remediation="No action required; this is a lossless, well-defined migration-guide mapping." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/BoundedScore/exclusiveMinimum:69:25:1637
+diagnostic INFO:NULLABLE_TYPE_NORMALIZED phase=NORMALIZATION message="'nullable: true' on a typed OpenAPI 3.0 schema was normalized to nullable OpenAPI 3.1 type-union semantics." remediation="Replace 'nullable: true' with a type array containing 'null' in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableName/nullable:31:17:861
+diagnostic INFO:NULLABLE_ENUM_NULL_INJECTED phase=NORMALIZATION message="'nullable: true' is set but 'enum' does not list 'null'; SDKGen injects 'null' into the allowed value set instead of leaving the schema nullable while its own enum rejects null." remediation="Add 'null' to the 'enum' array explicitly, matching OpenAPI 3.1 JSON Schema semantics." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/enum:36:13:958
+diagnostic INFO:NULLABLE_TYPE_NORMALIZED phase=NORMALIZATION message="'nullable: true' on a typed OpenAPI 3.0 schema was normalized to nullable OpenAPI 3.1 type-union semantics." remediation="Replace 'nullable: true' with a type array containing 'null' in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/NullableStatus/nullable:35:17:941
+diagnostic WARNING:NULLABLE_REFERENCE_SIBLING phase=NORMALIZATION message="'nullable: true' alongside '$ref' is invalid in OpenAPI 3.0 (sibling keywords next to '$ref' are ignored); SDKGen treats it as a nullable reference wrapper instead of dropping it silently." remediation="Rewrite as 'allOf: [{ $ref: ... }]' with 'nullable: true' on the wrapper, or use OpenAPI 3.1's type/null union directly." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Person/properties/homeAddress/nullable:49:21:1238
+diagnostic WARNING:NULLABLE_COMPOSED_SCHEMA_WITHOUT_TYPE phase=NORMALIZATION message="'nullable: true' alongside 'oneOf' (with no own 'type') has no clean OpenAPI 3.1 mapping; SDKGen's policy adds an explicit null-only branch to 'oneOf'." remediation="Use an explicit null branch without the legacy nullable keyword in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/components/schemas/Pet/nullable:61:17:1436
+diagnostic INFO:OPENAPI_3_0_DOCUMENT_NORMALIZED phase=NORMALIZATION message="Document declares 'openapi: 3.0.3'; SDKGen normalizes its OpenAPI 3.0.x constructs (nullable, boolean exclusive bounds, nullable $ref siblings, nullable enums, nullable compositions) to OpenAPI 3.1 semantics at the ingestion seam." remediation="No action required; this is an informational record of the applied normalization." @sdkgen://source/17-openapi30-normalization.yaml#/openapi:4:10:282
+diagnostic INFO:CONTENT_KEYWORD_NORMALIZED phase=NORMALIZATION message="OpenAPI 3.0 'format: byte' was normalized to OpenAPI 3.1 content-keyword semantics (contentEncoding=base64, contentMediaType=-)." remediation="Use the corresponding contentEncoding/contentMediaType keyword directly in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/checksum/format:23:27:722
+diagnostic INFO:CONTENT_KEYWORD_NORMALIZED phase=NORMALIZATION message="OpenAPI 3.0 'format: binary' was normalized to OpenAPI 3.1 content-keyword semantics (contentEncoding=-, contentMediaType=application/octet-stream)." remediation="Use the corresponding contentEncoding/contentMediaType keyword directly in OpenAPI 3.1." @sdkgen://source/17-openapi30-normalization.yaml#/paths/~1uploads/post/requestBody/content/multipart~1form-data/schema/properties/file/format:20:27:632

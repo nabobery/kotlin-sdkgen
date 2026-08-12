@@ -50,7 +50,7 @@ public sealed class ProviderSort {
     }
   }
 
-  public object Serializer : KSerializer<ProviderSort> {
+  internal object Serializer : KSerializer<ProviderSort> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("com.nabobery.sdkgen.generated.ProviderSort", PrimitiveKind.STRING)
 

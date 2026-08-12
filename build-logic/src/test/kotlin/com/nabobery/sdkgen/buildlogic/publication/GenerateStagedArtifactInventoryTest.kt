@@ -29,32 +29,32 @@ internal class GenerateStagedArtifactInventoryTest {
         // variant `kotlin-sdkgen-runtime-jvm`, per real Kotlin/Multiplatform Maven publication layout.
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
             "kotlin-sdkgen-runtime-jvm-1.2.3.jar",
             jvmBytes,
         )
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
             "kotlin-sdkgen-runtime-jvm-1.2.3-sources.jar",
             sourcesBytes,
         )
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-runtime-iosarm64/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-runtime-iosarm64/1.2.3",
             "kotlin-sdkgen-runtime-iosarm64-1.2.3.klib",
             klibBytes,
         )
         // Repository housekeeping files must never become inventory entries.
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
             "maven-metadata.xml",
             "ignored".toByteArray(),
         )
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3",
             "kotlin-sdkgen-runtime-jvm-1.2.3.jar.sha256",
             "ignored".toByteArray(),
         )
@@ -72,12 +72,12 @@ internal class GenerateStagedArtifactInventoryTest {
         assertEquals(3, inventory.byRootArtifactId("kotlin-sdkgen-runtime").size)
 
         val jvmJar = inventory.jvmJars().single { it.classifier == null }
-        assertEquals("com.nabobery", jvmJar.coordinate.group)
+        assertEquals("io.github.nabobery", jvmJar.coordinate.group)
         assertEquals("kotlin-sdkgen-runtime-jvm", jvmJar.coordinate.artifactId)
         assertEquals("1.2.3", jvmJar.coordinate.version)
         assertNull(jvmJar.classifier)
         assertEquals(
-            "com/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3/kotlin-sdkgen-runtime-jvm-1.2.3.jar",
+            "io/github/nabobery/kotlin-sdkgen-runtime-jvm/1.2.3/kotlin-sdkgen-runtime-jvm-1.2.3.jar",
             jvmJar.relativePath,
         )
         assertEquals(sha256Hex(jvmBytes), jvmJar.sha256)
@@ -108,13 +108,13 @@ internal class GenerateStagedArtifactInventoryTest {
         val bytes = "engine-bytes".toByteArray()
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-engine/0.1.0-SNAPSHOT",
+            "io/github/nabobery/kotlin-sdkgen-engine/0.1.0-SNAPSHOT",
             "kotlin-sdkgen-engine-0.1.0-20260727.235959-1.jar",
             bytes,
         )
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-engine/0.1.0-SNAPSHOT",
+            "io/github/nabobery/kotlin-sdkgen-engine/0.1.0-SNAPSHOT",
             "kotlin-sdkgen-engine-0.1.0-20260727.235959-1-sources.jar",
             bytes,
         )
@@ -136,7 +136,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-transport-ktor-iosarm64/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-transport-ktor-iosarm64/1.2.3",
             "kotlin-sdkgen-transport-ktor-iosarm64-1.2.3.klib",
             "klib-bytes".toByteArray(),
         )
@@ -156,7 +156,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-transport-java-http/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-transport-java-http/1.2.3",
             "kotlin-sdkgen-transport-java-http-1.2.3.jar",
             "jar-bytes".toByteArray(),
         )
@@ -175,7 +175,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-gradle-plugin/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-gradle-plugin/1.2.3",
             "kotlin-sdkgen-gradle-plugin-1.2.3.jar",
             "jar-bytes".toByteArray(),
         )
@@ -194,7 +194,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-testing-js/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-testing-js/1.2.3",
             "kotlin-sdkgen-testing-js-1.2.3.klib",
             "klib-bytes".toByteArray(),
         )
@@ -211,7 +211,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/totally-unrelated-artifact/1.2.3",
+            "io/github/nabobery/totally-unrelated-artifact/1.2.3",
             "totally-unrelated-artifact-1.2.3.klib",
             "klib-bytes".toByteArray(),
         )
@@ -247,7 +247,7 @@ internal class GenerateStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeArtifact(
             repository,
-            "com/nabobery/kotlin-sdkgen-engine/1.2.3",
+            "io/github/nabobery/kotlin-sdkgen-engine/1.2.3",
             "maven-metadata.xml",
             "ignored".toByteArray(),
         )

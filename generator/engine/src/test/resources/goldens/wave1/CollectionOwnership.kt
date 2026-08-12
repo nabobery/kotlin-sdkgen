@@ -138,7 +138,7 @@ public class CollectionOwnership internal constructor(
     public fun build(block: Builder.() -> Unit): CollectionOwnership = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<CollectionOwnership> {
+  internal object Serializer : KSerializer<CollectionOwnership> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): CollectionOwnership {

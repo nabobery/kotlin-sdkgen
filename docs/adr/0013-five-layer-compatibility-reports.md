@@ -112,9 +112,10 @@ pointers.
 `semanticModel` compares the effective semantic model evidence. `declarationModelSha256` remains useful declaration
 evidence but is not silently reinterpreted as all semantic evidence.
 
-`kotlinApi` compares a typed public-API projection derived from the declaration model. It does not compare generated
-file hashes. Formatting, KDoc, declaration ordering, and internal-codec changes must never surface as Kotlin API
-changes.
+`kotlinApi` compares a typed public-API projection from the staged emitted-API projection established by
+[ADR 0019](0019-emitted-public-api-projection.md); it does not derive directly from the declaration model. It does
+not compare generated file hashes. Formatting, KDoc, declaration ordering, and internal-codec changes must never
+surface as Kotlin API changes.
 
 `behavior` consumes only parity-scenario and parity-wire evidence. Every behavior evidence reference names the exact
 fixture identity; no source-only inference or generated-file comparison can establish behavior compatibility.

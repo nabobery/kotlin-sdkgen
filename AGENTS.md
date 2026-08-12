@@ -91,14 +91,6 @@ kotlin-sdkgen/
 ./gradlew :generator:cli:run    # Run CLI
 ```
 
-## REQUESTED AGENT ROUTING
-
-- Delegate only when the user explicitly requests subagents; keep delegation one level deep.
-- Use `gpt-5.3-codex-spark` for focused implementation, and Antigravity `gemini-3.6-flash-high` when requested.
-- Use direct Claude CLI `claude-sonnet-4-6` for SDK contracts, API taste, and taste fixes.
-- Use `gpt-5.6-sol` at low reasoning effort for independent review and review-fix verification.
-- Keep code changes RED → GREEN and do not integrate a slice until the requested reviews pass.
-
 ## RESOURCE-SAFE CONFORMANCE
 
 - Run only one Gradle or corpus-generation lane at a time.

@@ -72,3 +72,13 @@ Unchanged inputs produced `UP-TO-DATE`; changing `packageName` re-executed gener
 - Validate cache behavior after every Gradle or KGP baseline upgrade.
 - Reject plugin features that require undeclared ambient state in ordinary generation.
 - Re-evaluate Worker API isolation only from measured parser/plugin concurrency or memory evidence.
+
+## Amendment (2026-08-03)
+
+The plugin ID above, `com.nabobery.kotlin-sdkgen`, is superseded by `io.github.nabobery.kotlin-sdkgen`. Maven
+Central namespace verification for the `com.nabobery` Maven group would require proving ownership of the
+`nabobery.com` domain via a DNS TXT record, and the project owner does not control that domain. The
+`io.github.nabobery` namespace, verified instead through GitHub account ownership, does not have that
+requirement. Since nothing had been published under the original plugin ID at the time of this change, this
+is a plain rename with no relocation shim. See ADR-0008's own amendment for the full rationale, which applies
+identically here since the Gradle plugin ID and the Maven group move together.

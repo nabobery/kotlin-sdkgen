@@ -87,3 +87,47 @@ actions:
   remove: true
 - target: $['components']['schemas']['BaseContentPartDoneEvent']
   remove: true
+# StandardProjection rejects an allOf property when its type or nullability differs across branches. OverlayApplicator
+# applies actions in declaration order (OverlayApplicator.kt:26), while its object-node update path field-merges via
+# applyUpdate/mergeObject (OverlayApplicator.kt:152-166,193-223), recursively merging objects and appending arrays;
+# thus an update cannot atomically replace a node or discard existing allOf elements. The local architecture branch
+# shadows ModelArchitecture, so remove the redundant composition before the ordered update inserts its wire-equivalent
+# local shape with tokenizer's required-and-nullable ModelGroup contract.
+- target: $['components']['schemas']['ListEndpointsResponse']['properties']['architecture']['allOf']
+  remove: true
+- target: $['components']['schemas']['ListEndpointsResponse']['properties']['architecture']
+  update:
+    type: object
+    description: Model architecture information
+    example:
+      instruct_type: chatml
+      modality: text
+      tokenizer: GPT
+    properties:
+      input_modalities:
+        description: Supported input modalities
+        items:
+          $ref: '#/components/schemas/InputModality'
+        type: array
+      instruct_type:
+        $ref: '#/components/schemas/InstructType'
+      modality:
+        description: Primary modality of the model
+        example: text
+        nullable: true
+        type: string
+      output_modalities:
+        description: Supported output modalities
+        items:
+          $ref: '#/components/schemas/OutputModality'
+        type: array
+      tokenizer:
+        allOf:
+          - $ref: '#/components/schemas/ModelGroup'
+          - nullable: true
+    required:
+      - tokenizer
+      - instruct_type
+      - modality
+      - input_modalities
+      - output_modalities

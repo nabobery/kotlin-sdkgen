@@ -404,9 +404,9 @@ class StripeConsumerConformanceTest {
          * that partitioning preserved the public API, while partitioning was in fact hiding every public
          * per-operation form codec object inside a private partition. `kotlinApiSha256` was byte-identical
          * across both that regression and its repair, which returned 518 public objects to the API. The
-         * emitter-level guard is `CodecPartitioningTest`, which inventories public nested types as well as
-         * public properties.
+         * emitter-level guard is `CodecPartitioningTest`, which inventories internal nested types as well as
+         * internal properties.
          */
-        const val MANIFEST_SHA256 = "ec8864d73003a9f50e58d4bbfecc72e51e9f29e2f66127a35ed57c200415c1fe"
+        const val MANIFEST_SHA256 = "7e284417e1bf3a0aab14913f6986f3dd5e7e91742e7f0ef28884eaf00dcb6576"
     }
 }

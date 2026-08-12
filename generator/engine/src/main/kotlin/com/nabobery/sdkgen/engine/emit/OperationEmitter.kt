@@ -158,7 +158,7 @@ internal fun EmissionContext.emitOperationClient(
         companionBuilder.addProperty(
             PropertySpec
                 .builder(metadataPropertyName, OPERATION_METADATA)
-                .addModifiers(KModifier.PUBLIC)
+                .addModifiers(KModifier.INTERNAL)
                 .delegate(
                     "lazy(%T.PUBLICATION) { %L }",
                     LAZY_THREAD_SAFETY_MODE,
@@ -170,7 +170,7 @@ internal fun EmissionContext.emitOperationClient(
             companionBuilder.addProperty(
                 PropertySpec
                     .builder(streamMetadataPropertyName, OPERATION_METADATA)
-                    .addModifiers(KModifier.PUBLIC)
+                    .addModifiers(KModifier.INTERNAL)
                     .delegate(
                         "lazy(%T.PUBLICATION) { %L }",
                         LAZY_THREAD_SAFETY_MODE,
@@ -849,7 +849,7 @@ private fun OperationDeclaration.responseAlternativeCodecRegistryName(index: Int
  * operations, where `V1Codecs.<clinit>` failed to compile with "Method too large".
  *
  * Above this many stored properties the codecs object moves them into nested partition objects, each with its
- * own `<clinit>`, and re-exposes the public ones as forwarding accessors. See ADR-0015.
+ * own `<clinit>`, and re-exposes the internal ones as forwarding accessors. See ADR-0015.
  *
  * **The bound is on properties, not operations.** One operation emits an unbounded number of stored properties
  * — two per typed response alternative — so an operation-count bound would not bound initializer size at all.
@@ -858,7 +858,7 @@ private fun OperationDeclaration.responseAlternativeCodecRegistryName(index: Int
  * roughly a five-fold margin.
  *
  * One residual case is not structurally bounded: a *single* operation declaring more than this many stored
- * properties cannot be split, because the private codec a public registry wraps must stay its sibling. That
+ * properties cannot be split, because the private codec an internal registry wraps must stay its sibling. That
  * needs on the order of two thousand response alternatives on one operation, and no corpus approaches it.
  */
 private const val CODEC_PARTITION_STORED_PROPERTIES = 400
@@ -877,7 +877,7 @@ private fun EmissionContext.codecsObject(
     declaration: OperationClientDeclaration,
     codecsType: ClassName,
 ): TypeSpec {
-    val builder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.PUBLIC)
+    val builder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.INTERNAL)
     // Emit once unpartitioned to measure. Below the bound this is also the final output, so small clients are
     // byte-for-byte unaffected by partitioning existing at all.
     val flat = declaration.operations.map { operation -> operationCodecMembers(operation, outerOwner = null) }
@@ -914,12 +914,12 @@ private fun EmissionContext.codecsObject(
         builder.addType(partition.build())
         members
             .flatMap(OperationCodecMembers::storedProperties)
-            .filter { property -> KModifier.PUBLIC in property.modifiers }
+            .filter { property -> KModifier.INTERNAL in property.modifiers }
             .forEach { property ->
                 builder.addProperty(
                     PropertySpec
                         .builder(property.name, property.type)
-                        .addModifiers(KModifier.PUBLIC)
+                        .addModifiers(KModifier.INTERNAL)
                         .getter(
                             FunSpec
                                 .getterBuilder()
@@ -945,8 +945,8 @@ private fun EmissionContext.operationCodecMembers(
 
 /**
  * Adds one operation's codecs. [outerBuilder] receives the parts that must stay on the codecs object itself —
- * the `const val` codec identifiers and the nested form/multipart codec objects, both of which are public API
- * and neither of which costs `<clinit>` bytecode. [membersBuilder] receives the stored properties. They are
+ * the `const val` codec identifiers and the nested form/multipart codec objects, all internal protocol glue
+ * that costs no `<clinit>` bytecode. [membersBuilder] receives the stored properties. They are
  * the same builder unless the codecs object is partitioned. [outerOwner] qualifies references from a partition
  * back to [outerBuilder]'s members, and is null when the two are the same object.
  */
@@ -974,7 +974,7 @@ private fun EmissionContext.addOperationCodecs(
         outerBuilder.addProperty(
             PropertySpec
                 .builder(operation.requestCodecConstantName, STRING)
-                .addModifiers(KModifier.PUBLIC, KModifier.CONST)
+                .addModifiers(KModifier.INTERNAL, KModifier.CONST)
                 .initializer("%S", operation.requestCodecId)
                 .build(),
         )
@@ -1008,7 +1008,7 @@ private fun EmissionContext.addOperationCodecs(
         outerBuilder.addProperty(
             PropertySpec
                 .builder(operation.responseCodecConstantName, STRING)
-                .addModifiers(KModifier.PUBLIC, KModifier.CONST)
+                .addModifiers(KModifier.INTERNAL, KModifier.CONST)
                 .initializer("%S", operation.responseCodecId)
                 .build(),
         )
@@ -1046,7 +1046,7 @@ private fun EmissionContext.addOperationCodecs(
                     ).addProperty(
                         PropertySpec
                             .builder(operation.responseAlternativeCodecRegistryName(index), alternativeRegistryType)
-                            .addModifiers(KModifier.PUBLIC)
+                            .addModifiers(KModifier.INTERNAL)
                             .initializer(
                                 "%T.of(%L)",
                                 MEDIA_TYPE_CODEC_REGISTRY,
@@ -1071,7 +1071,7 @@ private fun EmissionContext.addOperationCodecs(
     codecsBuilder.addProperty(
         PropertySpec
             .builder("${operation.requestCodecPropertyName}Registry", requestRegistryType)
-            .addModifiers(KModifier.PUBLIC)
+            .addModifiers(KModifier.INTERNAL)
             .initializer(requestRegistryInitializer)
             .build(),
     )
@@ -1079,7 +1079,7 @@ private fun EmissionContext.addOperationCodecs(
         codecsBuilder.addProperty(
             PropertySpec
                 .builder("${operation.responseCodecPropertyName}Registry", responseRegistryType)
-                .addModifiers(KModifier.PUBLIC)
+                .addModifiers(KModifier.INTERNAL)
                 .initializer(responseRegistryInitializer)
                 .build(),
         )
@@ -1106,6 +1106,7 @@ private fun EmissionContext.addFormRequestCodec(
     val codecObject =
         TypeSpec
             .objectBuilder(codecObjectName)
+            .addModifiers(KModifier.INTERNAL)
             .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(operation.requestType.toTypeName()))
             .addProperty(
                 PropertySpec
@@ -1312,6 +1313,7 @@ private fun EmissionContext.addMultipartRequestCodec(
     val codecObject =
         TypeSpec
             .objectBuilder(codecObjectName)
+            .addModifiers(KModifier.INTERNAL)
             .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(operation.requestType.toTypeName()))
             .addProperty(
                 PropertySpec
@@ -1525,21 +1527,29 @@ private fun EmissionContext.serializerExpression(type: KotlinTypeRef): CodeBlock
             expression.add("%T.%M()", nonNullable.toTypeName(), BUILTIN_SERIALIZER)
         }
 
-        "${nonNullable.packageName}.${nonNullable.simpleName}" in customSerializerTypes -> {
-            expression.add(
-                "%T",
-                ClassName(nonNullable.packageName, nonNullable.simpleName).nestedClass("Serializer"),
-            )
-        }
-
         else -> {
-            if (nonNullable.packageName == generatedPackage) {
-                expression.add(
-                    "%T",
-                    ClassName(nonNullable.packageName, nonNullable.simpleName).nestedClass("Serializer"),
-                )
-            } else {
-                expression.add("%T.serializer()", nonNullable.toTypeName())
+            when (customSerializerTypes["${nonNullable.packageName}.${nonNullable.simpleName}"]) {
+                SerializerPlacement.NESTED -> {
+                    expression.add(
+                        "%T",
+                        ClassName(nonNullable.packageName, nonNullable.simpleName).nestedClass("Serializer"),
+                    )
+                }
+
+                SerializerPlacement.TOP_LEVEL -> {
+                    expression.add("%T", ClassName(nonNullable.packageName, "${nonNullable.simpleName}Serializer"))
+                }
+
+                null -> {
+                    if (nonNullable.packageName == generatedPackage) {
+                        expression.add(
+                            "%T",
+                            ClassName(nonNullable.packageName, nonNullable.simpleName).nestedClass("Serializer"),
+                        )
+                    } else {
+                        expression.add("%T.serializer()", nonNullable.toTypeName())
+                    }
+                }
             }
         }
     }

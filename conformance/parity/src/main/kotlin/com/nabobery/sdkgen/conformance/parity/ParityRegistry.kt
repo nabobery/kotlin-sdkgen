@@ -14,17 +14,23 @@ internal object ParityRegistry {
     const val GITHUB_OVERLAY_SHA256: String = "4bb4eb28ee5b424cea50c9ea92047ed35e49282273800ab7e1ab4cd83b083288"
     const val STRIPE_CONFIG_FILE_SHA256: String = "71928294e15d61a94b623cc4aa740616ad755d0be1b97539f5e363aaeb9e8407"
     const val STRIPE_LOCK_FILE_SHA256: String = "52457ea9e6b03bcbb4b3d2612a179244d96c760c880c2e770c2a9ea854ecce1b"
-    const val OPENROUTER_OVERLAY_SHA256: String = "722d38c701c63fd690b7b03ea41512796e57bd17244cde67f3731a2a90b17d07"
+    const val OPENROUTER_OVERLAY_SHA256: String = "aed6cf55655b0516ed3b9cb4dd84acb0ab76365efc8a42c94258a08a5aebf221"
     const val OPENROUTER_CORPUS_SHA256: String =
         "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47"
+    const val OPENROUTER_EFFECTIVE_CONFIG_SHA256: String =
+        "3300f5599fc73e17ac56d2f3e203e61304557eebf0ea755077c37806e48083f5"
+    const val OPENROUTER_CONFIG_FILE_SHA256: String =
+        "374ec05d2c66d9ce943ee6ec26c864f82f5968c46067d48a149176dae8335d3c"
+    const val OPENROUTER_LOCK_FILE_SHA256: String =
+        "0fed961578f679c248061bad780b5e06561f9aed6d3615ba5909b2e171c65a6f"
     const val STREAMING_STRESS_CORPUS_SHA256: String =
-        "463078210dae71d7a1ab9aa30e1f657a7ca2cedd8b5acb3c7b58b2804878f5b7"
+        "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5"
     const val STREAMING_STRESS_EFFECTIVE_CONFIG_SHA256: String =
-        "f3c3455812f44394ef453211bc98ec52819b4c26b0592e90a06d2ff5c17d1c38"
+        "ba6d17a24068ede752c2875b773a2d007209a20fe250ed207a774e9ac6ac5c77"
     const val STREAMING_STRESS_CONFIG_FILE_SHA256: String =
-        "cd73bab1fa0be0231c4c495433cb093b023636c6c0a969a9cb01a5d2688bdc90"
+        "86d9109d162a38b72a5c5e04b1a488a7a3630246c34c3f6ca0888f68774b95c3"
     const val STREAMING_STRESS_LOCK_FILE_SHA256: String =
-        "d90e4b526e029cdded34888489fa18a26273555cc472142a7e54abd51291b286"
+        "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b"
     const val TOOLCHAIN_SHA256: String = "c7386514e4caf07f1b0d74af4a953807c96a3690a0361cb5b677cf287f4cb9c4"
 
     private val expectedCorpusDigests =
@@ -39,6 +45,7 @@ internal object ParityRegistry {
         mapOf(
             "github" to GITHUB_EFFECTIVE_CONFIG_SHA256,
             "stripe" to STRIPE_EFFECTIVE_CONFIG_SHA256,
+            "openrouter" to OPENROUTER_EFFECTIVE_CONFIG_SHA256,
             "stress-streaming" to STREAMING_STRESS_EFFECTIVE_CONFIG_SHA256,
         )
 
@@ -46,12 +53,14 @@ internal object ParityRegistry {
         mapOf(
             "github" to GITHUB_CONFIG_FILE_SHA256,
             "stripe" to STRIPE_CONFIG_FILE_SHA256,
+            "openrouter" to OPENROUTER_CONFIG_FILE_SHA256,
             "stress-streaming" to STREAMING_STRESS_CONFIG_FILE_SHA256,
         )
     private val expectedLockFileDigests =
         mapOf(
             "github" to GITHUB_LOCK_FILE_SHA256,
             "stripe" to STRIPE_LOCK_FILE_SHA256,
+            "openrouter" to OPENROUTER_LOCK_FILE_SHA256,
             "stress-streaming" to STREAMING_STRESS_LOCK_FILE_SHA256,
         )
     private val expectedOverlayDigests =
@@ -94,6 +103,8 @@ internal object ParityRegistry {
                 "conformance/openrouter/overlays/full-spec-compat.yaml",
                 OPENROUTER_OVERLAY_SHA256,
             )?.let(::add)
+            checkSha(root, "conformance/openrouter/sdkgen.yaml", OPENROUTER_CONFIG_FILE_SHA256)?.let(::add)
+            checkSha(root, "conformance/openrouter/sdkgen.lock", OPENROUTER_LOCK_FILE_SHA256)?.let(::add)
             checkSha(root, "conformance/stripe/sdkgen.yaml", STRIPE_CONFIG_FILE_SHA256)?.let(::add)
             checkSha(root, "conformance/stripe/sdkgen.lock", STRIPE_LOCK_FILE_SHA256)?.let(::add)
             checkSha(

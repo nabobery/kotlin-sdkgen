@@ -4,5 +4,5 @@ plugins {
 
 dependencies {
     compileOnly(gradleApi())
-    implementation("com.nabobery:kotlin-sdkgen-gradle-plugin:${providers.gradleProperty("sdkgenVersion").get()}")
+    implementation("io.github.nabobery:kotlin-sdkgen-gradle-plugin:${providers.gradleProperty("sdkgenVersion").get()}")
 }

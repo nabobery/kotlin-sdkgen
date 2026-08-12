@@ -128,7 +128,7 @@ internal class VerifyPublicationMetadataTest {
         leakingArtifact: String? = null,
     ) {
         rootArtifacts.forEach { artifact ->
-            val directory = repository.resolve("com/nabobery/$artifact/$VERSION").also(Path::createDirectories)
+            val directory = repository.resolve("io/github/nabobery/$artifact/$VERSION").also(Path::createDirectories)
             val dependency =
                 if (artifact == leakingArtifact) {
                     """
@@ -170,7 +170,7 @@ internal class VerifyPublicationMetadataTest {
             )
         }
 
-        val engineDirectory = repository.resolve("com/nabobery/kotlin-sdkgen-engine/$VERSION")
+        val engineDirectory = repository.resolve("io/github/nabobery/kotlin-sdkgen-engine/$VERSION")
         writeArchive(
             engineDirectory.resolve("kotlin-sdkgen-engine-$VERSION.jar"),
             engineClasses + engineResources,
@@ -197,7 +197,7 @@ internal class VerifyPublicationMetadataTest {
                             }
                         }
                         filter {
-                            includeGroup("com.nabobery")
+                            includeGroup("io.github.nabobery")
                         }
                     }
                     mavenCentral()
@@ -213,7 +213,7 @@ internal class VerifyPublicationMetadataTest {
                 }
 
                 dependencies {
-                    implementation("com.nabobery:$artifact:$VERSION")
+                    implementation("io.github.nabobery:$artifact:$VERSION")
                 }
                 """.trimIndent(),
             )

@@ -51,7 +51,7 @@ internal fun EmissionContext.emitOneOf(
         TypeSpec
             .interfaceBuilder(model.resolvedName)
             .addModifiers(KModifier.PUBLIC, KModifier.SEALED)
-            .addAnnotation(serializableWith(unionType.nestedClass("Serializer")))
+            .addAnnotation(serializableWith(ClassName(model.packageName, "${model.resolvedName}Serializer")))
             .addKdoc("%L\n", sanitizeKDoc(model.kdoc))
             .addProperty(
                 PropertySpec
@@ -73,8 +73,8 @@ internal fun EmissionContext.emitOneOf(
             ),
         )
     }
-    union.addType(oneOfSerializer(model, unionType, noMatchException, ambiguityException, inspectionPlan))
     file.addType(union.build())
+    file.addType(oneOfSerializer(model, unionType, noMatchException, ambiguityException, inspectionPlan))
     file.addType(oneOfInspection(model, inspectionPlan))
     file.addFunction(inspectOneOf(model, inspectionPlan))
     oneOfPredicateFunctions(model).forEach(file::addFunction)
@@ -406,8 +406,8 @@ private fun EmissionContext.oneOfSerializer(
     inspectionPlan: OneOfInspectionPlan,
 ): TypeSpec =
     TypeSpec
-        .objectBuilder("Serializer")
-        .addModifiers(KModifier.PUBLIC)
+        .objectBuilder("${model.resolvedName}Serializer")
+        .addModifiers(KModifier.INTERNAL)
         .addSuperinterface(K_SERIALIZER.parameterizedBy(unionType))
         .addProperty(
             PropertySpec
@@ -607,10 +607,11 @@ private fun inspectOneOf(
     }
     body.addStatement("val rawEmpty = rawObject.isEmpty()")
     model.cases.forEach { case ->
+        val legacyExpression = case.legacyMatchExpression(inspectionPlan)
         val expression =
             case.predicate?.let {
-                "${oneOfCasePredicateFunctionName(model, case)}(rawObject)"
-            } ?: case.legacyMatchExpression(inspectionPlan)
+                "${oneOfCasePredicateFunctionName(model, case)}(rawObject) && ($legacyExpression)"
+            } ?: legacyExpression
         body.addStatement("val %L = %L", inspectionPlan.caseMatchName(case), expression)
     }
     body.add("return %T(\n", ClassName(model.packageName, "${model.resolvedName}Inspection")).indent()
@@ -686,7 +687,7 @@ internal fun EmissionContext.emitPrimitiveOneOf(
         TypeSpec
             .interfaceBuilder(model.resolvedName)
             .addModifiers(KModifier.PUBLIC, KModifier.SEALED)
-            .addAnnotation(serializableWith(unionType.nestedClass("Serializer")))
+            .addAnnotation(serializableWith(ClassName(model.packageName, "${model.resolvedName}Serializer")))
             .addKdoc("%L\n", sanitizeKDoc(model.kdoc))
             .addProperty(
                 PropertySpec
@@ -697,8 +698,8 @@ internal fun EmissionContext.emitPrimitiveOneOf(
             )
     model.cases.forEach { case -> union.addType(primitiveOneOfCase(unionType, case, branchValidationException)) }
     union.addType(primitiveOneOfCompanion(model, unionType, noMatchException, ambiguityException))
-    union.addType(primitiveOneOfSerializer(model, unionType))
     file.addType(union.build())
+    file.addType(primitiveOneOfSerializer(model, unionType))
     primitiveOneOfPredicateFunctions(model).forEach(file::addFunction)
 }
 
@@ -964,7 +965,7 @@ private fun primitivePredicateExpression(
                 is JsonAdditionalPropertiesPredicate.Typed -> {
                     val additionalPredicate = primitivePredicateExpression(additional.predicate, "value")
                     checks +=
-                        "$jsonObject.all { (name, value) -> name in setOf($declaredNames) || $additionalPredicate }"
+                        "$jsonObject.all { (name, value) -> name in setOf<String>($declaredNames) || $additionalPredicate }"
                 }
             }
             "($element !is JsonObject || (${checks.joinToString(" && ").ifEmpty { "true" }}))"
@@ -1718,8 +1719,8 @@ private fun EmissionContext.primitiveOneOfSerializer(
     unionType: ClassName,
 ): TypeSpec =
     TypeSpec
-        .objectBuilder("Serializer")
-        .addModifiers(KModifier.PUBLIC)
+        .objectBuilder("${model.resolvedName}Serializer")
+        .addModifiers(KModifier.INTERNAL)
         .addSuperinterface(K_SERIALIZER.parameterizedBy(unionType))
         .addProperty(
             PropertySpec
@@ -1957,7 +1958,7 @@ private fun anyOfSerializer(
 ): TypeSpec =
     TypeSpec
         .objectBuilder("Serializer")
-        .addModifiers(KModifier.PUBLIC)
+        .addModifiers(KModifier.INTERNAL)
         .addSuperinterface(K_SERIALIZER.parameterizedBy(wrapperType))
         .addProperty(
             PropertySpec
@@ -2228,7 +2229,7 @@ private fun valueAnyOfWrapper(
     type.addType(
         TypeSpec
             .objectBuilder("Serializer")
-            .addModifiers(KModifier.PUBLIC)
+            .addModifiers(KModifier.INTERNAL)
             .addSuperinterface(K_SERIALIZER.parameterizedBy(wrapperType))
             .addProperty(
                 PropertySpec

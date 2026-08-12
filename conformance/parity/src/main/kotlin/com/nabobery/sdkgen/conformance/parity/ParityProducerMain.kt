@@ -127,8 +127,16 @@ public object ParityPassedFixtureCli {
 public object ParityPortableSourceCli {
     @JvmStatic
     public fun main(args: Array<String>) {
-        require(args.size == 4) { "Usage: <generated-source-directory> <run-id> <fixture-id> <output-events-file>" }
-        producePortableSourceFixture(File(args[0]), args[1], args[2], File(args[3]))
+        require(args.size in 4..5) {
+            "Usage: <generated-source-directory> <run-id> <fixture-id> <output-events-file> [repository-root]"
+        }
+        producePortableSourceFixture(
+            generatedSourceDirectory = File(args[0]),
+            runId = args[1],
+            fixtureId = args[2],
+            output = File(args[3]),
+            repositoryRoot = args.getOrNull(4)?.let(::File),
+        )
     }
 }
 
@@ -210,10 +218,12 @@ internal fun producePortableSourceFixture(
     runId: String,
     fixtureId: String,
     output: File,
+    repositoryRoot: File? = null,
 ) {
     val failure =
         runCatching {
-            val root = safeDirectoryRoot(generatedSourceDirectory, "generated source directory")
+            // A repository root permits the corpus 'generated' snapshot symlink, mirroring provenance policy.
+            val root = safeDirectoryRoot(generatedSourceDirectory, "generated source directory", repositoryRoot)
             val violations =
                 Files.walk(root).use { paths ->
                     paths

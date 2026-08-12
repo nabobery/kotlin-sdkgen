@@ -165,7 +165,7 @@ class NamingInventoryTest {
                     .toList()
                     .toSet()
             }
-        assertEquals(880, oldNames.size)
+        assertEquals(879, oldNames.size)
         val rows =
             inlineDeclarations.sortedBy { declaration -> declaration.sourceSchemaId() }.map { declaration ->
                 val oldName = legacyInlineName(declaration.sourceSchemaId())

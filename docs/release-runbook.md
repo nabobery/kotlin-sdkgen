@@ -26,13 +26,14 @@ effectively true for the Gradle Plugin Portal. This means:
 - The isolated rehearsal verifies the exact eight ADR-0008 coordinates, rejects internal
   (`generator:model`, `generator:openapi`) coordinate leakage, validates staged metadata and
   checksums, and resolves clean external consumers from the staged repository.
-- **Not yet implemented:** signing, full POM metadata (license, developers, SCM), javadoc/Dokka
-  artifacts, SBOM (CycloneDX), Central Portal aggregation, and release provenance.
-- Remote repository credentials are intentionally not configured yet
-  (`sdkgen.publishing.gradle.kts`: "Remote repositories and credentials are intentionally
-  deferred until release automation exists").
-- Drift and release-verification workflows exist, but neither has been proven by a GitHub-hosted
-  run and neither publishes artifacts.
+- Signing, full POM metadata, reproducible Dokka documentation jars, CycloneDX SBOM generation, Central Portal
+  aggregation, Gradle Plugin Portal publication, and GitHub provenance attestation are implemented.
+- Remote credentials are scoped to the protected `release` environment and are never read by ordinary CI.
+- Release verification is proven by GitHub Actions run 30816457293. The credential-free
+  `release-verification.yml` workflow is the rehearsal path. The tag-bound, protected `release.yml`
+  workflow is the only workflow capable of remote publication. Link the latest protected rehearsal
+  from its merge review rather than hard-coding it here, so this runbook does not become stale after
+  every rehearsal.
 
 ## Rehearsal (required before any real publication)
 
@@ -41,14 +42,15 @@ effectively true for the Gradle Plugin Portal. This means:
 2. Verify exactly the eight ADR-0008 coordinates are produced, with the expected physical KMP
    variants, and **no** unpublished internal project coordinate is present in POM or Gradle
    Module Metadata.
-3. Verify POM and module metadata, sources/docs artifacts, and (once implemented) signatures,
-   checksums, and the aggregated SBOM.
+3. Verify POM and module metadata, sources/docs artifacts, signatures, checksums, and the
+   aggregated SBOM.
 4. Consume every published coordinate from a clean, isolated external build (no Maven Local
    fallback, no composite/project substitution, no undeclared repository) to prove the artifact
    graph resolves independently.
 5. Run `validatePlugins` and `publishPlugins --validate-only` for the Gradle plugin; never run
    the real `publishPlugins` outside an explicitly authorized release.
-6. Use a throwaway signing key for rehearsal. Never rehearse with production release credentials.
+6. For local or contributor signed rehearsals, use a throwaway signing key. The credential-free CI
+   rehearsal deliberately does not sign; the release key is exposed only to the protected publish job.
 
 Only after every rehearsal check above passes, with evidence recorded, does a real release
 become eligible.
@@ -58,32 +60,31 @@ become eligible.
 This section describes the target procedure; it is not yet exercised end-to-end in this
 repository.
 
-1. Confirm the target commit is the reviewed, merged tip intended for release (never a task or
-   integration worktree branch).
-2. Bump `sdkgenVersion` (root Gradle property) to the release version. Do not reuse a version
-   number that was ever pushed, even privately, to a shared remote.
-3. Run the full verification gate: `./gradlew build check ktlintCheck apiCheck` plus the staged
-   ABI/BCV checks from ADR-0007, plus the cross-corpus parity gate and any then-current compatibility
-   report for the release diff.
-4. Run the rehearsal steps above against the release version specifically (not just a prior
-   SNAPSHOT), since artifact identity, signing, and SBOM contents are version-specific.
-5. Obtain explicit human authorization (this project has no auto-publish path; a human must run
-   the publish command with real, scoped, short-lived-where-possible credentials).
-6. Publish to the Maven Central Portal (Nmcp aggregation) and, for the Gradle plugin, the Gradle
-   Plugin Portal.
-7. Tag the release commit and publish release notes summarizing the effective contract diff
+1. Confirm the target commit is the reviewed, merged commit on `main` intended for release (never a task or
+   integration worktree branch), then create the protected `v<version>` tag at that exact commit.
+2. Dispatch `release.yml` from that tag and pass the tag's version without the leading `v` through
+   the required `version` input. The workflow rejects any ref/version mismatch and any tagged commit
+   that is not on `origin/main`. Do not reuse a version published to either portal.
+3. The workflow calls `release-verification.yml` for that exact SHA. It must complete the full
+   build/check/ktlint/API, ABI/BCV, cross-corpus parity, benchmark, compatibility, and isolated
+   publication gates before the protected publish job becomes eligible.
+4. Obtain the required `release` Environment reviewer approval. Only the publish job can read release
+   credentials, and each credential pair is exposed only to the step that needs it.
+5. The protected job builds and verifies the signed release repository, SBOM, clean external consumer,
+   and plugin metadata, then publishes to Central (Nmcp aggregation) and the Gradle Plugin Portal.
+6. Confirm both portals accepted the version and retain the GitHub provenance attestation.
+7. Publish release notes summarizing the effective contract diff
    (`sdkgen diff`/`sdkgen explain` output where applicable — see `generator/cli/.../
    DiffCommand.kt` and `ExplainCommand.kt`), the applied-overlay report, the conformance/waiver
    summary, and the target compile matrix.
-8. Generate and publish GitHub artifact attestations for the release artifacts (release automation scope;
-   not yet implemented).
+8. Record the protected tag, portal records, release notes, and attestation together as release evidence.
 
 ## What this runbook explicitly does not authorize
 
 - It does not authorize pushing to a shared remote, opening a PR, merging to `main`, or uploading
   to Maven Central / the Gradle Plugin Portal as a byproduct of documentation or routine
   development work. Every one of those remains a separate, explicitly authorized action.
-- It does not claim any of the "not yet implemented" items above are done.
+- It does not claim a publication occurred until both portals and the GitHub release record confirm it.
 
 ## Rollback / incident response
 

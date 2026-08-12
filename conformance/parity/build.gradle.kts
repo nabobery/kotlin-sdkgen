@@ -92,10 +92,7 @@ val openRouterTaskOutcome =
         openRouterConsumerBuild.file("parity/openrouter/outcomes/$runId.txt")
     }
 val openRouterJUnitXml = openRouterConsumerBuild.dir("test-results/jvmTest")
-val openRouterGenerated =
-    rootProject.layout.projectDirectory.dir(
-        "conformance/openrouter/consumer/src/commonMain/kotlin/com/nabobery/sdkgen/generated",
-    )
+val openRouterGenerated = rootProject.layout.projectDirectory.dir("conformance/openrouter/generated")
 val openRouterCompileJvmEvent =
     openRouterParityRunId.map { runId ->
         openRouterConsumerBuild.file("parity/openrouter/events/$runId/compile-jvm.txt")
@@ -590,6 +587,7 @@ val recordOpenRouterPortableSourceFixture =
             openRouterParityRunId.get(),
             "openrouter.source-portable",
             openRouterSourcePortableEvent.get().asFile.absolutePath,
+            rootProject.layout.projectDirectory.asFile.absolutePath,
         )
         dependsOn(":conformance:openrouter:consumer:prepareOpenRouterParityRun")
     }
@@ -639,6 +637,8 @@ tasks.register<JavaExec>("produceOpenRouterParityEvidence") {
     inputs
         .files(
             rootProject.layout.projectDirectory.file("conformance/openrouter/openapi.yaml"),
+            rootProject.layout.projectDirectory.file("conformance/openrouter/sdkgen.yaml"),
+            rootProject.layout.projectDirectory.file("conformance/openrouter/sdkgen.lock"),
             rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/full-spec-compat.yaml"),
             rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"),
         ).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -660,8 +660,12 @@ tasks.register<JavaExec>("produceOpenRouterParityEvidence") {
         rootProject.layout.projectDirectory
             .file("conformance/openrouter/openapi.yaml")
             .asFile.absolutePath,
-        "-",
-        "-",
+        rootProject.layout.projectDirectory
+            .file("conformance/openrouter/sdkgen.yaml")
+            .asFile.absolutePath,
+        rootProject.layout.projectDirectory
+            .file("conformance/openrouter/sdkgen.lock")
+            .asFile.absolutePath,
         rootProject.layout.projectDirectory
             .file("conformance/openrouter/overlays/full-spec-compat.yaml")
             .asFile.absolutePath,

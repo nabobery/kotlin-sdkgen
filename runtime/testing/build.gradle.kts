@@ -1,7 +1,7 @@
 plugins {
+    id("sdkgen.publishing")
     id("sdkgen.kotlin-kmp")
     id("sdkgen.kotlin-kmp-android")
-    id("sdkgen.publishing")
 }
 
 kotlin {

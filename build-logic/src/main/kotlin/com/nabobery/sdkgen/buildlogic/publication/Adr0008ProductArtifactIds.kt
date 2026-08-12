@@ -46,13 +46,13 @@ public object Adr0008ProductArtifactIds {
      * coordinate that is not one of the eight roots and lives under its own group, so any check asserting the
      * staged set equals the eight roots has to account for it by name rather than by accident.
      */
-    public const val GRADLE_PLUGIN_MARKER_GROUP: String = "com.nabobery.kotlin-sdkgen"
+    public const val GRADLE_PLUGIN_MARKER_GROUP: String = "io.github.nabobery.kotlin-sdkgen"
 
     /** Artifact ID of [GRADLE_PLUGIN_MARKER_GROUP]'s marker publication. */
-    public const val GRADLE_PLUGIN_MARKER_ARTIFACT_ID: String = "com.nabobery.kotlin-sdkgen.gradle.plugin"
+    public const val GRADLE_PLUGIN_MARKER_ARTIFACT_ID: String = "io.github.nabobery.kotlin-sdkgen.gradle.plugin"
 
     /** The Maven group every ADR-0008 root publishes under. */
-    public const val PRODUCT_GROUP: String = "com.nabobery"
+    public const val PRODUCT_GROUP: String = "io.github.nabobery"
 
     /**
      * Kotlin/Multiplatform target suffixes a staged `<root>-<target>` variant may carry.
@@ -73,4 +73,23 @@ public object Adr0008ProductArtifactIds {
             "macosarm64",
             "mingwx64",
         )
+
+    private val projectPathToReleaseTargets =
+        mapOf(
+            ":runtime:core" to KNOWN_TARGET_SUFFIXES,
+            ":runtime:testing" to KNOWN_TARGET_SUFFIXES,
+            ":runtime:transport-ktor" to KNOWN_TARGET_SUFFIXES,
+            ":runtime:transport-okhttp" to setOf("android", "jvm"),
+        )
+
+    /** Every physical Maven artifact ID the release repository must contain. */
+    public val releaseProductArtifactIds: Set<String> =
+        projectPathToArtifactId
+            .flatMap { (projectPath, rootArtifactId) ->
+                listOf(rootArtifactId) +
+                    projectPathToReleaseTargets
+                        .getOrElse(projectPath, ::emptySet)
+                        .sorted()
+                        .map { target -> "$rootArtifactId-$target" }
+            }.toSet()
 }

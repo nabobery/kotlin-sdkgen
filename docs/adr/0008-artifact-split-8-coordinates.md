@@ -74,3 +74,27 @@ The merge analysis found no demonstrated independent consumer for `sdkgen-model`
 - Add separate telemetry bridge artifacts only when concrete integrations exist.
 - Release gates must include POM and Gradle Module Metadata, sources, documentation, signatures, checksums, no project-dependency leakage, and isolated root-coordinate rehearsals.
 - Clarify that Kotlin 2.3.20 is the compiler/plugin and generated-source baseline; dependency resolution may select a compatible stdlib patch, as Ktor 3.5.1 selected 2.3.21 in the experiment.
+
+## Amendment (2026-08-03): Maven group changed to `io.github.nabobery`
+
+The eight coordinates above are superseded in one respect: every `com.nabobery:kotlin-sdkgen-*` coordinate
+listed in the Decision section is now published as `io.github.nabobery:kotlin-sdkgen-*` (and the
+accompanying Gradle plugin marker and plugin ID move from `com.nabobery.kotlin-sdkgen` to
+`io.github.nabobery.kotlin-sdkgen`). The artifact IDs, the eight-coordinate split, and every other decision
+in this ADR are unchanged; only the Maven groupId component moves.
+
+The reason is namespace verification, not design. Maven Central's Central Portal requires proving ownership
+of whatever namespace a groupId claims: for a reverse-DNS group like `com.nabobery`, that means proving
+control of the `nabobery.com` domain (typically via a DNS TXT record), which the project owner does not
+hold. `io.github.<username>` namespaces are verified instead through GitHub account ownership, which the
+owner already has. Nothing under the `com.nabobery` group had ever been published externally when this
+change was made, so this is a plain pre-release rename: no relocation POM, no compatibility shim, and no
+existing consumer to migrate.
+
+**Kotlin package names deliberately retain `com.nabobery.sdkgen`.** Maven Central verifies groupIds, not
+Java/Kotlin package names — the two are independent and their divergence is common and harmless (many
+published libraries ship under a package prefix that does not match their Maven group). Renaming the
+package now would touch every one of the roughly 17.8k files in the committed cross-corpus conformance
+snapshots and invalidate every pinned digest that depends on them, for zero namespace-verification benefit.
+The groupId is the only thing Central's ownership proof actually checks, so it is the only thing this
+amendment changes.

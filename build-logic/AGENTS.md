@@ -34,7 +34,7 @@ build-logic/src/main/kotlin/
 - `kotlin-jvm` targets JVM 17 with explicit API
 - `kotlin-kmp` configures targets (JVM, JS, iOS, macOS, Linux) + disables node download
 - `ktlint` enforces `ktlint_official` style, max 120 chars, trailing commas
-- Publishing requires signing + Sonatype credentials (OSSHR)
+- Publishing uses the Central Portal through Nmcp and requires in-memory signing plus Central user-token credentials
 
 ## ANTI-PATTERNS
 

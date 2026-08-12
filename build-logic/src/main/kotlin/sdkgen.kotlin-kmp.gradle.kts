@@ -36,7 +36,13 @@ kotlin {
         browser {
             testTask {
                 useKarma {
-                    useChromeHeadless()
+                    // Chrome's sandbox segfaults under CI runners' containerized kernels; locally the
+                    // sandbox stays on.
+                    if (System.getenv("CI") != null) {
+                        useChromeHeadlessNoSandbox()
+                    } else {
+                        useChromeHeadless()
+                    }
                 }
             }
         }

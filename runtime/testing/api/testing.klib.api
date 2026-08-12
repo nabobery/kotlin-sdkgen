@@ -5,7 +5,7 @@
 // - Show manifest properties: true
 // - Show declarations: true
 
-// Library unique name: <com.nabobery:testing>
+// Library unique name: <io.github.nabobery:testing>
 final enum class com.nabobery.sdkgen.testing/ContractCapability : kotlin/Enum<com.nabobery.sdkgen.testing/ContractCapability> { // com.nabobery.sdkgen.testing/ContractCapability|null[0]
     enum entry ATTEMPT_DEADLINE // com.nabobery.sdkgen.testing/ContractCapability.ATTEMPT_DEADLINE|null[0]
     enum entry CALLER_OWNED_ENGINE // com.nabobery.sdkgen.testing/ContractCapability.CALLER_OWNED_ENGINE|null[0]

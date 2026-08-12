@@ -28,12 +28,12 @@ import kotlin.test.assertTrue
  * Every non-`const` property of a Kotlin `object` is assigned in that object's `<clinit>`, and the JVM caps one
  * method's bytecode at 64 KiB. A codecs object holding one client's every operation therefore has a hard size
  * ceiling — reached on the Stripe corpus at 519 operations. These tests pin the partitioning that lifts it, and
- * pin that lifting it costs nothing on the public surface. See ADR-0015.
+ * pin that lifting preserves the internal protocol structure. See ADR-0015.
  *
- * The public-surface tests inventory **both** public properties and public nested types. An earlier revision
- * inventoried only properties, and so could not detect that partitioning had moved the public per-operation
- * form codec objects inside a `private object` and removed them from the generated API. That regression
- * shipped. `partitioningKeepsPublicNestedCodecObjectsReachable` is the test that would have caught it.
+ * The internal-structure tests inventory **both** internal properties and internal nested types. An earlier revision
+ * inventoried only properties, and so could not detect that partitioning had moved the internal per-operation
+ * form codec objects inside a `private object`. That regression shipped.
+ * `partitioningKeepsInternalNestedCodecObjectsReachable` is the test that would have caught it.
  */
 class CodecPartitioningTest {
     @Test
@@ -84,40 +84,40 @@ class CodecPartitioningTest {
     }
 
     @Test
-    fun partitioningKeepsPublicNestedCodecObjectsReachable() {
+    fun partitioningKeepsInternalNestedCodecObjectsReachable() {
         val flat = renderCodecsClient(operationCount = 40)
         val partitioned = renderCodecsClient(operationCount = 200)
 
-        // A form request body emits `public object <Op>FormCodec`, and a multipart one `<Op>MultipartCodec`,
-        // as members of the codecs object. Nesting either inside a private partition would delete it from the
-        // generated API — `public` on a member does not survive a private enclosing scope. Form and multipart
+        // A form request body emits `internal object <Op>FormCodec`, and a multipart one `<Op>MultipartCodec`,
+        // as members of the codecs object. Nesting either inside a private partition would make it unavailable
+        // to the outer codecs holder. Form and multipart
         // are emitted by separate functions, so both are pinned: a multipart-only regression would otherwise
         // leave every other assertion here green.
         listOf("Operation0FormCodec", "Operation1MultipartCodec").forEach { codecObject ->
             assertTrue(
-                Regex("^  public object $codecObject", RegexOption.MULTILINE).containsMatchIn(flat),
+                Regex("^  internal object $codecObject", RegexOption.MULTILINE).containsMatchIn(flat),
                 "the unpartitioned client must expose $codecObject directly on the codecs object",
             )
             assertTrue(
-                Regex("^  public object $codecObject", RegexOption.MULTILINE).containsMatchIn(partitioned),
+                Regex("^  internal object $codecObject", RegexOption.MULTILINE).containsMatchIn(partitioned),
                 "partitioning must not move $codecObject inside a private partition",
             )
         }
     }
 
     @Test
-    fun partitioningLeavesThePublicCodecsSurfaceUnchanged() {
-        val flat = publicCodecMembers(renderCodecsClient(operationCount = 40))
-        val partitioned = publicCodecMembers(renderCodecsClient(operationCount = 200))
+    fun partitioningLeavesTheInternalCodecsStructureUnchanged() {
+        val flat = internalCodecMembers(renderCodecsClient(operationCount = 40))
+        val partitioned = internalCodecMembers(renderCodecsClient(operationCount = 200))
 
         // The 200-operation client is a superset: same members for operations 0..39, plus the rest.
         assertEquals(
             emptySet(),
             flat - partitioned,
-            "partitioning must not remove or rename any public member of the codecs object",
+            "partitioning must not remove or rename any internal member of the codecs object",
         )
-        assertTrue(flat.contains("Operation0FormCodec"), "the inventory must cover public nested types")
-        assertTrue(flat.contains("operation0RequestCodecRegistry"), "the inventory must cover public properties")
+        assertTrue(flat.contains("Operation0FormCodec"), "the inventory must cover internal nested types")
+        assertTrue(flat.contains("operation0RequestCodecRegistry"), "the inventory must cover internal properties")
     }
 
     @Test
@@ -125,9 +125,9 @@ class CodecPartitioningTest {
         val source = renderCodecsClient(operationCount = 200)
 
         assertTrue(
-            Regex("^  public const val OPERATION0_RESPONSE_CODEC_ID", RegexOption.MULTILINE).containsMatchIn(source),
+            Regex("^  internal const val OPERATION0_RESPONSE_CODEC_ID", RegexOption.MULTILINE).containsMatchIn(source),
             "codec ids must stay `const` on the codecs object: they cost no `<clinit>` bytecode, and demoting " +
-                "them to ordinary properties would change a public compile-time constant",
+                "them to ordinary properties would break a compile-time constant used by generated code.",
         )
         assertTrue(
             source.contains("KotlinxSerializationCodec(WidgetCodecs.OPERATION0_RESPONSE_CODEC_ID"),
@@ -135,7 +135,7 @@ class CodecPartitioningTest {
         )
         assertTrue(
             source.contains("WidgetCodecs.Operation0FormCodec"),
-            "a partition must reach a public nested form codec object qualified through the outer object",
+            "a partition must reach an internal nested form codec object qualified through the outer object",
         )
         assertTrue(
             source.contains("WidgetCodecs.Operation1MultipartCodec"),
@@ -143,7 +143,7 @@ class CodecPartitioningTest {
         )
     }
 
-    /** A form or multipart request body, each of which emits its own public nested codec object. */
+    /** A form or multipart request body, each of which emits its own internal nested codec object. */
     private fun requestBody(
         mediaType: String,
         multipart: Boolean,
@@ -183,14 +183,14 @@ class CodecPartitioningTest {
 
     /** A stored property declared directly in a partition body, at one level of nesting inside it. */
     private fun isStoredPartitionProperty(line: String): Boolean =
-        line.startsWith("    public val ") || line.startsWith("    private val ")
+        line.startsWith("    internal val ") || line.startsWith("    private val ")
 
     /**
-     * Public members of the codecs object itself — properties and nested types — excluding anything nested
+     * Internal members of the codecs object itself — properties and nested types — excluding anything nested
      * inside a partition. Two-space indentation is exactly one level inside the codecs object.
      */
-    private fun publicCodecMembers(source: String): Set<String> =
-        Regex("^  public (?:const )?(?:val|object) (\\w+)", RegexOption.MULTILINE)
+    private fun internalCodecMembers(source: String): Set<String> =
+        Regex("^  internal (?:const )?(?:val|object) (\\w+)", RegexOption.MULTILINE)
             .findAll(source)
             .map { match -> match.groupValues[1] }
             .toSet()
@@ -205,19 +205,19 @@ class CodecPartitioningTest {
      * instead of another regex that has to be remembered and kept in step.
      */
     @Test
-    fun theEmittedApiProjectionListsPublicNestedCodecObjectsAcrossThePartitionBound() {
+    fun theEmittedApiProjectionOmitsInternalNestedCodecObjectsAcrossThePartitionBound() {
         val flat = codecsProjection(operationCount = 40)
         val partitioned = codecsProjection(operationCount = 200)
 
         listOf("Operation0FormCodec", "Operation1MultipartCodec").forEach { codecObject ->
             val qualifiedName = "\"com.example.generated.widgets.WidgetCodecs.$codecObject\""
-            assertTrue(
+            assertFalse(
                 flat.contains(qualifiedName),
-                "the unpartitioned client's projection must name $codecObject",
+                "the unpartitioned client's projection must omit internal $codecObject",
             )
-            assertTrue(
+            assertFalse(
                 partitioned.contains(qualifiedName),
-                "partitioning must not delete $codecObject from the emitted public API",
+                "partitioning must keep internal $codecObject out of the emitted public API",
             )
         }
     }

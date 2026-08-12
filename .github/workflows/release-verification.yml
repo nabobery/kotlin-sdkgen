@@ -1,16 +1,11 @@
 ---
-# Release-candidate verification and local rehearsal — read-only, manual-only.
+# Release-candidate verification and local rehearsal — read-only and credential-free.
 #
 # This workflow runs as much of the verification gate docs/release-runbook.md ("Real release",
 # step 3) and the rehearsal steps ("Rehearsal", steps 1-5) as EXISTING Gradle tasks currently
 # support — cross-corpus parity, the standard build/check/ktlint/apiCheck gates, and
 # publication-inventory/metadata verification against an isolated local repository. It does not
-# implement any new verification logic itself. One runbook step still cannot be composed because
-# the tasks it needs do not exist in this tree: the Gradle Plugin Portal's
-# `validatePlugins`/`publishPlugins` come from a plugin that is not applied to
-# `integrations/gradle-plugin`. (An earlier revision of this comment also listed the benchmark-budget task
-# `verifyBenchmarkBudget` as unapplied; that task exists and is invoked below.) See the comment at
-# the omitted step and docs/release-runbook.md. It never publishes anywhere:
+# implement any new verification logic itself. It never publishes anywhere:
 #   - No signing key, Central Portal credential, or Gradle Plugin Portal credential is referenced
 #     anywhere in this file.
 #   - It never calls `publish` against any remote repository, `publishToMavenCentral`, or
@@ -19,18 +14,20 @@
 #     away from any remote coordinate.
 #   - `permissions: contents: read` at both workflow and job scope; no job in this file is ever
 #     granted `contents: write`, `id-token: write`, or `packages: write`. There is nothing here to
-#     poison, because there is no write-capable job in this workflow at all — release credentials
-#     do not exist in this repository yet (docs/release-runbook.md: "Remote repository credentials
-#     are intentionally not configured yet"), and per that runbook, real publication is always a
-#     separate, explicitly human-authorized action outside of any automatic CI trigger.
+#     poison, because no release credential is available to this workflow.
 #
-# Trigger is workflow_dispatch only — never schedule, never push, never pull_request — because a
-# release-candidate rehearsal is exactly the kind of thing docs/release-runbook.md says "must
-# never be a side effect of merging to main or of a scheduled workflow."
+# Direct rehearsal uses workflow_dispatch. `release.yml` also invokes this file through
+# workflow_call for the exact tagged commit before its protected publish job can start.
 
 name: Release verification (manual rehearsal)
 
 on:
+  workflow_call:
+    inputs:
+      release_candidate_version:
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       release_candidate_version:
@@ -41,10 +38,11 @@ on:
         default: ""
 
 concurrency:
-  # Shared with drift.yml's `sdkgen-heavy-gradle-lane` group — GitHub only serializes runs whose
-  # group names match exactly, so this MUST be the same literal string used there, not merely a
-  # similarly-named one. Without this, a scheduled drift run and a dispatched release rehearsal
-  # could run their own Gradle/generation lanes at the same time, which
+  # Directly dispatched rehearsals share drift.yml's `sdkgen-heavy-gradle-lane` group — GitHub only
+  # serializes runs whose group names match exactly. A call from release.yml is governed by the
+  # caller's `release-<version>` group instead. Without serialization, a scheduled drift run and a
+  # directly dispatched release rehearsal could run their Gradle/generation lanes at the same time,
+  # which
   # AGENTS.md ("Resource-safe verification") explicitly
   # forbids ("Never run GitHub, Stripe, OpenRouter, publication rehearsal, or benchmark
   # measurement concurrently"). `cancel-in-progress: false` here (deliberately not `true`): a
@@ -64,13 +62,39 @@ jobs:
   verify-linux:
     name: Verify (JVM/JS/Android/Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Sequential by design (one Gradle lane at a time), and the work is corpus-scale: three
+    # generated SDKs compiled across eight Kotlin targets, then parity, publication rehearsal and
+    # staged-consumer verification. Observed wall time is well over an hour, so the previous 90
+    # limit would have cut a healthy run short. This is a ceiling against a hung build, not a
+    # performance budget — the performance budget is `verifyBenchmarkBudget` below.
+    timeout-minutes: 240
     permissions:
       contents: read
     env:
+      # Incremental compilation is disabled for the whole job. A CI job checks out a clean tree, so
+      # there is no previous build state for IC to be incremental against — every task compiles from
+      # scratch regardless — but IC still builds and holds its lookup caches and classpath snapshots
+      # in the compiler's heap. Over the ~7k generated files of a corpus consumer that overhead is
+      # measured in gigabytes on a runner that only has 7.75 GiB (see the capacity step). Turning it
+      # off buys heap without changing a single byte of compiler output.
+      # `--max-workers=2` with parallel project execution uses the 4-vCPU/16 GiB runner this job now
+      # requires (see the capacity precondition). The AGENTS.md "one Gradle lane at a time" rule is
+      # about concurrent Gradle INVOCATIONS on a shared workstation — steps here are still strictly
+      # sequential — and its `--max-workers=1` profile was carried to CI only to survive the old
+      # 7.75 GiB runner. Run 30748616875 measured that profile on the 16 GiB class: memory steady at
+      # 13.0/15.9 GiB with zero swap while three vCPUs sat idle through a 1h47m corpus compile.
+      # Two workers keeps peak memory bounded (each forked test worker is capped by
+      # JAVA_TOOL_OPTIONS below) while letting independent projects/targets overlap.
+      # `kotlin.native.jvmArgs` is set explicitly because JAVA_TOOL_OPTIONS=-Xmx2g on these steps
+      # would otherwise become the Kotlin/Native compiler JVM's cap — BELOW its own ~3g default.
+      # Run 30756270863 measured that: `stripe:consumer:compileKotlinIosArm64` died in 30 seconds
+      # with "Compilation failed: Java heap space" under the 2g cap, on a machine with 12 GiB free.
       GRADLE_ARGS: >-
-        --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+        --no-daemon --max-workers=2 -Dorg.gradle.parallel=true
         -Pkotlin.compiler.execution.strategy=in-process
+        -Pkotlin.native.jvmArgs=-Xmx4g
+        -Pkotlin.incremental=false -Pkotlin.incremental.multiplatform=false
+        -Pkotlin.incremental.js=false
       # The dispatcher-supplied input is placed into an environment variable by the runner (GitHub
       # expands `${{ }}` into the *value* of this mapping entry, not into any script's source
       # text), and every step below reads it back only as `"$RC_VERSION"` — a quoted shell
@@ -109,6 +133,95 @@ jobs:
             fi
           fi
 
+      # Runner capacity is the binding constraint on this job, and the numbers below are measured,
+      # not assumed. Telemetry added here in run 30655436681 reported `MemTotal` of 7937 MiB and
+      # 3 GiB of swap on `ubuntu-latest` — a 2-core/7 GiB standard runner, NOT the 16 GiB VM
+      # several earlier revisions of this file were sized against. That single fact explains every
+      # failure this workflow had: an 8 GiB build heap does not fit in 7.75 GiB of RAM at all, so
+      # the VM went into terminal swap thrash and the runner agent itself was killed ("The runner
+      # has received a shutdown signal", four consecutive runs); a 6 GiB heap fit, survived, and
+      # then exhausted itself in `:conformance:github:consumer:compileKotlin` after 29 minutes of
+      # GC. The step immediately after this one now refuses to proceed on a machine that small;
+      # this step still runs first so that its telemetry covers the refusal itself.
+      #
+      # Disk, by contrast, is measured to be a non-issue: 28 GiB stayed available throughout that
+      # same run. The reclaim below is therefore kept mainly to fund the swapfile.
+      #
+      # Three things happen here:
+      #   1. Reclaim disk by deleting preinstalled toolchains this repository never uses.
+      #      Deliberately NOT deleted: /usr/local/lib/android and /opt/hostedtoolcache/{Java,node},
+      #      which the setup-android/setup-java/setup-node steps below populate and consume.
+      #   2. Add 10 GiB of swap, placed on /mnt (the runner's separate scratch disk) so it does not
+      #      compete with the root filesystem the build writes its outputs to. This is a safety
+      #      net, not a performance plan: no Kotlin compile should be running out of swap, but the
+      #      failure mode it prevents — the runner agent being killed, taking the whole job's
+      #      diagnosis down with it — is far worse than a slow step.
+      #   3. Start a background sampler so any future capacity failure attributes itself instead of
+      #      costing another blind iteration. The final always() step of this job prints it.
+      - name: Reclaim runner disk, add swap, and start capacity telemetry
+        run: |
+          set -eu
+          echo "== baseline =="
+          df -h / || true
+          free -m || true
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/miniconda || true
+          docker image prune -af >/dev/null 2>&1 || true
+          sudo fallocate -l 10G /mnt/sdkgen-swapfile
+          sudo chmod 600 /mnt/sdkgen-swapfile
+          sudo mkswap /mnt/sdkgen-swapfile
+          sudo swapon /mnt/sdkgen-swapfile
+          echo "== after reclaim and swapon =="
+          df -h / || true
+          free -m || true
+          # Sampled every 30s into a file the always() step tails. `nohup ... &` deliberately
+          # outlives this step; GitHub's "Cleaning up orphan processes" reaps it at job end.
+          nohup bash -c 'while true; do
+            echo "== $(date -u +%H:%M:%S) =="
+            free -m | sed -n "2p"
+            df -h --output=avail / | tail -1
+            ps -eo rss,comm --sort=-rss | head -4
+            sleep 30
+          done' > /tmp/sdkgen-runner-telemetry.log 2>&1 &
+          echo "telemetry sampler started"
+
+      # Fail fast, and say why, on a runner too small to finish this job — rather than discovering it
+      # four hours later as a timeout, which is exactly what happened in run 30660519336.
+      #
+      # The evidence, from three instrumented runs on a 2-core/7.75 GiB standard runner:
+      #   * 30655436681 — 6 GiB in-process heap: `OutOfMemoryError: Java heap space` in
+      #     `:conformance:github:consumer:compileKotlin` after 29 minutes of GC, 7.1 GiB RSS.
+      #   * 30658435937 — 6 GiB dedicated Kotlin compiler daemon: `GC overhead limit exceeded` in the
+      #     same task, again at ~29 minutes.
+      #   * 30660519336 — 7 GiB daemon, incremental compilation off, 10 GiB of swap: the same task ran
+      #     for 3h53m without completing, the whole time pegged at ~7.7 of 7.9 GiB with 4.2 GiB of swap
+      #     in use, and was killed by the job timeout. Swap does not fix this; it converts a fast
+      #     failure into a slow one.
+      #
+      # The GitHub corpus consumer compiles ~7k generated Kotlin files as a single `compileKotlin`
+      # task, and AGENTS.md already records that these corpora need up to 8 GiB for a clean compile.
+      # A heap that large cannot fit in a 7.75 GiB machine alongside Gradle and the OS, so this job
+      # needs a larger runner: change `runs-on` to a larger-runner label (GitHub larger runners are
+      # configured at the organization/repository level) and update MIN_RUNNER_MEMORY_MIB with it.
+      # There is no workflow-side setting that makes a corpus-scale compile fit in 7.75 GiB, and the
+      # gate must not be narrowed to pretend otherwise.
+      - name: Require a runner large enough for the corpus-scale compiles
+        env:
+          # 15 GiB is the 16 GiB larger-runner class. Below it, the compile above is known not to
+          # complete; this is a measured floor, not a guess.
+          MIN_RUNNER_MEMORY_MIB: "15000"
+        run: |
+          set -eu
+          total_mib=$(free -m | awk '/^Mem:/ {print $2}')
+          echo "runner memory: ${total_mib} MiB (minimum ${MIN_RUNNER_MEMORY_MIB} MiB)"
+          if [ "$total_mib" -lt "$MIN_RUNNER_MEMORY_MIB" ]; then
+            echo "::error::This runner has ${total_mib} MiB of RAM. Release verification compiles" \
+              "corpus-scale generated SDKs that need ~8 GiB of Kotlin compiler heap, which does not" \
+              "fit here: see this step's comment for the three measured runs. Provision a larger" \
+              "runner (>= ${MIN_RUNNER_MEMORY_MIB} MiB), set runs-on to its label, and re-dispatch."
+            exit 1
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
@@ -140,6 +253,77 @@ jobs:
       # release-candidate version is honored consistently everywhere, not just by whichever
       # invocation happened to receive it — `--no-daemon` means a property given to one Gradle
       # invocation never persists into the next.
+      # The three corpus-scale consumer builds (GitHub ~7k generated files, Stripe larger) are the
+      # only genuinely memory-hungry work in this job, so they run first, in isolation, and the
+      # full-build step below then finds these tasks UP-TO-DATE.
+      #
+      # This is the one step that deviates from `GRADLE_ARGS`'s
+      # `-Pkotlin.compiler.execution.strategy=in-process`, and the deviation is the point.
+      # In-process is the right default on a developer workstation — AGENTS.md mandates it for
+      # resource-safe local runs, where a second JVM is pure waste. On a 7.75 GiB runner it is
+      # exactly backwards: it forces ONE heap to hold both Gradle's model of a 25-project
+      # configuration-cached build AND the Kotlin compiler's view of 7k generated files. Run
+      # 30655436681 measured what that costs — a 6g in-process heap spent 29 minutes in GC and then
+      # threw `OutOfMemoryError: Java heap space` in `github:consumer:compileKotlin`.
+      #
+      # Splitting the compiler into its own daemon buys back the ~1.5 GiB of Gradle-side overhead
+      # that heap was also carrying, and lets each side be sized honestly: a 900m Gradle JVM (it only
+      # schedules tasks here) plus an 11g compiler daemon. The capacity precondition above is what
+      # guarantees there is a machine underneath it — the three runs cited there are why this is
+      # not simply tuned smaller.
+      #
+      # The daemon is killed at the end of the step so it cannot linger, holding 11 GiB, into the
+      # in-process steps below.
+      #
+      # This step stays at ONE worker, unlike GRADLE_ARGS: run 30752841832 measured what two workers
+      # do here — the Stripe metadata compile and the GitHub compile landed in the SAME shared
+      # daemon heap, Stripe died of GC overhead at 20 minutes, and GitHub then threw
+      # `OutOfMemoryError: Java heap space` even running essentially alone afterward. That last
+      # point is also why the daemon is 11g, not the 8g AGENTS.md records for a local clean compile:
+      # on this runner's JVM an 8g heap is marginal for `github:consumer:compileKotlin` by itself
+      # (run 30748616875 sat at a full 8.6 GiB RSS for 1h47m without completing). 11g plus the 900m
+      # Gradle JVM is sized for the 16 GiB class the capacity precondition guarantees.
+      #
+      # One corpus per Gradle invocation, with the compiler daemon killed between them, so heap the
+      # daemon retains from one corpus (caches, arenas held at their high-water mark) cannot erode
+      # the headroom of the next. The three config-cache reloads this costs are noise next to the
+      # compiles themselves.
+      - name: Corpus-consumer build (dedicated 11 GiB Kotlin compiler daemon, one corpus at a time)
+        run: |
+          set -eu
+          version_arg=()
+          [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          for consumer in github stripe openrouter; do
+            ./gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false \
+              -Pkotlin.compiler.execution.strategy=daemon \
+              -Pkotlin.daemon.jvmargs=-Xmx11g \
+              -Pkotlin.native.jvmArgs="-Xmx8g -Dfile.encoding=UTF-8" \
+              -Pkotlin.incremental=false -Pkotlin.incremental.multiplatform=false \
+              -Pkotlin.incremental.js=false \
+              -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" \
+              ":conformance:${consumer}:consumer:build" "${version_arg[@]}"
+            pkill -f KotlinCompileDaemon || true
+          done
+        env:
+          # NOT the "it only schedules tasks" 900m this step used to run: three identical ~30s
+          # "Compilation failed: Java heap space" failures on stripe:consumer:compileKotlinIosArm64
+          # (runs 30756270863, 30757069344, 30757888081 — the last with 8g granted via BOTH
+          # kotlin.native.jvmArgs and JAVA_TOOL_OPTIONS, dying 2 seconds in) prove by elimination
+          # that the Kotlin/Native compiler runs in-process INSIDE this Gradle JVM, so its 900m cap
+          # was the Native compile's heap. 8g is a cap, not an allocation — the Gradle JVM only
+          # grows during the Native compiles, when the 11g Kotlin daemon is idle.
+          GRADLE_JVM_ARGS: "-Xmx8g -Dfile.encoding=UTF-8"
+          # Reaches every forked JVM: the compiler daemon (whose own explicit -Xmx wins over it),
+          # the consumers' test workers, and the Kotlin/Native compiler. 8g, not the other steps'
+          # 2g: runs 30756270863 (2g cap) and 30757069344 (2g cap + kotlin.native.jvmArgs=4g) both
+          # killed the Stripe iOS cross-compile in ~30 seconds with "Compilation failed: Java heap
+          # space", so K/N's heap is set high through BOTH mechanisms — whichever JVM actually runs
+          # the Native compile, it gets 8g. Safe here because this step is single-worker serial:
+          # at most one forked JVM runs alongside the (then-idle) compiler daemon, and the swapfile
+          # absorbs transient overlap.
+          JAVA_TOOL_OPTIONS: "-Xmx8g"
+          CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
+
       - name: Full build, check, ktlint, and BCV apiCheck
         run: |
           set -eu
@@ -152,8 +336,12 @@ jobs:
           # daemon, and it silently applies to every other JVM the build launches (test workers,
           # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
           # independent of the daemon model.
-          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
-          JAVA_TOOL_OPTIONS: "-Xmx4g"
+          #
+          # 3g, not 4g: on a 7.75 GiB runner (see the capacity step) a 4g in-process build heap plus
+          # a forked Kotlin/Native compiler is already the whole machine. The corpus JVM compiles
+          # that actually needed a large heap are UP-TO-DATE by the time this step runs.
+          GRADLE_JVM_ARGS: "-Xmx3g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
           CHROME_BIN: ${{ steps.chrome.outputs.chrome-path }}
 
       # cross-corpus parity gate — composed, not reimplemented. `parityGate` verifies the already-committed
@@ -178,8 +366,10 @@ jobs:
           # daemon, and it silently applies to every other JVM the build launches (test workers,
           # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
           # independent of the daemon model.
-          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
-          JAVA_TOOL_OPTIONS: "-Xmx4g"
+          # 3g/2g, not 4g/4g: this step runs each corpus consumer's test suite, so a build JVM and a
+          # test worker are alive at once on a 7.75 GiB runner (see the capacity step).
+          GRADLE_JVM_ARGS: "-Xmx3g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
 
       # `generateParityMatrices` writes into the *source tree*
       # (docs/conformance/evidence/parity-matrices.{md,json}), so running it in CI without checking the
@@ -241,7 +431,16 @@ jobs:
           set -eu
           version_arg=()
           [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          # Cross-compiled Apple klib publication is disabled for the rehearsal: Kotlin 2.2.20+
+          # cross-compiles Apple klibs from Linux by default, which staged nine
+          # iosarm64/iossimulatorarm64/macosarm64 coordinates run 30765386366's inventory gate
+          # correctly rejected — ADR-0007/0008 assign Apple artifacts to the macOS lane, and the
+          # Linux lane stages exactly the eight-coordinate set. (Those cross-published variants
+          # also escaped the ADR-0008 artifactId rename — raw `core-iosarm64` instead of
+          # `kotlin-sdkgen-runtime-iosarm64` — so single-host publication would need that rename
+          # ordering fixed first if an ADR revision ever adopts it.)
           ./gradlew $GRADLE_ARGS -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" -PpublicationRepository=build/publication-repository \
+            -Pkotlin.native.enableKlibsCrossCompilation=false \
             "${version_arg[@]}" \
             --init-script conformance/publication/publish-to-isolated-repository.init.gradle.kts \
             publish
@@ -251,8 +450,8 @@ jobs:
           # daemon, and it silently applies to every other JVM the build launches (test workers,
           # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
           # independent of the daemon model.
-          GRADLE_JVM_ARGS: "-Xmx3g -Dfile.encoding=UTF-8"
-          JAVA_TOOL_OPTIONS: "-Xmx3g"
+          GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
 
       - name: Verify publication metadata
         run: |
@@ -301,6 +500,22 @@ jobs:
           GRADLE_JVM_ARGS: "-Xmx2g -Dfile.encoding=UTF-8"
           JAVA_TOOL_OPTIONS: "-Xmx2g"
 
+      # Diagnostic only — `if: always()` so it also reports when a step above failed, which is the
+      # case that matters. It never fails the job (`|| true` throughout): a capacity report must
+      # not be able to turn a green verification red, and must not mask a real failure either.
+      # `dmesg` is the authoritative answer for a VM-level OOM kill; the sampler tail shows the
+      # approach to whichever limit was hit.
+      - name: Runner capacity report
+        if: always()
+        run: |
+          echo "== final =="
+          df -h / || true
+          free -m || true
+          echo "== kernel OOM evidence (empty means no kill was logged) =="
+          sudo dmesg 2>/dev/null | grep -iE 'out of memory|oom-kill|killed process' | tail -20 || true
+          echo "== capacity samples (last 60) =="
+          tail -60 /tmp/sdkgen-runner-telemetry.log || true
+
       # docs/release-runbook.md, "Rehearsal" step 5 calls for `validatePlugins` and
       # `publishPlugins --validate-only`. Both tasks come from the `com.gradle.plugin-publish`
       # Gradle plugin, which `integrations/gradle-plugin/build.gradle.kts` does not apply (it
@@ -333,7 +548,9 @@ jobs:
     name: Verify (Apple targets, ADR-0007)
     needs: verify-linux
     runs-on: macos-14
-    timeout-minutes: 60
+    # Kotlin/Native compiles the corpus-scale consumers for three Apple targets here; same
+    # reasoning as verify-linux's ceiling above.
+    timeout-minutes: 180
     permissions:
       contents: read
     env:
@@ -387,15 +604,51 @@ jobs:
           set -eu
           version_arg=()
           [ -n "$RC_VERSION" ] && version_arg=(-PsdkgenVersion="$RC_VERSION")
+          # ${arr[@]+"${arr[@]}"} instead of the plain expansion the Linux job uses: macOS runners
+          # execute /bin/bash 3.2, where `set -u` treats an EMPTY array's "${arr[@]}" as an unbound
+          # variable (run 30768536471 died on exactly that). Bash 4.4+ on the Linux runners does not.
+          # iosArm64 is a DEVICE target: KMP creates no `iosArm64Test` run task for it (run
+          # 30771666198 failed on Gradle's ambiguous-abbreviation match), because nothing on CI can
+          # execute a device binary. `iosArm64TestBinaries` links the test executable — compiling
+          # main + test code and driving the full native toolchain — which is the strongest
+          # verification a device target admits. The simulator and macOS targets run their tests.
+          #
+          # Scoped to the three KMP PRODUCT modules, not the bare task names: unqualified
+          # `iosSimulatorArm64Test` aggregates over every project including the corpus consumers,
+          # and a corpus-scale Kotlin/Native compile needs ~8 GiB of heap this runner class does
+          # not have (run 30775084346: "Compilation failed: Java heap space" — the same
+          # measurement the verify-linux corpus step is sized around). The consumers' Apple klibs
+          # are already compiled and verified by that Linux corpus step via Kotlin 2.2.20+
+          # cross-compilation; what only a macOS host can add — and what ADR-0007 asks of this
+          # lane — is native-host verification of the published product modules: real simulator
+          # and macOS test execution plus device-target linking. Corpus-consumer test EXECUTION on
+          # a simulator remains unexercised on CI; that needs a larger Mac runner class.
           ./gradlew --no-daemon --max-workers=1 -Dorg.gradle.parallel=false \
             -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" \
             -Pkotlin.compiler.execution.strategy=in-process \
-            iosArm64Test iosSimulatorArm64Test macosArm64Test apiCheck "${version_arg[@]}"
+            :runtime:core:iosArm64TestBinaries :runtime:core:iosSimulatorArm64Test :runtime:core:macosArm64Test \
+            :runtime:testing:iosArm64TestBinaries :runtime:testing:iosSimulatorArm64Test :runtime:testing:macosArm64Test \
+            :runtime:transport-ktor:iosArm64TestBinaries :runtime:transport-ktor:iosSimulatorArm64Test :runtime:transport-ktor:macosArm64Test \
+            apiCheck ${version_arg[@]+"${version_arg[@]}"}
         env:
           # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon
           # that --no-daemon forks, but it is not a dependable control: it does not apply to a reused
           # daemon, and it silently applies to every other JVM the build launches (test workers,
           # forked compilers) where this value may be wrong. -Dorg.gradle.jvmargs is explicit and
           # independent of the daemon model.
-          GRADLE_JVM_ARGS: "-Xmx4g -Dfile.encoding=UTF-8"
-          JAVA_TOOL_OPTIONS: "-Xmx4g"
+          # macos-14 is also a small standard runner, so the same reasoning as verify-linux applies:
+          # 3g for the build JVM and a 2g floor for what it forks, rather than 4g/4g. The
+          # Kotlin/Native compiles that dominate this lane run in their own process.
+          GRADLE_JVM_ARGS: "-Xmx3g -Dfile.encoding=UTF-8"
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      # Same purpose as verify-linux's capacity report: if this lane dies of capacity, it should say
+      # so in its own run rather than in the next blind iteration. Diagnostic only, never fails.
+      - name: Runner capacity report
+        if: always()
+        run: |
+          echo "== memory =="
+          sysctl -n hw.memsize || true
+          vm_stat || true
+          echo "== disk =="
+          df -h / || true

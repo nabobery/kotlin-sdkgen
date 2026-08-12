@@ -86,7 +86,7 @@ class OpenRouterParityFixtureTest {
             assertIs<ReasoningDetailUnion.ReasoningDetailSummary>(union)
             assertEquals("short", union.summary)
 
-            val stop = InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(JsonPrimitive("done"))
+            val stop = InlineChatRequestStopX9225cac3.fromRaw(JsonPrimitive("done"))
             assertEquals("done", stop.branch1)
 
             val absentOptional =

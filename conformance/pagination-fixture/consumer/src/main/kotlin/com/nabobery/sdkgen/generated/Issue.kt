@@ -58,7 +58,7 @@ public class Issue(
     public fun build(block: Builder.() -> Unit): Issue = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<Issue> {
+  internal object Serializer : KSerializer<Issue> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Issue {

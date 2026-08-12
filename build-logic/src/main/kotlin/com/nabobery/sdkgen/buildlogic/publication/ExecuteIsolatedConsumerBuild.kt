@@ -25,14 +25,14 @@ import javax.inject.Inject
  *
  * **Why this exists.** [PublicationMetadataTopology.verifyConsumerFixtures] reads the consumer Gradle files
  * as *text*: it asserts required substrings are present, counts `maven {` blocks with a regex, and checks
- * `"com.nabobery:$artifact:" in buildText`. No consumer is ever built. Every one of those assertions is
+ * `"io.github.nabobery:$artifact:" in buildText`. No consumer is ever built. Every one of those assertions is
  * satisfied by a fixture whose declared dependency does not exist, whose Gradle Module Metadata does not
  * resolve, whose KMP root coordinate selects no variant for the requested target, or whose public types are
  * not visible — which is precisely the set of questions a consumer fixture exists to answer. The textual
  * checks remain useful as a fast preflight against fixture drift; they are not the verification.
  *
  * **Isolation.** The consumer build runs under its own Gradle user home ([isolatedGradleUserHome], under
- * `build/`), never the developer's `~/.gradle`. Without that, a `com.nabobery` module already in the shared
+ * `build/`), never the developer's `~/.gradle`. Without that, a `io.github.nabobery` module already in the shared
  * module cache from an earlier local run would satisfy resolution and mask a staging defect entirely. The
  * home is reused between runs so third-party dependencies resolved from Maven Central download once. The nested
  * build uses `--refresh-dependencies`, which forces the fixed-version first-party modules to be checked against

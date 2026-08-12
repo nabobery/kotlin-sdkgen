@@ -1,0 +1,116 @@
+---
+# Benchmark baseline measurement on the designated CI runner — measurement only, never promotion.
+#
+# `release-verification.yml` runs `:generator:engine:verifyBenchmarkBudget`, which compares the three
+# committed records in `generator/engine/benchmarks/records/` against `benchmarks/budget.json`. That
+# verifier is deliberately host-bound: `BenchmarkBudgetVerifier` rejects records whose osName/osArch/JVM
+# major release differ from the machine verifying them, because a median measured on one machine says
+# nothing about a budget on another. Records can therefore only ever be valid for ONE host, and the host
+# that matters is whichever runner the release gate executes on — so the records have to be produced
+# there, by a real measurement, and cannot be written by hand or carried over from a workstation.
+# `runs-on` below must therefore track `release-verification.yml`'s; see precondition 2.
+#
+# This workflow produces them and stops. It writes nothing back to the repository and has no write
+# permission to do so: the three record JSONs leave as a build artifact, and a human promotes them into
+# `generator/engine/benchmarks/records/` in a reviewable commit. That separation is the same one
+# `recordGitHubScaleBenchmarkMeasurement` already encodes by not depending on `githubScaleBenchmark` —
+# measuring and accepting a measurement as the budget's evidence are different decisions.
+#
+# Trigger is workflow_dispatch only. A benchmark on a shared runner is only meaningful when nothing else
+# is competing for the VM, so this shares `release-verification.yml`'s and `drift.yml`'s concurrency group
+# rather than defining its own: AGENTS.md ("Resource-safe conformance") forbids running a benchmark
+# measurement lane alongside any other heavy Gradle lane, and an overlapping run would silently corrupt
+# exactly the numbers this workflow exists to produce.
+#
+# TWO PRECONDITIONS before the records this produces are worth promoting:
+#
+#  1. GitHub resolves `workflow_dispatch` against the DEFAULT branch, so this file cannot be dispatched
+#     at all — on any ref — until it has been merged to the default branch. That is a merge, not a
+#     workflow change; there is no way to exercise a brand-new workflow from a topic branch.
+#  2. The records are only valid for the runner class they were measured on, and the budget derived
+#     from them inherits that. `release-verification.yml` currently requires a larger runner than
+#     `ubuntu-latest` to complete at all (see its capacity precondition), so measure on whichever
+#     runner class that job settles on and set `runs-on` here to match — otherwise the budget is
+#     calibrated on slower hardware than the gate runs on, which makes it loose rather than
+#     fail-closed. `generator/engine/benchmarks/budget.json`'s `maxValue` must be re-derived from the
+#     measured median at the same time; the committed 45000 ms was calibrated on an Apple-silicon
+#     developer Mac and means nothing on a Linux runner.
+
+name: Benchmark baseline (manual measurement)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # MUST be the literal group name used by release-verification.yml and drift.yml — GitHub serializes
+  # only on an exact match. See the header: a co-resident Gradle lane invalidates the measurement.
+  group: sdkgen-heavy-gradle-lane
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Measure GitHub-scale generation (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      # Same single-lane Gradle discipline as the other heavy workflows. Note the deliberate absence of
+      # JAVA_TOOL_OPTIONS anywhere in this job: it would be injected into the benchmark's own test worker,
+      # whose heap must stay exactly the `maxHeapSize = "2g"` that `githubScaleBenchmark` declares and that
+      # `recordGitHubScaleBenchmarkMeasurement` writes into every record as `heapBytes`. A record whose
+      # declared heap does not match the heap it was measured under is not evidence, it is a mislabel.
+      GRADLE_ARGS: >-
+        --no-daemon --max-workers=1 -Dorg.gradle.parallel=false
+        -Pkotlin.compiler.execution.strategy=in-process
+        -Dorg.gradle.jvmargs=-Xmx3g
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4.3.1
+
+      # Three separate measurements, because the verifier takes the median of exactly three records and a
+      # median of one number is just that number. `--rerun` is required on both tasks: each declares its
+      # output file, so iterations 2 and 3 would otherwise be UP-TO-DATE and the loop would silently
+      # produce three copies of the first measurement — three identical records would pass every
+      # consistency check the verifier applies while carrying a single sample's worth of information.
+      #
+      # The first iteration also pays for compiling the engine and its tests; that cost is outside the
+      # measured window (GitHubScaleBenchmarkTest times its own stages and writes them as properties), so
+      # it does not bias the record, but it is why iteration 1 is the slowest step here in wall time.
+      - name: Measure three GitHub-scale generation runs
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/records"
+          for i in 1 2 3; do
+            echo "::group::measurement $i of 3"
+            ./gradlew $GRADLE_ARGS \
+              :generator:engine:githubScaleBenchmark --rerun \
+              :generator:engine:recordGitHubScaleBenchmarkMeasurement --rerun
+            cp generator/engine/build/reports/benchmarks/github-scale-record.json \
+              "$RUNNER_TEMP/records/github-rest-full-pipeline-generation-$i.json"
+            echo "::endgroup::"
+          done
+          echo "== measured records =="
+          cat "$RUNNER_TEMP/records"/*.json
+
+      # The records leave as an artifact for a human to review and promote; this job never commits them.
+      - name: Upload measured records
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: benchmark-records-ubuntu-latest
+          path: ${{ runner.temp }}/records/*.json
+          if-no-files-found: error

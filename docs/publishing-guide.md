@@ -1,5 +1,12 @@
 # Publishing guide
 
+> **Implementation status (2026-08-12):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
+> signing, CycloneDX SBOM generation, Nmcp Central Portal aggregation, Gradle Plugin Portal publication,
+> GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
+> environment and all six expected secret names are present. Remote publication remains blocked until the
+> maintainer adds a required reviewer, removes the temporary rehearsal branch policy, and confirms the two
+> publication accounts are ready.
+
 This is the guide for actually setting up credentials and publishing Kotlin SDKGen's artifacts. It is
 written for the project owner, not for a contributor. It complements — and does not duplicate —
 [`docs/release-runbook.md`](release-runbook.md), which is the procedural runbook for what a release does
@@ -12,25 +19,18 @@ step as ready when it is not.
 
 ## 0. The honest starting point
 
-If you run a real publish today, it will fail, and it should — the required inputs do not exist yet. Before
-following any credential-setup step below, understand what is missing:
+The build-side publication stack is present. A real publish still fails closed until the protected release
+environment supplies Central, signing, and Plugin Portal credentials. `release-verification.yml` remains
+credential-free and never publishes; `.github/workflows/release.yml` is the only remote-publication path.
 
-- **No signing.** `grep -rni signing build-logic/src/main/kotlin` returns nothing. There is no `signing`
-  plugin application anywhere in the build. Maven Central requires every artifact to carry a GPG/PGP
-  signature (`.asc`); without this, upload is rejected outright.
-- **No POM metadata.** `sdkgen.publishing.gradle.kts` has no `pom { }` block — no license, no developers, no
-  SCM URL. Central **rejects** publications missing license, developer, and SCM info. This is a hard
-  blocker, not a nicety.
-- **No javadoc/Dokka jar.** Central also requires a `-javadoc.jar` (it does not have to contain real API
-  docs, but it must exist) alongside every `-sources.jar`. Nothing in `build-logic` produces one.
-- **No SBOM, no provenance attestation.** Both remain explicit release blockers.
-- **No Central Portal publishing plugin wired.** The plan referenced Nmcp (`gradleup.com/nmcp`) as the
-  intended aggregator for `central.sonatype.com`, but it is not applied anywhere in this tree today.
-- **`com.gradle.plugin-publish` is not applied.** `integrations/gradle-plugin/build.gradle.kts` only applies
-  `java-gradle-plugin` and `sdkgen.publishing`, so `validatePlugins` and `publishPlugins` — the Gradle Plugin
-  Portal tasks — do not exist as tasks in this tree.
+- `-PsdkgenRelease=true` requires `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE`.
+- The protected workflow opts Nmcp into an `AUTOMATIC` Central deployment and waits up to 30 minutes for
+  `PUBLISHED` before the Gradle Plugin Portal step can start. Other invocations retain the safer
+  `USER_MANAGED` default.
+- `com.gradle.plugin-publish` provides `validatePlugins` and `publishPlugins` for the Gradle plugin.
+- CycloneDX generates the SBOM and GitHub attests the staged release artifacts in the protected workflow.
 
-**What does work today**, and is the most useful part of this guide: the isolated local-repository staging
+**What also works today**, and is the safest first step: the isolated local-repository staging
 rehearsal. It was executed for real during release readiness closure — 1,190 artifacts staged, exactly the 8 ADR-0008
 coordinates (plus the Gradle plugin marker), zero internal-coordinate leakage, `verifyPublicationMetadata`
 and `verifyStagedArtifactInventory` both green. Section 5 contains the reproducible commands.
@@ -47,22 +47,20 @@ externally (no code change).
 | # | Prerequisite | Type | Status | Blocked on |
 | - | --- | --- | --- | --- |
 | 1 | `ANDROID_HOME` set (Android SDK installed) | account/env | required today | The publish graph pulls in `runtime:core`'s Android variant. The first release readiness rehearsal attempt failed with `SDK location not found` before this was set. CI already provisions it (`android-actions/setup-android` in `release-verification.yml`); a human running this locally must set it themselves. |
-| 2 | POM metadata (`pom { }` block: license, developers, SCM URL) | code | missing | `sdkgen.publishing.gradle.kts` — no `pom { }` block exists |
-| 3 | GPG signing wired into the build (`signing` plugin) | code | missing | `sdkgen.publishing.gradle.kts` — no `signing` plugin application |
-| 4 | Javadoc/Dokka jar task | code | missing | No Dokka application anywhere in `build-logic` |
-| 5 | Central Portal namespace decision + verification | account | not started | See §2, "Maven Central" — a real decision with a domain-proof trade-off |
-| 6 | Central Portal user token generated | account/credential | not started | Depends on #5 |
-| 7 | GPG key pair generated, public key published to a keyserver | account/credential | not started | Independent of the others; can be done any time |
-| 8 | Central Portal publishing plugin applied (e.g. Nmcp) | code | missing | No Central Portal publishing plugin is applied |
-| 9 | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin` | code | missing | Needed only for the Gradle plugin coordinate, not the other seven |
-| 10 | Gradle Plugin Portal account + API key/secret | account/credential | not started | Only needed once #9 lands |
-| 11 | SBOM decision (CycloneDX plugin, or an explicit decision not to ship one) | code + decision | deferred, flagged | Decide explicitly before the first public release |
-| 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | missing | No SLSA/attestation tooling anywhere in `build-logic` or `.github/workflows` |
-| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | not started | See §3 |
+| 2 | POM metadata (`pom { }` block: license, developers, SCM URL) | code | complete | Applied to every ADR-0008 Maven publication |
+| 3 | GPG signing wired into the build (`signing` plugin) | code | complete | In-memory signing; release mode fails closed without credentials |
+| 4 | Dokka documentation jar task | code | complete | Reproducible, non-empty Dokka HTML jar attached with the `javadoc` classifier to every product publication |
+| 5 | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account | maintainer confirmation required | See §2, "Maven Central" |
+| 6 | Central Portal user token generated | account/credential | secret names present; live publish untested | Depends on #5 |
+| 7 | GPG key pair generated, public key published to a keyserver | account/credential | signing verified; keyserver publication needs confirmation | The protected rehearsal proves the private key and passphrase pair works |
+| 8 | Central Portal publishing plugin applied (Nmcp) | code | complete | Nmcp 1.6.1; `USER_MANAGED` by default, with tag-bound release opting into `AUTOMATIC` and a bounded wait |
+| 9 | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin` | code | complete | Plugin Portal 2.1.1; `validatePlugins` is rehearsed |
+| 10 | Gradle Plugin Portal account + API key/secret | account/credential | secret names present; live publish untested | Confirm publisher ownership before first release |
+| 11 | SBOM (CycloneDX) | code | complete | CycloneDX 3.3.0 aggregate BOM |
+| 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v3 action SHA in `release.yml` |
+| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | partial | Environment, branch policy, and all six secrets exist; required reviewer is missing |
 
-Items 1 and 7 can be done today without touching code. Everything else that is marked "code" blocks a real
-publish and has no workaround — do not attempt to publish to Maven Central until items 2–4 exist, or Central
-will reject the upload.
+The remaining unchecked items are maintainer-controlled account, credential, and repository settings.
 
 ## 2. Credential setup
 
@@ -75,24 +73,19 @@ already gitignored by convention (verify it is not accidentally tracked before p
 
 OSSRH is dead (sunset 2025-06-30); Central Portal is the only path now.
 
-**Namespace decision — a real trade-off, not a formality:**
+**Namespace decision — already made, recorded here for the credential-setup step:**
 
-- **`com.nabobery`** (what ADR-0008 and the current `group = "com.nabobery"` in `sdkgen.publishing.gradle.kts`
-  already assume): requires proving ownership of the `nabobery.com`/`nabobery.dev`/etc. domain to Central
-  Portal, typically via a DNS TXT record. If the owner does not control a domain matching this reverse-DNS
-  namespace, this path is not available without acquiring one.
-- **`io.github.<username>`** (e.g. `io.github.nabobery`, if that's the owner's GitHub handle): verified by
-  proving control of the GitHub account instead of DNS — much faster to set up, no domain purchase needed.
-  The trade-off: every published coordinate changes from `com.nabobery:kotlin-sdkgen-*` to
-  `io.github.<username>:kotlin-sdkgen-*`, which is a breaking coordinate change for any consumer who already
-  depends on the `com.nabobery` group (there are none yet, since nothing has been published, so this is the
-  cheapest possible time to make this decision).
-
-Decide before generating a token, since the token is scoped to a verified namespace.
+The group is `io.github.nabobery` (see ADR-0008's amendment and ADR-0009's amendment for the full
+rationale). `com.nabobery` — a reverse-DNS group — would have required proving ownership of the
+`nabobery.com`/`nabobery.dev`/etc. domain to Central Portal via a DNS TXT record, and the owner does not
+control a matching domain. `io.github.nabobery` is verified instead through GitHub account ownership, which
+the owner already has. `sdkgen.publishing.gradle.kts` now sets `group = "io.github.nabobery"`, and every
+published coordinate is `io.github.nabobery:kotlin-sdkgen-*`. Nothing had been published under the old
+`com.nabobery` group when this changed, so there is no existing consumer to migrate and no relocation POM to
+maintain.
 
 1. Create an account at `central.sonatype.com`.
-2. Add and verify the chosen namespace (DNS TXT record for a domain, or GitHub verification for
-   `io.github.<username>`).
+2. Add and verify the `io.github.nabobery` namespace (GitHub verification).
 3. Generate a **user token** (Account → Generate User Token). This produces a token username and token
    password pair — distinct from your Central Portal login password.
 4. Store it:
@@ -102,9 +95,7 @@ Decide before generating a token, since the token is scoped to a verified namesp
      mavenCentralUsername=<PLACEHOLDER_TOKEN_USERNAME>
      mavenCentralPassword=<PLACEHOLDER_TOKEN_PASSWORD>
      ```
-   These property names match what the Nmcp plugin (the aggregator referenced in the publishing configuration) expects
-   by convention; confirm against whichever plugin actually gets applied when item 8 above lands, since the
-   plugin is not wired yet and the exact property names are not yet load-bearing anywhere in this build.
+   These property names match the applied Nmcp plugin and the protected workflow's environment-variable bridge.
 
 ### GPG signing key
 
@@ -141,16 +132,16 @@ Decide before generating a token, since the token is scoped to a verified namesp
      signingInMemoryKey=<PLACEHOLDER_ARMORED_PRIVATE_KEY>
      signingInMemoryKeyPassword=<PLACEHOLDER_PASSPHRASE>
      ```
-   These are the conventional Gradle `signing` plugin property names; they become load-bearing only once the
-   `signing` plugin is actually applied (prerequisite #3), which has not happened yet.
+   These are the conventional Gradle `signing` plugin property names. The applied publishing convention also
+   accepts the `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE` environment variables used by CI.
 6. The private key and passphrase must never enter the repository at any point — not in a commit, not in a
    throwaway branch, not in a `.gitignore`d file that gets force-added, not in a build script default. Per
    `docs/release-runbook.md`, only ever rehearse with a separate throwaway key, never this one.
 
 ### Gradle Plugin Portal
 
-Only needed once prerequisite #9 (`com.gradle.plugin-publish`) is applied — until then there is no
-`publishPlugins` task to authenticate for.
+Prerequisite #9 (`com.gradle.plugin-publish`) is applied. A real `publishPlugins` invocation requires these
+credentials and the tag-bound protected-workflow authorization described in §3.
 
 1. Create an account at `plugins.gradle.org` and register as a publisher.
 2. Generate an API key/secret pair from the portal's account settings.
@@ -173,8 +164,10 @@ Only needed once prerequisite #9 (`com.gradle.plugin-publish`) is applied — un
 
 ## 3. The recommended release mechanism
 
-**Recommendation: tag-triggered release, plus `workflow_dispatch` for rehearsal, publishing through a
-protected GitHub Environment with a required reviewer.**
+**Implemented mechanism: credential-free rehearsal plus tag-bound publication through a protected GitHub
+Environment.** `release-verification.yml` is the manual rehearsal path. `release.yml` has no dry-run switch:
+it accepts only a dispatch from the matching `v<version>` tag on `main`, calls the complete verification
+workflow for that exact SHA, and only then makes the Environment-protected publish job eligible.
 
 Reasoning, so you can disagree with an informed view:
 
@@ -183,16 +176,12 @@ Reasoning, so you can disagree with an informed view:
   deliberate and hard to fire by accident. A tag push is a deliberate, named act ("I am releasing 1.2.0");
   a branch push (including to `main`) happens as a side effect of routine merges and is exactly the kind of
   accidental trigger this invariant rules out.
-- **A tag is an immutable ref**, so the release is reproducible from exactly what was tagged — no ambiguity
-  about "which commit did we actually publish" months later.
-- **`workflow_dispatch` with a `dry_run` input defaulting to `true`** lets the owner rehearse the full
-  pipeline against the isolated local repository (the same mechanics `release-verification.yml` already
-  exercises) without any risk of a real upload — the dry-run path should structurally never touch a
-  credential-gated step.
+- **A separate credential-free rehearsal workflow** lets the owner exercise the full verification pipeline
+  against an isolated local repository without any release secret or remote-upload step in its graph.
 - **A GitHub Environment with a required reviewer** means the publish credentials are not even exposed to
   the job until a human explicitly approves the run. This is the last gate before an irreversible action,
   and it is enforced by GitHub itself, not by application logic that could have a bug.
-- **Publish credentials scoped to the publish job only**, with `contents: read` at workflow level (matching
+- **Publish credentials scoped to the publish job and consuming step only**, with `contents: read` at workflow level (matching
   the least-privilege pattern already used in `.github/workflows/drift.yml` and
   `release-verification.yml`). No other job in the workflow should be able to read the signing key or
   Central token.
@@ -213,10 +202,10 @@ build depends on whatever is locally checked out, cached, or configured, not a c
 immutable tag; (3) signing key material ends up on a developer laptop rather than a scoped CI secret store,
 which is a materially worse blast radius if that laptop is compromised.
 
-This recommendation is not implemented anywhere in this tree yet — there is no tag-triggered publish
-workflow, no `dry_run` input, and no GitHub Environment configured. `release-verification.yml` today is
-`workflow_dispatch`-only and never touches credentials at all (see its own header comment). Building the
-credentialed publish job described here is future work, layered on top of what already exists.
+The workflow is implemented in `.github/workflows/release.yml`. Before the first real publication, add a
+required reviewer to the `release` environment and restrict its deployment policy to protected release tags.
+Create the protected `v<version>` tag from the reviewed `main` commit before dispatching the workflow; the
+workflow refuses a branch ref, a mismatched version, or a tag whose commit is not on `origin/main`.
 
 ## 4. Version and release flow
 
@@ -225,14 +214,10 @@ credentialed publish job described here is future work, layered on top of what a
 - **SNAPSHOT versions** (`-SNAPSHOT` suffix) are for local/CI iteration only. Maven Central **rejects
   SNAPSHOT publications** outright — a real release must bump `sdkgenVersion` to a plain release version
   (e.g. `0.1.0`) before publishing.
-- **Tag → version relationship:** the recommended flow (§3) is that a release tag (e.g. `v0.1.0`) is the
-  trigger, and the workflow derives or validates the version from the tag rather than trusting an
-  independently-typed value. `release-verification.yml` already demonstrates the validation half of this:
-  its `RC_VERSION` input is checked against a strict `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$`
-  grammar, rejects embedded newlines, and is passed only as a quoted shell variable — never spliced into
-  script text (`.github/workflows/release-verification.yml`, "Validate release_candidate_version" step).
-  A real tag-triggered release workflow should apply the same grammar check to the tag-derived version
-  before using it in any `-PsdkgenVersion=...` argument.
+- **Version validation:** `release.yml` validates its required version input against the strict
+  `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$` grammar and rejects SNAPSHOT versions before
+  using the quoted value in any Gradle argument. It also requires the selected ref to be the matching
+  `v<version>` tag and verifies that tag's SHA is on `origin/main` before invoking the release gate.
 - Never reuse a version number, even privately pushed to a shared remote, even to "fix" a bad release
   (`docs/release-runbook.md`, "Core invariant" and "Rollback").
 
@@ -282,37 +267,35 @@ gh workflow run release-verification.yml -f release_candidate_version=<version-o
 ```
 
 `.github/workflows/release-verification.yml` composes these same steps (plus the full build/check/ktlint/
-`apiCheck` gate, the cross-corpus parity gate, and the benchmark-budget check) on `workflow_dispatch` only. It never
-touches a credential, never signs anything, and never targets a remote repository — confirmed by its own
+`apiCheck` gate, the cross-corpus parity gate, and the benchmark-budget check) for direct `workflow_dispatch`
+rehearsals and as the reusable gate called by `release.yml`. It never touches a credential, never signs anything,
+and never targets a remote repository — confirmed by its own
 header comment and by `permissions: contents: read` at both workflow and job scope.
 
-**What this rehearsal does not and cannot prove:** signatures, javadoc jars, POM license/developer/SCM
-content, an SBOM, or provenance — none of that exists to verify yet (§0). It proves the artifact-ID
-rewriting, the coordinate set, and the checksums are correct; it does not prove Central would accept the
-result, because Central would reject it today on the missing-signature and missing-POM-metadata grounds
-alone.
+The credential-free rehearsal does not sign or attest artifacts. After that same gate passes for a tagged
+release SHA, the protected `release.yml` job adds release-mode signing, per-coordinate Dokka/POM validation,
+the aggregate SBOM, deterministic bundle creation, artifact upload, and provenance attestation before it
+reaches either portal. Only an explicitly authorized first publication can prove those external boundaries.
 
 ## 6. First-release checklist
 
 Ordered; each step assumes the previous ones are done.
 
-1. [ ] Decide the Central Portal namespace (`com.nabobery` with DNS proof, or `io.github.<user>`) — §2.
-2. [ ] Add the `pom { }` block to `sdkgen.publishing.gradle.kts` (license, developers, SCM URL).
-3. [ ] Apply a Dokka (or equivalent) task producing a `-javadoc.jar` for every published coordinate.
-4. [ ] Apply the `signing` Gradle plugin, wired to read `signingInMemoryKey`/`signingInMemoryKeyPassword`
-   (or the keyring-file equivalent) so every publication is signed.
-5. [ ] Generate the GPG release key; publish the public key to a keyserver; store the private key and
-   passphrase only as GitHub Environment secrets (§2) — never in the repository.
+1. [ ] Verify the `io.github.nabobery` Central Portal namespace (GitHub verification; already decided) — §2.
+2. [x] Add complete POM metadata to every publication.
+3. [x] Produce a reproducible `-javadoc.jar` for every publication.
+4. [x] Apply release-gated in-memory signing so every publication is signed.
+5. [ ] Confirm the working GPG release key's public key is on a keyserver. The protected rehearsal has
+   verified the private-key/passphrase secrets without exposing them.
 6. [ ] Verify and register the chosen Central Portal namespace; generate the user token (§2).
-7. [ ] Apply a Central Portal aggregation plugin (e.g. Nmcp) and wire it to the two Central secrets.
-8. [ ] Decide the SBOM question (adopt CycloneDX, or record an explicit decision not to) — do not leave it
-   silently unresolved past this point.
-9. [ ] Decide whether to apply `com.gradle.plugin-publish` for this release or defer the Gradle plugin
-   coordinate to a later train; if applying it now, set up the Plugin Portal account and secrets (§2).
-10. [ ] Build the tag-triggered + `workflow_dispatch`(`dry_run` default `true`) release workflow behind a
-    GitHub Environment with a required reviewer, scoped publish secrets, `contents: read` at workflow level,
-    and `id-token: write`/`attestations: write` only on the publish job (§3).
-11. [ ] Bump `sdkgenVersion` off `-SNAPSHOT` to the real release version (§4); never reuse a version number.
+7. [x] Make the protected release opt into Nmcp `AUTOMATIC` mode and wait for `PUBLISHED` before publishing the plugin.
+8. [x] Generate an aggregate CycloneDX SBOM.
+9. [ ] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
+   remains intentionally untested.
+10. [ ] Add a required reviewer to the existing GitHub `release` Environment and restrict its deployment
+    policy to protected release tags.
+11. [ ] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
+    version already published to either portal.
 12. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
     and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real
     release" step 3).
@@ -320,10 +303,10 @@ Ordered; each step assumes the previous ones are done.
     identity, signatures, and any SBOM are version-specific.
 14. [ ] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback,
     no project substitution) to prove the graph resolves independently.
-15. [ ] Push the release tag. Obtain the required-reviewer approval on the Environment.
-16. [ ] Publish to the Maven Central Portal, and to the Gradle Plugin Portal if step 9 opted in.
-17. [ ] Generate and publish the GitHub artifact attestation (`actions/attest-build-provenance`) for the
-    release artifacts.
+15. [ ] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from
+    that tag with the matching `version`, then obtain the required-reviewer approval on the Environment.
+16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed.
+17. [ ] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
 18. [ ] Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain`), the
     applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
 19. [ ] **Post-publish verification:** resolve every published coordinate from a fresh, unrelated project

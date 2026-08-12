@@ -1,6 +1,6 @@
 plugins {
-    id("sdkgen.kotlin-kmp-jvm-android")
     id("sdkgen.publishing")
+    id("sdkgen.kotlin-kmp-jvm-android")
 }
 
 kotlin {

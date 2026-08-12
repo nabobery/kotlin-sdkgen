@@ -35,15 +35,24 @@ internal class KotlinPoetEmitter(
         val customSerializerTypes =
             normalized.files
                 .flatMap { file ->
-                    file.declarations
-                        .filter { declaration ->
-                            declaration is ModelDeclaration ||
-                                declaration is OpenEnumDeclaration ||
-                                declaration is OneOfDeclaration ||
-                                declaration is PrimitiveOneOfDeclaration ||
-                                declaration is AnyOfDeclaration
-                        }.map { declaration -> "${declaration.packageName}.${declaration.resolvedName}" }
-                }.toSet()
+                    file.declarations.mapNotNull { declaration ->
+                        val placement =
+                            when (declaration) {
+                                is ModelDeclaration, is OpenEnumDeclaration, is AnyOfDeclaration -> {
+                                    SerializerPlacement.NESTED
+                                }
+
+                                is OneOfDeclaration, is PrimitiveOneOfDeclaration -> {
+                                    SerializerPlacement.TOP_LEVEL
+                                }
+
+                                else -> {
+                                    null
+                                }
+                            }
+                        placement?.let { "${declaration.packageName}.${declaration.resolvedName}" to it }
+                    }
+                }.toMap()
         return EmissionContext(packageName, customSerializerTypes).render(normalized)
     }
 

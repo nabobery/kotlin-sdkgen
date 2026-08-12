@@ -47,14 +47,17 @@ support request, treat that as a red flag and report it through the security cha
 
 ## Operation coverage notes
 
-The generated Stripe SDK does not cover every operation in Stripe's public API: 426 of 587 operations
-(72.6%) are generated today, with 161 (27.4%) excluded — most because their request bodies use dynamic/open
-form keys, which this project's typed public API contract does not represent (see the anti-pattern against
-`Map<String, Any>` in `AGENTS.md`). See
-[`docs/conformance/evidence/stripe-operation-coverage.md`](conformance/evidence/stripe-operation-coverage.md) for the
-exact breakdown, what "excluded" means, and how to reproduce the counts. This is not currently a
-version-scoped support commitment — see "Current state" above — but is disclosed here so a consumer
-evaluating this SDK is not surprised by it.
+The generated Stripe SDK does not cover every operation in Stripe's public API: 519 of 587 operations
+(88.4%) are generated today, with 68 (11.6%) excluded. [ADR-0014](adr/0014-absent-additional-properties-on-form-objects-is-closed.md)
+corrected the form-object rule so that an object with declared properties and an absent
+`additionalProperties` keyword is treated as closed; this made the affected typed operations generatable
+without introducing `Map<String, Any>`. The remaining exclusions represent request shapes that the typed
+public API does not model.
+
+The generated Stripe SDK is organized into 75 resource clients. For untagged operations,
+[ADR-0017](adr/0017-skip-api-version-path-segments-when-grouping.md) derives the resource group from the
+first non-version path segment. This is not currently a version-scoped support commitment — see "Current
+state" above — but is disclosed here so a consumer evaluating this SDK is not surprised by it.
 
 ## Target/platform support notes
 

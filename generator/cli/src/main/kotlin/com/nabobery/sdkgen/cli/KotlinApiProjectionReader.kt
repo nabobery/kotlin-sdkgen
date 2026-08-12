@@ -1,11 +1,20 @@
 package com.nabobery.sdkgen.cli
 
+import com.fasterxml.jackson.core.JacksonException
 import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.io.FilterInputStream
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.io.PushbackInputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.DigestInputStream
+import java.security.MessageDigest
+import java.util.zip.GZIPInputStream
 
 /**
  * Reads bounded emitted-API evidence and proves that it belongs to the supplied generation manifest.
@@ -13,68 +22,54 @@ import java.nio.file.Path
  * The projection is staged rather than included in generated sources, so its generation binding is
  * load-bearing: both the declaration-model digest and the complete generated-file digest set must equal the
  * corresponding manifest values before any API declaration is classified.
+ *
+ * Production-corpus projections are large (the GitHub corpus stages 137-164 MiB), so the document is parsed
+ * as a stream: each declaration is materialized from its own subtree, the fingerprint digest is folded over
+ * the wire bytes as they are consumed, and only the decoded declarations are retained. The structural bound
+ * is [MAX_DECLARATIONS]; [MAX_PROJECTION_BYTES] remains as a guard rail against runaway input.
  */
 internal object KotlinApiProjectionReader {
     @Suppress("DEPRECATION")
     private val MAPPER = ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
 
     private const val SCHEMA_VERSION = "kotlin-public-api/v2"
-    private const val MAX_PROJECTION_BYTES = 64 * 1024 * 1024
+    internal const val MAX_PROJECTION_BYTES: Long = 1024L * 1024 * 1024
     private const val MAX_DECLARATIONS = 200_000
 
     internal fun read(
         path: Path,
         manifest: CompatibilityManifestSnapshot,
+        maxProjectionBytes: Long = MAX_PROJECTION_BYTES,
     ): KotlinPublicApiEvidence {
-        val bytes =
+        val digest = MessageDigest.getInstance("SHA-256")
+        val declarations =
             try {
-                Files.newInputStream(path).use { input -> input.readNBytes(MAX_PROJECTION_BYTES + 1) }
+                Files.newInputStream(path).use { raw ->
+                    // Committed projections may be stored gzip-compressed (GitHub's 100 MiB file limit;
+                    // production projections are 130-160 MiB raw). The document contract is unchanged:
+                    // the byte bound and the evidence fingerprint both apply to the UNCOMPRESSED document
+                    // bytes, so a compressed and an uncompressed copy of the same projection produce the
+                    // same evidence sha256, and a decompression bomb still hits the guard rail.
+                    val input = decompressIfGzip(raw)
+                    val digesting = DigestInputStream(BoundedInputStream(input, maxProjectionBytes), digest)
+                    MAPPER.factory.createParser(digesting).use { parser ->
+                        val parsed = parseDocument(parser, manifest, path)
+                        // The fingerprint covers the complete document bytes, including any content after
+                        // the JSON value, so drain what the parser's read-ahead has not already consumed.
+                        digesting.transferTo(OutputStream.nullOutputStream())
+                        parsed
+                    }
+                }
+            } catch (failure: ProjectionSizeExceededException) {
+                throw KotlinApiProjectionInputException(
+                    "Kotlin API projection exceeds the maximum size of " +
+                        "${maxProjectionBytes / (1024 * 1024)} MiB: $path",
+                )
+            } catch (failure: JacksonException) {
+                throw KotlinApiProjectionInputException("Kotlin API projection is not well-formed JSON: $path", failure)
             } catch (failure: IOException) {
                 throw KotlinApiProjectionInputException("Kotlin API projection cannot be read: $path", failure)
             }
-        if (bytes.size > MAX_PROJECTION_BYTES) {
-            throw KotlinApiProjectionInputException(
-                "Kotlin API projection exceeds the maximum size of 64 MiB: $path",
-            )
-        }
-
-        val root =
-            try {
-                MAPPER.readTree(bytes)
-            } catch (failure: IOException) {
-                throw KotlinApiProjectionInputException("Kotlin API projection is not well-formed JSON: $path", failure)
-            }?.takeIf(JsonNode::isObject)
-                ?: throw KotlinApiProjectionInputException(
-                    "Kotlin API projection document must be a JSON object: $path",
-                )
-        root.requireFields(ROOT_FIELDS, "document", path)
-        val schemaVersion = root.requiredText("schemaVersion", "document", path)
-        if (schemaVersion != SCHEMA_VERSION) {
-            throw KotlinApiProjectionInputException(
-                "Kotlin API projection declares schemaVersion \"$schemaVersion\", expected \"$SCHEMA_VERSION\": $path",
-            )
-        }
-        validateGeneration(root.get("generation"), manifest, path)
-
-        val declarationNodes = root.requiredArray("declarations", "document", path)
-        if (declarationNodes.size > MAX_DECLARATIONS) {
-            throw KotlinApiProjectionInputException(
-                "Kotlin API projection declares ${declarationNodes.size} declarations, " +
-                    "above the maximum of $MAX_DECLARATIONS: $path",
-            )
-        }
-        val declarations = declarationNodes.map { node -> declaration(node, path) }
-        val duplicates =
-            declarations
-                .groupBy(KotlinApiDeclaration::qualifiedName)
-                .filterValues { entries -> entries.size > 1 }
-                .keys
-        if (duplicates.isNotEmpty()) {
-            throw KotlinApiProjectionInputException(
-                "Kotlin API projection declares duplicate qualified name(s) " +
-                    "${duplicates.sorted().joinToString(", ")}: $path",
-            )
-        }
 
         return KotlinPublicApiEvidence(
             projection = KotlinPublicApiProjection(declarations),
@@ -82,9 +77,120 @@ internal object KotlinApiProjectionReader {
                 CompatibilityEvidenceReference(
                     kind = "declaration-projection",
                     identity = "projection:${path.fileName}",
-                    sha256 = normalizedCompatibilityFingerprint(bytes.decodeToString()),
+                    sha256 = digest.digest().joinToString("") { byte -> "%02x".format(byte) },
                 ),
         )
+    }
+
+    private fun decompressIfGzip(raw: InputStream): InputStream {
+        val pushback = PushbackInputStream(raw, 2)
+        val first = pushback.read()
+        val second = pushback.read()
+        if (second >= 0) {
+            pushback.unread(second)
+        }
+        if (first >= 0) {
+            pushback.unread(first)
+        }
+        return if (first == 0x1f && second == 0x8b) {
+            GZIPInputStream(pushback)
+        } else {
+            pushback
+        }
+    }
+
+    private fun parseDocument(
+        parser: JsonParser,
+        manifest: CompatibilityManifestSnapshot,
+        path: Path,
+    ): List<KotlinApiDeclaration> {
+        if (parser.nextToken() != JsonToken.START_OBJECT) {
+            throw KotlinApiProjectionInputException("Kotlin API projection document must be a JSON object: $path")
+        }
+        var schemaVersionSeen = false
+        var generationSeen = false
+        var declarations: List<KotlinApiDeclaration>? = null
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            when (val field = parser.currentName()) {
+                "schemaVersion" -> {
+                    val schemaVersion =
+                        parser.nextToken().let { token ->
+                            token.takeIf { it == JsonToken.VALUE_STRING }?.let { parser.text }
+                                ?: throw KotlinApiProjectionInputException(
+                                    "Kotlin API projection member of document is missing schemaVersion: $path",
+                                )
+                        }
+                    if (schemaVersion != SCHEMA_VERSION) {
+                        throw KotlinApiProjectionInputException(
+                            "Kotlin API projection declares schemaVersion \"$schemaVersion\", " +
+                                "expected \"$SCHEMA_VERSION\": $path",
+                        )
+                    }
+                    schemaVersionSeen = true
+                }
+
+                "generation" -> {
+                    parser.nextToken()
+                    validateGeneration(MAPPER.readTree<JsonNode>(parser), manifest, path)
+                    generationSeen = true
+                }
+
+                "declarations" -> {
+                    declarations = parseDeclarations(parser, path)
+                }
+
+                else -> {
+                    throw KotlinApiProjectionInputException(
+                        "Kotlin API projection document declares unknown field(s) $field: $path",
+                    )
+                }
+            }
+        }
+        if (!schemaVersionSeen) {
+            throw KotlinApiProjectionInputException(
+                "Kotlin API projection member of document is missing schemaVersion: $path",
+            )
+        }
+        if (!generationSeen) {
+            throw KotlinApiProjectionInputException("Kotlin API projection is missing generation: $path")
+        }
+        return declarations
+            ?: throw KotlinApiProjectionInputException(
+                "Kotlin API projection document is missing array field declarations: $path",
+            )
+    }
+
+    private fun parseDeclarations(
+        parser: JsonParser,
+        path: Path,
+    ): List<KotlinApiDeclaration> {
+        if (parser.nextToken() != JsonToken.START_ARRAY) {
+            throw KotlinApiProjectionInputException(
+                "Kotlin API projection document is missing array field declarations: $path",
+            )
+        }
+        val declarations = ArrayList<KotlinApiDeclaration>()
+        val qualifiedNames = HashSet<String>()
+        val duplicates = sortedSetOf<String>()
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+            if (declarations.size == MAX_DECLARATIONS) {
+                throw KotlinApiProjectionInputException(
+                    "Kotlin API projection declares more declarations than the maximum of $MAX_DECLARATIONS: $path",
+                )
+            }
+            val declaration = declaration(MAPPER.readTree<JsonNode>(parser), path)
+            if (!qualifiedNames.add(declaration.qualifiedName)) {
+                duplicates.add(declaration.qualifiedName)
+            }
+            declarations.add(declaration)
+        }
+        if (duplicates.isNotEmpty()) {
+            throw KotlinApiProjectionInputException(
+                "Kotlin API projection declares duplicate qualified name(s) " +
+                    "${duplicates.joinToString(", ")}: $path",
+            )
+        }
+        return declarations
     }
 
     private fun validateGeneration(
@@ -329,3 +435,42 @@ internal class KotlinApiProjectionInputException(
     message: String,
     cause: Throwable? = null,
 ) : IllegalArgumentException(message, cause)
+
+/**
+ * Signals the byte guard rail mid-stream as an [IOException] so it propagates untouched through the JSON
+ * parser's buffered reads before being rethrown as a [KotlinApiProjectionInputException].
+ */
+private class ProjectionSizeExceededException : IOException("projection size bound exceeded")
+
+/** Counts consumed bytes and fails once they exceed the projection guard rail. */
+private class BoundedInputStream(
+    input: InputStream,
+    private val limit: Long,
+) : FilterInputStream(input) {
+    private var consumed = 0L
+
+    override fun read(): Int =
+        super.read().also { value ->
+            if (value >= 0) {
+                record(1)
+            }
+        }
+
+    override fun read(
+        destination: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int =
+        super.read(destination, offset, length).also { count ->
+            if (count > 0) {
+                record(count)
+            }
+        }
+
+    private fun record(count: Int) {
+        consumed += count
+        if (consumed > limit) {
+            throw ProjectionSizeExceededException()
+        }
+    }
+}

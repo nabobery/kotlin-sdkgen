@@ -1,0 +1,47 @@
+version: v1alpha1
+source:
+  uri: openapi.yaml
+  sha256: b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47
+  acquisition:
+    mode: local
+    offline: true
+    allowedHosts: []
+    followRedirects: false
+    maxRedirects: 0
+    maxBytes: 16777216
+    timeoutSeconds: 30
+    cacheDirectory: .sdkgen/cache
+    allowedLocalRoots:
+      - .
+overlays:
+  - id: openrouter-full-spec-compat
+    uri: overlays/full-spec-compat.yaml
+    sha256: aed6cf55655b0516ed3b9cb4dd84acb0ab76365efc8a42c94258a08a5aebf221
+    zeroMatchPolicy: fail
+    conflictPolicy: fail
+kotlin:
+  packageName: com.nabobery.sdkgen.generated
+  coordinates:
+    groupId: com.nabobery.sdkgen
+    artifactId: openrouter-conformance
+  naming:
+    clientName: OpenRouterClient
+  targets:
+    - jvm
+    - js
+    - macos
+output:
+  sources: generated
+  resources: generated-resources
+  manifest: manifest.json
+  lock: sdkgen.lock
+  checkedInSources: true
+diagnostics:
+  warningsAsErrors: false
+  warningAllowlist: []
+  format: json
+verification:
+  gates:
+    - schema
+    - determinism
+    - api

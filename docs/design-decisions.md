@@ -82,11 +82,11 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Fail with an actionable diagnostic and require explicit naming configuration.
 - Canonical schema identity is namespace-qualified; wire names never change.
 - Group resource clients from OpenAPI tags.
-- Permit explicit grouping through configuration, overlays, or `x-sdkgen-group`.
-- Untagged operations remain on the root client.
+- Derive each resource group from an operation's first tag, falling back to its first non-version path segment (ADR-0017). To override the fallback, use the OpenAPI Overlay mechanism described in "OpenAPI intake and composition" to set the operation's `tags`; tags always take precedence. No dedicated grouping configuration exists by design (ADR-0018).
+- Untagged operations use the first non-version named path segment. If every named segment is version-shaped, the first such segment is retained as the group; the default group is used only when the path has no named segments at all.
 - Support nested groups but diagnose excessive depth.
-- Multi-tag operations appear in every matching resource group while sharing one internal operation descriptor and implementation.
-- An optional `primaryGroup` controls canonical documentation placement.
+- Multi-tag operations belong only to the resource group selected by their first non-blank tag; operations are not replicated across groups.
+- An operation's canonical group is selected by `groupKeyFor`: its first non-blank tag, or the path-derived group from ADR-0017. There is no separate "primary group" override concept.
 
 ## Request and response API shape
 

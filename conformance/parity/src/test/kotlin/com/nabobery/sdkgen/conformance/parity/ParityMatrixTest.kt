@@ -27,19 +27,19 @@ class ParityMatrixTest {
     @Test
     fun streamingStressInputsArePinnedAsAuthoritativeProvenance() {
         assertEquals(
-            "463078210dae71d7a1ab9aa30e1f657a7ca2cedd8b5acb3c7b58b2804878f5b7",
+            "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5",
             ParityRegistry.expectedCorpusDigest("stress-streaming"),
         )
         assertEquals(
-            "f3c3455812f44394ef453211bc98ec52819b4c26b0592e90a06d2ff5c17d1c38",
+            "ba6d17a24068ede752c2875b773a2d007209a20fe250ed207a774e9ac6ac5c77",
             ParityRegistry.expectedConfigDigest("stress-streaming"),
         )
         assertEquals(
-            "cd73bab1fa0be0231c4c495433cb093b023636c6c0a969a9cb01a5d2688bdc90",
+            "86d9109d162a38b72a5c5e04b1a488a7a3630246c34c3f6ca0888f68774b95c3",
             ParityRegistry.expectedConfigFileDigest("stress-streaming"),
         )
         assertEquals(
-            "d90e4b526e029cdded34888489fa18a26273555cc472142a7e54abd51291b286",
+            "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b",
             ParityRegistry.expectedLockFileDigest("stress-streaming"),
         )
         assertEquals(ABSENT_OVERLAY_SHA256, ParityRegistry.expectedOverlayDigest("stress-streaming"))

@@ -526,7 +526,7 @@ class ParityProducerResolverTest {
     }
 
     @Test
-    fun openRouterProducerOwnsBehaviorCompileAndSourceRowsWithSourceTreeInventory() {
+    fun openRouterProducerOwnsBehaviorCompileAndSourceRowsWithManifestBoundInventory() {
         val fixtureIds =
             listOf(
                 "openrouter.auth",
@@ -566,8 +566,9 @@ class ParityProducerResolverTest {
         assertTrue(bundle.rows.all { it.status == ParityStatus.PASSED })
         assertTrue(bundle.rows.all { it.generatedArtifactSha256?.isSha256() == true })
         assertTrue(bundle.rows.all { it.manifestSha256?.isSha256() == true })
-        assertTrue(bundle.rows.all { it.configDigest == null && it.lockFileSha256 == null })
-        assertTrue(bundle.rows.all { it.configFileSha256 == null })
+        assertTrue(bundle.rows.all { it.configDigest == ParityRegistry.OPENROUTER_EFFECTIVE_CONFIG_SHA256 })
+        assertTrue(bundle.rows.all { it.lockFileSha256 == ParityRegistry.OPENROUTER_LOCK_FILE_SHA256 })
+        assertTrue(bundle.rows.all { it.configFileSha256 == ParityRegistry.OPENROUTER_CONFIG_FILE_SHA256 })
         assertTrue(bundle.rows.all { it.overlaySha256 == ParityRegistry.OPENROUTER_OVERLAY_SHA256 })
     }
 

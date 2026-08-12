@@ -4,9 +4,9 @@ import org.gradle.api.tasks.testing.Test
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 
 plugins {
+    id("sdkgen.publishing")
     id("sdkgen.kotlin-jvm")
     id("sdkgen.kotlin-serialization")
-    id("sdkgen.publishing")
     id("sdkgen.verify-benchmark-budget")
 }
 
@@ -39,7 +39,10 @@ tasks.processResources {
 }
 
 tasks.test {
-    maxHeapSize = "2g"
+    // 2g fit until the checked-in-source assertions started running their full OpenRouter projections
+    // (post-T3b snapshot repoint); the corpus-scale suite now needs the larger worker on CI and locally.
+    // githubScaleBenchmark's own 2g below is deliberately unchanged - benchmark records must stay comparable.
+    maxHeapSize = "4g"
 
     val openRouterFile =
         rootProject.layout.projectDirectory
@@ -53,6 +56,10 @@ tasks.test {
     val consumerSourceRoot =
         rootProject.layout.projectDirectory
             .dir("conformance/openrouter/consumer/src/commonMain/kotlin")
+    val openRouterGeneratedSources = rootProject.layout.projectDirectory.dir("conformance/openrouter/generated")
+    val openRouterConfig = rootProject.layout.projectDirectory.file("conformance/openrouter/sdkgen.yaml")
+    val openRouterCompatOverlay =
+        rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/full-spec-compat.yaml")
     val basicOpenApiFile =
         rootProject.layout.projectDirectory
             .file("generator/openapi/src/test/resources/fixtures/basic-openapi.yaml")
@@ -100,10 +107,12 @@ tasks.test {
     // declare them explicitly so Gradle tracks their contents (not just the path string baked
     // into the system property) as UP-TO-DATE/build-cache inputs.
     inputs.file(openRouterFile).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(openRouterConfig).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(openRouterCompatOverlay).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(githubFile).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(stripeFile).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(basicOpenApiFile).withPathSensitivity(PathSensitivity.RELATIVE)
-    inputs.dir(consumerSourceRoot).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.dir(openRouterGeneratedSources).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(wave1GoldenRoot).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(standardProjectionGolden).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(compositionProjectionGolden).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -128,11 +137,13 @@ tasks.test {
     systemProperty("engine.githubFile", githubFile.asFile.absolutePath)
     systemProperty("engine.stripeFile", stripeFile.asFile.absolutePath)
     systemProperty("engine.basicOpenApiFile", basicOpenApiFile.asFile.absolutePath)
-    systemProperty("engine.goldenRoot", consumerSourceRoot.asFile.absolutePath)
+    // Since the T3b baseline refresh the consumer compiles the pinned corpus snapshot via the 'generated'
+    // symlink; checked-in-generated-source assertions read the snapshot, not a consumer-side copy.
+    systemProperty("engine.goldenRoot", openRouterGeneratedSources.asFile.absolutePath)
     systemProperty("engine.wave1GoldenRoot", wave1GoldenRoot.asFile.absolutePath)
     systemProperty("engine.standardProjectionGolden", standardProjectionGolden.asFile.absolutePath)
     systemProperty("engine.compositionProjectionGolden", compositionProjectionGolden.asFile.absolutePath)
-    systemProperty("engine.consumerSourceRoot", consumerSourceRoot.asFile.absolutePath)
+    systemProperty("engine.consumerSourceRoot", openRouterGeneratedSources.asFile.absolutePath)
     systemProperty("engine.openRouterGeneratedOutput", openRouterGeneratedOutput.get().asFile.absolutePath)
     systemProperty("engine.t8RenameInventory", t8RenameInventory.asFile.absolutePath)
     systemProperty("engine.t11StripeBlockerInventory", t11StripeBlockerInventory.asFile.absolutePath)

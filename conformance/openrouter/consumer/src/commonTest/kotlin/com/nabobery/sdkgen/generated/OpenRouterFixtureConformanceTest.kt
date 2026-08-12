@@ -175,7 +175,10 @@ class OpenRouterFixtureConformanceTest {
     @Test
     fun retryReusesCallerIdempotencyKeyAcrossAttempts() =
         runTest {
-            val firstBody = FakeByteStream(listOf("retry".encodeToByteArray()))
+            val firstBody =
+                FakeByteStream(
+                    listOf("{\"error\":{\"code\":429,\"message\":\"retry\"}}".encodeToByteArray()),
+                )
             val secondBody = FakeByteStream(listOf(byteArrayOf(1, 2, 3)))
             val transport =
                 FakeTransport()

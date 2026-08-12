@@ -368,7 +368,7 @@ kotlin-sdkgen explain --config sdkgen.yaml --pointer '#/components/schemas/Provi
 
 | ID         | Priority | Requirement                                                                                            |
 | ---------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| FR-GRD-001 | P1       | Publish a Gradle plugin using a `com.nabobery` plugin ID.                                              |
+| FR-GRD-001 | P1       | Publish a Gradle plugin using an `io.github.nabobery` plugin ID.                                       |
 | FR-GRD-002 | P1       | Register cacheable generation and verification tasks with declared inputs and outputs.                 |
 | FR-GRD-003 | P1       | Integrate generated directories with Kotlin Multiplatform source sets without assuming target presets. |
 | FR-GRD-004 | P1       | Support Gradle configuration cache and build cache.                                                    |
@@ -380,7 +380,7 @@ Proposed Gradle DSL:
 
 ```kotlin
 plugins {
-    id("com.nabobery.kotlin-sdkgen") version "0.x.y"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.x.y"
 }
 
 kotlinSdkGen {
@@ -756,14 +756,14 @@ Kotlin SDKGen processes API descriptions and should not require production API k
 Selected initial coordinates:
 
 ```text
-com.nabobery:kotlin-sdkgen-engine
-com.nabobery:kotlin-sdkgen-cli
-com.nabobery:kotlin-sdkgen-gradle-plugin
-com.nabobery:kotlin-sdkgen-runtime
-com.nabobery:kotlin-sdkgen-transport-ktor
-com.nabobery:kotlin-sdkgen-transport-okhttp
-com.nabobery:kotlin-sdkgen-transport-java-http
-com.nabobery:kotlin-sdkgen-testing
+io.github.nabobery:kotlin-sdkgen-engine
+io.github.nabobery:kotlin-sdkgen-cli
+io.github.nabobery:kotlin-sdkgen-gradle-plugin
+io.github.nabobery:kotlin-sdkgen-runtime
+io.github.nabobery:kotlin-sdkgen-transport-ktor
+io.github.nabobery:kotlin-sdkgen-transport-okhttp
+io.github.nabobery:kotlin-sdkgen-transport-java-http
+io.github.nabobery:kotlin-sdkgen-testing
 ```
 
 The semantic/declaration model and OpenAPI intake remain internal to the engine publication until independently useful consumers justify public coordinates. Optional telemetry bridges are published separately only when concrete integrations exist. See [ADR 0008](adr/0008-artifact-split-8-coordinates.md).
@@ -771,7 +771,7 @@ The semantic/declaration model and OpenAPI intake remain internal to the engine 
 Potential Gradle plugin ID:
 
 ```text
-com.nabobery.kotlin-sdkgen
+io.github.nabobery.kotlin-sdkgen
 ```
 
 These names are proposals. The implementation should avoid premature module fragmentation; module boundaries should correspond to separately useful dependency graphs or execution environments.
@@ -855,7 +855,7 @@ Exit gates:
 - A real upstream spec update completes the review workflow successfully.
 - Remaining waivers are documented and accepted.
 
-### Phase 4: Kotlin SDKGen 1.0
+### Release milestone: Kotlin SDKGen 1.0
 
 Deliverables:
 

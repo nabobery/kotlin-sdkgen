@@ -82,7 +82,7 @@ internal data class CompatibilityTruncation(
  *
  * [equals] and [hashCode] are defined explicitly over [value] because [CompatibilityReport.create] relies on
  * value-based equality to reject duplicate change IDs (`changes.map(CompatibilityChange::id).distinct()`), and
- * the frozen [CompatibilityContractTest] asserts two IDs differ by content
+ * the frozen `CompatibilityContractTest` asserts two IDs differ by content
  * (`assertNotEquals(callerOrder[0].id, callerOrder[1].id)`), not merely by object identity. [toString] is
  * likewise defined over [value] so a failed equality assertion on an ID reports the actual digest instead of an
  * opaque object reference.

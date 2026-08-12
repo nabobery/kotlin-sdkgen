@@ -37,6 +37,10 @@ public abstract class VerifyStagedArtifactInventory : DefaultTask() {
     @get:Input
     public abstract val expectedVersion: Property<String>
 
+    /** Whether every release publication, documentation artifact, and signature must be present. */
+    @get:Input
+    public abstract val requireReleaseArtifacts: Property<Boolean>
+
     @get:OutputFile
     public abstract val verificationMarker: RegularFileProperty
 
@@ -48,7 +52,13 @@ public abstract class VerifyStagedArtifactInventory : DefaultTask() {
         }
 
         val inventory = SdkgenProductStagedArtifactInventoryJson.decode(inventoryFile.get().asFile.readText())
-        val failures = StagedArtifactInventoryVerification.verify(repository, inventory, expectedVersion.get())
+        val failures =
+            StagedArtifactInventoryVerification.verify(
+                repository,
+                inventory,
+                expectedVersion.get(),
+                requireReleaseArtifacts.getOrElse(false),
+            )
         check(failures.isEmpty()) {
             "Staged artifact inventory verification failed:\n${failures.joinToString("\n")}"
         }
@@ -76,6 +86,7 @@ internal object StagedArtifactInventoryVerification {
         repository: File,
         inventory: SdkgenProductStagedArtifactInventory,
         expectedVersion: String,
+        requireReleaseArtifacts: Boolean = false,
     ): List<String> {
         // Fail closed: an inventory over zero artifacts must never verify as success, even when the
         // repository directory itself is non-empty (e.g. an inventory that was truncated or hand-edited).
@@ -92,10 +103,15 @@ internal object StagedArtifactInventoryVerification {
             }
 
         expectedRootArtifactIds.forEach { rootArtifactId ->
-            val hasBinaryArtifact = inventory.byRootArtifactId(rootArtifactId).any { it.extension in binaryExtensions }
+            val coordinateArtifacts = inventory.byRootArtifactId(rootArtifactId)
+            val hasBinaryArtifact = coordinateArtifacts.any { it.extension in binaryExtensions }
             if (!hasBinaryArtifact) {
                 failures += "missing expected coordinate: no staged jar or klib found for $rootArtifactId"
             }
+        }
+
+        if (requireReleaseArtifacts) {
+            failures += releaseArtifactFailures(repository, inventory, expectedVersion)
         }
 
         failures += unexpectedCoordinateFailures(inventory)
@@ -125,6 +141,48 @@ internal object StagedArtifactInventoryVerification {
             }
         }
 
+        return failures
+    }
+
+    private val CHECKSUM_EXTENSIONS = setOf("md5", "sha1", "sha256", "sha512")
+
+    private fun releaseArtifactFailures(
+        repository: File,
+        inventory: SdkgenProductStagedArtifactInventory,
+        expectedVersion: String,
+    ): List<String> {
+        val failures = mutableListOf<String>()
+        Adr0008ProductArtifactIds.releaseProductArtifactIds.sorted().forEach { artifactId ->
+            val coordinate = "${Adr0008ProductArtifactIds.PRODUCT_GROUP}:$artifactId:$expectedVersion"
+            val coordinateArtifacts =
+                inventory.artifacts.filter { artifact ->
+                    artifact.coordinate.group == Adr0008ProductArtifactIds.PRODUCT_GROUP &&
+                        artifact.coordinate.artifactId == artifactId &&
+                        artifact.coordinate.version == expectedVersion
+                }
+            if (coordinateArtifacts.isEmpty()) {
+                failures += "missing release publication coordinate $coordinate"
+                return@forEach
+            }
+            if (coordinateArtifacts.none { artifact -> artifact.extension == "pom" }) {
+                failures += "missing release POM for $coordinate"
+            }
+            if (coordinateArtifacts.none { artifact ->
+                    artifact.extension == SdkgenProductStagedArtifactInventory.EXTENSION_JAR &&
+                        artifact.classifier == "javadoc"
+                }
+            ) {
+                failures += "missing release javadoc jar for $coordinate"
+            }
+        }
+        inventory.artifacts
+            .filterNot { artifact -> artifact.extension in CHECKSUM_EXTENSIONS || artifact.extension == "asc" }
+            .forEach { artifact ->
+                val signaturePath = "${artifact.relativePath}.asc"
+                if (!repository.resolve(signaturePath).isFile) {
+                    failures += "missing release signature: $signaturePath"
+                }
+            }
         return failures
     }
 

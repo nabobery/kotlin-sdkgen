@@ -39,7 +39,7 @@ internal class VerifyStagedArtifactInventoryTest {
         val inventoryFile = temporaryDirectory.resolve("inventory.json")
         generate(repository, inventoryFile)
         // Tamper with a staged artifact after the inventory was generated over the original bytes.
-        val stagedJar = "com/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar"
+        val stagedJar = "io/github/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar"
         repository.resolve(stagedJar).writeBytes("tampered".toByteArray())
         val task = createVerifyTask(repository, inventoryFile, temporaryDirectory.resolve("verified.txt"))
 
@@ -54,7 +54,10 @@ internal class VerifyStagedArtifactInventoryTest {
         writeFullRepository(repository)
         val inventoryFile = temporaryDirectory.resolve("inventory.json")
         generate(repository, inventoryFile)
-        repository.resolve("com/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar").toFile().delete()
+        repository
+            .resolve("io/github/nabobery/kotlin-sdkgen-engine/1.2.3/kotlin-sdkgen-engine-1.2.3.jar")
+            .toFile()
+            .delete()
         val task = createVerifyTask(repository, inventoryFile, temporaryDirectory.resolve("verified.txt"))
 
         val exception = assertThrows(IllegalStateException::class.java) { task.verify() }
@@ -75,6 +78,60 @@ internal class VerifyStagedArtifactInventoryTest {
 
         assertTrue(exception.message.orEmpty().contains("missing expected coordinate"))
         assertTrue(exception.message.orEmpty().contains("kotlin-sdkgen-testing"))
+    }
+
+    @Test
+    fun releaseModeRejectsUnsignedCoordinatesWithoutJavadocOrPom() {
+        val repository = temporaryDirectory.resolve("repository")
+        writeFullRepository(repository)
+        val inventoryFile = temporaryDirectory.resolve("inventory.json")
+        generate(repository, inventoryFile)
+        val task = createVerifyTask(repository, inventoryFile, temporaryDirectory.resolve("verified.txt"))
+        task.requireReleaseArtifacts.set(true)
+
+        val exception = assertThrows(IllegalStateException::class.java) { task.verify() }
+
+        assertTrue(exception.message.orEmpty().contains("missing release POM"), exception.message.orEmpty())
+        assertTrue(exception.message.orEmpty().contains("missing release javadoc jar"), exception.message.orEmpty())
+        assertTrue(exception.message.orEmpty().contains("missing release signature"), exception.message.orEmpty())
+    }
+
+    @Test
+    fun releaseModeRequiresEveryPhysicalPublicationWithPomAndJavadoc() {
+        val repository = temporaryDirectory.resolve("repository")
+        writeFullRepository(repository)
+        val targetArtifactId = "kotlin-sdkgen-runtime-jvm"
+        val targetDirectory =
+            repository.resolve("io/github/nabobery/$targetArtifactId/$VERSION").also(Path::createDirectories)
+        targetDirectory.resolve("$targetArtifactId-$VERSION.jar").writeBytes("target-bytes".toByteArray())
+        writeReleaseSidecars(repository)
+        targetDirectory.resolve("$targetArtifactId-$VERSION.pom").toFile().delete()
+        targetDirectory.resolve("$targetArtifactId-$VERSION-javadoc.jar").toFile().delete()
+        val inventoryFile = temporaryDirectory.resolve("inventory.json")
+        generate(repository, inventoryFile)
+        val task = createVerifyTask(repository, inventoryFile, temporaryDirectory.resolve("verified.txt"))
+        task.requireReleaseArtifacts.set(true)
+
+        val exception = assertThrows(IllegalStateException::class.java) { task.verify() }
+
+        assertTrue(
+            exception.message
+                .orEmpty()
+                .contains("missing release POM for io.github.nabobery:$targetArtifactId:$VERSION"),
+            exception.message.orEmpty(),
+        )
+        assertTrue(
+            exception.message.orEmpty().contains(
+                "missing release javadoc jar for io.github.nabobery:$targetArtifactId:$VERSION",
+            ),
+            exception.message.orEmpty(),
+        )
+        assertTrue(
+            exception.message
+                .orEmpty()
+                .contains("missing release publication coordinate io.github.nabobery:kotlin-sdkgen-runtime-js"),
+            exception.message.orEmpty(),
+        )
     }
 
     @Test
@@ -135,7 +192,10 @@ internal class VerifyStagedArtifactInventoryTest {
     fun rejectsANinthStagedCoordinateOutsideTheAdr0008Set() {
         val repository = temporaryDirectory.resolve("repository")
         writeFullRepository(repository)
-        val intruder = repository.resolve("com/nabobery/kotlin-sdkgen-model/$VERSION").also(Path::createDirectories)
+        val intruder =
+            repository
+                .resolve("io/github/nabobery/kotlin-sdkgen-model/$VERSION")
+                .also(Path::createDirectories)
         intruder.resolve("kotlin-sdkgen-model-$VERSION.jar").writeBytes("kotlin-sdkgen-model-bytes".toByteArray())
         val inventoryFile = temporaryDirectory.resolve("inventory.json")
         generate(repository, inventoryFile)
@@ -160,7 +220,9 @@ internal class VerifyStagedArtifactInventoryTest {
         val repository = temporaryDirectory.resolve("repository")
         writeFullRepository(repository)
         val bogus =
-            repository.resolve("com/nabobery/kotlin-sdkgen-runtime-solaris/$VERSION").also(Path::createDirectories)
+            repository
+                .resolve("io/github/nabobery/kotlin-sdkgen-runtime-solaris/$VERSION")
+                .also(Path::createDirectories)
         bogus.resolve("kotlin-sdkgen-runtime-solaris-$VERSION.jar").writeBytes("bogus".toByteArray())
         val inventoryFile = temporaryDirectory.resolve("inventory.json")
         generate(repository, inventoryFile)
@@ -179,14 +241,14 @@ internal class VerifyStagedArtifactInventoryTest {
         listOf("jvm", "iosarm64", "js", "linuxx64", "android", "mingwx64", "macosarm64").forEach { target ->
             val artifactId = "kotlin-sdkgen-runtime-$target"
             repository
-                .resolve("com/nabobery/$artifactId/$VERSION")
+                .resolve("io/github/nabobery/$artifactId/$VERSION")
                 .also(Path::createDirectories)
                 .resolve("$artifactId-$VERSION.klib")
                 .writeBytes("$artifactId-bytes".toByteArray())
         }
-        val markerId = "com.nabobery.kotlin-sdkgen.gradle.plugin"
+        val markerId = "io.github.nabobery.kotlin-sdkgen.gradle.plugin"
         repository
-            .resolve("com/nabobery/kotlin-sdkgen/$markerId/$VERSION")
+            .resolve("io/github/nabobery/kotlin-sdkgen/$markerId/$VERSION")
             .also(Path::createDirectories)
             .resolve("$markerId-$VERSION.pom")
             .writeBytes("<project/>".toByteArray())
@@ -206,7 +268,7 @@ internal class VerifyStagedArtifactInventoryTest {
         writeFullRepository(repository)
         val oldVersion = "1.2.2"
         repository
-            .resolve("com/nabobery/kotlin-sdkgen-engine/$oldVersion")
+            .resolve("io/github/nabobery/kotlin-sdkgen-engine/$oldVersion")
             .also(Path::createDirectories)
             .resolve("kotlin-sdkgen-engine-$oldVersion.jar")
             .writeBytes("old".toByteArray())
@@ -230,7 +292,7 @@ internal class VerifyStagedArtifactInventoryTest {
                 .toFile()
                 .readText()
                 .replaceFirst(
-                    "com/nabobery/kotlin-sdkgen-engine/$VERSION/kotlin-sdkgen-engine-$VERSION.jar",
+                    "io/github/nabobery/kotlin-sdkgen-engine/$VERSION/kotlin-sdkgen-engine-$VERSION.jar",
                     "../outside.jar",
                 ),
         )
@@ -268,6 +330,7 @@ internal class VerifyStagedArtifactInventoryTest {
                 repositoryDirectory.set(repository.toFile())
                 this.inventoryFile.set(inventoryFile.toFile())
                 expectedVersion.set(VERSION)
+                requireReleaseArtifacts.set(false)
                 verificationMarker.set(marker.toFile())
             }
     }
@@ -307,9 +370,30 @@ internal class VerifyStagedArtifactInventoryTest {
     ) {
         rootArtifacts.forEach { artifactId ->
             if (artifactId == omitArtifactId) return@forEach
-            val directory = repository.resolve("com/nabobery/$artifactId/$VERSION").also(Path::createDirectories)
+            val directory = repository.resolve("io/github/nabobery/$artifactId/$VERSION").also(Path::createDirectories)
             directory.resolve("$artifactId-$VERSION.jar").writeBytes("$artifactId-bytes".toByteArray())
         }
+    }
+
+    private fun writeReleaseSidecars(repository: Path) {
+        repository.toFile().walkTopDown().filter { file -> file.isFile }.toList().forEach { file ->
+            if (file.extension != "asc") {
+                file.resolveSibling("${file.name}.asc").writeBytes("signature".toByteArray())
+            }
+        }
+        rootArtifacts.forEach { artifactId ->
+            val directory = repository.resolve("io/github/nabobery/$artifactId/$VERSION")
+            directory.resolve("$artifactId-$VERSION.pom").writeBytes("<project/>".toByteArray())
+            directory.resolve("$artifactId-$VERSION-javadoc.jar").writeBytes("docs".toByteArray())
+            directory.resolve("$artifactId-$VERSION.pom.asc").writeBytes("signature".toByteArray())
+            directory.resolve("$artifactId-$VERSION-javadoc.jar.asc").writeBytes("signature".toByteArray())
+        }
+        val targetArtifactId = "kotlin-sdkgen-runtime-jvm"
+        val targetDirectory = repository.resolve("io/github/nabobery/$targetArtifactId/$VERSION")
+        targetDirectory.resolve("$targetArtifactId-$VERSION.pom").writeBytes("<project/>".toByteArray())
+        targetDirectory.resolve("$targetArtifactId-$VERSION-javadoc.jar").writeBytes("docs".toByteArray())
+        targetDirectory.resolve("$targetArtifactId-$VERSION.pom.asc").writeBytes("signature".toByteArray())
+        targetDirectory.resolve("$targetArtifactId-$VERSION-javadoc.jar.asc").writeBytes("signature".toByteArray())
     }
 
     private companion object {

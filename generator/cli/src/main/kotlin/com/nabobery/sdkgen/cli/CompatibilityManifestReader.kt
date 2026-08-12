@@ -44,7 +44,7 @@ internal data class CompatibilityManifestFile(
  * ADR 0013 distinguishes two different things both described loosely as "unknown": a field that is not part of
  * the declared manifest schema at all (drift — must fail closed), and a field that is part of the schema but this
  * particular reader does not need (legitimate — every reader consumes a subset). This reader consumes only the
- * schema version, the four digests, and `files`; the remaining top-level fields [AtomicOutputPublisher] writes
+ * schema version, the four digests, and `files`; the remaining top-level fields `AtomicOutputPublisher` writes
  * into every `v1alpha2` manifest — `generatorVersion`, `edition`, `kotlinPoetVersion`, `configDigest`, `source`,
  * `references`, `overlays`, `targets`, `compatibilityProfiles`, `plugins`, `tools`, `warningsAsErrors`,
  * `warningAllowlist`, `diagnostics`, `exclusions`, `acceptedWaivers` — are declared known in
@@ -62,7 +62,7 @@ internal object CompatibilityManifestReader {
     private val SUPPORTED_SCHEMA_VERSIONS = setOf("v1alpha1", "v1alpha2")
 
     /**
-     * Top-level fields [AtomicOutputPublisher] always writes into a `v1alpha2` manifest that this reader does not
+     * Top-level fields `AtomicOutputPublisher` always writes into a `v1alpha2` manifest that this reader does not
      * need to consume: governance and provenance evidence read instead by `diff`/`explain`. Declared here so the
      * reader's own engine's manifests remain readable while a genuinely undeclared field still fails closed. This
      * is the full schema outside `schemaVersion`, the four digests, and `files`, which are already typed.

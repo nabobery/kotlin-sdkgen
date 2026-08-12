@@ -77,6 +77,28 @@ components:
           type: string
         content:
           type: string
+        detail:
+          $ref: "#/components/schemas/ChatResultDetail"
+    ChatResultDetail:
+      oneOf:
+        - $ref: "#/components/schemas/ChatTextDetail"
+        - $ref: "#/components/schemas/ChatBlockedDetail"
+    ChatTextDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+    ChatBlockedDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
     ChatDelta:
       type: object
       additionalProperties: false

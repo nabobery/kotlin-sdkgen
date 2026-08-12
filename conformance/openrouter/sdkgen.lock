@@ -1,0 +1,29 @@
+{
+  "version": "v1alpha1",
+  "configDigest": "3300f5599fc73e17ac56d2f3e203e61304557eebf0ea755077c37806e48083f5",
+  "source": {
+    "canonicalUri": "sdkgen://source/openapi.yaml",
+    "sha256": "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47",
+    "contentLength": 1203455,
+    "references": []
+  },
+  "overlays": [
+    {
+      "id": "openrouter-full-spec-compat",
+      "canonicalUri": "sdkgen://overlay/openrouter-full-spec-compat",
+      "sha256": "aed6cf55655b0516ed3b9cb4dd84acb0ab76365efc8a42c94258a08a5aebf221"
+    }
+  ],
+  "generator": {
+    "version": "0.1.0-alpha.1",
+    "edition": "community"
+  },
+  "compatibilityProfiles": [],
+  "plugins": [],
+  "tools": [
+    {
+      "id": "kotlinpoet",
+      "version": "2.3.0"
+    }
+  ]
+}

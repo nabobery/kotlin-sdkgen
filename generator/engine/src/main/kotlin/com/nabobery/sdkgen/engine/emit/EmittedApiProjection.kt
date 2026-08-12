@@ -140,6 +140,10 @@ internal object EmittedApiProjection {
         }
     }
 
+    /** KotlinPoet represents companion objects without a declaration name. */
+    private fun companionObjects(type: TypeSpec): List<TypeSpec> =
+        type.typeSpecs.filter { nested -> nested.name == null }
+
     private fun declaration(
         qualifiedName: String,
         type: TypeSpec,
@@ -168,7 +172,7 @@ internal object EmittedApiProjection {
             put(
                 "properties",
                 JsonArray(
-                    type.propertySpecs
+                    (type.propertySpecs + companionObjects(type).flatMap(TypeSpec::propertySpecs))
                         .filter { spec -> spec.hasApiVisibility }
                         .sortedBy(PropertySpec::name)
                         .map(::property),
@@ -177,7 +181,7 @@ internal object EmittedApiProjection {
             put(
                 "functions",
                 JsonArray(
-                    (type.funSpecs + primaryConstructors(type))
+                    (type.funSpecs + companionObjects(type).flatMap(TypeSpec::funSpecs) + primaryConstructors(type))
                         .filter { spec -> spec.hasApiVisibility }
                         .map(::function)
                         .sortedBy { entry -> entry.toString() },

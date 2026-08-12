@@ -1659,6 +1659,7 @@ private class TypeNamePlan(
                     "${name}AmbiguityException",
                     "${name}BranchValidationException",
                     "${name}Inspection",
+                    "${name}Serializer",
                 )
             }
 
@@ -2586,7 +2587,7 @@ private class SchemaProjectionContext(
         try {
             primitiveOneOfPredicate(schema)
         } catch (_: UnrepresentableOperationException) {
-            JsonBranchPredicate.NeverMatch
+            JsonBranchPredicate.AnyValue
         }
 
     private fun exactStringValues(schema: SchemaModel): List<String> =

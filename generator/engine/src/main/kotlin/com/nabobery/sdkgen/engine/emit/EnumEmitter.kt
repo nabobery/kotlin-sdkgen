@@ -71,7 +71,7 @@ internal fun EmissionContext.openEnum(model: OpenEnumDeclaration): TypeSpec {
     type.addType(
         TypeSpec
             .objectBuilder("Serializer")
-            .addModifiers(KModifier.PUBLIC)
+            .addModifiers(KModifier.INTERNAL)
             .addSuperinterface(K_SERIALIZER.parameterizedBy(enumType))
             .addProperty(
                 PropertySpec

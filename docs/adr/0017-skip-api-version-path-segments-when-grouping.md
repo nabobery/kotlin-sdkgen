@@ -60,7 +60,7 @@ guarantee about every tagged specification.
 
 ## Consequences
 
-**Stripe's generated public API changes shape.** One `V1Client` becomes roughly 76 resource clients reached
+**Stripe's generated public API changes shape.** One `V1Client` becomes 75 resource clients reached
 through the existing root facade: `stripe.accounts.…` instead of `stripe.v1.…`. Client class names, package
 names, and every consumer import change. This is a deliberate break, taken pre-1.0, and it is the outcome T3
 was designed to produce in the first place.
@@ -85,9 +85,17 @@ reason). Version-shaped is the narrower and more defensible test.
 that it changes the public API. It is a real cost, but a 519-operation client in a six-figure-line file is not
 a viable SDK, and pre-1.0 is exactly when this break is cheapest.
 
+## Overriding the heuristic
+
+Tags take precedence over the path-derived fallback for every operation. An OpenAPI Overlay that sets an
+operation's `tags` is the supported override.
+
+There is deliberately no dedicated grouping configuration option. ADR-0018 removed the previous option
+because it was never read and could change the configuration digest without changing generated output.
+
 ## Re-evaluation triggers
 
 - A specification with a resource genuinely named `v1`, `v2`, or a date — which this rule would misgroup.
-- A decision to implement or delete `resourceGrouping`, which would subsume this fallback.
+- A concrete consumer grouping need that an OpenAPI Overlay cannot express through an operation's `tags`.
 - Any corpus where skipping the version segment still yields one group, meaning the paths carry no resource
   structure at all.

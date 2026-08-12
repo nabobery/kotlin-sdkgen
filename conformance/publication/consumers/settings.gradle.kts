@@ -12,7 +12,7 @@ dependencyResolutionManagement {
                 }
             }
             filter {
-                includeGroup("com.nabobery")
+                includeGroup("io.github.nabobery")
             }
         }
         mavenCentral()

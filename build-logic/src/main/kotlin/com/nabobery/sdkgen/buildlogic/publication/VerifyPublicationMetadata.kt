@@ -211,7 +211,7 @@ internal object PublicationMetadataTopology {
             listOf(
                 "RepositoriesMode.FAIL_ON_PROJECT_REPOS",
                 "exclusiveContent",
-                "includeGroup(\"com.nabobery\")",
+                "includeGroup(\"io.github.nabobery\")",
                 "mavenCentral()",
                 "name = \"isolated\"",
                 "isolatedRepository",
@@ -253,7 +253,7 @@ internal object PublicationMetadataTopology {
                 }
 
                 val buildText = buildFile.readText()
-                val coordinate = "com.nabobery:$artifact:"
+                val coordinate = "io.github.nabobery:$artifact:"
                 if (coordinate !in buildText) {
                     add("consumer fixtures: $project must consume $coordinate")
                 }
@@ -322,7 +322,7 @@ internal object PublicationMetadataTopology {
         extension: String,
         classifier: String? = null,
     ): File? {
-        val directory = repository.resolve("com/nabobery/$artifact/$version")
+        val directory = repository.resolve("io/github/nabobery/$artifact/$version")
         val classifierSuffix = classifier?.let { "-$it" }.orEmpty()
         val exact = directory.resolve("$artifact-$version$classifierSuffix.$extension")
         if (exact.isFile) return exact

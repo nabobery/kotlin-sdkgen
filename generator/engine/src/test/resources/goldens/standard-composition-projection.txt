@@ -51,7 +51,7 @@ public class Alpha(
     public fun build(block: Builder.() -> Unit): Alpha = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<Alpha> {
+  internal object Serializer : KSerializer<Alpha> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Alpha {
@@ -135,7 +135,7 @@ public class Beta(
     public fun build(block: Builder.() -> Unit): Beta = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<Beta> {
+  internal object Serializer : KSerializer<Beta> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Beta {
@@ -214,7 +214,7 @@ public class Cat(
     public fun build(block: Builder.() -> Unit): Cat = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<Cat> {
+  internal object Serializer : KSerializer<Cat> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Cat {
@@ -328,7 +328,7 @@ public class Choice internal constructor(
     }
   }
 
-  public object Serializer : KSerializer<Choice> {
+  internal object Serializer : KSerializer<Choice> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Choice {
@@ -442,7 +442,7 @@ public class Dog(
     public fun build(block: Builder.() -> Unit): Dog = Builder().apply(block).build()
   }
 
-  public object Serializer : KSerializer<Dog> {
+  internal object Serializer : KSerializer<Dog> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
     override fun deserialize(decoder: Decoder): Dog {
@@ -538,7 +538,7 @@ public class VariantBranchValidationException(
  *
  * Source: sdkgen://source/composition-golden.yaml#/components/schemas/Variant
  */
-@Serializable(with = Variant.Serializer::class)
+@Serializable(with = VariantSerializer::class)
 public sealed interface Variant {
   /**
    * Raw JSON retained as the serialization authority.
@@ -610,30 +610,30 @@ public sealed interface Variant {
       }
     }
   }
+}
 
-  public object Serializer : KSerializer<Variant> {
-    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+internal object VariantSerializer : KSerializer<Variant> {
+  override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
 
-    override fun deserialize(decoder: Decoder): Variant {
-      val jsonDecoder = decoder.requireJsonDecoder("Variant")
-      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw VariantNoMatchException("Variant matched 0 branches: expected JSON object")
-      val matches = inspectVariant(rawObject)
-      if (matches.size == 0) {
-        throw VariantNoMatchException("Variant matched 0 branches: " + matches.failures.joinToString("; "))
-      }
-      if (matches.size > 1) {
-        throw VariantAmbiguityException("Variant matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
-      }
-      return when {
-        matches.catMatches -> Cat(cat = requireNotNull(matches.cat), raw = rawObject)
-        matches.dogMatches -> Dog(dog = requireNotNull(matches.dog), raw = rawObject)
-        else -> error("unreachable")
-      }
+  override fun deserialize(decoder: Decoder): Variant {
+    val jsonDecoder = decoder.requireJsonDecoder("Variant")
+    val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw VariantNoMatchException("Variant matched 0 branches: expected JSON object")
+    val matches = inspectVariant(rawObject)
+    if (matches.size == 0) {
+      throw VariantNoMatchException("Variant matched 0 branches: " + matches.failures.joinToString("; "))
     }
-
-    override fun serialize(encoder: Encoder, `value`: Variant) {
-      encoder.requireJsonEncoder("Variant").encodeJsonElement(value.raw)
+    if (matches.size > 1) {
+      throw VariantAmbiguityException("Variant matched " + matches.size + " branches; expected exactly 1: " + matches.names.joinToString())
     }
+    return when {
+      matches.catMatches -> Variant.Cat(cat = requireNotNull(matches.cat), raw = rawObject)
+      matches.dogMatches -> Variant.Dog(dog = requireNotNull(matches.dog), raw = rawObject)
+      else -> error("unreachable")
+    }
+  }
+
+  override fun serialize(encoder: Encoder, `value`: Variant) {
+    encoder.requireJsonEncoder("Variant").encodeJsonElement(value.raw)
   }
 }
 
@@ -722,8 +722,8 @@ import kotlin.Unit
 import kotlin.collections.List
 import kotlin.collections.Map
 
-public object ChoiceCodecs {
-  public const val GETCHOICE_RESPONSE_CODEC_ID: String = "getChoice.response"
+internal object ChoiceCodecs {
+  internal const val GETCHOICE_RESPONSE_CODEC_ID: String = "getChoice.response"
 
   private val getChoiceResponseCodec: MediaTypeCodec<Choice> =
       KotlinxSerializationCodec(GETCHOICE_RESPONSE_CODEC_ID, Choice.Serializer, SdkJson)
@@ -731,13 +731,13 @@ public object ChoiceCodecs {
   private val getChoiceResponseCodecAlternative0Codec: MediaTypeCodec<Choice> =
       KotlinxSerializationCodec("getChoice.response.alternative0", Choice.Serializer, SdkJson)
 
-  public val getChoiceResponseCodecAlternative0Registry: MediaTypeCodecRegistry<Choice> =
+  internal val getChoiceResponseCodecAlternative0Registry: MediaTypeCodecRegistry<Choice> =
       MediaTypeCodecRegistry.of(getChoiceResponseCodecAlternative0Codec)
 
-  public val getChoiceRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
+  internal val getChoiceRequestCodecRegistry: MediaTypeCodecRegistry<Unit> =
       MediaTypeCodecRegistry.of()
 
-  public val getChoiceResponseCodecRegistry: MediaTypeCodecRegistry<Choice> =
+  internal val getChoiceResponseCodecRegistry: MediaTypeCodecRegistry<Choice> =
       MediaTypeCodecRegistry.of(getChoiceResponseCodec)
 }
 
@@ -825,7 +825,7 @@ public class ChoiceClient(
   }
 
   public companion object {
-    public val getChoiceMetadata: OperationMetadata by
+    internal val getChoiceMetadata: OperationMetadata by
         lazy(LazyThreadSafetyMode.PUBLICATION) { OperationMetadata(
           operationId = "getChoice",
           method = "GET",

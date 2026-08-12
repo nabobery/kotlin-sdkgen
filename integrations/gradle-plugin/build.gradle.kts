@@ -1,7 +1,8 @@
 plugins {
-    id("sdkgen.kotlin-jvm")
+    alias(libs.plugins.gradle.plugin.publish)
     `java-gradle-plugin`
     id("sdkgen.publishing")
+    id("sdkgen.kotlin-jvm")
 }
 
 dependencies {
@@ -19,13 +20,16 @@ tasks.named<org.gradle.jvm.tasks.Jar>("jar") {
 }
 
 gradlePlugin {
+    website = "https://github.com/nabobery/kotlin-sdkgen"
+    vcsUrl = "https://github.com/nabobery/kotlin-sdkgen.git"
     plugins {
         create("sdkgen") {
-            id = "com.nabobery.kotlin-sdkgen"
+            id = "io.github.nabobery.kotlin-sdkgen"
             implementationClass = "com.nabobery.sdkgen.gradleplugin.SdkGenPlugin"
             displayName = "Kotlin SDKGen"
             description =
                 "Lazy cacheable Kotlin SDK source generation backed by the shared SDKGen engine."
+            tags = listOf("kotlin", "openapi", "sdk", "code-generation")
         }
     }
 }

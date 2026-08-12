@@ -546,7 +546,7 @@ private fun modelSerializer(
     val optional = model.fields.filterNot(FieldDeclaration::required)
     return TypeSpec
         .objectBuilder("Serializer")
-        .addModifiers(KModifier.PUBLIC)
+        .addModifiers(KModifier.INTERNAL)
         .addSuperinterface(K_SERIALIZER.parameterizedBy(requestType))
         .addProperty(
             PropertySpec

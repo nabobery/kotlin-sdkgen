@@ -1,0 +1,61 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-deployment-created/properties/deployment/properties/performe
+ * d_via_github_app/properties/permissions/properties/organization_self_hosted_runners.
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-deployment-created/properties/deployment/properties/performe
+ * d_via_github_app/properties/permissions/properties/organization_self_hosted_runners
+ */
+@Serializable(with = InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb.Serializer::class)
+public sealed class InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `read`.
+   */
+  public data object Read : InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb() {
+    public override val `value`: String = "read"
+  }
+
+  /**
+   * Documented value. Wire value: `write`.
+   */
+  public data object Write : InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb() {
+    public override val `value`: String = "write"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb = when (value) {
+      Read.value -> Read
+      Write.value -> Write
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookDeploymentCreatedDeploymentOrganizationSelfHost148fX3811b5eb) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

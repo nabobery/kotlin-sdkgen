@@ -1,6 +1,7 @@
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.jlleitschuh.gradle.ktlint.KtlintExtension
+import org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask
+import org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask
 
 plugins {
     id("sdkgen.kotlin-kmp")
@@ -49,31 +50,38 @@ val prepareOpenRouterParityRun =
         property("commitSha", currentCommitSha)
     }
 
-// The generated SDK is checked in under src/commonMain (this module does not use the sdkgen Gradle
-// plugin, whose ktlint auto-exclusion only covers its own output directories), so exclude it here.
-configure<KtlintExtension> {
-    filter {
-        exclude { element -> element.file.path.contains("/com/nabobery/sdkgen/generated/") }
-    }
+tasks.withType<KtLintCheckTask>().configureEach {
+    exclude("**/generated/**")
+}
+
+tasks.withType<KtLintFormatTask>().configureEach {
+    exclude("**/generated/**")
 }
 
 kotlin {
     sourceSets {
-        commonMain.dependencies {
-            implementation(project(":runtime:core"))
-            implementation(libs.kotlinx.serialization.json)
+        commonMain {
+            kotlin.srcDir("../generated")
+            dependencies {
+                implementation(project(":runtime:core"))
+                implementation(libs.kotlinx.serialization.json)
+            }
         }
         commonTest.dependencies {
             implementation(project(":runtime:testing"))
             implementation(libs.kotlinx.coroutines.test)
         }
-        jvmTest.dependencies {
-            implementation(project(":runtime:transport-java-http"))
-            implementation(project(":runtime:transport-ktor"))
-            implementation(project(":runtime:transport-okhttp"))
-            implementation(libs.ktor.client.java)
-            implementation(libs.okhttp)
-            runtimeOnly(libs.junit.jupiter)
+        jvmTest {
+            resources.srcDir("../generated")
+            resources.include("manifest.json")
+            dependencies {
+                implementation(project(":runtime:transport-java-http"))
+                implementation(project(":runtime:transport-ktor"))
+                implementation(project(":runtime:transport-okhttp"))
+                implementation(libs.ktor.client.java)
+                implementation(libs.okhttp)
+                runtimeOnly(libs.junit.jupiter)
+            }
         }
     }
 

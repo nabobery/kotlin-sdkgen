@@ -3,8 +3,8 @@ package com.nabobery.sdkgen.generated
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -88,6 +88,28 @@ class OpenRouterGeneratedBehaviorTest {
     }
 
     @Test
+    fun requiredNullableArchitectureTokenizerDecodesAndRoundTripsNull() {
+        val raw =
+            """{"input_modalities":["text"],"instruct_type":null,"modality":"text","output_modalities":["text"],"tokenizer":null}"""
+
+        val decoded = SdkJson.decodeFromString<InlineListEndpointsResponseArchitectureX070fc976>(raw)
+
+        assertNull(decoded.tokenizer)
+        assertEquals(raw, SdkJson.encodeToString(decoded))
+    }
+
+    @Test
+    fun requiredNullableArchitectureTokenizerDecodesAndRoundTripsValue() {
+        val raw =
+            """{"input_modalities":["text"],"instruct_type":null,"modality":"text","output_modalities":["text"],"tokenizer":"GPT"}"""
+
+        val decoded = SdkJson.decodeFromString<InlineListEndpointsResponseArchitectureX070fc976>(raw)
+
+        assertEquals(ModelGroup.Gpt, decoded.tokenizer)
+        assertEquals(raw, SdkJson.encodeToString(decoded))
+    }
+
+    @Test
     fun unknownOpenEnumRoundTripsWithoutNormalization() {
         val unknown = SdkJson.decodeFromString<ProviderSort>("\"future-score\"")
         assertIs<ProviderSort.SdkUnknown>(unknown)
@@ -104,7 +126,7 @@ class OpenRouterGeneratedBehaviorTest {
         assertEquals("short", detail.summary)
         assertEquals(
             SdkJson.parseToJsonElement(raw),
-            SdkJson.parseToJsonElement(SdkJson.encodeToString(ReasoningDetailUnion.Serializer, detail)),
+            SdkJson.parseToJsonElement(SdkJson.encodeToString(ReasoningDetailUnion.serializer(), detail)),
         )
 
         assertFailsWith<ReasoningDetailUnionNoMatchException> {
@@ -127,8 +149,8 @@ class OpenRouterGeneratedBehaviorTest {
     @Test
     fun anyOfViewsAreLazyTypedAndRawRemainsAuthoritative() {
         val listRaw = """["stop","halt","wait","done"]"""
-        val listValue = InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(SdkJson.parseToJsonElement(listRaw))
-        assertTrue(InlineComponentsSchemasChatRequestPropertiesStopBranch.Branch2 in listValue.matchedBranches)
+        val listValue = InlineChatRequestStopX9225cac3.fromRaw(SdkJson.parseToJsonElement(listRaw))
+        assertTrue(InlineChatRequestStopX9225cac3Branch.Branch2 in listValue.matchedBranches)
         assertEquals(listOf("stop", "halt", "wait", "done"), listValue.branch2)
         assertEquals(listRaw, SdkJson.encodeToString(listValue))
 
@@ -137,16 +159,16 @@ class OpenRouterGeneratedBehaviorTest {
         // curated schema did not have, so it still decodes through that catch-all branch instead
         // of throwing.
         val tooMany = buildJsonArray { repeat(5) { add(JsonPrimitive("stop-$it")) } }
-        val tooManyValue = InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(tooMany)
-        assertTrue(InlineComponentsSchemasChatRequestPropertiesStopBranch.Branch2 !in tooManyValue.matchedBranches)
-        assertTrue(InlineComponentsSchemasChatRequestPropertiesStopBranch.Branch3 in tooManyValue.matchedBranches)
+        val tooManyValue = InlineChatRequestStopX9225cac3.fromRaw(tooMany)
+        assertTrue(InlineChatRequestStopX9225cac3Branch.Branch2 !in tooManyValue.matchedBranches)
+        assertTrue(InlineChatRequestStopX9225cac3Branch.Branch3 in tooManyValue.matchedBranches)
 
         val stringRaw = "\"done\""
-        val stringValue = SdkJson.decodeFromString<InlineComponentsSchemasChatRequestPropertiesStop>(stringRaw)
+        val stringValue = SdkJson.decodeFromString<InlineChatRequestStopX9225cac3>(stringRaw)
         assertEquals("done", stringValue.branch1)
         assertEquals(stringRaw, SdkJson.encodeToString(stringValue))
 
-        val request = request { stop = InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(JsonPrimitive("done")) }
+        val request = request { stop = InlineChatRequestStopX9225cac3.fromRaw(JsonPrimitive("done")) }
         val decodedRequest = SdkJson.decodeFromString<ChatRequest>(SdkJson.encodeToString(request))
         assertEquals("done", decodedRequest.stop?.branch1)
     }
@@ -159,7 +181,7 @@ class OpenRouterGeneratedBehaviorTest {
         val stringValue =
             roundTrip(
                 request {
-                    stop = InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(JsonPrimitive("done"))
+                    stop = InlineChatRequestStopX9225cac3.fromRaw(JsonPrimitive("done"))
                 },
             )
         assertEquals("done", stringValue.stop?.branch1)
@@ -168,7 +190,7 @@ class OpenRouterGeneratedBehaviorTest {
             roundTrip(
                 request {
                     stop =
-                        InlineComponentsSchemasChatRequestPropertiesStop.fromRaw(
+                        InlineChatRequestStopX9225cac3.fromRaw(
                             buildJsonArray {
                                 add(JsonPrimitive("done"))
                                 add(JsonPrimitive("halt"))
