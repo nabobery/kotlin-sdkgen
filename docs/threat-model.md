@@ -1,7 +1,7 @@
 # Threat model
 
-**Status:** draft, current as of security review. Grounded in the implementation at the time of
-writing; re-verify against the code before relying on any claim here, and update this file
+**Status:** current as of security review. Grounded in the implementation at the time of writing;
+re-verify against the code before relying on any claim here, and update this file
 whenever compatibility reporting/publication rehearsal/release automation change the acquisition, publication, or automation surface described below.
 
 ## System summary
@@ -158,9 +158,9 @@ repository write or secret access.
 
 **Current status:** `.github/workflows/drift.yml` separates unprivileged detection from the
 write-capable pull-request job, scope-checks the generated patch, and pins actions by full SHA.
-`.github/workflows/release-verification.yml` is read-only and publishes nothing. Neither workflow
-has been proven by a GitHub-hosted run, so these controls remain implementation evidence rather
-than operational evidence.
+`.github/workflows/release-verification.yml` is read-only and publishes nothing. Drift checks have
+completed successfully on GitHub-hosted runners; release verification still needs a successful run
+against the reviewed release commit before publication.
 
 **Owner / 1.0 disposition:** release owner; close the operational-evidence gap with observed,
 successful workflow runs before the first release.

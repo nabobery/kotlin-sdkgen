@@ -591,7 +591,7 @@ private fun AdaptationContext.diagnoseUnsupportedSchemaConstructs(
     if (node.isBoolean) {
         addDiagnostic(
             code = DiagnosticCode.UNSUPPORTED_BOOLEAN_SCHEMA,
-            message = "Boolean JSON Schema values are not yet represented by the Phase 1 semantic model.",
+            message = "Boolean JSON Schema values are not yet represented by the semantic model.",
             remediation = "Replace the boolean schema with an equivalent object schema or apply an overlay before normalization.",
             phase = DiagnosticPhase.NORMALIZATION,
             source = document.source(pointer),
@@ -601,7 +601,7 @@ private fun AdaptationContext.diagnoseUnsupportedSchemaConstructs(
     UNSUPPORTED_SCHEMA_KEYWORDS.filter(node::has).forEach { keyword ->
         addDiagnostic(
             code = DiagnosticCode.UNSUPPORTED_SCHEMA_KEYWORD,
-            message = "Schema keyword '$keyword' is not yet represented by the Phase 1 semantic model.",
+            message = "Schema keyword '$keyword' is not yet represented by the semantic model.",
             remediation = "Rewrite '$keyword' using the supported OpenRouter subset or apply an explicit overlay.",
             phase = DiagnosticPhase.NORMALIZATION,
             source = document.source("$pointer/${escapePointerSegment(keyword)}"),

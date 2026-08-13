@@ -175,7 +175,7 @@ public class SdkExecutor(
      * (see [KotlinxSerializationCodec]) resolve duplicate JSON object keys using the parser's last-wins behavior —
      * this executor does not add its own duplicate-key detection or rejection layer. Generated models decode
      * whatever `decodeJsonElement()` produces, including collapsed duplicate discriminators or fields, so they must
-     * not be treated as a validation firewall for untrusted relays in Phase 1; callers that need to reject duplicate
+     * not be treated as a validation firewall for untrusted relays; callers that need to reject duplicate
      * keys must do so before or alongside decoding.
      */
     @OptIn(ExperimentalUuidApi::class)
@@ -197,7 +197,7 @@ public class SdkExecutor(
         val logicalCallId = Uuid.random().toString()
         var attemptsUsed = 0
 
-        // Item 1 (W2-T8 review): callStarted fires here, at logical-call entry, before validation, encoding, hooks,
+        // callStarted fires here, at logical-call entry, before validation, encoding, hooks,
         // idempotency generation, and capability preflight run — and the try block below spans every one of those
         // stages, so every terminal path (including these early ones) is observed via callCompleted/callFailed.
         notifyObservers(allObservers) {
@@ -245,7 +245,7 @@ public class SdkExecutor(
                     operationId = metadata.operationId,
                     security = metadata.security,
                 )
-            // Item 6 (W2-T8 review): "caller-supplied" means CallOptions.headers only - the documented contract for
+            // "caller-supplied" means CallOptions.headers only - the documented contract for
             // applyUserAgent - so a User-Agent injected by a hook (constructor-level or per-call) is not exempted
             // from the reserved SDK-identification stage and gets overwritten just like a middleware-injected one.
             val callerSuppliedUserAgent = options.headers.firstValue(USER_AGENT_HEADER) != null
@@ -635,7 +635,7 @@ public class SdkExecutor(
             onAttemptsUsed(attemptNumber)
             val replayedRequest = logicalRequest.copy(body = bodyForAttempt(logicalRequest.body, attemptNumber))
             val attemptRequest = observeRequest(replayedRequest, options.transferObserver, logicalCallId, attemptNumber)
-            // Item 3 (W2-T8 review round 2): recorded at EVERY attempt-middleware/terminal frame entry reached this
+            // Recorded at every attempt-middleware/terminal frame entry reached this
             // attempt, deepest wins - reset every attempt and always overwritten at least once (runAttemptChain
             // invokes onRequestObserved for its very first frame unconditionally), so this initial value is only a
             // defensive fallback, never the value actually consumed below.
@@ -718,13 +718,13 @@ public class SdkExecutor(
         val attemptStartedAtMillis = clock.monotonicMillis()
         notifyObservers(allObservers) { it.attemptStarted(logicalCallId, attemptNumber) }
         val initialContext = AttemptCallContext(logicalRequest, metadata.operationId, attemptNumber, logicalCallId)
-        // Item 5 (W2-T8 review): runAttemptChain itself is now INSIDE this try block. A middleware that throws
+        // runAttemptChain itself is inside this try block. A middleware that throws
         // directly (rather than returning LogicalOutcome.Failure) previously escaped before this try even started,
         // so attemptStarted above was never paired with an attemptCompleted below. Moving the call in closes that
         // gap: every path out of this function past attemptStarted now reports attemptCompleted exactly once.
         return try {
             val outcome =
-                // Item 3 (W2-T8 review round 2): onRequestObserved is now supplied straight through to the chain
+                // onRequestObserved is supplied straight through to the chain
                 // runner, which invokes it at EVERY frame entry (deepest wins) - not just here at the terminal - so
                 // an outer middleware's mutation is visible to the retry engine even when an inner middleware
                 // short-circuits before ever reaching this terminal closure.

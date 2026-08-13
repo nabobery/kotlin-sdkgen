@@ -14,7 +14,7 @@ internal object ParityRegistry {
     const val GITHUB_OVERLAY_SHA256: String = "4bb4eb28ee5b424cea50c9ea92047ed35e49282273800ab7e1ab4cd83b083288"
     const val STRIPE_CONFIG_FILE_SHA256: String = "71928294e15d61a94b623cc4aa740616ad755d0be1b97539f5e363aaeb9e8407"
     const val STRIPE_LOCK_FILE_SHA256: String = "52457ea9e6b03bcbb4b3d2612a179244d96c760c880c2e770c2a9ea854ecce1b"
-    const val OPENROUTER_OVERLAY_SHA256: String = "aed6cf55655b0516ed3b9cb4dd84acb0ab76365efc8a42c94258a08a5aebf221"
+    const val OPENROUTER_OVERLAY_SHA256: String = "a3a19d6525e6420cf2385a4f559f7bfdfa301e4ec9d33f425a2443146775bdfb"
     const val OPENROUTER_CORPUS_SHA256: String =
         "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47"
     const val OPENROUTER_EFFECTIVE_CONFIG_SHA256: String =

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/nabobery/kotlin-sdkgen/security/advisories/new
+    about: Report security vulnerabilities privately. Do not disclose sensitive details in a public issue.

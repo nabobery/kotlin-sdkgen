@@ -1,6 +1,6 @@
 # SDKGen CLI `diff` and `explain` contract
 
-Phase 2 adds two read-only commands to the Phase 1 CLI contract:
+The versioned CLI contract provides two read-only commands:
 
 ```shell
 sdkgen diff --from manifest-old.json --to manifest-new.json --format json
@@ -137,4 +137,4 @@ configuration's `diagnostics.warningsAsErrors` setting is also reported. Unmatch
 diagnostics and return exit code 1.
 
 The `diagnostics` arrays are retained in both documents for forward-compatible additions. They
-are sorted by phase, path, pointer, code, and message, matching the Phase 1 output contract.
+are sorted by phase, path, pointer, code, and message, matching the versioned output contract.

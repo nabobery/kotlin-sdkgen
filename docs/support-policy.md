@@ -1,8 +1,8 @@
-# Support policy (draft)
+# Support policy
 
-**Status:** draft. Kotlin SDKGen has not published any release; the only "version" in existence
-today is the in-repository `0.1.0-SNAPSHOT`. This policy describes intended support once releases
-exist, and is explicit about what does not apply yet.
+Kotlin SDKGen has not published a release; the only version currently available is the
+in-repository `0.1.0-SNAPSHOT`. This policy distinguishes current pre-release support from the
+versioned policy that takes effect when releases begin.
 
 ## Current state
 
@@ -10,9 +10,8 @@ exist, and is explicit about what does not apply yet.
   versioning guarantee is in force yet — the public API can and does change between commits.
 - There is no service-level agreement (SLA) for issue response or fix turnaround at this stage of
   the project. Triage is best-effort.
-- There is no dedicated, verified support or security contact channel yet. See `SECURITY.md` for
-  the explicit TODO on vulnerability reporting; the same gap applies to general support requests
-  — use the repository's public issue tracker until a dedicated channel is confirmed.
+- General support is provided through the public issue tracker. Security vulnerabilities use the
+  verified private reporting channel documented in `SECURITY.md`.
 
 ## Once releases begin (target policy)
 
@@ -24,14 +23,14 @@ This section states intent for after the first published release; it is not yet 
   `behavior`, `abi`) for that release diff.
 - The most recent minor release line will receive bug fixes; older lines will be supported on a
   best-effort basis until a formal long-term-support (LTS) policy, if any, is adopted.
-- Security fixes will be prioritized over feature work once a verified reporting channel exists
-  (see `SECURITY.md`).
+- Security fixes are prioritized according to impact and maintainer availability; see
+  `SECURITY.md` for private reporting.
 
 ## What issues to file where
 
 - Bugs, feature requests, and general questions: open a public GitHub issue.
-- Suspected security vulnerabilities: do **not** include exploit details in a public issue until
-  `SECURITY.md`'s reporting-channel TODO is resolved. See that file for the current guidance.
+- Suspected security vulnerabilities: use the private channel in `SECURITY.md`; never include
+  exploit details in a public issue.
 - Generated-SDK behavior for a specific consumer's own OpenAPI document: file against this
   repository only if the issue is in Kotlin SDKGen's generation/runtime, not the consumer's API
   itself.

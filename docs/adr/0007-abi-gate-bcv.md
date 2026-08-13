@@ -31,10 +31,6 @@ Treat ABI drift detection separately from semantic compatibility classification:
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 ABI-validation report](../phase0/results/abi-validation/REPORT.md)
-
 Publication-level JVM fidelity was proven by redirecting BCV to the staged JAR:
 
 > Removing only `WidgetState.class` from a copied staged JAR, without changing source or compiled class directories, made `jvmApiCheck` fail and report the complete enum as removed.
@@ -74,6 +70,6 @@ At KGP 2.3.20, the available configuration is `abiValidation { klib { keepUnsupp
 
 - Re-run the experiment on every Kotlin baseline bump.
 - Migrate to KGP ABI validation only after the selected KGP version demonstrably supports staged JVM and per-publication KLib inputs for this KMP layout.
-- Add a Linux-host fixture to observe unsupported Apple-target behavior; Phase 0 could not exercise that path on macOS.
+- Add a Linux-host fixture to observe unsupported Apple-target behavior; Foundation Evaluation could not exercise that path on macOS.
 - Fail release CI if any supported publication is unstaged or omitted from the ABI comparison.
 - Pin version-specific DSL examples; do not copy syntax from the rolling Kotlin documentation without verifying it against the baseline.

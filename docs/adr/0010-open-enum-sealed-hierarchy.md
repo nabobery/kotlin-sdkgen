@@ -28,10 +28,6 @@ Do not expose the value-class alternative in generated public signatures. If val
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 golden API report](../phase0/results/golden-api/REPORT.md)
-
 Both enum vehicles preserved unknown values across the KMP matrix, but Java source compatibility diverged:
 
 > The sealed vehicle supported ordinary construction, singleton constants, `instanceof`/wire-value dispatch, map keys, request properties, and typed method signatures.

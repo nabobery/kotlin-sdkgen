@@ -35,7 +35,7 @@ The target is broader than a wire-model generator. Kotlin SDKGen should generate
 - macOS.
 - JavaScript browser and Node.js.
 
-Tier 1 states the product's ultimate release-blocking ambition, not the Phase 1 build matrix. Android and JavaScript browser are **deferred to Phase 2** by explicit user decision: Phase 1 has no Android Gradle Plugin dependency to build `androidTarget()` against, and a browser-only `js { browser() }` target adds no additional semantic coverage over the already-gated `js { nodejs() }` target for a project with no DOM/fetch-specific surface yet. See [ADR 0011](adr/0011-android-browser-target-deferral.md) for drivers and Phase 2 re-entry criteria.
+Tier 1 states the product's ultimate release-blocking ambition, not the Generator Alpha build matrix. Android and JavaScript browser are **deferred to Runtime and Integrations** by explicit user decision: Generator Alpha has no Android Gradle Plugin dependency to build `androidTarget()` against, and a browser-only `js { browser() }` target adds no additional semantic coverage over the already-gated `js { nodejs() }` target for a project with no DOM/fetch-specific surface yet. See [ADR 0011](adr/0011-android-browser-target-deferral.md) for drivers and Runtime and Integrations re-entry criteria.
 
 ### Tier 2 compile and contract-test targets
 
@@ -72,7 +72,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Identical definitions deduplicate; explicitly compatible, non-overlapping definitions may merge.
 - Meaningful conflicts require namespaces, overlays, or a per-conflict policy.
 - An opt-in named `speakeasy-compatible` last-wins mode may be supported, but is never the default.
-- SDKGen owns the overlay applicator. Phase 0 proved ordered `update` and `remove`; Overlay 1.1 `copy` and full RFC 9535 conformance remain Phase 1 gates. SnackJson 4.0.54 stays behind a replaceable JSONPath seam; see [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).
+- SDKGen owns the overlay applicator. Foundation Evaluation proved ordered `update` and `remove`; Overlay 1.1 `copy` and full RFC 9535 conformance remain Generator Alpha gates. SnackJson 4.0.54 stays behind a replaceable JSONPath seam; see [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).
 
 ## Naming and generated client organization
 
@@ -285,7 +285,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - On the main branch, run the complete stable-target compile matrix, all adapter contracts, full OpenRouter generation, and compatibility reports.
 - Before release, additionally run secondary target-family checks, clean consumer builds from staged publications, Maven metadata/signature verification, SBOM and provenance generation, and a reproducibility check from a clean checkout.
 - Never auto-merge a drift update or auto-publish from a spec-update workflow.
-- Set quantitative generation-time, memory, and output-size budgets only after Phase 0 establishes reproducible baselines.
+- Set quantitative generation-time, memory, and output-size budgets only after Foundation Evaluation establishes reproducible baselines.
 
 ## Mixed primitive and object unions
 
@@ -303,7 +303,7 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 
 ## Kotlin baseline and portable format types
 
-- Use Kotlin 2.3.20 as the initial compiler/plugin, language/API, and generated-output baseline. Compatible dependency resolution may select a later stdlib patch; Ktor 3.5.1 selected stdlib 2.3.21 in the Phase 0 consumer graph.
+- Use Kotlin 2.3.20 as the initial compiler/plugin, language/API, and generated-output baseline. Compatible dependency resolution may select a later stdlib patch; Ktor 3.5.1 selected stdlib 2.3.21 in the Foundation Evaluation consumer graph.
 - Do not expose Kotlin 2.4-only APIs in the initial published runtime or generated SDKs.
 - Map instants to stable `kotlin.time.Instant` and durations to `kotlin.time.Duration`.
 - Map civil date/time formats to `kotlinx.datetime.LocalDate`, `LocalTime`, and `LocalDateTime`.
@@ -494,6 +494,8 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - [Azure SDK for Java pagination](https://learn.microsoft.com/en-us/azure/developer/java/sdk/pagination)
 - [Microsoft Graph pagination](https://learn.microsoft.com/en-us/graph/paging)
 
-## Remaining high-impact decisions
+## Resolved foundation decisions
 
-The broad architecture interview is complete. No unresolved product-preference questions remain. Parser selection, candidate reuse, lossless multi-match `anyOf` representation, emitter benchmarking, published-ABI validation tooling, exact artifact granularity, and quantitative performance budgets are Phase 0 experiments with acceptance criteria, not questionnaire decisions.
+The broad architecture evaluation is complete. Parser selection, candidate reuse, lossless
+multi-match `anyOf` representation, emitter benchmarking, published-ABI validation, artifact
+granularity, and quantitative performance budgets are resolved by the ADRs and committed evidence.

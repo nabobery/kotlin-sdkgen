@@ -1,9 +1,4 @@
-# Security policy (draft)
-
-**Status: DRAFT.** This file is not finalized. It becomes the effective security policy only
-after a maintainer verifies a real private reporting channel (see "Reporting a vulnerability"
-below) and removes the TODO markers in this file. Until then, treat every statement here as
-provisional project intent, not a guaranteed commitment.
+# Security policy
 
 Kotlin SDKGen is currently pre-release (`0.1.0-SNAPSHOT`). No
 artifact has been published to Maven Central or the Gradle Plugin Portal. There is no supported
@@ -11,25 +6,17 @@ released version yet, so there is no version-support matrix to publish.
 
 ## Reporting a vulnerability
 
-**TODO (blocked on maintainer action):** this project does not yet have a verified private
-vulnerability-reporting channel. Do not assume either of the following is available until a
-maintainer confirms it in writing and this file is updated:
+Report suspected vulnerabilities through
+[GitHub private vulnerability reporting](https://github.com/nabobery/kotlin-sdkgen/security/advisories/new).
+Do not disclose vulnerability details in a public issue, pull request, discussion, or commit.
 
-- that GitHub's private vulnerability reporting feature is enabled for this repository, or
-- that any specific email address or contact form is monitored for security reports.
+Include the affected version or commit, the impacted component, reproduction steps, expected
+impact, and any suggested mitigation. Remove API credentials, private specifications, and other
+unrelated sensitive data from the report.
 
-The maintainer must do one of the following before this section can be finalized:
-
-1. Enable GitHub private vulnerability reporting (Settings → Security → "Private vulnerability
-   reporting") for this repository and confirm it is active, or
-2. Designate and publish a real, monitored contact channel (for example a dedicated mailbox or a
-   security@ alias under a domain the project controls) and confirm it is monitored.
-
-Until one of those is confirmed, **do not** file security-sensitive reports through a public
-GitHub issue. If you believe you have found a vulnerability and no verified channel exists yet,
-open a regular issue that states only that you have a security concern to report, without
-exploit details, and ask a maintainer to open a private channel with you before the technical
-report is shared.
+The project will acknowledge the report, investigate it privately, and coordinate disclosure
+through the private advisory. Response and remediation times depend on severity and maintainer
+availability; this project does not currently promise a service-level agreement.
 
 ## What Kotlin SDKGen does and does not do today
 

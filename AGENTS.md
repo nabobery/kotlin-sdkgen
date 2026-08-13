@@ -29,7 +29,7 @@ kotlin-sdkgen/
 ├── experiments-import/      # Config contract experiment (archived)
 └── docs/
     ├── adr/                 # 19 ADRs
-    └── phase0/              # Phase 0 research & results
+    └── archive/             # Historical release-readiness records
 ```
 
 ## WHERE TO LOOK

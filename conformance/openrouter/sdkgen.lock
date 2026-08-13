@@ -11,7 +11,7 @@
     {
       "id": "openrouter-full-spec-compat",
       "canonicalUri": "sdkgen://overlay/openrouter-full-spec-compat",
-      "sha256": "aed6cf55655b0516ed3b9cb4dd84acb0ab76365efc8a42c94258a08a5aebf221"
+      "sha256": "a3a19d6525e6420cf2385a4f559f7bfdfa301e4ec9d33f425a2443146775bdfb"
     }
   ],
   "generator": {

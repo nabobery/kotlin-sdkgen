@@ -44,8 +44,8 @@ public class LocalInputResolver(
                 code = "SDKGEN-ACQUISITION-MODE-UNSUPPORTED",
                 file = configFile,
                 path = "$.source.acquisition.mode",
-                message = "Phase 1 supports only local source acquisition.",
-                remediation = "Use acquisition mode 'local'; HTTPS acquisition is scheduled for a later phase.",
+                message = "Only local source acquisition is currently supported.",
+                remediation = "Use acquisition mode 'local'; HTTPS acquisition is not currently supported.",
             )
         }
 

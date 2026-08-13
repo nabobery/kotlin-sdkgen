@@ -44,8 +44,8 @@ class OpenRouterScaleTest {
         val finalMetrics = runs.last().metrics
         val medianMillis = runs.map(ScaleRun::elapsedMillis).sorted()[2]
         val maxPeakHeapBytes = runs.maxOf(ScaleRun::peakHeapBytes)
-        val timeDeltaPercent = (medianMillis / PHASE_ZERO_MEDIAN_MILLIS - 1.0) * 100.0
-        val heapDeltaPercent = (maxPeakHeapBytes.toDouble() / PHASE_ZERO_PEAK_HEAP_BYTES - 1.0) * 100.0
+        val timeDeltaPercent = (medianMillis / BASELINE_MEDIAN_MILLIS - 1.0) * 100.0
+        val heapDeltaPercent = (maxPeakHeapBytes.toDouble() / BASELINE_PEAK_HEAP_BYTES - 1.0) * 100.0
         val timeBudgetExceeded = timeDeltaPercent > 20.0
         val heapBudgetExceeded = heapDeltaPercent > 20.0
 
@@ -78,14 +78,14 @@ class OpenRouterScaleTest {
                     "runs_ms=${runs.joinToString(",") { "%.3f".format(java.util.Locale.ROOT, it.elapsedMillis) }}",
                 )
                 appendLine("median_ms=${"%.3f".format(java.util.Locale.ROOT, medianMillis)}")
-                appendLine("phase0_median_ms=${"%.3f".format(java.util.Locale.ROOT, PHASE_ZERO_MEDIAN_MILLIS)}")
+                appendLine("baseline_median_ms=${"%.3f".format(java.util.Locale.ROOT, BASELINE_MEDIAN_MILLIS)}")
                 appendLine("time_delta_percent=${"%.3f".format(java.util.Locale.ROOT, timeDeltaPercent)}")
                 appendLine("time_budget_exceeded=$timeBudgetExceeded")
                 appendLine("max_peak_heap_bytes=$maxPeakHeapBytes")
                 appendLine(
                     "max_peak_heap_mib=${"%.3f".format(java.util.Locale.ROOT, maxPeakHeapBytes / 1024.0 / 1024.0)}",
                 )
-                appendLine("phase0_peak_heap_bytes=$PHASE_ZERO_PEAK_HEAP_BYTES")
+                appendLine("baseline_peak_heap_bytes=$BASELINE_PEAK_HEAP_BYTES")
                 appendLine("heap_delta_percent=${"%.3f".format(java.util.Locale.ROOT, heapDeltaPercent)}")
                 appendLine("heap_budget_exceeded=$heapBudgetExceeded")
                 appendLine("component_schemas_total=${finalMetrics.componentSchemasTotal}")
@@ -106,8 +106,8 @@ class OpenRouterScaleTest {
     }
 }
 
-private const val PHASE_ZERO_MEDIAN_MILLIS = 1298.474
-private const val PHASE_ZERO_PEAK_HEAP_BYTES = 730_698_776L
+private const val BASELINE_MEDIAN_MILLIS = 1298.474
+private const val BASELINE_PEAK_HEAP_BYTES = 730_698_776L
 
 private data class ScaleRun(
     val run: Int,

@@ -1246,8 +1246,8 @@ internal fun materializeEffectiveSource(
     val configured = config.overlays.associateBy { it.id }
     val zeroMatchModes = overlays.map { configured.getValue(it.id).zeroMatchPolicy }.distinct()
     val conflictPolicies = overlays.map { configured.getValue(it.id).conflictPolicy }.distinct()
-    require(zeroMatchModes.size == 1) { "All Phase 1 overlays must use the same zero-match policy" }
-    require(conflictPolicies.size == 1) { "All Phase 1 overlays must use the same conflict policy" }
+    require(zeroMatchModes.size == 1) { "All overlays must use the same zero-match policy" }
+    require(conflictPolicies.size == 1) { "All overlays must use the same conflict policy" }
     val applicator =
         OverlayApplicator(
             zeroMatchMode =

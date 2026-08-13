@@ -98,8 +98,8 @@ public data class SourceConfig(
 )
 
 /**
- * Phase 1 supports [AcquisitionMode.LOCAL] only; [AcquisitionMode.HTTPS] is accepted by the schema
- * for forward compatibility but not yet implemented. [allowedLocalRoots] are additional filesystem
+ * Only [AcquisitionMode.LOCAL] is currently supported; [AcquisitionMode.HTTPS] is accepted by the
+ * schema for forward compatibility but not yet implemented. [allowedLocalRoots] are additional filesystem
  * roots (beyond the config file's own directory) that referenced documents may be staged from —
  * without an entry here, a reference that escapes the root document's directory is refused.
  */

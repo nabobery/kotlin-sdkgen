@@ -35,7 +35,7 @@ public interface MediaTypeCodec<T> {
  * Duplicate-member policy: this codec calls straight into kotlinx.serialization's `Json.decodeFromString`, which
  * inherits the parser's `decodeJsonElement` last-wins behavior for duplicate JSON object keys — the last occurrence
  * of a repeated key (including a discriminator field) silently wins and earlier occurrences are discarded before
- * generated models ever see the object. This is an accepted Phase 1 policy, not an oversight: generated models are
+ * generated models ever see the object. This is an explicit policy, not an oversight: generated models are
  * not a validation firewall for untrusted relays, and callers who must reject or flag duplicate keys need an
  * upstream parsing layer that detects them ahead of this codec.
  */

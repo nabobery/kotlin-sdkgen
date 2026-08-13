@@ -196,8 +196,8 @@ private fun overlayProvenance(
     val configured = inputs.config.overlays.associateBy { it.id }
     val zeroMatchPolicies = inputs.overlays.map { configured.getValue(it.id).zeroMatchPolicy }.distinct()
     val conflictPolicies = inputs.overlays.map { configured.getValue(it.id).conflictPolicy }.distinct()
-    require(zeroMatchPolicies.size == 1) { "All Phase 1 overlays must use the same zero-match policy" }
-    require(conflictPolicies.size == 1) { "All Phase 1 overlays must use the same conflict policy" }
+    require(zeroMatchPolicies.size == 1) { "All overlays must use the same zero-match policy" }
+    require(conflictPolicies.size == 1) { "All overlays must use the same conflict policy" }
     val result =
         OverlayApplicator(
             zeroMatchMode =

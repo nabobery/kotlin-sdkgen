@@ -61,8 +61,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * in the resulting document nor accounted for by a diagnostic. A non-zero value means adaptation
  * has a coverage gap that produces no diagnostic trail — every other counter in this class exists
  * to make that computation possible, but these two derived properties are what callers (in
- * particular verification tooling) should assert against directly. In Phase 1, a healthy adapter
- * run keeps both at zero.
+ * particular verification tooling) should assert against directly. A healthy adapter run keeps
+ * both at zero.
  */
 public data class AdaptationMetrics(
     public val componentSchemasTotal: Int,

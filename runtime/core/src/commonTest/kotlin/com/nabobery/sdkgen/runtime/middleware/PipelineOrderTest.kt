@@ -146,7 +146,7 @@ internal class PipelineOrderTest {
         assertEquals("ok", result)
         assertEquals(
             listOf(
-                // Item 1 (W2-T8 review): callStarted fires at logical-call entry, before user mutation runs.
+                // callStarted fires at logical-call entry, before user mutation runs.
                 "call-started",
                 "user-mutation",
                 "logical-middleware",

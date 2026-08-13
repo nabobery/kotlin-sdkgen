@@ -21,10 +21,10 @@
 - Release-mode metadata, inventory, signature, and clean-consumer verification completed successfully against the
   resulting repository.
 
-## External controls still required
+## Repository controls
 
-- Enable GitHub private vulnerability reporting before declaring the private security channel operational.
-- Configure required reviewers and the intended tag policy on the `release` environment.
+- GitHub private vulnerability reporting, Dependabot security updates, secret scanning, and push protection are enabled.
+- The `release` environment is restricted to `main` and `v*`; a required reviewer must still be configured before publication.
 - Run the protected workflow from the reviewed commit after it is committed and available to GitHub Actions.
 
 These controls change repository state and require explicit repository-owner authorization.

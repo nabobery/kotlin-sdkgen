@@ -1,0 +1,85 @@
+name: Bug report
+description: Report a reproducible problem in Kotlin SDKGen or a generated SDK.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. For security vulnerabilities, use private
+        vulnerability reporting instead of this form.
+
+  - type: input
+    id: version
+    attributes:
+      label: Kotlin SDKGen version
+      description: Provide the released version, commit SHA, or Gradle plugin version.
+      placeholder: 0.1.0 or a commit SHA
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Generator CLI
+        - Generation engine
+        - Gradle plugin
+        - Runtime
+        - Ktor transport
+        - OkHttp transport
+        - Java HTTP transport
+        - Generated SDK output
+        - Build or documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Explain what happened and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: >-
+        Include the smallest OpenAPI fixture, configuration, and command that reproduce the
+        problem. Remove credentials and private API data.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >-
+        Include the operating system, JDK, Kotlin, and Gradle versions and the relevant target
+        platform.
+      placeholder: macOS 15, JDK 17, Kotlin 2.3.20, Gradle 9.6.1, JVM target
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste focused diagnostics or a link to a minimal repository. Redact secrets and private URLs.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: This report does not contain credentials or sensitive vulnerability details.
+          required: true

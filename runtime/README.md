@@ -11,8 +11,8 @@
 - Linux x64 and Linux ARM64 (secondary/compile-gate matrix — see below)
 - mingw x64 (secondary/compile-gate matrix — see below)
 
-Android was intentionally deferred for Phase 1 repository scaffolding, but Phase 2 re-entry is
-complete (see [ADR 0011](../docs/adr/0011-android-browser-target-deferral.md)): `androidTarget()`
+Android and browser support are now part of the target matrix (see
+[ADR 0011](../docs/adr/0011-android-browser-target-deferral.md)). Android `androidTarget()`
 work is carried by the `com.android.kotlin.multiplatform.library` plugin alias, not the classic
 `androidTarget()` + `com.android.library` combination, and `runtime:core` / `runtime:testing` /
 `runtime:transport-ktor` already apply it. Do not put Android-specific APIs in `commonMain`;

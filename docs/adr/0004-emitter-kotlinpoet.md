@@ -29,10 +29,6 @@ KotlinPoet owns rendering mechanics, Kotlin syntax, imports, aliases, indentatio
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 emitter report](../phase0/results/emitter/REPORT.md)
-
 Both candidates emitted nine representative files, compiled with Kotlin 2.3.20/JDK 17, and passed invariant checks. KotlinPoet's decisive correctness benefit was automatic import collision handling:
 
 > KotlinPoet emitted deterministic `AlphaMessage` and `BetaMessage` aliases for two colliding `Message` types; the direct emitter required a dedicated alias table and policy.

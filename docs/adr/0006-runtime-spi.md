@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Ordinary JSON, incremental SSE, and multipart execution are proven through the SPI as of Phase 2 (see
+Accepted. Ordinary JSON, incremental SSE, and multipart execution are proven through the SPI as of Runtime and Integrations (see
 Resolution below). The canonical OpenRouter `createAudioTranscriptions` generation waiver remains active because its
 JSON and multipart media types use incompatible request schemas that the current single-request-type API cannot express.
 
@@ -10,7 +10,7 @@ JSON and multipart media types use incompatible request schemas that the current
 
 Generated common APIs must execute through Ktor, OkHttp, Java `HttpClient`, fake, and custom transports without exposing engine types. The SPI must preserve repeated headers, non-success responses, cancellation, incremental bodies, deadlines, replayability, and resource ownership.
 
-The Phase 0 task exercised ordinary JSON and SSE through fake and real Ktor/CIO transports. The broader technical-spec row also listed multipart, but no multipart operation or acceptance criterion was present in the executable task.
+The Foundation Evaluation task exercised ordinary JSON and SSE through fake and real Ktor/CIO transports. The broader technical-spec row also listed multipart, but no multipart operation or acceptance criterion was present in the executable task.
 
 ## Decision
 
@@ -39,10 +39,6 @@ For Ktor, a streaming body remains valid only inside a retained `HttpStatement.e
 Publish the fake transport and lifecycle/SSE matrix as the initial adapter contract kit.
 
 ## Evidence
-
-Primary evidence:
-
-- [Phase 0 runtime SPI report](../phase0/results/runtime-spi/REPORT.md)
 
 The same generated-style `ModelsApi` ran through the fake and Ktor/CIO adapters:
 
@@ -81,15 +77,15 @@ Common code compiled for JVM and Linux x64 and contained no `Any`, Ktor, JVM, or
 
 ## Conditions and re-evaluation triggers
 
-- Extend the SPI contract kit with multipart before claiming that Phase 0 executed multipart through the neutral SPI.
+- Extend the SPI contract kit with multipart before claiming that Foundation Evaluation executed multipart through the neutral SPI.
 - Specify header restrictions, casing, comma-join rules, redirect forwarding, bounded error-body capture, and SSE size/UTF-8 limits.
 - Benchmark chunk allocation before freezing the stable read signature.
 - Re-run the contract kit for every adapter and engine-version upgrade.
 - Re-evaluate the SPI only if a required engine capability cannot be represented without leaking platform types; adapter-specific configuration remains outside the common contract.
 
-## Resolution (Phase 2)
+## Resolution (Runtime and Integrations)
 
-Phase 2 (Waves 1–3, `runtime/core` + the three transport adapters + the adapter contract kit) resolved the open items
+`runtime/core`, the three transport adapters, and the adapter contract kit resolved the open items
 listed above. Each is now a shipped, KDoc'd contract rather than a deferred question:
 
 - **Header restrictions, casing, and comma-join rules.** `SdkHeader` (`Transport.kt`) compares names case-insensitively
@@ -118,7 +114,7 @@ listed above. Each is now a shipped, KDoc'd contract rather than a deferred ques
   per line and per accumulated event, throwing a typed `SdkStreamingException` when either bound is exceeded
   (`streaming/SseParser.kt`); diagnostic previews of event data/`lastEventId` are separately bounded and truncated
   (`streaming/StreamingFlows.kt`).
-- **Stream-idle deadline enforcement** (an item identified during Phase 2 remediation, not originally listed above but
+- **Stream-idle deadline enforcement** (an item identified during Runtime and Integrations remediation, not originally listed above but
   resolved alongside the others): a neutral `SdkByteStream` decorator wraps every `readChunk()` call with the resolved
   idle-deadline timeout, throwing `SdkTimeoutException` classified as a stream-idle timeout and closing the delegate
   stream with that cause on expiry — applied uniformly to raw streaming bodies and streaming flows regardless of
@@ -139,4 +135,4 @@ values are represented and the canonical operation generates and compiles. The u
 remains proven independently by the runtime fixture tests.
 
 Chunk-allocation benchmarking and per-upgrade contract-kit re-runs remain open, ongoing engineering practice rather than
-one-time Phase 2 deliverables; they are not blockers for this ADR's status.
+one-time Runtime and Integrations deliverables; they are not blockers for this ADR's status.

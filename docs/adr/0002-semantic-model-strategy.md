@@ -33,11 +33,6 @@ The production model must support both OpenAPI 3.0 and 3.1 nullability forms. Fo
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 semantic-model report](../phase0/results/semantic-model/REPORT.md)
-- [Phase 0 corpus report](../phase0/results/corpus/REPORT.md)
-
 The semantic-model experiment reported:
 
 > All **19 tests** passed, all **16 corpus stress fixtures** had byte-stable snapshots, and the public seam contained no `io.swagger` types, `Any`/`Any?`, `java.*`, or `javax.*` imports.

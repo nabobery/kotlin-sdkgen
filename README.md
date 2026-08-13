@@ -200,7 +200,8 @@ toolchains. The repository's [architecture decisions](docs/adr/) and [design dec
 explain the contracts that changes must preserve.
 
 Bug reports, focused feature proposals, and pull requests are welcome. Please include a minimal OpenAPI fixture for
-generator issues and a regression test whenever practical.
+generator issues and a regression test whenever practical. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the
+project's [`Code of Conduct`](CODE_OF_CONDUCT.md) before contributing.
 
 For vulnerabilities, follow [`SECURITY.md`](SECURITY.md) and do not disclose sensitive details in a public issue.
 

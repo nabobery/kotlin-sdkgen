@@ -35,10 +35,6 @@ Use one coordinated version train initially. Revisit independent versioning only
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 packaging report](../phase0/results/packaging/REPORT.md)
-
 The nine-module prototype produced **21 physical Maven publications** and passed all isolated consumer rehearsals:
 
 > JVM, KMP, and build-time engine consumers compiled; metadata verification reported **0 failures**.

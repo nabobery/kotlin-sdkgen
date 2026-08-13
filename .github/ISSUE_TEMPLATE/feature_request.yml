@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a focused improvement to Kotlin SDKGen.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete user or SDK-generation problem this proposal would solve.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest change that would solve the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example contract or API
+      description: Include a minimal OpenAPI example or generated Kotlin API sketch when applicable.
+      render: yaml
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or simpler alternatives you considered.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues for related proposals.
+          required: true
+        - label: The proposal does not require a lossy `Any` fallback or editable generated regions.
+          required: true

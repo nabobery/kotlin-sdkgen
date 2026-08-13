@@ -32,11 +32,6 @@ Continue to generate closed `oneOf` as sealed cases with exactly-one structural 
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 `anyOf` report](../phase0/results/anyof/REPORT.md)
-- [Phase 0 golden API report](../phase0/results/golden-api/REPORT.md)
-
 The bake-off tested seven object payloads plus two mixed primitive/object payloads across three representations:
 
 > Double- and triple-match `anyOf` payloads decoded and round-tripped for every candidate, while the same shapes produced typed `oneOf` ambiguity errors.

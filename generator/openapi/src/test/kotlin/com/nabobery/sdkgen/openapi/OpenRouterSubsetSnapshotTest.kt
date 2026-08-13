@@ -20,7 +20,7 @@ class OpenRouterSubsetSnapshotTest {
         val second = adapter.adapt(fixture).document.phaseOneSubset()
         val firstBytes = SnapshotRenderer.render(first)
         val secondBytes = SnapshotRenderer.render(second)
-        val snapshotPath = ExperimentSupport.snapshotRoot.resolve("openrouter-phase1-subset.txt")
+        val snapshotPath = ExperimentSupport.snapshotRoot.resolve("openrouter-subset.txt")
 
         assertEquals(PHASE_ONE_OPERATION_IDS, first.operations.map { it.operationId }.toSet())
         assertEquals(

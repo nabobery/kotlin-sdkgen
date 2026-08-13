@@ -2,20 +2,24 @@
 
 | Field            | Value                                                                                              |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
-| Status           | Architecture approved; implementation foundations pending Phase 0 validation                       |
+| Status           | Production-oriented preview; first public release pending                                  |
 | Project          | Kotlin SDKGen                                                                                      |
 | Repository       | [`nabobery/kotlin-sdkgen`](https://github.com/nabobery/kotlin-sdkgen)                              |
-| Namespace        | `com.nabobery`                                                                                     |
+| Kotlin packages  | `com.nabobery.sdkgen`                                                                               |
+| Publishing group | `io.github.nabobery`                                                                                |
 | Initial consumer | [`nabobery/openrouter-kotlin`](https://github.com/nabobery/openrouter-kotlin)                      |
 | Primary input    | OpenAPI 3.1 documents plus version-controlled overlays                                             |
 | Primary output   | Complete deterministic Kotlin Multiplatform SDKs, shared runtime contracts, and transport adapters |
-| Last updated     | 2026-07-16                                                                                         |
+| Last updated     | 2026-08-13                                                                                         |
 
 ## 1. Executive summary
 
 Kotlin SDKGen is an open-source OpenAPI 3.1 SDK generator for Kotlin and Kotlin Multiplatform. It turns an API description, explicit overlays, and versioned SDKGen configuration into a deterministic, compile-ready public SDK: immutable models, serializers, resource clients, typed errors, authentication, retries, pagination, streaming, multipart handling, and transport-neutral runtime integration.
 
-The project is general-purpose by design and OpenRouter-driven in delivery. The first conformance suite will use OpenRouter's production specification because it exercises difficult real-world concerns: large schema graphs, mixed unions, nullable and optional fields, open enums, free-form JSON, rapidly changing endpoints, and request-driven streaming. OpenRouter-specific behavior will remain in `openrouter-kotlin`; the generator core must not contain OpenRouter assumptions.
+The project is general-purpose by design. Its conformance suite uses OpenRouter, GitHub REST, and
+Stripe specifications to exercise large schema graphs, mixed unions, nullable and optional fields,
+open enums, free-form JSON, rapidly changing endpoints, and request-driven streaming. API-specific
+behavior remains outside the generator core.
 
 Kotlin SDKGen is not intended to reproduce Speakeasy's hosted control plane. Its goal is comparable generated SDK functionality through a trustworthy local and CI toolchain:
 
@@ -27,7 +31,9 @@ Generated code includes a stable public SDK surface over generated protocol glue
 
 ## 2. Decision register
 
-The distinction between a locked decision and a proposal is intentional. Proposals must be validated during Phase 0 before becoming compatibility commitments.
+The distinction between a locked decision and a proposal is intentional. Validated proposals are
+recorded below with their current status; they become compatibility commitments only when their
+public contract is released.
 
 ### 2.1 Locked decisions
 
@@ -42,7 +48,7 @@ The distinction between a locked decision and a proposal is intentional. Proposa
 | DEC-007 | Generation must be deterministic, and generated sources may be committed and verified in CI.                                                                                                                                                                                                                                                     |
 | DEC-008 | Spec automation may open or update tested pull requests but must never auto-merge or auto-publish.                                                                                                                                                                                                                                               |
 | DEC-009 | Common generated code must not contain `Any`, JVM-only types, or a hard-coded platform engine.                                                                                                                                                                                                                                                   |
-| DEC-010 | Phase 0 bake-off is complete. The selected parser, semantic-model, overlay, emitter, runtime, ABI, packaging, Gradle, union, and open-enum foundations are recorded in [`docs/adr/`](adr/), beginning with [ADR 0001](adr/0001-parser-swagger-parser-behind-seam.md).                                                                            |
+| DEC-010 | Foundation Evaluation bake-off is complete. The selected parser, semantic-model, overlay, emitter, runtime, ABI, packaging, Gradle, union, and open-enum foundations are recorded in [`docs/adr/`](adr/), beginning with [ADR 0001](adr/0001-parser-swagger-parser-behind-seam.md).                                                                            |
 | DEC-011 | Use a thin shared KMP runtime, generated protocol glue, a small stable public SPI, and transport adapters for Ktor, OkHttp, Java `HttpClient`, and custom transports.                                                                                                                                                                            |
 | DEC-012 | Public async APIs use `suspend` and cold `Flow`; optional JVM interop supplies futures and Java publishers.                                                                                                                                                                                                                                      |
 | DEC-013 | `sdkgen.yaml` and `sdkgen.lock` are versioned, schema-validated, strict, and migratable; standard OpenAPI Overlays carry contract corrections.                                                                                                                                                                                                   |
@@ -54,20 +60,20 @@ The distinction between a locked decision and a proposal is intentional. Proposa
 | DEC-019 | OpenRouter, GitHub REST, and Stripe are the required real-world conformance corpora before 1.0.                                                                                                                                                                                                                                                  |
 | DEC-020 | OpenAPI, semantic IR, generated Kotlin API, runtime behavior, and published ABI are independently gated.                                                                                                                                                                                                                                         |
 
-### 2.2 Proposals requiring Phase 0 validation
+### 2.2 Validated proposals and future candidates
 
 | ID       | Proposal                                                                                                           | Status / validation                                                                                                                                                                                                                                             |
 | -------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | PROP-001 | Ship a JVM CLI plus a Gradle plugin backed by the same generator library.                                          | **Accepted with conditions.** Preserve the twelve engine cacheability constraints and add production TestKit coverage; see [ADR 0009](adr/0009-gradle-plugin-direction.md).                                                                                     |
 | PROP-002 | Use KotlinPoet only as the final source-emission layer.                                                            | **Accepted with conditions.** Keep the `CodeBlock` escape hatch narrow and generator-owned, with compile/golden coverage; see [ADR 0004](adr/0004-emitter-kotlinpoet.md).                                                                                       |
 | PROP-003 | Parse OpenAPI into a generator-owned immutable semantic model.                                                     | **Accepted with conditions.** Use swagger-parser only behind the seam, retain source/provenance, and complete required JSON Schema coverage; see [ADR 0001](adr/0001-parser-swagger-parser-behind-seam.md) and [ADR 0002](adr/0002-semantic-model-strategy.md). |
-| PROP-004 | Implement standard OpenAPI Overlays plus canonical `x-sdkgen-*` extension schemas.                                 | **Accepted with conditions.** Overlay `copy` and full RFC 9535 conformance remain Phase 1 gates; see [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).                                                                                           |
-| PROP-005 | Implement the locked transport-neutral runtime and adapter split.                                                  | **Accepted.** Ordinary JSON and incremental SSE passed the fake/Ktor contract; multipart remains a scheduled extension; see [ADR 0006](adr/0006-runtime-spi.md).                                                                                                |
+| PROP-004 | Implement standard OpenAPI Overlays plus canonical `x-sdkgen-*` extension schemas.                                 | **Accepted.** Overlay `copy` and the pinned RFC 9535 conformance suite are implemented; see [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).                                                                                           |
+| PROP-005 | Implement the locked transport-neutral runtime and adapter split.                                                  | **Accepted.** Ordinary JSON, incremental SSE, and multipart behavior are covered by the transport contract kit; see [ADR 0006](adr/0006-runtime-spi.md).                                                                                                |
 | PROP-006 | Publish independently useful generator, runtime, adapter, CLI, and Gradle artifacts.                               | **Accepted with conditions.** Publish eight coordinates on one version train, with model and OpenAPI intake internal to the engine until independent consumers exist; see [ADR 0008](adr/0008-artifact-split-8-coordinates.md).                                 |
 | PROP-007 | Generate typed webhook event unions and signature-verification helpers from contract metadata.                     | Validate demand and a canonical `x-sdkgen-webhooks` schema against the conformance corpora; competitive parity feature (Speakeasy, Fern, and Stainless all ship it).                                                                                            |
 | PROP-008 | Generate a README and per-operation usage snippets from the contract and its examples.                             | Validate template quality on generated OpenRouter output before committing to the 1.0 surface.                                                                                                                                                                  |
 | PROP-009 | Ship an optional OAuth2 client-credentials provider artifact (token acquisition, caching, refresh).                | Validate against the locked provider SPI; core still excludes browser/session flows.                                                                                                                                                                            |
-| PROP-010 | Adopt generator editions that pin intentional default changes which would otherwise rewrite generated public APIs. | Validate the edition/manifest interaction during Phase 0–1; the technical specification describes the mechanism.                                                                                                                                                |
+| PROP-010 | Adopt generator editions that pin intentional default changes which would otherwise rewrite generated public APIs. | Validate the edition/manifest interaction during Foundation Evaluation and Generator Alpha; the technical specification describes the mechanism.                                                                                                                                                |
 
 ## 3. Product boundary
 
@@ -210,7 +216,7 @@ Priority meanings: **P0** blocks the first usable release, **P1** is required fo
 | FR-OVR-007 | P0       | Distinguish a factual compatibility correction from a Kotlin presentation rule.                                                                                                                             |
 | FR-OVR-008 | P1       | Detect conflicting overlay operations and require an explicit resolution policy.                                                                                                                            |
 
-Phase 0 proved ordered `update` and `remove` application. Overlay 1.1 `copy` and demonstrated full RFC 9535 JSONPath conformance remain mandatory Phase 1 gates; support MUST NOT be described as complete Overlay 1.1 support until both pass. See [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).
+Foundation Evaluation proved ordered `update` and `remove` application. Overlay 1.1 `copy` and demonstrated full RFC 9535 JSONPath conformance remain mandatory Generator Alpha gates; support MUST NOT be described as complete Overlay 1.1 support until both pass. See [ADR 0005](adr/0005-overlays-owned-applicator-jsonpath-seam.md).
 
 Overlay categories should remain separate:
 
@@ -239,7 +245,7 @@ runtime:
     retries: metadata-driven
 ```
 
-The exact field names remain subject to Phase 0 validation, but the versioned YAML/JSON document, strict JSON Schema validation, migrations, and companion `sdkgen.lock` are locked requirements.
+The exact field names remain subject to Foundation Evaluation validation, but the versioned YAML/JSON document, strict JSON Schema validation, migrations, and companion `sdkgen.lock` are locked requirements.
 
 ### 7.3 Semantic model
 
@@ -271,7 +277,7 @@ The exact field names remain subject to Phase 0 validation, but the versioned YA
 | FR-KOT-006 | P0       | Preserve exact wire names through serialization annotations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | FR-KOT-007 | P0       | Generate collision-safe Kotlin names for schemas, operations, properties, enum entries, and reserved words.                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | FR-KOT-008 | P0       | Provide a forward-compatible open-enum representation that round-trips unknown values.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| FR-KOT-009 | P0       | Generate an adaptive typed representation for composed schemas. Closed `oneOf` schemas use sealed cases with discriminator dispatch or structural matching and exact serializers. Phase 0 selects the public representation for multi-match `anyOf` without assuming that every `anyOf` is an exclusive union.                                                                                                                                                                                                               |
+| FR-KOT-009 | P0       | Generate an adaptive typed representation for composed schemas. Closed `oneOf` schemas use sealed cases with discriminator dispatch or structural matching and exact serializers. Foundation Evaluation selects the public representation for multi-match `anyOf` without assuming that every `anyOf` is an exclusive union.                                                                                                                                                                                                               |
 | FR-KOT-010 | P0       | For non-discriminated `oneOf`, fail on zero or multiple structural matches unless explicit contract metadata resolves the ambiguity; never use document-order first match. For non-discriminated `anyOf`, zero matches fail and multiple matches remain valid. The representation MUST preserve lossless JSON value identity with stable key-order re-emission and the semantics of every successful branch; a preferred typed projection MAY be deterministic but MUST NOT silently discard information from other matches. |
 | FR-KOT-011 | P0       | Preserve optional-versus-present-null semantics through an explicit field-state strategy where required.                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | FR-KOT-012 | P0       | Under the Kotlin 2.3.20 baseline, map instants and durations to `kotlin.time`, civil date/time to `kotlinx.datetime`, UUID/URI/decimal to SDK-owned portable value types, and binary to `ByteArray` or `SdkByteStream`; keep mappings configurable.                                                                                                                                                                                                                                                                          |
@@ -437,11 +443,11 @@ Plugins must not mutate already emitted source text. They should transform typed
 | ID           | Requirement                                                                                                                                                                                                                                                                                                                                                               |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | NFR-PORT-001 | Generated common source must compile for the project's stable target-family matrix.                                                                                                                                                                                                                                                                                       |
-| NFR-PORT-002 | The Phase 1 compile matrix covers JVM, iOS, macOS, and Kotlin/JS Node. Android and Kotlin/JS browser are deferred to Phase 2 by explicit user decision; see [ADR 0011](adr/0011-android-browser-target-deferral.md). The overall Tier 1 release-blocking matrix (design-decisions.md) still targets JVM, Android, iOS, macOS, and Kotlin/JS browser plus Node before 1.0. |
+| NFR-PORT-002 | The Generator Alpha compile matrix covers JVM, iOS, macOS, and Kotlin/JS Node. Android and Kotlin/JS browser are deferred to Runtime and Integrations by explicit user decision; see [ADR 0011](adr/0011-android-browser-target-deferral.md). The overall Tier 1 release-blocking matrix (design-decisions.md) still targets JVM, Android, iOS, macOS, and Kotlin/JS browser plus Node before 1.0. |
 | NFR-PORT-003 | Linux x64/arm64 and mingwX64 should compile and pass shared contract tests before 1.0. tvOS and watchOS remain deferred to control the initial support and CI matrix; their supported ARM device/simulator variants remain Kotlin/Native Tier 2 even though the legacy x64 simulator variants are deprecated.                                                             |
 | NFR-PORT-004 | WasmJS remains experimental until serialization, networking metadata, and generated models are conformant.                                                                                                                                                                                                                                                                |
 | NFR-PORT-005 | WasmWASI and deprecated targets are excluded until Kotlin and required dependencies provide viable support.                                                                                                                                                                                                                                                               |
-| NFR-PORT-006 | The initial Kotlin compiler, Gradle plugin, language/API, and generated-source baseline is 2.3.20 and is revised only through an explicit compatibility decision. Compatible dependency resolution may select a later stdlib patch; Ktor 3.5.1 selected 2.3.21 in the Phase 0 consumer graph.                                                                             |
+| NFR-PORT-006 | The initial Kotlin compiler, Gradle plugin, language/API, and generated-source baseline is 2.3.20 and is revised only through an explicit compatibility decision. Compatible dependency resolution may select a later stdlib patch; Ktor 3.5.1 selected 2.3.21 in the Foundation Evaluation consumer graph.                                                                             |
 
 The exact matrix must be maintained as versioned policy because Kotlin target support evolves.
 
@@ -458,12 +464,12 @@ The exact matrix must be maintained as versioned policy because Kotlin target su
 
 | ID           | Requirement                                                                                                   |
 | ------------ | ------------------------------------------------------------------------------------------------------------- |
-| NFR-PERF-001 | Phase 0 establishes repeatable baselines against the full OpenRouter, GitHub REST, and Stripe specifications. |
+| NFR-PERF-001 | Foundation Evaluation establishes repeatable baselines against the full OpenRouter, GitHub REST, and Stripe specifications. |
 | NFR-PERF-002 | Generation must avoid unbounded recursion and quadratic behavior across large reference graphs.               |
 | NFR-PERF-003 | Peak memory, parse time, semantic-model time, and emission time must be reported in benchmark CI.             |
 | NFR-PERF-004 | Gradle generation tasks must be cacheable and skipped when inputs are unchanged.                              |
 
-Initial numeric budgets should be set from Phase 0 measurements rather than guessed in this document.
+Initial numeric budgets should be set from Foundation Evaluation measurements rather than guessed in this document.
 
 ### 8.4 Reliability and diagnostics
 
@@ -543,7 +549,7 @@ flowchart TB
 - The parser is replaceable behind an adapter. Parser-specific objects must not leak into plugins or emitters.
 - The semantic model describes API meaning, not Kotlin syntax.
 - A separate Kotlin declaration model captures names, types, serializers, imports, and file placement.
-- Source emission is the final deterministic step. KotlinPoet is a candidate implementation, not an architectural dependency until Phase 0 completes.
+- Source emission is the final deterministic step. KotlinPoet is a candidate implementation, not an architectural dependency until Foundation Evaluation completes.
 - The CLI and Gradle plugin invoke the same engine library.
 - Generated public APIs depend only on the stable common runtime SPI, never concrete transport types.
 - Authentication, retries, pagination, streaming, multipart, codecs, errors, and observability execute from generated operation metadata.
@@ -768,19 +774,20 @@ io.github.nabobery:kotlin-sdkgen-testing
 
 The semantic/declaration model and OpenAPI intake remain internal to the engine publication until independently useful consumers justify public coordinates. Optional telemetry bridges are published separately only when concrete integrations exist. See [ADR 0008](adr/0008-artifact-split-8-coordinates.md).
 
-Potential Gradle plugin ID:
+Gradle plugin ID:
 
 ```text
 io.github.nabobery.kotlin-sdkgen
 ```
 
-These names are proposals. The implementation should avoid premature module fragmentation; module boundaries should correspond to separately useful dependency graphs or execution environments.
+Module boundaries should correspond to separately useful dependency graphs or execution
+environments; avoid premature fragmentation.
 
 The generator itself may be JVM-based because it is a build-time tool. Its generated common code must remain portable across the supported KMP matrix.
 
 ## 16. Milestones
 
-### Phase 0: Generator bake-off and contract definition
+### Foundation Evaluation: Generator bake-off and contract definition
 
 Deliverables:
 
@@ -801,7 +808,7 @@ Exit gates:
 - Determinism is demonstrated across two clean directories.
 - The long-term parser, semantic-model, emitter, and extension strategy is documented.
 
-### Phase 1: Core generator alpha
+### Generator Alpha: Core generator alpha
 
 Deliverables:
 
@@ -819,9 +826,9 @@ Exit gates:
 - Generated-source drift verification works from a clean checkout.
 - No silent lossy fallback exists.
 
-Android and Kotlin/JS browser are **deferred to Phase 2 by explicit user decision** (2026-07-17): Phase 1 has no Android Gradle Plugin dependency to add `androidTarget()` against, and a browser-only `js { browser() }` target adds no additional semantic coverage over the already-gated `js { nodejs() }` target while the project has no DOM/fetch-specific surface. See [ADR 0011](adr/0011-android-browser-target-deferral.md) for drivers and Phase 2 re-entry criteria; do not describe Phase 1 as covering the full Tier 1 target matrix until both targets land.
+Android and Kotlin/JS browser are **deferred to Runtime and Integrations by explicit user decision** (2026-07-17): Generator Alpha has no Android Gradle Plugin dependency to add `androidTarget()` against, and a browser-only `js { browser() }` target adds no additional semantic coverage over the already-gated `js { nodejs() }` target while the project has no DOM/fetch-specific surface. See [ADR 0011](adr/0011-android-browser-target-deferral.md) for drivers and Runtime and Integrations re-entry criteria; do not describe Generator Alpha as covering the full Tier 1 target matrix until both targets land.
 
-### Phase 2: Runtime, adapters, and Gradle beta
+### Runtime and Integrations: Runtime, adapters, and Gradle beta
 
 Deliverables:
 
@@ -831,7 +838,7 @@ Deliverables:
 - Semantic diff and `explain` command.
 - Plugin/extension API preview.
 - Secondary native target compile matrix.
-- Android (`androidTarget()` plus AGP) and Kotlin/JS browser compile gates, completing the Tier 1 matrix deferred from Phase 1; see [ADR 0011](adr/0011-android-browser-target-deferral.md).
+- Android (`androidTarget()` plus AGP) and Kotlin/JS browser compile gates, completing the Tier 1 matrix deferred from Generator Alpha; see [ADR 0011](adr/0011-android-browser-target-deferral.md).
 
 Exit gates:
 
@@ -839,7 +846,7 @@ Exit gates:
 - The generated OpenRouter SDK exposes the intended public API while keeping protocol glue internal and allowing handwritten composition.
 - Gradle configuration and build caches pass repeatability tests.
 
-### release-readiness: Full multi-corpus conformance and release candidate
+### Release candidate readiness: Full multi-corpus conformance
 
 Deliverables:
 
@@ -913,7 +920,7 @@ Adoption metrics such as Maven downloads, GitHub contributors, and external API 
 - Ktor, OkHttp, and Java `HttpClient` only in their adapter modules; common runtime code remains engine-neutral.
 - Maven Central and Gradle Plugin Portal for distribution.
 - GitHub Actions or an equivalent CI system for target matrices and drift automation.
-- Phase 0 selected and verified these exact baseline inputs: swagger-parser 2.1.45, KotlinPoet 2.3.0, kotlinx.serialization 1.11.0, Ktor 3.5.1, BCV 0.18.1, Gradle 9.6.1, Jackson 2.22.0 for the source-index layer, and JUnit 5.13.4.
+- Foundation Evaluation selected and verified these exact baseline inputs: swagger-parser 2.1.45, KotlinPoet 2.3.0, kotlinx.serialization 1.11.0, Ktor 3.5.1, BCV 0.18.1, Gradle 9.6.1, Jackson 2.22.0 for the source-index layer, and JUnit 5.13.4.
 
 ### Assumptions
 
@@ -924,7 +931,7 @@ Adoption metrics such as Maven downloads, GitHub contributors, and external API 
 - Generated code may be committed when the consumer values reviewable drift.
 - Full API parity describes contract and behavior coverage with Kotlin-idiomatic public APIs, not identical language-specific syntax.
 
-## 20. Phase 0 experimental questions
+## 20. Foundation Evaluation experimental questions
 
 The product and architecture questionnaire is complete. The remaining questions are resolved by measured spikes against fixed acceptance criteria rather than preference:
 
@@ -938,7 +945,7 @@ The product and architecture questionnaire is complete. The remaining questions 
 
 Experimental results may select implementations or refine syntax, but they may not silently change the locked semantics in [`design-decisions.md`](design-decisions.md).
 
-## 21. Phase 0 acceptance checklist
+## 21. Foundation Evaluation acceptance checklist
 
 - [ ] A pinned OpenRouter contract and curated stress corpus exist in version control.
 - [ ] Pinned GitHub REST and Stripe contracts exist with digests and offline fixture policy.
@@ -998,7 +1005,7 @@ Experimental results may select implementations or refine syntax, but they may n
 
 ## 23. Document maintenance
 
-This document is the working product and engineering contract for Kotlin SDKGen. During Phase 0:
+This document is the working product and engineering contract for Kotlin SDKGen. During Foundation Evaluation:
 
 - Update the decision register when a proposal is accepted or rejected.
 - Record implementation-shaping decisions as ADRs and link them here.

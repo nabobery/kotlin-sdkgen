@@ -261,7 +261,7 @@ public value class PropertyPath(
 
 /**
  * Declarative pagination strategy for an operation. All property references are [PropertyPath]s so the runtime
- * pagination engine (W2-T6) can walk decoded response values without evaluating arbitrary expressions.
+ * pagination engine can walk decoded response values without evaluating arbitrary expressions.
  */
 public sealed interface PaginationDescriptor {
     /** Opaque cursor/token supplied on the request and returned in the response for the next page. */
@@ -324,7 +324,7 @@ public sealed interface EventMatcher {
 }
 
 /**
- * Declarative streaming strategy for an operation. The runtime streaming engine (W2-T3) is the sole consumer of
+ * Declarative streaming strategy for an operation. The runtime streaming engine is the sole consumer of
  * these framing rules; generated code never parses stream bytes itself.
  */
 public sealed interface StreamingDescriptor {

@@ -1,8 +1,7 @@
-# Release runbook (draft)
+# Release runbook
 
-**Status:** draft. Kotlin SDKGen has never published a release. This runbook describes the
-intended procedure and the current implementation gaps against it; it is not a record of a real
-release.
+Kotlin SDKGen has not yet published a release. This runbook is the operational procedure for the
+first and subsequent releases; it is not evidence that a particular release occurred.
 
 ## Core invariant: Maven Central releases are immutable
 
@@ -29,11 +28,10 @@ effectively true for the Gradle Plugin Portal. This means:
 - Signing, full POM metadata, reproducible Dokka documentation jars, CycloneDX SBOM generation, Central Portal
   aggregation, Gradle Plugin Portal publication, and GitHub provenance attestation are implemented.
 - Remote credentials are scoped to the protected `release` environment and are never read by ordinary CI.
-- Release verification is proven by GitHub Actions run 30816457293. The credential-free
-  `release-verification.yml` workflow is the rehearsal path. The tag-bound, protected `release.yml`
-  workflow is the only workflow capable of remote publication. Link the latest protected rehearsal
-  from its merge review rather than hard-coding it here, so this runbook does not become stale after
-  every rehearsal.
+- The credential-free `release-verification.yml` workflow is the rehearsal path. The tag-bound,
+  protected `release.yml` workflow is the only workflow capable of remote publication. Link the
+  exact successful rehearsal from each release record rather than hard-coding a run here, so this
+  runbook does not become stale.
 
 ## Rehearsal (required before any real publication)
 
@@ -91,8 +89,7 @@ repository.
 Because Maven Central publication is immutable:
 
 - A defective release cannot be deleted or overwritten. Publish a new patch version with the fix
-  and mark the defective version deprecated in release notes and (once a real security channel
-  exists per `SECURITY.md`) any relevant security advisory.
+  and mark the defective version deprecated in release notes and any relevant security advisory.
 - If a credential used for publication is suspected compromised, rotate it immediately and treat
   any artifact published with it as needing independent integrity verification, even though the
   artifact itself cannot be removed from Central.

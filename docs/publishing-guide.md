@@ -3,9 +3,9 @@
 > **Implementation status (2026-08-12):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
 > signing, CycloneDX SBOM generation, Nmcp Central Portal aggregation, Gradle Plugin Portal publication,
 > GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
-> environment and all six expected secret names are present. Remote publication remains blocked until the
-> maintainer adds a required reviewer, removes the temporary rehearsal branch policy, and confirms the two
-> publication accounts are ready.
+> environment, its `main`/`v*` deployment policy, and all six expected secret names are present. Remote
+> publication remains blocked until the maintainer adds a required reviewer and confirms the two publication
+> accounts are ready.
 
 This is the guide for actually setting up credentials and publishing Kotlin SDKGen's artifacts. It is
 written for the project owner, not for a contributor. It complements — and does not duplicate —
@@ -58,7 +58,7 @@ externally (no code change).
 | 10 | Gradle Plugin Portal account + API key/secret | account/credential | secret names present; live publish untested | Confirm publisher ownership before first release |
 | 11 | SBOM (CycloneDX) | code | complete | CycloneDX 3.3.0 aggregate BOM |
 | 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v3 action SHA in `release.yml` |
-| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | partial | Environment, branch policy, and all six secrets exist; required reviewer is missing |
+| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | partial | Environment, `main`/`v*` deployment policy, and all six secrets exist; required reviewer is missing |
 
 The remaining unchecked items are maintainer-controlled account, credential, and repository settings.
 
@@ -203,7 +203,7 @@ immutable tag; (3) signing key material ends up on a developer laptop rather tha
 which is a materially worse blast radius if that laptop is compromised.
 
 The workflow is implemented in `.github/workflows/release.yml`. Before the first real publication, add a
-required reviewer to the `release` environment and restrict its deployment policy to protected release tags.
+required reviewer to the `release` environment and confirm its `main`/`v*` deployment policy.
 Create the protected `v<version>` tag from the reviewed `main` commit before dispatching the workflow; the
 workflow refuses a branch ref, a mismatched version, or a tag whose commit is not on `origin/main`.
 
@@ -292,8 +292,8 @@ Ordered; each step assumes the previous ones are done.
 8. [x] Generate an aggregate CycloneDX SBOM.
 9. [ ] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
    remains intentionally untested.
-10. [ ] Add a required reviewer to the existing GitHub `release` Environment and restrict its deployment
-    policy to protected release tags.
+10. [ ] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
+    deployment policy.
 11. [ ] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
     version already published to either portal.
 12. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,

@@ -31,11 +31,6 @@ Normalization occurs only in named SDKGen passes that retain provenance. Do not 
 
 ## Evidence
 
-Primary evidence:
-
-- [Phase 0 parser report](../phase0/results/parser/REPORT.md)
-- [Phase 0 semantic-model report](../phase0/results/semantic-model/REPORT.md)
-
 The parser bake-off found:
 
 > “swagger-parser 2.1.45, resolution enabled” parsed the pinned OpenRouter document with a **722 ms median**, **356.3 MiB** maximum observed heap-pool peak, **0 errors**, **0 warnings**, and **708 schemas**.
@@ -63,7 +58,7 @@ The full OpenRouter adaptation represented **708/708 component schemas** and **8
 
 ### Negative
 
-- Intake performs additional indexing and two parser passes. The Phase 0 parse-plus-adapt median was **1298.474 ms**, with a **696.849 MiB** maximum observed heap-pool peak.
+- Intake performs additional indexing and two parser passes. The Foundation Evaluation parse-plus-adapt median was **1298.474 ms**, with a **696.849 MiB** maximum observed heap-pool peak.
 - The acquisition layer must maintain canonical identities across local and external documents.
 - Parser messages still require SDKGen-owned classification and pointer attachment.
 
@@ -72,4 +67,4 @@ The full OpenRouter adaptation represented **708/708 component schemas** and **8
 - Re-run the parser and source-map fixture suites whenever swagger-parser or Jackson is upgraded.
 - Re-evaluate the parser if a pinned corpus construct cannot be represented without loss, if reference resolution becomes nondeterministic, or if source indexing cannot attach a material node to provenance.
 - Keep remote acquisition disabled or explicitly policy-bound until allowlists, byte limits, redirect rules, caching, offline mode, and content digests are implemented.
-- Expand JSON Schema 2020-12 keyword coverage before claiming complete dialect support; the Phase 0 model did not exhaustively cover every keyword.
+- Expand JSON Schema 2020-12 keyword coverage before claiming complete dialect support; the Foundation Evaluation model did not exhaustively cover every keyword.

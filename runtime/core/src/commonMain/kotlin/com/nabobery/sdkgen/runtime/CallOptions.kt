@@ -224,9 +224,8 @@ public fun callOptions(block: CallOptionsBuilder.() -> Unit): CallOptions = Call
  * [resolvedDefault] is the already-resolved value of all lower layers (contract facts → SDK-author defaults →
  * client config → operation defaults); this function performs only the last step, per-call override on top of that
  * value. Full lower-layer resolution — folding contract facts, SDK-author defaults, and client configuration down
- * to one operation-level default — is performed by the generated client and client configuration, which arrive in
- * later Phase 2 tasks (W4 generator work, W2-T5 client configuration); this function does not (and cannot, since it
- * has no access to those layers) perform that folding itself.
+ * to one operation-level default — is performed by the generated client and client configuration; this function
+ * does not (and cannot, since it has no access to those layers) perform that folding itself.
  *
  * [PolicyOverride.Inherit] defers entirely to [resolvedDefault]; [PolicyOverride.Disabled] turns retries off for
  * this call, returning `null` regardless of [resolvedDefault]; [PolicyOverride.Replace] replaces [resolvedDefault]
@@ -251,8 +250,7 @@ public fun resolveRetry(
  *
  * [resolvedDefault] is the already-resolved value of all lower layers (contract facts → SDK-author defaults →
  * client config → operation defaults); this function performs only the last step, per-call override on top of that
- * value. Full lower-layer resolution is performed by the generated client and client configuration, which arrive in
- * later Phase 2 tasks (W4 generator work, W2-T5 client configuration).
+ * value. Full lower-layer resolution is performed by the generated client and client configuration.
  *
  * A non-null [callDeadlines] (from [CallOptions.deadlines]) replaces [resolvedDefault] entirely; `null` defers to
  * [resolvedDefault].

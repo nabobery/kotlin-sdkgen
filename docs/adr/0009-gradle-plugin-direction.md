@@ -18,7 +18,7 @@ Register one lazy `@CacheableTask` per named SDK configuration. Model files and 
 
 Remote acquisition is a separate declared, digest-verifying task; ordinary generation consumes pinned local inputs. Gradle types do not cross into the engine.
 
-The production engine and plugin must preserve all twelve cacheability constraints proven by Phase 0:
+The production engine and plugin must preserve all twelve cacheability constraints proven by Foundation Evaluation:
 
 1. **Declare every semantic input.** Specs, overlays, configuration, plugin classpaths, generator/runtime versions, feature flags, formatting options, and environment-derived semantics are typed task properties. The task action reads no undeclared files, environment variables, system properties, or network state.
 2. **Use relocatable path normalization.** Use relative path sensitivity where layout is semantic and name-only sensitivity only when directories are not semantic. Never emit absolute input paths or include them in manifests, diagnostics, cache keys, or source headers.
@@ -36,10 +36,6 @@ The production engine and plugin must preserve all twelve cacheability constrain
 Worker API isolation is optional and does not weaken these constraints. Prefer classloader isolation when measured extension/parser workloads justify it; use process isolation only for a demonstrated heap or JVM-state need.
 
 ## Evidence
-
-Primary evidence:
-
-- [Phase 0 Gradle-cache report](../phase0/results/gradle-cache/REPORT.md)
 
 All required behaviors passed on Gradle 9.6.1, KGP 2.3.20, and JDK 17:
 

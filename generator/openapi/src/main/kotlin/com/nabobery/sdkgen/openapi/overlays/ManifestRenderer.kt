@@ -3,7 +3,7 @@ package com.nabobery.sdkgen.openapi.overlays
 internal object ManifestRenderer {
     fun render(overlays: List<AppliedOverlay>): String {
         val root = DocumentCodec.objectNode()
-        root.put("schemaVersion", "phase0-overlay-manifest-v1")
+        root.put("schemaVersion", "overlay-manifest-v1")
         val entries = DocumentCodec.arrayNode()
         overlays.forEachIndexed { index, overlay ->
             val entry = DocumentCodec.objectNode()
