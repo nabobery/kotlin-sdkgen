@@ -11,7 +11,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 
 - Updated Ktor to `3.5.2` and refreshed the reproducible Kotlin/JS dependency lock.
 
-## [0.1.0] - 2026-08-15
+## [0.1.0] - 2026-08-14
 
 ### Added
 

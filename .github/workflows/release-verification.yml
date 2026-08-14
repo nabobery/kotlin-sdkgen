@@ -516,13 +516,8 @@ jobs:
           echo "== capacity samples (last 60) =="
           tail -60 /tmp/sdkgen-runner-telemetry.log || true
 
-      # docs/release-runbook.md, "Rehearsal" step 5 calls for `validatePlugins` and
-      # `publishPlugins --validate-only`. Both tasks come from the `com.gradle.plugin-publish`
-      # Gradle plugin, which `integrations/gradle-plugin/build.gradle.kts` does not apply (it
-      # only applies `java-gradle-plugin` + `sdkgen.publishing`) — those tasks do not exist in
-      # this tree today. Adding `com.gradle.plugin-publish` is a real new build dependency and a
-      # Gradle Plugin Portal identity/credential decision the runbook flags as deferred; not added
-      # here. Left out; see docs/release-runbook.md.
+      - name: Validate Gradle Plugin Portal metadata
+        run: ./gradlew $GRADLE_ARGS :integrations:gradle-plugin:validatePlugins
 
       # five-layer compatibility report is NOT enforced here, and the reason matters.
       #

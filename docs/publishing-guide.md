@@ -1,6 +1,6 @@
 # Publishing guide
 
-> **Implementation status (2026-08-15):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
+> **Implementation status (2026-08-14):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
 > signing, CycloneDX SBOM generation, Nmcp Central Portal aggregation, Gradle Plugin Portal publication,
 > GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
 > environment requires explicit maintainer approval without administrator bypass, its `main`/`v*` deployment
@@ -291,8 +291,8 @@ Ordered; each step assumes the previous ones are done.
 6. [x] Verify and register the chosen Central Portal namespace; generate the user token (§2).
 7. [x] Make the protected release opt into Nmcp `AUTOMATIC` mode and wait for `PUBLISHED` before publishing the plugin.
 8. [x] Generate an aggregate CycloneDX SBOM.
-9. [x] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
-   remains intentionally untested.
+9. [x] Confirm Plugin Portal publisher ownership. The authenticated `0.1.0` submission succeeded; the first
+   version remains under the portal's manual review.
 10. [x] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
     deployment policy.
 11. [x] Choose the real release version for the protected workflow's `version` input (§4); never reuse a

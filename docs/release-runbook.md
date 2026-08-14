@@ -48,13 +48,13 @@ effectively true for the Gradle Plugin Portal. This means:
 2. Verify exactly the eight ADR-0008 coordinates are produced, with the expected physical KMP
    variants, and **no** unpublished internal project coordinate is present in POM or Gradle
    Module Metadata.
-3. Verify POM and module metadata, sources/docs artifacts, signatures, checksums, and the
-   aggregated SBOM.
+3. Verify POM and module metadata plus sources/docs artifacts. In the protected release build,
+   also verify signatures, checksums, and the aggregated SBOM before any remote publication step.
 4. Consume every published coordinate from a clean, isolated external build (no Maven Local
    fallback, no composite/project substitution, no undeclared repository) to prove the artifact
    graph resolves independently.
-5. Run `validatePlugins` and `publishPlugins --validate-only` for the Gradle plugin; never run
-   the real `publishPlugins` outside an explicitly authorized release.
+5. Run `validatePlugins` for the Gradle plugin. Keep `publishPlugins` exclusively in the protected,
+   explicitly authorized release job; credential-free rehearsal must not contact the Plugin Portal.
 6. For local or contributor signed rehearsals, use a throwaway signing key. The credential-free CI
    rehearsal deliberately does not sign; the release key is exposed only to the protected publish job.
 

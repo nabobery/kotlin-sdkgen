@@ -135,18 +135,15 @@ public metadata.
 unpublished internal coordinates (`generator:model`, `generator:openapi`) leaking into POM/module
 metadata and being resolved against an attacker-controlled repository.
 
-**Current status:** signing, full POM metadata (license/developers/SCM), checksums beyond Maven
-defaults, SBOM, and coordinate-leakage remediation are publication readiness work and are **not complete**
-in this tree. `sdkgen.publishing.gradle.kts` today only creates Maven publications for
-plain-`java-library` modules and rewrites artifact IDs to the ADR-0008 names; it does not yet
-configure signing, license/SCM POM metadata, or SBOM generation, and remote repository
-credentials are explicitly deferred ("Remote repositories and credentials are intentionally
-deferred until release automation exists"). See
-[`docs/release-runbook.md`](docs/release-runbook.md) and ADR-0008 for the target state.
+**Current status:** release-mode signing, complete POM metadata, per-publication sources and Dokka
+artifacts, checksums, an aggregate CycloneDX SBOM, and coordinate-leakage verification are implemented.
+The protected `v0.1.0` workflow built and verified the signed repository before publishing to Maven
+Central, and GitHub attested its deterministic release bundle. Remote credentials are available only
+to the protected publication job; ordinary CI and release verification cannot read them.
 
-**Owner / 1.0 disposition:** release maintainers; do not claim SEC-008 implemented until signing,
-full POM metadata, checksums, SBOM, and isolated-consumer coordinate-leakage verification all
-land with reproducible release evidence.
+**Owner / 1.0 disposition:** release maintainers; preserve the signed-artifact, SBOM, provenance,
+isolated-consumer, and coordinate-leakage gates for every release. Verify each portal independently;
+the first Gradle plugin version remains under the portal's manual review.
 
 ## Threat 6: Untrusted code execution from an automated drift/update pull request
 
@@ -158,8 +155,10 @@ repository write or secret access.
 
 **Current status:** `.github/workflows/drift.yml` separates unprivileged detection from the
 write-capable pull-request job, scope-checks the generated patch, and pins actions by full SHA.
-`.github/workflows/release-verification.yml` is read-only and publishes nothing. Drift checks and
-release verification completed successfully on GitHub-hosted runners for `v0.1.0`.
+`.github/workflows/release-verification.yml` has read-only repository permissions and no release
+credentials. It runs Gradle publication only against an isolated local repository and never invokes
+remote Central or Plugin Portal publication. Drift checks and release verification completed
+successfully on GitHub-hosted runners for `v0.1.0`.
 
 **Owner / 1.0 disposition:** release owner; the initial operational-evidence gap is closed. Preserve
 the same unprivileged verification and protected-publication boundaries for subsequent releases.
