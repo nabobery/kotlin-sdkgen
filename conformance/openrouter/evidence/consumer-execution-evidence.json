@@ -3,8 +3,8 @@
   "kind": "execution-evidence",
   "producer": "openrouter-consumer-suite",
   "corpus": {
-    "configDigest": "3300f5599fc73e17ac56d2f3e203e61304557eebf0ea755077c37806e48083f5",
-    "snapshotDigest": "d750b52d62e699594d2f56dafcf764a68ed104b78d97af9bec5459b1b238eb0c",
+    "configDigest": "ca8ba688d769e6da4798fb575b9348f15d2d037558fe857807a4ab5a7be1d1fc",
+    "snapshotDigest": "6a890054ac25e9380866ef31c4e9efd19fa538a198b6ea547ea34d6b914d70ef",
     "overlaySha256": "a3a19d6525e6420cf2385a4f559f7bfdfa301e4ec9d33f425a2443146775bdfb",
     "sourceSha256": "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47"
   },
@@ -21,7 +21,7 @@
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:05:45.880Z"
+        "timestamp": "2026-08-14T20:52:14.155Z"
       },
       {
         "suite": "OpenRouterFixtureConformanceTest[jvm]",
@@ -29,7 +29,7 @@
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:05:46.288Z"
+        "timestamp": "2026-08-14T20:52:14.571Z"
       },
       {
         "suite": "OpenRouterGeneratedBehaviorTest[jvm]",
@@ -37,7 +37,7 @@
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:05:46.334Z"
+        "timestamp": "2026-08-14T20:52:14.620Z"
       },
       {
         "suite": "OpenRouterParityFixtureTest[jvm]",
@@ -45,7 +45,7 @@
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:05:46.357Z"
+        "timestamp": "2026-08-14T20:52:14.648Z"
       },
       {
         "suite": "OpenRouterRuntimeE2eTest[jvm]",
@@ -53,25 +53,25 @@
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:05:46.362Z"
+        "timestamp": "2026-08-14T20:52:14.653Z"
       }
     ],
     "jsNodeTest": [
       {
-        "suite": "jsNodeTest.com.nabobery.sdkgen.generated.OpenRouterFixtureConformanceTest",
+        "suite": "jsNodeTest.io.github.nabobery.sdkgen.generated.OpenRouterFixtureConformanceTest",
         "tests": 10,
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:06:54.936Z"
+        "timestamp": "2026-08-14T20:53:16.818Z"
       },
       {
-        "suite": "jsNodeTest.com.nabobery.sdkgen.generated.OpenRouterGeneratedBehaviorTest",
+        "suite": "jsNodeTest.io.github.nabobery.sdkgen.generated.OpenRouterGeneratedBehaviorTest",
         "tests": 11,
         "failures": 0,
         "errors": 0,
         "skipped": 0,
-        "timestamp": "2026-07-31T05:06:54.972Z"
+        "timestamp": "2026-08-14T20:53:16.853Z"
       }
     ]
   },

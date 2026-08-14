@@ -1,0 +1,50 @@
+package io.github.nabobery.sdkgen.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/StopServerToolsWhenMaxTokensUsed/properties/type.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/StopServerToolsWhenMaxTokensUsed/properties/type
+ */
+@Serializable(with = InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95.Serializer::class)
+public sealed class InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95 {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `max_tokens_used`.
+   */
+  public data object MaxTokensUsed : InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95() {
+    public override val `value`: String = "max_tokens_used"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95 = when (value) {
+      MaxTokensUsed.value -> MaxTokensUsed
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("io.github.nabobery.sdkgen.generated.InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95 = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineStopServerToolsWhenMaxTokensUsedTypeX6ee9fb95) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

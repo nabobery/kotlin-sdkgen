@@ -20,9 +20,9 @@ overlays:
     zeroMatchPolicy: fail
     conflictPolicy: fail
 kotlin:
-  packageName: com.nabobery.sdkgen.generated
+  packageName: io.github.nabobery.sdkgen.generated
   coordinates:
-    groupId: com.nabobery.sdkgen
+    groupId: io.github.nabobery
     artifactId: openrouter-conformance
   naming:
     clientName: OpenRouterClient
