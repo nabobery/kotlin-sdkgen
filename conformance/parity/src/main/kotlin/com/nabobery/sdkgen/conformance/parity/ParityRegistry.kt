@@ -20,9 +20,9 @@ internal object ParityRegistry {
     const val OPENROUTER_EFFECTIVE_CONFIG_SHA256: String =
         "3300f5599fc73e17ac56d2f3e203e61304557eebf0ea755077c37806e48083f5"
     const val OPENROUTER_CONFIG_FILE_SHA256: String =
-        "374ec05d2c66d9ce943ee6ec26c864f82f5968c46067d48a149176dae8335d3c"
+        "3cfdc0d8ba60e4f37d107a8ffbf1826de27eb069f261ed0fbdc46a1cc43c710c"
     const val OPENROUTER_LOCK_FILE_SHA256: String =
-        "0fed961578f679c248061bad780b5e06561f9aed6d3615ba5909b2e171c65a6f"
+        "123e6d96734d654ec7e6f97790009c5ae8f3305e4bb2cf7c2f1cfa65cd80be31"
     const val STREAMING_STRESS_CORPUS_SHA256: String =
         "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5"
     const val STREAMING_STRESS_EFFECTIVE_CONFIG_SHA256: String =
@@ -31,7 +31,7 @@ internal object ParityRegistry {
         "86d9109d162a38b72a5c5e04b1a488a7a3630246c34c3f6ca0888f68774b95c3"
     const val STREAMING_STRESS_LOCK_FILE_SHA256: String =
         "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b"
-    const val TOOLCHAIN_SHA256: String = "c7386514e4caf07f1b0d74af4a953807c96a3690a0361cb5b677cf287f4cb9c4"
+    const val TOOLCHAIN_SHA256: String = "72c70856dabf8cae4eb026977a287f1629ac1a40b474cf829cb9bd6eaee97392"
 
     private val expectedCorpusDigests =
         mapOf(

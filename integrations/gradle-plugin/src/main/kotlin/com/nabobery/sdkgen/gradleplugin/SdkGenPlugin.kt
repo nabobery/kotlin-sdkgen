@@ -1,12 +1,12 @@
 package com.nabobery.sdkgen.gradleplugin
 
 import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskProvider
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
-import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 /**
  * Lazy, cacheable SDK generation backed by the shared engine. Applying the plugin alone does not
@@ -36,10 +36,10 @@ public class SdkGenPlugin : Plugin<Project> {
             }
             wireSourcesJar(target, task)
             target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-                wireJvmSourceSet(target, task)
+                wireKotlinSourceSet(target, task, "main")
             }
             target.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
-                wireKmpSourceSet(target, task)
+                wireKotlinSourceSet(target, task, "commonMain")
             }
             target.pluginManager.withPlugin("org.jlleitschuh.gradle.ktlint") {
                 excludeGeneratedOutputFromKtlint(target, configuration)
@@ -152,32 +152,30 @@ public class SdkGenPlugin : Plugin<Project> {
         )
     }
 
-    private fun wireJvmSourceSet(
+    private fun wireKotlinSourceSet(
         project: Project,
         task: TaskProvider<GenerateSdkTask>,
+        sourceSetName: String,
     ) {
-        val kotlin = project.extensions.findByType(KotlinJvmProjectExtension::class.java) ?: return
-        kotlin.sourceSets.named("main") { sourceSet ->
-            sourceSet.kotlin.srcDir(
-                task.flatMap { generated -> generated.outputDirectory }.map { directory ->
-                    directory.dir("sources")
-                },
-            )
-        }
-    }
-
-    private fun wireKmpSourceSet(
-        project: Project,
-        task: TaskProvider<GenerateSdkTask>,
-    ) {
-        val kotlin = project.extensions.findByType(KotlinMultiplatformExtension::class.java) ?: return
-        kotlin.sourceSets.named("commonMain") { sourceSet ->
-            sourceSet.kotlin.srcDir(
-                task.flatMap { generated -> generated.outputDirectory }.map { directory ->
-                    directory.dir("sources")
-                },
-            )
-        }
+        val kotlinExtension = project.extensions.findByName("kotlin") ?: return
+        val sourceSets =
+            kotlinExtension.javaClass.methods
+                .firstOrNull { method ->
+                    method.name == "getSourceSets" && method.parameterTypes.isEmpty()
+                }?.invoke(kotlinExtension) as? NamedDomainObjectContainer<*>
+                ?: error("The installed Kotlin Gradle plugin does not expose source sets.")
+        val sourceSet = sourceSets.getByName(sourceSetName)
+        val kotlinSources =
+            sourceSet.javaClass.methods
+                .firstOrNull { method ->
+                    method.name == "getKotlin" && method.parameterTypes.isEmpty()
+                }?.invoke(sourceSet) as? SourceDirectorySet
+                ?: error("Kotlin source set '$sourceSetName' does not expose Kotlin sources.")
+        kotlinSources.srcDir(
+            task.flatMap { generated -> generated.outputDirectory }.map { directory ->
+                directory.dir("sources")
+            },
+        )
     }
 
     private fun wireSourcesJar(
