@@ -158,12 +158,11 @@ repository write or secret access.
 
 **Current status:** `.github/workflows/drift.yml` separates unprivileged detection from the
 write-capable pull-request job, scope-checks the generated patch, and pins actions by full SHA.
-`.github/workflows/release-verification.yml` is read-only and publishes nothing. Drift checks have
-completed successfully on GitHub-hosted runners; release verification still needs a successful run
-against the reviewed release commit before publication.
+`.github/workflows/release-verification.yml` is read-only and publishes nothing. Drift checks and
+release verification completed successfully on GitHub-hosted runners for `v0.1.0`.
 
-**Owner / 1.0 disposition:** release owner; close the operational-evidence gap with observed,
-successful workflow runs before the first release.
+**Owner / 1.0 disposition:** release owner; the initial operational-evidence gap is closed. Preserve
+the same unprivileged verification and protected-publication boundaries for subsequent releases.
 
 ## Out of scope for this document
 

@@ -1,7 +1,8 @@
 # Release runbook
 
-Kotlin SDKGen has not yet published a release. This runbook is the operational procedure for the
-first and subsequent releases; it is not evidence that a particular release occurred.
+Kotlin SDKGen published its first Maven Central artifacts as version `0.1.0`. This runbook is the
+operational procedure for subsequent releases; release records and attestations remain the evidence
+for individual publications.
 
 ## Core invariant: Maven Central releases are immutable
 
@@ -18,6 +19,11 @@ effectively true for the Gradle Plugin Portal. This means:
 
 ## Current publication status (as of this document)
 
+- The protected `v0.1.0` workflow completed successfully for the tagged `main` commit. Version
+  `0.1.0` is available from Maven Central and its release bundle has a GitHub provenance attestation.
+- The initial Gradle Plugin Portal publication was submitted successfully and is awaiting the
+  portal's one-time manual review. The GitHub Release record will be published after its release
+  notes are reviewed and the plugin becomes publicly resolvable.
 - ADR-0008 fixes eight public coordinates (`kotlin-sdkgen-engine`, `-cli`, `-gradle-plugin`,
   `-runtime`, `-transport-ktor`, `-transport-okhttp`, `-transport-java-http`, `-testing`).
   `build-logic/src/main/kotlin/sdkgen.publishing.gradle.kts` creates Maven publications for
@@ -57,8 +63,8 @@ become eligible.
 
 ## Real release (requires explicit human authorization — never automatic)
 
-This section describes the target procedure; it is not yet exercised end-to-end in this
-repository.
+This procedure was exercised by the `v0.1.0` release. Follow it for every subsequent version rather
+than treating the first successful run as permanent evidence for a later release.
 
 1. Confirm the target commit is the reviewed, merged commit on `main` intended for release (never a task or
    integration worktree branch), then create the protected `v<version>` tag at that exact commit.
@@ -72,7 +78,9 @@ repository.
    credentials, and each credential pair is exposed only to the step that needs it.
 5. The protected job builds and verifies the signed release repository, SBOM, clean external consumer,
    and plugin metadata, then publishes to Central (Nmcp aggregation) and the Gradle Plugin Portal.
-6. Confirm both portals accepted the version and retain the GitHub provenance attestation.
+6. Confirm Central made every coordinate available, confirm the Plugin Portal submission and review
+   status, and retain the GitHub provenance attestation. A first plugin publication may remain under
+   manual review after the workflow succeeds; do not claim portal availability until it resolves.
 7. Publish release notes summarizing the effective contract diff
    (`sdkgen diff`/`sdkgen explain` output where applicable — see `generator/cli/.../
    DiffCommand.kt` and `ExplainCommand.kt`), the applied-overlay report, the conformance/waiver
@@ -84,7 +92,8 @@ repository.
 - It does not authorize pushing to a shared remote, opening a PR, merging to `main`, or uploading
   to Maven Central / the Gradle Plugin Portal as a byproduct of documentation or routine
   development work. Every one of those remains a separate, explicitly authorized action.
-- It does not claim a publication occurred until both portals and the GitHub release record confirm it.
+- It does not claim every distribution surface is complete until both portals and the GitHub Release
+  record confirm their respective state.
 
 ## Rollback / incident response
 

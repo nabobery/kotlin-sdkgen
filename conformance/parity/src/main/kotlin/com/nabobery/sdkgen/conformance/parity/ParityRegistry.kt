@@ -31,7 +31,7 @@ internal object ParityRegistry {
         "86d9109d162a38b72a5c5e04b1a488a7a3630246c34c3f6ca0888f68774b95c3"
     const val STREAMING_STRESS_LOCK_FILE_SHA256: String =
         "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b"
-    const val TOOLCHAIN_SHA256: String = "72c70856dabf8cae4eb026977a287f1629ac1a40b474cf829cb9bd6eaee97392"
+    const val TOOLCHAIN_SHA256: String = "14524001f6ba12986dc3f7766d59080b82f8278f8c81abe7734fd1f0347cbb20"
 
     private val expectedCorpusDigests =
         mapOf(

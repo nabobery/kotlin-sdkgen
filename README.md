@@ -5,8 +5,9 @@ transports, deterministic output, and compatibility tooling designed for long-li
 
 > [!IMPORTANT]
 > Kotlin SDKGen is a **production-oriented preview**. It is exercised against large real-world API
-> descriptions, but no artifact has been published to Maven Central or the Gradle Plugin Portal yet.
-> Build from source to evaluate it. Public APIs may change before the first release.
+> descriptions, and version `0.1.0` is available from Maven Central. The first Gradle Plugin Portal
+> publication is awaiting the portal's manual review, so build from source to evaluate the Gradle
+> integration until that approval completes. Public APIs may change while the project remains in preview.
 
 ## Why Kotlin SDKGen?
 
@@ -78,7 +79,7 @@ sources into Kotlin/JVM or `commonMain` automatically:
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("io.github.nabobery.kotlin-sdkgen") version "<version>"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.1.0"
 }
 
 kotlin {
@@ -94,8 +95,8 @@ sdkgen {
 }
 ```
 
-This snippet describes the intended consumer setup after the first release. The plugin is not available from the
-Plugin Portal yet. In this repository, the same integration is covered with composite-build TestKit fixtures.
+The plugin declaration will resolve after the Plugin Portal completes its first-publication review. In this
+repository, the same integration is covered with composite-build TestKit fixtures.
 
 ## Architecture
 
@@ -168,23 +169,22 @@ and heap rather than treating this number as a cross-machine speed claim.
 
 ## Project status
 
-Implemented and rehearsed:
+Implemented and released in `0.1.0`:
 
 - CLI, generation engine, KMP runtime, three transports, and cacheable Gradle integration.
 - Corpus-scale generation, consumer compilation, compatibility reporting, ABI checks, and deterministic snapshots.
-- Signed Maven publication rehearsal with sources, Dokka documentation, POM metadata, checksums, SBOMs, and clean
+- Signed Maven publication with sources, Dokka documentation, POM metadata, checksums, SBOMs, and clean
   external-consumer resolution.
 - Tag-bound release automation with credential-free verification and protected publication.
 
-Before the first public release:
+Release follow-up in progress:
 
-- Complete the owner-controlled repository security and release-environment settings.
-- Run the protected workflow from the reviewed release commit.
-- Publish and verify the Maven Central and Gradle Plugin Portal artifacts.
+- Complete the Gradle Plugin Portal's manual review of the first plugin publication.
+- Publish the reviewed GitHub release notes for the existing `v0.1.0` tag.
 
 See the [`release readiness results`](docs/archive/release-readiness/RESULTS.md),
-[`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for the current evidence
-and limitations.
+[`changelog`](CHANGELOG.md), [`support policy`](docs/support-policy.md), and
+[`release runbook`](docs/release-runbook.md) for the current evidence and limitations.
 
 ## Build and contribute
 
