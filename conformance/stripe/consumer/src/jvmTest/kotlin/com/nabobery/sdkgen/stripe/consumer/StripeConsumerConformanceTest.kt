@@ -1,12 +1,5 @@
 package com.nabobery.sdkgen.stripe.consumer
 
-import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormMetadataXaddcdec0
-import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormXc54383d7
-import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartPurposeX06371c52
-import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartXeb3cb5d1
-import io.github.nabobery.sdkgen.generated.stripe.InlineV1TreasuryInboundTransfersPostRequestFormX19ee4a8a
-import io.github.nabobery.sdkgen.generated.stripe.StripeClient
-import io.github.nabobery.sdkgen.generated.stripe.accounts.AccountsClient
 import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkRequestBody
@@ -16,6 +9,13 @@ import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.Secret
 import com.nabobery.sdkgen.testing.FakeByteStream
 import com.nabobery.sdkgen.testing.FakeTransport
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormMetadataXaddcdec0
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormXc54383d7
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartPurposeX06371c52
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartXeb3cb5d1
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1TreasuryInboundTransfersPostRequestFormX19ee4a8a
+import io.github.nabobery.sdkgen.generated.stripe.StripeClient
+import io.github.nabobery.sdkgen.generated.stripe.accounts.AccountsClient
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject

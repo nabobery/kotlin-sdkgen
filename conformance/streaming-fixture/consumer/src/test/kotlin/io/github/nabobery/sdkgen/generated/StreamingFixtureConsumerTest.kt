@@ -1,6 +1,5 @@
 package io.github.nabobery.sdkgen.generated
 
-import io.github.nabobery.sdkgen.generated.chat.ChatClient
 import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkResponse
@@ -14,6 +13,7 @@ import com.nabobery.sdkgen.testing.FakeByteStream
 import com.nabobery.sdkgen.testing.FakeTransport
 import com.nabobery.sdkgen.testing.assertClosedNormally
 import com.nabobery.sdkgen.testing.assertClosedWith
+import io.github.nabobery.sdkgen.generated.chat.ChatClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
