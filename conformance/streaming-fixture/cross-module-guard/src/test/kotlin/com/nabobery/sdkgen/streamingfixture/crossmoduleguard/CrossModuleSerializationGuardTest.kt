@@ -1,7 +1,7 @@
 package com.nabobery.sdkgen.streamingfixture.crossmoduleguard
 
-import com.nabobery.sdkgen.generated.ChatResult
-import com.nabobery.sdkgen.generated.ChatResultDetail
+import io.github.nabobery.sdkgen.generated.ChatResult
+import io.github.nabobery.sdkgen.generated.ChatResultDetail
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -63,9 +63,9 @@ internal class CrossModuleSerializationGuardTest {
                 """
                 package probe
 
-                import com.nabobery.sdkgen.generated.ChatResult
-                import com.nabobery.sdkgen.generated.ChatResultDetailSerializer
-                import com.nabobery.sdkgen.generated.chat.ChatCodecs
+                import io.github.nabobery.sdkgen.generated.ChatResult
+                import io.github.nabobery.sdkgen.generated.ChatResultDetailSerializer
+                import io.github.nabobery.sdkgen.generated.chat.ChatCodecs
 
                 fun probe() {
                     ChatResult.Serializer

@@ -14,9 +14,9 @@ source:
     allowedLocalRoots:
       - .
 kotlin:
-  packageName: com.nabobery.sdkgen.generated
+  packageName: io.github.nabobery.sdkgen.generated
   coordinates:
-    groupId: com.nabobery.sdkgen
+    groupId: io.github.nabobery
     artifactId: streaming-fixture
   naming:
     clientName: StreamingFixtureClient

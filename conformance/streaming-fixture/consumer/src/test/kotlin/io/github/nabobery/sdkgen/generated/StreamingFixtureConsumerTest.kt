@@ -1,6 +1,6 @@
-package com.nabobery.sdkgen.generated
+package io.github.nabobery.sdkgen.generated
 
-import com.nabobery.sdkgen.generated.chat.ChatClient
+import io.github.nabobery.sdkgen.generated.chat.ChatClient
 import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkResponse

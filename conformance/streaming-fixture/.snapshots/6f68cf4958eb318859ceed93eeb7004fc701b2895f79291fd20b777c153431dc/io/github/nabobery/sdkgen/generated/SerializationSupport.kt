@@ -1,4 +1,4 @@
-package com.nabobery.sdkgen.generated
+package io.github.nabobery.sdkgen.generated
 
 import kotlin.String
 import kotlinx.serialization.SerializationException

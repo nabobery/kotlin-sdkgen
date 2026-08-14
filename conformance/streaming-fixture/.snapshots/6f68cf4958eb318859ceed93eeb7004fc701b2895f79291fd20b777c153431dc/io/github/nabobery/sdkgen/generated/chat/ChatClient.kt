@@ -1,10 +1,5 @@
-package com.nabobery.sdkgen.generated.chat
+package io.github.nabobery.sdkgen.generated.chat
 
-import com.nabobery.sdkgen.generated.ChatDelta
-import com.nabobery.sdkgen.generated.ChatRequest
-import com.nabobery.sdkgen.generated.ChatResult
-import com.nabobery.sdkgen.generated.ErrorResponse
-import com.nabobery.sdkgen.generated.SdkJson
 import com.nabobery.sdkgen.runtime.BackoffHints
 import com.nabobery.sdkgen.runtime.CallOptions
 import com.nabobery.sdkgen.runtime.KotlinxSerializationCodec
@@ -37,6 +32,11 @@ import com.nabobery.sdkgen.runtime.auth.SecuritySchemeBinding
 import com.nabobery.sdkgen.runtime.auth.TrustedHosts
 import com.nabobery.sdkgen.runtime.streaming.decodeData
 import com.nabobery.sdkgen.runtime.streaming.sseFlow
+import io.github.nabobery.sdkgen.generated.ChatDelta
+import io.github.nabobery.sdkgen.generated.ChatRequest
+import io.github.nabobery.sdkgen.generated.ChatResult
+import io.github.nabobery.sdkgen.generated.ErrorResponse
+import io.github.nabobery.sdkgen.generated.SdkJson
 import kotlin.Int
 import kotlin.LazyThreadSafetyMode
 import kotlin.String

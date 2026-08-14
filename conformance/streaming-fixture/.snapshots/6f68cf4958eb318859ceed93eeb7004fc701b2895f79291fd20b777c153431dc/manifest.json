@@ -1,0 +1,76 @@
+{
+    "schemaVersion": "v1alpha2",
+    "generatorVersion": "0.1.0-alpha.1",
+    "edition": "community",
+    "kotlinPoetVersion": "2.3.0",
+    "configDigest": "b37ea13746520dee5ca829d9be29d22e4ad7d04506097684236dea8749511703",
+    "declarationModelSha256": "fb6a29abb7abab879ba9678f3818a2f8370430d3380663e3aa926375d8cbec37",
+    "effectiveContractSha256": "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5",
+    "semanticModelSha256": "82e7393a3b844f502dc051310ac21793ef12dd8dc323740c3e7b3cd265f59927",
+    "kotlinApiSha256": "88a4cf389c216da8be2d0ca585575ff9f299c2935e6903f4a184c46cb7816285",
+    "source": {
+        "canonicalUri": "sdkgen://source/openapi.yaml",
+        "sha256": "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5",
+        "contentLength": 3091
+    },
+    "references": [],
+    "overlays": [],
+    "targets": [
+        "jvm"
+    ],
+    "compatibilityProfiles": [],
+    "plugins": [],
+    "tools": [
+        {
+            "id": "kotlinpoet",
+            "version": "2.3.0"
+        }
+    ],
+    "warningsAsErrors": false,
+    "warningAllowlist": [],
+    "diagnostics": [],
+    "exclusions": [],
+    "acceptedWaivers": [],
+    "files": [
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatBlockedDetail.kt",
+            "sha256": "28eb8acaba923a79485d36327fc5c4cc19339ef32db5a142b6b9985cfb835225"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatDelta.kt",
+            "sha256": "3febcaac8a6e0f27eff473a5ddb4a44db11b28c76cad74bfe32ff4a1943403ed"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatRequest.kt",
+            "sha256": "cef2debd7831bdc3ca5c6efdb11653ba23716f7cc8392c7c05c31402ae5d4448"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatResult.kt",
+            "sha256": "9b7820fac446dbbd21394ada6befbd416b7ea1e96b25a03f4e28b0a4cc5603db"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatResultDetail.kt",
+            "sha256": "d8473e4aaca6a9edcdbb8a754b62d6e026cee32f44e118f6fcdf569cd86139b0"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ChatTextDetail.kt",
+            "sha256": "2fce34fc0a160ab412db4af5859fe0b58e91a8196fcedf3799f42763812e74ac"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/ErrorResponse.kt",
+            "sha256": "07bcc31ba334c08b4a7c60b103f6bfdc686e6061de905decc9092059bce141de"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/SerializationSupport.kt",
+            "sha256": "66ed92af2a7687044bea970a8a64caf8b208b3622051b116e5cc0b642c9bef54"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/StreamingFixtureClient.kt",
+            "sha256": "1533a7704845cdea34355c2b8c45885f61d5756829dbaabc34068a29b836e695"
+        },
+        {
+            "path": "io/github/nabobery/sdkgen/generated/chat/ChatClient.kt",
+            "sha256": "18691c96d6d3199ea99da03088da4002b7f9de3d954e3091b855fda85b6acd53"
+        }
+    ]
+}
