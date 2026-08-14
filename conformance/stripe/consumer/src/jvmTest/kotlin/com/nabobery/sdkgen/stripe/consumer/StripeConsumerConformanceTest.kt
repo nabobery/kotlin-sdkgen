@@ -1,12 +1,12 @@
 package com.nabobery.sdkgen.stripe.consumer
 
-import com.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormMetadataXaddcdec0
-import com.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormXc54383d7
-import com.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartPurposeX06371c52
-import com.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartXeb3cb5d1
-import com.nabobery.sdkgen.generated.stripe.InlineV1TreasuryInboundTransfersPostRequestFormX19ee4a8a
-import com.nabobery.sdkgen.generated.stripe.StripeClient
-import com.nabobery.sdkgen.generated.stripe.accounts.AccountsClient
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormMetadataXaddcdec0
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FileLinksPostRequestFormXc54383d7
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartPurposeX06371c52
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1FilesPostRequestMultipartXeb3cb5d1
+import io.github.nabobery.sdkgen.generated.stripe.InlineV1TreasuryInboundTransfersPostRequestFormX19ee4a8a
+import io.github.nabobery.sdkgen.generated.stripe.StripeClient
+import io.github.nabobery.sdkgen.generated.stripe.accounts.AccountsClient
 import com.nabobery.sdkgen.runtime.SdkByteStream
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkRequestBody
@@ -231,7 +231,7 @@ class StripeConsumerConformanceTest {
                         "parity.generatedDirectory system property is required"
                     },
                 )
-            val sourceDirectory = generatedDirectory.resolve("com/nabobery/sdkgen/generated/stripe")
+            val sourceDirectory = generatedDirectory.resolve("io/github/nabobery/sdkgen/generated/stripe")
             require(sourceDirectory.isDirectory) { "Generated source directory is missing at $sourceDirectory" }
             val manifest =
                 Json
@@ -407,6 +407,6 @@ class StripeConsumerConformanceTest {
          * emitter-level guard is `CodecPartitioningTest`, which inventories internal nested types as well as
          * internal properties.
          */
-        const val MANIFEST_SHA256 = "7e284417e1bf3a0aab14913f6986f3dd5e7e91742e7f0ef28884eaf00dcb6576"
+        const val MANIFEST_SHA256 = "f0e792b6977ee159561401dc298e134dd0a3f3d76b5d4644df00ee20f2e8acd9"
     }
 }

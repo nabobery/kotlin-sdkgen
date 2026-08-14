@@ -1,0 +1,55 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents/post/requestBody/content/application~1x-www-form-urlencoded
+ * /schema/properties/payment_method_options/properties/bacs_debit/anyOf/0/properties/mandate_options/properties/referen
+ * ce_prefix/anyOf/1.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents/post/requestBody/content/application~1x-www-form-urlencoded
+ * /schema/properties/payment_method_options/properties/bacs_debit/anyOf/0/properties/mandate_options/properties/referen
+ * ce_prefix/anyOf/1
+ */
+@Serializable(with = InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a.Serializer::class)
+public sealed class InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: ``.
+   */
+  public data object Value : InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a() {
+    public override val `value`: String = ""
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a = when (value) {
+      Value.value -> Value
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("io.github.nabobery.sdkgen.generated.stripe.InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1PaymentIntentsPostRequestFormPaymentMethodOptionsAnyOf2X3437cc8a) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

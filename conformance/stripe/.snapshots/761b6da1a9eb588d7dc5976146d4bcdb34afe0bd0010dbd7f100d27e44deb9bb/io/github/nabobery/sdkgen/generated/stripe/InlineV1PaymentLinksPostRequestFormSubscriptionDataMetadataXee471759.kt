@@ -1,0 +1,119 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.Boolean
+import kotlin.Int
+import kotlin.LazyThreadSafetyMode
+import kotlin.String
+import kotlin.collections.List
+import kotlin.collections.Set
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+
+public enum class InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Branch {
+  Branch1,
+  InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8,
+}
+
+public sealed class InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759DecodingException(
+  message: String,
+) : SerializationException(message)
+
+public class InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759NoMatchException(
+  message: String,
+) : InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759DecodingException(message)
+
+internal data class InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Inspection(
+  public val matchesBranch1: Boolean,
+  public val matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8:
+      Boolean,
+  public val failures: List<String>,
+) {
+  public val matchCount: Int
+    get() = listOf(matchesBranch1, matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8).count { it }
+}
+
+/**
+ * Lossless anyOf wrapper for
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_links~1{payment_link}/post/requestBody/content/application~1x-www-f
+ * orm-urlencoded/schema/properties/subscription_data/properties/metadata.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_links~1{payment_link}/post/requestBody/content/application~1x-www-f
+ * orm-urlencoded/schema/properties/subscription_data/properties/metadata
+ */
+@Serializable(with = InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759.Serializer::class)
+public class InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759 internal constructor(
+  /**
+   * Raw JSON retained as the serialization authority.
+   */
+  public val raw: JsonElement,
+  private val json: Json,
+  private val inspection:
+      InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Inspection,
+) {
+  public val branch1: JsonObject? by
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesBranch1) json.decodeFromJsonElement<JsonObject>(raw) else null }
+
+  public val inlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8:
+      InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8? by
+      lazy(LazyThreadSafetyMode.NONE) { if (inspection.matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8) json.decodeFromJsonElement<InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8>(raw) else null }
+
+  public val matchedBranches:
+      Set<InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Branch>
+    get() = buildSet {
+      if (inspection.matchesBranch1) add(InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Branch.Branch1)
+      if (inspection.matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8) add(InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Branch.InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8)
+    }
+
+  public companion object {
+    /**
+     * Builds a validated wrapper around raw JSON without rewriting it.
+     */
+    public fun fromRaw(raw: JsonElement, json: Json = SdkJson): InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759 {
+      val inspection = inspectInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759(raw)
+      if (inspection.matchCount == 0) {
+        throw InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759NoMatchException("InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759 matched 0 branches: " + inspection.failures.joinToString("; "))
+      }
+      return InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759(raw, json, inspection)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759 {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759")
+      return fromRaw(jsonDecoder.decodeJsonElement(), jsonDecoder.json)
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759) {
+      encoder.requireJsonEncoder("InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759").encodeJsonElement(value.raw)
+    }
+  }
+}
+
+private fun inspectInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759(element: JsonElement): InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Inspection {
+  val matchesBranch1 = element.isJsonDecodable<JsonObject>()
+  val matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8 = element.isJsonDecodable<InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8>()
+  return InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataXee471759Inspection(
+    matchesBranch1 = matchesBranch1,
+    matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8 = matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8,
+    failures = buildList {
+      if (!matchesBranch1) add("Branch1: value does not match JsonObject")
+      if (!matchesInlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8) add("InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8: value does not match InlineV1PaymentLinksPostRequestFormSubscriptionDataMetadataAnyOf2Xd39714f8")
+    },
+  )
+}
+
+private inline fun <reified T> JsonElement?.isJsonDecodable(): Boolean {
+  val element = this ?: return false
+  return runCatching { SdkJson.decodeFromJsonElement<T>(element) }.isSuccess
+}

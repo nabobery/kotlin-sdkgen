@@ -1,0 +1,71 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents/post/requestBody/content/application~1x-www-form-urlencoded
+ * /schema/properties/payment_method_options/properties/acss_debit/anyOf/0/properties/mandate_options/properties/payment
+ * _schedule.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents/post/requestBody/content/application~1x-www-form-urlencoded
+ * /schema/properties/payment_method_options/properties/acss_debit/anyOf/0/properties/mandate_options/properties/payment
+ * _schedule
+ */
+@Serializable(with = InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce.Serializer::class)
+public sealed class InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `combined`.
+   */
+  public data object Combined : InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce() {
+    public override val `value`: String = "combined"
+  }
+
+  /**
+   * Documented value. Wire value: `interval`.
+   */
+  public data object Interval : InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce() {
+    public override val `value`: String = "interval"
+  }
+
+  /**
+   * Documented value. Wire value: `sporadic`.
+   */
+  public data object Sporadic : InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce() {
+    public override val `value`: String = "sporadic"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce = when (value) {
+      Combined.value -> Combined
+      Interval.value -> Interval
+      Sporadic.value -> Sporadic
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("io.github.nabobery.sdkgen.generated.stripe.InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1PaymentIntentsPostRequestFormPaymentScheduleX1f0495ce) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

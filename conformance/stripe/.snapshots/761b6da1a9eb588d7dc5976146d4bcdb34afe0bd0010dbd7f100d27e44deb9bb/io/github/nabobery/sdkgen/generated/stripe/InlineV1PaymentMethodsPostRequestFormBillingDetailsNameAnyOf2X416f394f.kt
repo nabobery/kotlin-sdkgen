@@ -1,0 +1,53 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_methods~1{payment_method}/post/requestBody/content/application~1x-w
+ * ww-form-urlencoded/schema/properties/billing_details/properties/name/anyOf/1.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_methods~1{payment_method}/post/requestBody/content/application~1x-w
+ * ww-form-urlencoded/schema/properties/billing_details/properties/name/anyOf/1
+ */
+@Serializable(with = InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f.Serializer::class)
+public sealed class InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: ``.
+   */
+  public data object Value : InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f() {
+    public override val `value`: String = ""
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f = when (value) {
+      Value.value -> Value
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("io.github.nabobery.sdkgen.generated.stripe.InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1PaymentMethodsPostRequestFormBillingDetailsNameAnyOf2X416f394f) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

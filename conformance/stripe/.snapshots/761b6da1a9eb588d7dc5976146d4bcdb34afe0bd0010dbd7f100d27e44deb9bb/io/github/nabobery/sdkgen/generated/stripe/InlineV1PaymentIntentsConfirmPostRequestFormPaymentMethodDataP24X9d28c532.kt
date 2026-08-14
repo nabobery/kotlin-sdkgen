@@ -1,0 +1,67 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents~1{intent}~1confirm/post/requestBody/content/application~1x-
+ * www-form-urlencoded/schema/properties/payment_method_data/properties/p24.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1payment_intents~1{intent}~1confirm/post/requestBody/content/application~1x-
+ * www-form-urlencoded/schema/properties/payment_method_data/properties/p24
+ */
+@Serializable(with = InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532.Serializer::class)
+public class InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532(
+  public val bank:
+      InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24BankX0291ed5f? = null,
+) {
+  public class Builder {
+    public var bank: InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24BankX0291ed5f?
+        = null
+
+    public fun build(): InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532 = InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532(
+      bank = bank,
+    )
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532 = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532 {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532 must be a JSON object")
+      return InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532(
+        bank = rawObject["bank"]?.let { json.decodeFromJsonElement<InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24BankX0291ed5f>(it) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532) {
+      val jsonEncoder = encoder.requireJsonEncoder("InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        value.bank?.let { put("bank", json.encodeToJsonElement(it)) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun inlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532(block: InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532.Builder.() -> Unit): InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532 = InlineV1PaymentIntentsConfirmPostRequestFormPaymentMethodDataP24X9d28c532.build(block)

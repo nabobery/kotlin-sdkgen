@@ -14,9 +14,9 @@ source:
     allowedLocalRoots:
       - .
 kotlin:
-  packageName: com.nabobery.sdkgen.generated.stripe
+  packageName: io.github.nabobery.sdkgen.generated.stripe
   coordinates:
-    groupId: com.nabobery.sdkgen
+    groupId: io.github.nabobery
     artifactId: stripe-conformance
   naming:
     clientName: StripeClient

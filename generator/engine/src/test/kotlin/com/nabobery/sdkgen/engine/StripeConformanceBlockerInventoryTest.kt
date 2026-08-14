@@ -116,8 +116,8 @@ class StripeConformanceBlockerInventoryTest {
                 source = SourceConfig(source.canonicalUri, sha256),
                 kotlin =
                     KotlinGenerationConfig(
-                        packageName = "com.nabobery.sdkgen.generated.stripe",
-                        coordinates = PackageCoordinates("com.nabobery.sdkgen", "stripe-generated"),
+                        packageName = "io.github.nabobery.sdkgen.generated.stripe",
+                        coordinates = PackageCoordinates("io.github.nabobery", "stripe-generated"),
                         naming = NamingConfig(clientName = "StripeClient"),
                         targets = listOf(TargetFamily.JVM, TargetFamily.JS, TargetFamily.MACOS),
                     ),

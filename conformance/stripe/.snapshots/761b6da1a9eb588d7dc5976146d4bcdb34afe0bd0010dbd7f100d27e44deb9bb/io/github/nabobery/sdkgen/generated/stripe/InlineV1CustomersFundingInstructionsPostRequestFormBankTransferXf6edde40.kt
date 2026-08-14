@@ -1,0 +1,108 @@
+package io.github.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlin.Unit
+import kotlin.collections.List
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Additional parameters for `bank_transfer` funding types
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/paths/~1v1~1customers~1{customer}~1funding_instructions/post/requestBody/content/applic
+ * ation~1x-www-form-urlencoded/schema/properties/bank_transfer
+ */
+@Serializable(with = InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40.Serializer::class)
+public class InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40(
+  public val type: InlineV1CustomersFundingInstructionsPostRequestFormBankTransferTypeXa8b68e6d,
+  public val euBankTransfer:
+      InlineV1CustomersFundingIn90ecPostRequestFormBankTransferEuBankTransferX17770dfe? = null,
+  requestedAddressTypes: List<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferItemX9e42681a>? = null,
+) {
+  public val requestedAddressTypes:
+      List<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferItemX9e42681a>? =
+      requestedAddressTypes?.let { collection0 -> collection0.toList() }
+
+  public class Builder {
+    private var typeValue:
+        InlineV1CustomersFundingInstructionsPostRequestFormBankTransferTypeXa8b68e6d? = null
+
+    public var type: InlineV1CustomersFundingInstructionsPostRequestFormBankTransferTypeXa8b68e6d
+      get() = requireNotNull(typeValue) { "type is required" }
+      set(`value`) {
+        typeValue = value
+      }
+
+    public var euBankTransfer:
+        InlineV1CustomersFundingIn90ecPostRequestFormBankTransferEuBankTransferX17770dfe? = null
+
+    private var requestedAddressTypesValue:
+        List<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferItemX9e42681a>? = null
+
+    public var requestedAddressTypes:
+        List<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferItemX9e42681a>?
+      get() = requestedAddressTypesValue?.let { collection0 -> collection0.toList() }
+      set(`value`) {
+        requestedAddressTypesValue = value?.let { collection0 -> collection0.toList() }
+      }
+
+    public fun build(): InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 {
+      check(typeValue != null) { "type is required" }
+      return InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40(
+        type = type,
+        euBankTransfer = euBankTransfer,
+        requestedAddressTypes = requestedAddressTypes,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 must be a JSON object")
+      val type = json.decodeRequired<InlineV1CustomersFundingInstructionsPostRequestFormBankTransferTypeXa8b68e6d>(rawObject, "type")
+      return InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40(
+        type = type,
+        euBankTransfer = rawObject["eu_bank_transfer"]?.let { json.decodeFromJsonElement<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferEuBankTransferX17770dfe>(it) },
+        requestedAddressTypes = rawObject["requested_address_types"]?.let { json.decodeFromJsonElement<List<InlineV1CustomersFundingIn90ecPostRequestFormBankTransferItemX9e42681a>>(it) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40) {
+      val jsonEncoder = encoder.requireJsonEncoder("InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("type", json.encodeToJsonElement(value.type))
+        value.euBankTransfer?.let { put("eu_bank_transfer", json.encodeToJsonElement(it)) }
+        value.requestedAddressTypes?.let { put("requested_address_types", json.encodeToJsonElement(it)) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun inlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40(block: InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40.Builder.() -> Unit): InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 = InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("InlineV1CustomersFundingInstructionsPostRequestFormBankTransferXf6edde40 is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}
