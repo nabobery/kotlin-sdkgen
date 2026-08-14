@@ -14,8 +14,9 @@ the generator's deterministic and strongly typed contracts.
 
 ## Development setup
 
-Kotlin SDKGen requires JDK 17. Some target-specific checks also require Node.js, Chrome, the Android
-SDK, or Xcode. Start with:
+Kotlin SDKGen requires JDK 17. JavaScript checks use the Node.js 24 LTS line recorded in [`.nvmrc`](.nvmrc);
+using the same major version keeps the npm lockfile reproducible. Some target-specific checks also require Chrome,
+the Android SDK, or Xcode. Start with:
 
 ```bash
 ./gradlew check

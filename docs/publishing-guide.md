@@ -1,11 +1,12 @@
 # Publishing guide
 
-> **Implementation status (2026-08-12):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
+> **Implementation status (2026-08-14):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
 > signing, CycloneDX SBOM generation, Nmcp Central Portal aggregation, Gradle Plugin Portal publication,
 > GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
-> environment, its `main`/`v*` deployment policy, and all six expected secret names are present. Remote
-> publication remains blocked until the maintainer adds a required reviewer and confirms the two publication
-> accounts are ready.
+> environment requires explicit maintainer approval without administrator bypass, its `main`/`v*` deployment
+> policy and all six expected secret names are present, and the maintainer has confirmed the publication
+> accounts and signing key are ready. The external publication boundary remains intentionally untested until
+> the first authorized release.
 
 This is the guide for actually setting up credentials and publishing Kotlin SDKGen's artifacts. It is
 written for the project owner, not for a contributor. It complements — and does not duplicate —
@@ -50,17 +51,17 @@ externally (no code change).
 | 2 | POM metadata (`pom { }` block: license, developers, SCM URL) | code | complete | Applied to every ADR-0008 Maven publication |
 | 3 | GPG signing wired into the build (`signing` plugin) | code | complete | In-memory signing; release mode fails closed without credentials |
 | 4 | Dokka documentation jar task | code | complete | Reproducible, non-empty Dokka HTML jar attached with the `javadoc` classifier to every product publication |
-| 5 | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account | maintainer confirmation required | See §2, "Maven Central" |
-| 6 | Central Portal user token generated | account/credential | secret names present; live publish untested | Depends on #5 |
-| 7 | GPG key pair generated, public key published to a keyserver | account/credential | signing verified; keyserver publication needs confirmation | The protected rehearsal proves the private key and passphrase pair works |
+| 5 | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account | maintainer verified | See §2, "Maven Central" |
+| 6 | Central Portal user token generated | account/credential | maintainer verified; live publish untested | Depends on #5 |
+| 7 | GPG key pair generated, public key published to a keyserver | account/credential | maintainer verified; signing rehearsed | The protected rehearsal proves the private key and passphrase pair works |
 | 8 | Central Portal publishing plugin applied (Nmcp) | code | complete | Nmcp 1.6.1; `USER_MANAGED` by default, with tag-bound release opting into `AUTOMATIC` and a bounded wait |
 | 9 | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin` | code | complete | Plugin Portal 2.1.1; `validatePlugins` is rehearsed |
-| 10 | Gradle Plugin Portal account + API key/secret | account/credential | secret names present; live publish untested | Confirm publisher ownership before first release |
+| 10 | Gradle Plugin Portal account + API key/secret | account/credential | maintainer verified; live publish untested | External publication is proven only by the first authorized release |
 | 11 | SBOM (CycloneDX) | code | complete | CycloneDX 3.3.0 aggregate BOM |
 | 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v3 action SHA in `release.yml` |
-| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | partial | Environment, `main`/`v*` deployment policy, and all six secrets exist; required reviewer is missing |
+| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | complete | The maintainer is the required reviewer with self-review allowed for solo operation; administrator bypass is disabled, the `main`/`v*` policy is active, and all six secrets exist |
 
-The remaining unchecked items are maintainer-controlled account, credential, and repository settings.
+The remaining unchecked items are release-specific verification and publication steps.
 
 ## 2. Credential setup
 
@@ -281,18 +282,18 @@ reaches either portal. Only an explicitly authorized first publication can prove
 
 Ordered; each step assumes the previous ones are done.
 
-1. [ ] Verify the `io.github.nabobery` Central Portal namespace (GitHub verification; already decided) — §2.
+1. [x] Verify the `io.github.nabobery` Central Portal namespace (GitHub verification; already decided) — §2.
 2. [x] Add complete POM metadata to every publication.
 3. [x] Produce a reproducible `-javadoc.jar` for every publication.
 4. [x] Apply release-gated in-memory signing so every publication is signed.
-5. [ ] Confirm the working GPG release key's public key is on a keyserver. The protected rehearsal has
+5. [x] Confirm the working GPG release key's public key is on a keyserver. The protected rehearsal has
    verified the private-key/passphrase secrets without exposing them.
-6. [ ] Verify and register the chosen Central Portal namespace; generate the user token (§2).
+6. [x] Verify and register the chosen Central Portal namespace; generate the user token (§2).
 7. [x] Make the protected release opt into Nmcp `AUTOMATIC` mode and wait for `PUBLISHED` before publishing the plugin.
 8. [x] Generate an aggregate CycloneDX SBOM.
-9. [ ] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
+9. [x] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
    remains intentionally untested.
-10. [ ] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
+10. [x] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
     deployment policy.
 11. [ ] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
     version already published to either portal.
