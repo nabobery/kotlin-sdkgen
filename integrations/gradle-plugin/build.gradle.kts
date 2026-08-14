@@ -7,7 +7,6 @@ plugins {
 
 dependencies {
     implementation(project(":generator:engine"))
-    implementation(libs.kotlin.gradle.plugin)
     testImplementation(gradleTestKit())
 }
 

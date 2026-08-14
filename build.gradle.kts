@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.targets.js.npm.NpmExtension
 
 plugins {
     base
+    id("sdkgen.release-package-lock")
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.cyclonedx)
 }
