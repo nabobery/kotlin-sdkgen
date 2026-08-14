@@ -1,23 +1,23 @@
 package com.nabobery.sdkgen.github.consumer
 
-import com.nabobery.sdkgen.github.generated.GitHubClient
-import com.nabobery.sdkgen.github.generated.InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0
-import com.nabobery.sdkgen.github.generated.InlineRepositoryRuleCreationTypeX8824ca31
-import com.nabobery.sdkgen.github.generated.InlineUserPatchRequestJsonXcc70b87c
-import com.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchRequestJsonFieldsItemValueXa6dfecba
-import com.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchRequestJsonFieldsItemValueXa6dfecbaNoMatchException
-import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93c
-import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cBranchValidationException
-import com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cNoMatchException
-import com.nabobery.sdkgen.github.generated.InlineWorkflowIdParameterX9533605b
-import com.nabobery.sdkgen.github.generated.RepositoryRule
-import com.nabobery.sdkgen.github.generated.RepositoryRuleBranchValidationException
-import com.nabobery.sdkgen.github.generated.RepositoryRuleNoMatchException
-import com.nabobery.sdkgen.github.generated.RepositoryRuleset
-import com.nabobery.sdkgen.github.generated.SdkJson
-import com.nabobery.sdkgen.github.generated.gitignore.GitignoreClient
-import com.nabobery.sdkgen.github.generated.migrations.MigrationsClient
-import com.nabobery.sdkgen.github.generated.search.SearchClient
+import io.github.nabobery.sdkgen.github.generated.GitHubClient
+import io.github.nabobery.sdkgen.github.generated.InlineDependabotAlertCommaSeparatedHasParameterX8a3d21d0
+import io.github.nabobery.sdkgen.github.generated.InlineRepositoryRuleCreationTypeX8824ca31
+import io.github.nabobery.sdkgen.github.generated.InlineUserPatchRequestJsonXcc70b87c
+import io.github.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchRequestJsonFieldsItemValueXa6dfecba
+import io.github.nabobery.sdkgen.github.generated.InlineUsersProjectsV2ItemsPatchRequestJsonFieldsItemValueXa6dfecbaNoMatchException
+import io.github.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93c
+import io.github.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cBranchValidationException
+import io.github.nabobery.sdkgen.github.generated.InlineWebhookPullRequestReffb1OneOf1PullRequestBaseRepoCreatedAtX29f0f93cNoMatchException
+import io.github.nabobery.sdkgen.github.generated.InlineWorkflowIdParameterX9533605b
+import io.github.nabobery.sdkgen.github.generated.RepositoryRule
+import io.github.nabobery.sdkgen.github.generated.RepositoryRuleBranchValidationException
+import io.github.nabobery.sdkgen.github.generated.RepositoryRuleNoMatchException
+import io.github.nabobery.sdkgen.github.generated.RepositoryRuleset
+import io.github.nabobery.sdkgen.github.generated.SdkJson
+import io.github.nabobery.sdkgen.github.generated.gitignore.GitignoreClient
+import io.github.nabobery.sdkgen.github.generated.migrations.MigrationsClient
+import io.github.nabobery.sdkgen.github.generated.search.SearchClient
 import com.nabobery.sdkgen.runtime.CallOptions
 import com.nabobery.sdkgen.runtime.SdkAuthenticationException
 import com.nabobery.sdkgen.runtime.SdkHeader
@@ -575,6 +575,6 @@ class GitHubConsumerConformanceTest {
          * Last moved by the regeneration that materialized the object oneOf discriminator predicate-correctness
          * fix from 7d40f6ec8.
          */
-        const val MANIFEST_SHA256 = "be4ee9cee2531ea2bf9b6f7c554661767aae1f331beb45b122dde37efe107e87"
+        const val MANIFEST_SHA256 = "c647b1a8db048b8f6bd012443ca038b50850d43aad5a614d2efd62550b45772e"
     }
 }

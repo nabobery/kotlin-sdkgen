@@ -20,9 +20,9 @@ overlays:
     zeroMatchPolicy: fail
     conflictPolicy: fail
 kotlin:
-  packageName: com.nabobery.sdkgen.github.generated
+  packageName: io.github.nabobery.sdkgen.github.generated
   coordinates:
-    groupId: com.nabobery.sdkgen
+    groupId: io.github.nabobery
     artifactId: github-conformance
   naming:
     clientName: GitHubClient
@@ -1698,7 +1698,7 @@ acceptedWaivers:
       diagnosticCode: "SDKGEN-PROJECTION-UNREPRESENTABLE-SCHEMA"
       documentUri: "sdkgen://source/openapi.yaml"
       jsonPointer: "/components/schemas/webhook-issues-field-added/properties/issue_field_value"
-      reasonSha256: "6cedc6ab4a1c5ee6c8a0dc894475f0888efec6cd32ef2809920988d161a840c5"
+      reasonSha256: "75abdb7cb23c29d76ea37f43cd7f02aab9f99e844c5fdcdf8d34ccdfae08b6a0"
     rationale: "The required wire property 'issue_field' generates the required-value backing member 'issueFieldValue', which collides with the distinct 'issue_field_value' Kotlin property; choosing a name or weakening either wire contract would alter the SDK surface, so omit this exact schema."
     owner: sdkgen-maintainers
     disposition: omit
@@ -1710,7 +1710,7 @@ acceptedWaivers:
       diagnosticCode: "SDKGEN-PROJECTION-UNREPRESENTABLE-SCHEMA"
       documentUri: "sdkgen://source/openapi.yaml"
       jsonPointer: "/components/schemas/webhook-issues-field-removed/properties/issue_field_value"
-      reasonSha256: "5810b36fa1f959ef830944442d07c452bce8214013d41c4c822282333d92dd36"
+      reasonSha256: "1ffabc11fe77686f59e007e02bb86a0a020f8a982916a218bfd5cbb0f3980b39"
     rationale: "The required wire property 'issue_field' generates the required-value backing member 'issueFieldValue', which collides with the distinct 'issue_field_value' Kotlin property; choosing a name or weakening either wire contract would alter the SDK surface, so omit this exact schema."
     owner: sdkgen-maintainers
     disposition: omit

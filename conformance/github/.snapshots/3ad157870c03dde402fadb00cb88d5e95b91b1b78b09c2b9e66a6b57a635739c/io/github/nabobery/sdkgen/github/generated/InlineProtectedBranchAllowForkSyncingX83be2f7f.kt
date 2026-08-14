@@ -1,0 +1,63 @@
+package io.github.nabobery.sdkgen.github.generated
+
+import kotlin.Boolean
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Whether users can pull changes from upstream when the branch is locked. Set to `true` to allow fork syncing. Set to
+ * `false` to prevent fork syncing.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/protected-branch/properties/allow_fork_syncing
+ */
+@Serializable(with = InlineProtectedBranchAllowForkSyncingX83be2f7f.Serializer::class)
+public class InlineProtectedBranchAllowForkSyncingX83be2f7f(
+  public val enabled: Boolean? = null,
+) {
+  public class Builder {
+    public var enabled: Boolean? = null
+
+    public fun build(): InlineProtectedBranchAllowForkSyncingX83be2f7f = InlineProtectedBranchAllowForkSyncingX83be2f7f(
+      enabled = enabled,
+    )
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): InlineProtectedBranchAllowForkSyncingX83be2f7f = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<InlineProtectedBranchAllowForkSyncingX83be2f7f> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineProtectedBranchAllowForkSyncingX83be2f7f {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineProtectedBranchAllowForkSyncingX83be2f7f")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("InlineProtectedBranchAllowForkSyncingX83be2f7f must be a JSON object")
+      return InlineProtectedBranchAllowForkSyncingX83be2f7f(
+        enabled = rawObject["enabled"]?.let { json.decodeFromJsonElement<Boolean>(it) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineProtectedBranchAllowForkSyncingX83be2f7f) {
+      val jsonEncoder = encoder.requireJsonEncoder("InlineProtectedBranchAllowForkSyncingX83be2f7f")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        value.enabled?.let { put("enabled", json.encodeToJsonElement(it)) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun inlineProtectedBranchAllowForkSyncingX83be2f7f(block: InlineProtectedBranchAllowForkSyncingX83be2f7f.Builder.() -> Unit): InlineProtectedBranchAllowForkSyncingX83be2f7f = InlineProtectedBranchAllowForkSyncingX83be2f7f.build(block)

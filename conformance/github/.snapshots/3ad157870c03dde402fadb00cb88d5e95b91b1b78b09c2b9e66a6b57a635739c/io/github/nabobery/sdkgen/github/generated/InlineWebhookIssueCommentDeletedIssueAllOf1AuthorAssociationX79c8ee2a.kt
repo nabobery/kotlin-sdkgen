@@ -1,0 +1,107 @@
+package io.github.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * How the author is associated with the repository.
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-issue-comment-deleted/properties/issue/allOf/0/properties/au
+ * thor_association
+ */
+@Serializable(with = InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a.Serializer::class)
+public sealed class InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `COLLABORATOR`.
+   */
+  public data object Collaborator : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "COLLABORATOR"
+  }
+
+  /**
+   * Documented value. Wire value: `CONTRIBUTOR`.
+   */
+  public data object Contributor : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "CONTRIBUTOR"
+  }
+
+  /**
+   * Documented value. Wire value: `FIRST_TIMER`.
+   */
+  public data object FirstTimer : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "FIRST_TIMER"
+  }
+
+  /**
+   * Documented value. Wire value: `FIRST_TIME_CONTRIBUTOR`.
+   */
+  public data object FirstTimeContributor : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "FIRST_TIME_CONTRIBUTOR"
+  }
+
+  /**
+   * Documented value. Wire value: `MANNEQUIN`.
+   */
+  public data object Mannequin : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "MANNEQUIN"
+  }
+
+  /**
+   * Documented value. Wire value: `MEMBER`.
+   */
+  public data object Member : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "MEMBER"
+  }
+
+  /**
+   * Documented value. Wire value: `NONE`.
+   */
+  public data object None : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "NONE"
+  }
+
+  /**
+   * Documented value. Wire value: `OWNER`.
+   */
+  public data object Owner : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a() {
+    public override val `value`: String = "OWNER"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a = when (value) {
+      Collaborator.value -> Collaborator
+      Contributor.value -> Contributor
+      FirstTimer.value -> FirstTimer
+      FirstTimeContributor.value -> FirstTimeContributor
+      Mannequin.value -> Mannequin
+      Member.value -> Member
+      None.value -> None
+      Owner.value -> Owner
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("io.github.nabobery.sdkgen.github.generated.InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookIssueCommentDeletedIssueAllOf1AuthorAssociationX79c8ee2a) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

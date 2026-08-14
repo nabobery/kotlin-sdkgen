@@ -18,7 +18,7 @@ kotlin {
 
 configure<KtlintExtension> {
     filter {
-        exclude { element -> element.file.path.contains("/com/nabobery/sdkgen/github/generated/") }
+        exclude { element -> element.file.path.contains("/io/github/nabobery/sdkgen/github/generated/") }
     }
 }
 
