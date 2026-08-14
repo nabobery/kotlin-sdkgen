@@ -24,7 +24,8 @@
 ## Repository controls
 
 - GitHub private vulnerability reporting, Dependabot security updates, secret scanning, and push protection are enabled.
-- The `release` environment is restricted to `main` and `v*`; a required reviewer must still be configured before publication.
+- The default branch requires a pull request, the complete CI check, resolved review conversations, and linear history;
+  release tags cannot be updated or deleted after creation.
+- The `release` environment is restricted to `main` and `v*`, requires explicit maintainer approval, and does not allow
+  administrator bypass. Self-review remains enabled because the repository currently has one maintainer.
 - Run the protected workflow from the reviewed commit after it is committed and available to GitHub Actions.
-
-These controls change repository state and require explicit repository-owner authorization.

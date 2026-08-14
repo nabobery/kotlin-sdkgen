@@ -28,6 +28,8 @@ effectively true for the Gradle Plugin Portal. This means:
 - Signing, full POM metadata, reproducible Dokka documentation jars, CycloneDX SBOM generation, Central Portal
   aggregation, Gradle Plugin Portal publication, and GitHub provenance attestation are implemented.
 - Remote credentials are scoped to the protected `release` environment and are never read by ordinary CI.
+- The default branch requires a pull request and the complete CI check. Release tags are immutable after creation,
+  and the protected `release` environment requires explicit maintainer approval without administrator bypass.
 - The credential-free `release-verification.yml` workflow is the rehearsal path. The tag-bound,
   protected `release.yml` workflow is the only workflow capable of remote publication. Link the
   exact successful rehearsal from each release record rather than hard-coding a run here, so this
