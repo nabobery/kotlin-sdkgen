@@ -328,17 +328,17 @@ internal object PublicationMetadataTopology {
         if (exact.isFile) return exact
         if (!version.endsWith("-SNAPSHOT")) return null
 
-        val timestampedPrefix = "$artifact-${version.removeSuffix("-SNAPSHOT")}-"
-        val timestampedSuffix = "$classifierSuffix.$extension"
+        val timestampedVersionPattern =
+            "${Regex.escape(version.removeSuffix("-SNAPSHOT"))}-\\d{8}\\.\\d{6}-\\d+"
+        val timestampedFilePattern =
+            Regex(
+                "^${Regex.escape(artifact)}-$timestampedVersionPattern" +
+                    "${classifier?.let { "-${Regex.escape(it)}" }.orEmpty()}\\.${Regex.escape(extension)}$",
+            )
         return directory
             .listFiles()
             .orEmpty()
-            .filter { candidate ->
-                candidate.isFile &&
-                    candidate.name.startsWith(timestampedPrefix) &&
-                    candidate.name.endsWith(timestampedSuffix) &&
-                    (classifier != null || !candidate.name.endsWith("-sources.$extension"))
-            }.sortedBy(File::getName)
+            .filter { candidate -> candidate.isFile && timestampedFilePattern.matches(candidate.name) }
             .singleOrNull()
     }
 

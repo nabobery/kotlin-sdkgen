@@ -5,8 +5,8 @@
 > GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
 > environment requires explicit maintainer approval without administrator bypass, its `main`/`v*` deployment
 > policy and all six expected secret names are present, and the maintainer has confirmed the publication
-> accounts and signing key are ready. The external publication boundary remains intentionally untested until
-> the first authorized release.
+> accounts and signing key are ready. The protected `v0.1.0` workflow published to Maven Central and
+> submitted the first Gradle plugin version; that plugin remains under the portal's manual review.
 
 This is the guide for actually setting up credentials and publishing Kotlin SDKGen's artifacts. It is
 written for the project owner, not for a contributor. It complements — and does not duplicate —
@@ -52,13 +52,13 @@ externally (no code change).
 | 3 | GPG signing wired into the build (`signing` plugin) | code | complete | In-memory signing; release mode fails closed without credentials |
 | 4 | Dokka documentation jar task | code | complete | Reproducible, non-empty Dokka HTML jar attached with the `javadoc` classifier to every product publication |
 | 5 | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account | maintainer verified | See §2, "Maven Central" |
-| 6 | Central Portal user token generated | account/credential | maintainer verified; live publish untested | Depends on #5 |
+| 6 | Central Portal user token generated | account/credential | verified by `v0.1.0` publication | Depends on #5 |
 | 7 | GPG key pair generated, public key published to a keyserver | account/credential | maintainer verified; signing rehearsed | The protected rehearsal proves the private key and passphrase pair works |
 | 8 | Central Portal publishing plugin applied (Nmcp) | code | complete | Nmcp 1.6.1; `USER_MANAGED` by default, with tag-bound release opting into `AUTOMATIC` and a bounded wait |
 | 9 | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin` | code | complete | Plugin Portal 2.1.1; `validatePlugins` is rehearsed |
-| 10 | Gradle Plugin Portal account + API key/secret | account/credential | maintainer verified; live publish untested | External publication is proven only by the first authorized release |
+| 10 | Gradle Plugin Portal account + API key/secret | account/credential | submission verified; first version under manual review | Portal availability remains pending until review completes |
 | 11 | SBOM (CycloneDX) | code | complete | CycloneDX 3.3.0 aggregate BOM |
-| 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v3 action SHA in `release.yml` |
+| 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v4.1.0 action SHA in `release.yml` |
 | 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | complete | The maintainer is the required reviewer with self-review allowed for solo operation; administrator bypass is disabled, the `main`/`v*` policy is active, and all six secrets exist |
 
 The remaining unchecked items are release-specific verification and publication steps.
@@ -291,28 +291,28 @@ Ordered; each step assumes the previous ones are done.
 6. [x] Verify and register the chosen Central Portal namespace; generate the user token (§2).
 7. [x] Make the protected release opt into Nmcp `AUTOMATIC` mode and wait for `PUBLISHED` before publishing the plugin.
 8. [x] Generate an aggregate CycloneDX SBOM.
-9. [x] Confirm Plugin Portal publisher ownership. Both expected secret names are present; the live boundary
-   remains intentionally untested.
+9. [x] Confirm Plugin Portal publisher ownership. The authenticated `0.1.0` submission succeeded; the first
+   version remains under the portal's manual review.
 10. [x] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
     deployment policy.
-11. [ ] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
+11. [x] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
     version already published to either portal.
-12. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
+12. [x] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
     and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real
     release" step 3).
-13. [ ] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact
+13. [x] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact
     identity, signatures, and any SBOM are version-specific.
-14. [ ] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback,
+14. [x] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback,
     no project substitution) to prove the graph resolves independently.
-15. [ ] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from
+15. [x] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from
     that tag with the matching `version`, then obtain the required-reviewer approval on the Environment.
-16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed.
-17. [ ] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
+16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed. Central is verified for
+    `0.1.0`; the first plugin publication is awaiting the portal's manual review.
+17. [x] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
 18. [ ] Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain`), the
     applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
 19. [ ] **Post-publish verification:** resolve every published coordinate from a fresh, unrelated project
     (not this repository) against the real Central repository, confirm the version and checksums match what
     was staged, and confirm the artifact is visible on `central.sonatype.com` and (if published) on
     `plugins.gradle.org`.
-20. [ ] Update `docs/release-runbook.md`'s "Current publication status" section to reflect the real, now
-    "yes it happened" state — it is currently written as a draft that has never seen a real release.
+20. [x] Update `docs/release-runbook.md`'s "Current publication status" section with the verified release state.
