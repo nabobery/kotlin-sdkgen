@@ -34,6 +34,36 @@ internal class VerifyPublicationMetadataTest {
     }
 
     @Test
+    fun verifiesTimestampedSnapshotArchivesWhenClassifiedJarsArePresent() {
+        val repository = temporaryDirectory.resolve("repository")
+        val consumers = temporaryDirectory.resolve("consumers")
+        writeRepository(repository)
+        writeConsumerFixtures(consumers)
+        val engineDirectory = repository.resolve("io/github/nabobery/kotlin-sdkgen-engine/$VERSION")
+        Files.delete(engineDirectory.resolve("kotlin-sdkgen-engine-$VERSION.jar"))
+        Files.delete(engineDirectory.resolve("kotlin-sdkgen-engine-$VERSION-sources.jar"))
+        val timestampedVersion = "0.1.0-20260814.213910-1"
+        writeArchive(
+            engineDirectory.resolve("kotlin-sdkgen-engine-$timestampedVersion.jar"),
+            engineClasses + engineResources,
+        )
+        writeArchive(
+            engineDirectory.resolve("kotlin-sdkgen-engine-$timestampedVersion-sources.jar"),
+            engineSources,
+        )
+        writeArchive(
+            engineDirectory.resolve("kotlin-sdkgen-engine-$timestampedVersion-javadoc.jar"),
+            setOf("index.html"),
+        )
+        val marker = temporaryDirectory.resolve("verification/metadata.txt")
+        val task = createTask(repository, consumers, marker)
+
+        task.verify()
+
+        assertTrue(marker.exists())
+    }
+
+    @Test
     fun rejectsInternalProjectCoordinatesInPublishedMetadata() {
         val repository = temporaryDirectory.resolve("repository")
         val consumers = temporaryDirectory.resolve("consumers")
