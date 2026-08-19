@@ -143,7 +143,8 @@ to the protected publication job; ordinary CI and release verification cannot re
 
 **Owner / 1.0 disposition:** release maintainers; preserve the signed-artifact, SBOM, provenance,
 isolated-consumer, and coordinate-leakage gates for every release. Verify each portal independently
-and confirm each released version resolves from both publication portals.
+by resolving all eight root product coordinates and expected KMP variants from Maven Central, and the
+plugin ID and version from the Gradle Plugin Portal.
 
 ## Threat 6: Untrusted code execution from an automated drift/update pull request
 

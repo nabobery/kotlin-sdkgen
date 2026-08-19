@@ -38,8 +38,9 @@ Three operations are not generated in version 0.2.0:
 | `createResponses`           | `POST /responses`            | The response uses the same divergent `allOf` pattern; two request fields that reach this graph are also removed by the overlay. |
 | `createAudioTranscriptions` | `POST /audio/transcriptions` | Multipart emission currently assumes a binary property named `file`; this request names it `inputAudio`.                        |
 
-These operations are excluded rather than generated with guessed or lossy types. Closing the two generator
-limitations above is expected to raise this corpus from 86/89 to 89/89 operations.
+These operations are excluded rather than generated with guessed or lossy types. Closing both root generator
+limitations—divergent `allOf` projection and multipart binary-property selection—is expected to restore all three
+operations and raise this corpus from 86/89 to 89/89.
 
 The remaining `SDKGEN-LEGACY-NULLABLE-COMPOSITION` diagnostics describe OpenAPI 3.0-style null-only branches. They
 are warnings and do not exclude operations.
