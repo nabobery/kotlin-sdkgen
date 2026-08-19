@@ -879,6 +879,571 @@ class StandardProjectionTest {
     }
 
     @Test
+    fun projectsOffsetLimitPaginationWithIntegralParametersAndDeclaredTotal() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                        responseTotal: /total
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                        total: { type: integer }
+                """,
+            )
+
+        val list = project(document).operations.single()
+
+        assertEquals(
+            PaginationDeclaration.OffsetLimit(
+                requestOffsetParam = "offset",
+                requestLimitParam = "limit",
+                responseItemsPath = "data",
+                responseTotalPath = "total",
+                itemType = KotlinTypeRef("kotlin", "String"),
+            ),
+            list.pagination,
+        )
+    }
+
+    @Test
+    fun projectsOffsetLimitPaginationWithoutADeclaredTotal() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val list = project(document).operations.single()
+
+        assertEquals(
+            PaginationDeclaration.OffsetLimit(
+                requestOffsetParam = "offset",
+                requestLimitParam = "limit",
+                responseItemsPath = "data",
+                responseTotalPath = null,
+                itemType = KotlinTypeRef("kotlin", "String"),
+            ),
+            list.pagination,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAReferencedParameterIsMissing() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("offset parameter 'offset' is not declared on the operation"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAParameterIsNotInQuery() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: offset, in: header, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("offset parameter 'offset' must be declared in: query"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun projectsOffsetLimitPaginationWhenAPathParameterSharesTheOffsetName() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items/{offset}:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: offset, in: path, required: true, schema: { type: string } }
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val list = project(document).operations.single()
+
+        // Parameter identity is (name, in): the non-integral path twin must be ignored, not rejected.
+        assertEquals(
+            PaginationDeclaration.OffsetLimit(
+                requestOffsetParam = "offset",
+                requestLimitParam = "limit",
+                responseItemsPath = "data",
+                responseTotalPath = null,
+                itemType = KotlinTypeRef("kotlin", "String"),
+            ),
+            list.pagination,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAParameterIsNotIntegral() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: offset, in: query, schema: { type: string } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("offset parameter 'offset' must be an integer, was String"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenTheLimitIsInt64() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer, format: int64 } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("limit parameter 'limit' projects to Long (int64)"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenOffsetAndLimitNameTheSameParameter() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: page
+                        requestLimit: page
+                        responseItems: /data
+                      parameters:
+                        - { name: page, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("offset and limit must name distinct parameters, both name 'page'"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenResponseTotalIsNotIntegral() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                        responseTotal: /label
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                        label: { type: string }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("responseTotal '/label' must point at an integer field, was String"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAResponsePathSegmentContainsADot() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data.rows
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("path segment 'data.rows' contains '.'"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAResponsePathTraversesAnOptionalIntermediate() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /page/data
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        page:
+                          type: object
+                          properties:
+                            data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("traverses optional or nullable intermediate 'page'"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsOffsetLimitPaginationWhenAResponsePathTraversesARequiredButNullableIntermediate() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Offset API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /page/data
+                      parameters:
+                        - { name: offset, in: query, schema: { type: integer } }
+                        - { name: limit, in: query, schema: { type: integer } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      required: [page]
+                      properties:
+                        page:
+                          type: [object, "null"]
+                          properties:
+                            data: { type: array, items: { type: string } }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("traverses optional or nullable intermediate 'page'"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rejectsCursorPaginationWhenTheCursorParameterIsNotInQuery() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Cursor API, version: "1" }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: cursor
+                        requestCursor: cursor
+                        responseItems: /data
+                        responseNextCursor: /next
+                      parameters:
+                        - { name: cursor, in: header, schema: { type: string } }
+                      responses:
+                        '200':
+                          description: Items
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/ItemPage' }
+                components:
+                  schemas:
+                    ItemPage:
+                      type: object
+                      properties:
+                        data: { type: array, items: { type: string } }
+                        next: { type: string }
+                """,
+            )
+
+        val diagnostic = projectMapping(document).diagnostics.single { it.symbolId == "operation:listItems" }
+        assertTrue(
+            diagnostic.message.contains("cursor pagination cursor parameter 'cursor' must be declared in: query"),
+            diagnostic.message,
+        )
+    }
+
+    @Test
     fun projectsMultipartPartsAndBinaryBodiesWithoutPlatformTypes() {
         val document =
             adapt(

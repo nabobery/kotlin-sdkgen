@@ -57,8 +57,9 @@ permissions:
 jobs:
   # Linux lane: JVM + JS(node+browser) + Android + Linux native targets, plus every task that
   # composes parity, compatibility reporting, publication rehearsal, and performance-budget
-  # verification. ADR-0007's Apple targets cannot be produced here (see the `macos`
-  # job below) — this job does not attempt them.
+  # verification. ADR-0007 assigns Apple host ABI and execution evidence to the `macos` job below.
+  # Kotlin/Native may cross-compile Apple klibs from Linux, but this job does not claim that as
+  # Apple-lane evidence and its publication rehearsal explicitly disables that cross-compilation.
   verify-linux:
     name: Verify (JVM/JS/Android/Linux)
     runs-on: ubuntu-latest
@@ -533,8 +534,10 @@ jobs:
       # pair to pass to `sdkgen compat`. Do not describe compatibility as CI-enforced until that
       # evidence lifecycle and task exist.
 
-  # macOS lane: ADR-0007 — Apple targets (iosArm64, iosSimulatorArm64, macosArm64) cannot be
-  # produced on any other host. Sequenced after verify-linux (needs:) rather than run in parallel,
+  # macOS lane: ADR-0007 — Apple target ABI and native-host evidence. The arm64 Apple targets require
+  # a macOS host for their device, simulator, and macOS checks; Kotlin/Native may cross-compile the
+  # Intel Apple targets from other hosts, but this lane supplies their compile/link evidence on macOS.
+  # Sequenced after verify-linux (needs:) rather than run in parallel,
   # matching the resource-safe-verification requirement to not overlap heavy build lanes; on
   # separate runners this is a belt-and-suspenders sequencing choice, not a shared-memory
   # necessity, but it keeps this workflow's behavior consistent with the plan's stated intent and
@@ -543,8 +546,8 @@ jobs:
     name: Verify (Apple targets, ADR-0007)
     needs: verify-linux
     runs-on: macos-14
-    # Kotlin/Native compiles the corpus-scale consumers for three Apple targets here; same
-    # reasoning as verify-linux's ceiling above.
+    # Kotlin/Native compiles the three published KMP product modules across five Apple targets
+    # here; same reasoning as verify-linux's ceiling above.
     timeout-minutes: 180
     permissions:
       contents: read
@@ -606,7 +609,9 @@ jobs:
           # 30771666198 failed on Gradle's ambiguous-abbreviation match), because nothing on CI can
           # execute a device binary. `iosArm64TestBinaries` links the test executable — compiling
           # main + test code and driving the full native toolchain — which is the strongest
-          # verification a device target admits. The simulator and macOS targets run their tests.
+          # verification a device target admits. The arm64 simulator and macOS targets run their tests.
+          # Intel Apple targets are cross-compiled on this arm64 runner, so their TestBinaries tasks
+          # provide compile/link evidence only; no Intel binary is executed here.
           #
           # Scoped to the three KMP PRODUCT modules, not the bare task names: unqualified
           # `iosSimulatorArm64Test` aggregates over every project including the corpus consumers,
@@ -622,8 +627,11 @@ jobs:
             -Dorg.gradle.jvmargs="$GRADLE_JVM_ARGS" \
             -Pkotlin.compiler.execution.strategy=in-process \
             :runtime:core:iosArm64TestBinaries :runtime:core:iosSimulatorArm64Test :runtime:core:macosArm64Test \
+            :runtime:core:iosX64TestBinaries :runtime:core:macosX64TestBinaries \
             :runtime:testing:iosArm64TestBinaries :runtime:testing:iosSimulatorArm64Test :runtime:testing:macosArm64Test \
+            :runtime:testing:iosX64TestBinaries :runtime:testing:macosX64TestBinaries \
             :runtime:transport-ktor:iosArm64TestBinaries :runtime:transport-ktor:iosSimulatorArm64Test :runtime:transport-ktor:macosArm64Test \
+            :runtime:transport-ktor:iosX64TestBinaries :runtime:transport-ktor:macosX64TestBinaries \
             apiCheck ${version_arg[@]+"${version_arg[@]}"}
         env:
           # Binds the build JVM explicitly. JAVA_TOOL_OPTIONS below does reach the single-use daemon

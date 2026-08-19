@@ -5,9 +5,8 @@ transports, deterministic output, and compatibility tooling designed for long-li
 
 > [!IMPORTANT]
 > Kotlin SDKGen is a **production-oriented preview**. It is exercised against large real-world API
-> descriptions, and version `0.1.0` is available from Maven Central. The first Gradle Plugin Portal
-> publication is awaiting the portal's manual review, so build from source to evaluate the Gradle
-> integration until that approval completes. Public APIs may change while the project remains in preview.
+> descriptions. Version `0.1.0` is available from Maven Central, and the Gradle plugin is published
+> on the Gradle Plugin Portal. Public APIs may change while the project remains in preview.
 
 ## Why Kotlin SDKGen?
 
@@ -95,8 +94,8 @@ sdkgen {
 }
 ```
 
-The plugin declaration will resolve after the Plugin Portal completes its first-publication review. In this
-repository, the same integration is covered with composite-build TestKit fixtures.
+The plugin declaration resolves from the Gradle Plugin Portal. In this repository, the same integration is
+covered with composite-build TestKit fixtures.
 
 ## Architecture
 
@@ -124,10 +123,13 @@ The KMP runtime and Ktor transport currently target:
 
 - JVM and Android
 - Kotlin/JS for Node.js and browsers
-- iOS ARM64 and iOS Simulator ARM64
-- macOS ARM64
+- iOS ARM64, iOS Simulator ARM64, and iOS x64
+- macOS ARM64 and macOS x64
 - Linux x64 and Linux ARM64
 - mingw x64
+
+The iOS x64 and macOS x64 (Intel) targets are cross-compiled and published; they are gated by compile/link
+evidence rather than on-host test execution, as the Apple verification lane runs on an arm64 host.
 
 Linux ARM64 and mingw x64 are compile-gate targets. Simulator tests require the corresponding Xcode runtime.
 Wasm, watchOS, and tvOS are not currently supported. See [`runtime/README.md`](runtime/README.md) for the exact
@@ -147,7 +149,7 @@ These corpora are conformance fixtures, not supported third-party SDK distributi
 waivers, snapshots, and consumer tests make generator changes reviewable at realistic scale.
 
 For a smaller tour, browse the generated
-[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/d750b52d62e699594d2f56dafcf764a68ed104b78d97af9bec5459b1b238eb0c/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
+[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/c62dfca137bc04cdabdfca822d5f9dac7d6ca8e077481f41f601fb32c27a2c59/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
 or the [`Stripe client snapshot`](conformance/stripe/.snapshots/41a6e92abf3a36ac96ecb503515327e98d3f1fe559f267b9e8f3a355d537eb13/com/nabobery/sdkgen/generated/stripe/StripeClient.kt).
 
 ## Benchmark
@@ -179,7 +181,6 @@ Implemented and released in `0.1.0`:
 
 Release follow-up in progress:
 
-- Complete the Gradle Plugin Portal's manual review of the first plugin publication.
 - Publish the reviewed GitHub release notes for the existing `v0.1.0` tag.
 
 See the [`release readiness results`](docs/archive/release-readiness/RESULTS.md),

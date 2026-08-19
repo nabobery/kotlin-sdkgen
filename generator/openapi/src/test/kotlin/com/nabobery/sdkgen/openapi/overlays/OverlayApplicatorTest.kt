@@ -356,6 +356,105 @@ class OverlayApplicatorTest {
     }
 
     @Test
+    fun `offsetLimit pagination is accepted with offset limit and item fields`() {
+        val valid =
+            overlay(
+                "offset-limit",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: offsetLimit
+                      requestOffset: offset
+                      requestLimit: limit
+                      responseItems: /data
+                      responseTotal: /total
+                """,
+            )
+
+        val result = OverlayApplicator().apply(source, listOf(valid))
+
+        assertEquals(
+            "offsetLimit",
+            result.document.at("/paths/~1chat/post/x-sdkgen-pagination/style").asText(),
+        )
+        assertEquals(
+            "/total",
+            result.document.at("/paths/~1chat/post/x-sdkgen-pagination/responseTotal").asText(),
+        )
+    }
+
+    @Test
+    fun `offsetLimit pagination is accepted without the optional responseTotal`() {
+        val valid =
+            overlay(
+                "offset-limit-no-total",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: offsetLimit
+                      requestOffset: offset
+                      requestLimit: limit
+                      responseItems: /data
+                """,
+            )
+
+        val result = OverlayApplicator().apply(source, listOf(valid))
+
+        assertEquals(
+            "offsetLimit",
+            result.document.at("/paths/~1chat/post/x-sdkgen-pagination/style").asText(),
+        )
+    }
+
+    @Test
+    fun `offsetLimit pagination rejects a missing requestLimit`() {
+        val invalid =
+            overlay(
+                "offset-limit-missing-limit",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: offsetLimit
+                      requestOffset: offset
+                      responseItems: /data
+                """,
+            )
+
+        val failure =
+            assertFailsWith<ExtensionValidationException> {
+                OverlayApplicator().apply(source, listOf(invalid))
+            }
+        assertTrue(failure.message!!.contains("/paths/~1chat/post/x-sdkgen-pagination/requestLimit"))
+    }
+
+    @Test
+    fun `offsetLimit pagination rejects a stray field`() {
+        val invalid =
+            overlay(
+                "offset-limit-stray",
+                """
+                - target: "${'$'}['paths']['/chat']['post']"
+                  update:
+                    x-sdkgen-pagination:
+                      style: offsetLimit
+                      requestOffset: offset
+                      requestLimit: limit
+                      responseItems: /data
+                      responseNextCursor: /next
+                """,
+            )
+
+        val failure =
+            assertFailsWith<ExtensionValidationException> {
+                OverlayApplicator().apply(source, listOf(invalid))
+            }
+        assertTrue(failure.message!!.contains("/paths/~1chat/post/x-sdkgen-pagination/responseNextCursor"))
+    }
+
+    @Test
     fun `canonical operation extensions reject non-operation attachments without misclassifying vendor extensions`() {
         val attachmentSource =
             """

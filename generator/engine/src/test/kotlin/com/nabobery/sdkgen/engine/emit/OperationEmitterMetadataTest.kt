@@ -594,6 +594,101 @@ class OperationEmitterMetadataTest {
     }
 
     @Test
+    fun emitsOffsetLimitPaginationWithEngineStateTotalAndNoNarrowingOffsetSplice() {
+        val source = render(offsetLimitOperation(responseTotalPath = "total"))
+        // The descriptor literal is long enough for KotlinPoet to wrap it, so match on collapsed whitespace.
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        assertTrue(source.contains("public suspend fun listItems("))
+        assertTrue(source.contains("offset: Int? = null"))
+        assertTrue(source.contains("limit: Int? = null"))
+        assertTrue(source.contains("): Page<WidgetResponse, Widget>"))
+        assertTrue(source.contains("public fun listItemsPages("))
+        assertTrue(source.contains("public fun listItemsItems("))
+        assertTrue(source.contains("PaginationEngine<WidgetResponse, Widget>"))
+        assertTrue(
+            flat.contains(
+                "PaginationDescriptor.OffsetLimit(requestOffsetParam = \"offset\", " +
+                    "requestLimitParam = \"limit\", responseItemsPath = PropertyPath(\"data\"), " +
+                    "responseTotalPath = PropertyPath(\"total\"))",
+            ),
+            source,
+        )
+        assertTrue(flat.contains("requestedPageSize = limit,"), source)
+        assertTrue(flat.contains("initialOffset = offset?.toLong() ?: 0L,"), source)
+        assertTrue(flat.contains("is PageRequest.NextOffset -> listOf(pageRequest.offset.toString())"), source)
+        assertTrue(flat.contains("totalCount = response.total?.toLong()"), source)
+        // No-narrowing: the continuation offset is never round-tripped through the generated Int parameter.
+        assertFalse(source.contains("pageRequest.offset.toInt()"), source)
+        assertFalse(source.contains("PageRequest.NextCursor -> pageRequest.cursor"), source)
+    }
+
+    @Test
+    fun emitsOffsetLimitPaginationWithoutADeclaredTotalOmitsTotalCount() {
+        val source = render(offsetLimitOperation(responseTotalPath = null))
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        assertTrue(
+            flat.contains(
+                "PaginationDescriptor.OffsetLimit(requestOffsetParam = \"offset\", " +
+                    "requestLimitParam = \"limit\", responseItemsPath = PropertyPath(\"data\"), " +
+                    "responseTotalPath = null)",
+            ),
+            source,
+        )
+        assertTrue(flat.contains("requestedPageSize = limit,"), source)
+        assertTrue(flat.contains("initialOffset = offset?.toLong() ?: 0L,"), source)
+        assertFalse(source.contains("totalCount ="), source)
+    }
+
+    private fun offsetLimitOperation(responseTotalPath: String?): OperationDeclaration =
+        OperationDeclaration(
+            symbolId = "operation:listItems",
+            order = 0,
+            operationId = "listItems",
+            operationIdentity = "listItems",
+            method = "GET",
+            path = "/items",
+            requestMediaTypes = emptyList(),
+            responseMediaTypes = listOf("application/json"),
+            successStatusCodes = setOf(200),
+            requestType = KotlinTypeRef("kotlin", "Unit"),
+            responseType = KotlinTypeRef(PACKAGE, "WidgetResponse"),
+            requestCodecPropertyName = "listItemsRequestCodec",
+            responseCodecPropertyName = "listItemsResponseCodec",
+            requestCodecConstantName = "LIST_ITEMS_REQUEST_CODEC_ID",
+            responseCodecConstantName = "LIST_ITEMS_RESPONSE_CODEC_ID",
+            requestCodecId = "listItems.request",
+            responseCodecId = "listItems.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(12_000, 3_000, 1_000),
+            methodKdoc = "Lists items.",
+            parameters =
+                listOf(
+                    OperationParameterDeclaration(
+                        "offset",
+                        OperationParameterLocation.QUERY,
+                        KotlinTypeRef("kotlin", "Int"),
+                        required = false,
+                    ),
+                    OperationParameterDeclaration(
+                        "limit",
+                        OperationParameterLocation.QUERY,
+                        KotlinTypeRef("kotlin", "Int"),
+                        required = false,
+                    ),
+                ),
+            pagination =
+                PaginationDeclaration.OffsetLimit(
+                    requestOffsetParam = "offset",
+                    requestLimitParam = "limit",
+                    responseItemsPath = "data",
+                    responseTotalPath = responseTotalPath,
+                    itemType = KotlinTypeRef(PACKAGE, "Widget"),
+                ),
+        )
+
+    @Test
     fun emitsParameterSerializationContractsForCommaJoinedAndDeepObjectValues() {
         val source =
             render(

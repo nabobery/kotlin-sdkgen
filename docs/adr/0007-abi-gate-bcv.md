@@ -73,3 +73,23 @@ At KGP 2.3.20, the available configuration is `abiValidation { klib { keepUnsupp
 - Add a Linux-host fixture to observe unsupported Apple-target behavior; Foundation Evaluation could not exercise that path on macOS.
 - Fail release CI if any supported publication is unstaged or omitted from the ABI comparison.
 - Pin version-specific DSL examples; do not copy syntax from the rolling Kotlin documentation without verifying it against the baseline.
+
+## Amendment (2026-08-18): Intel Apple target ABI evidence
+
+The three published KMP product modules now include the Kotlin/Native `iosX64` and `macosX64` targets. This adds
+six target publications to the ABI surface:
+
+- `io.github.nabobery:kotlin-sdkgen-runtime-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-runtime-macosx64`
+- `io.github.nabobery:kotlin-sdkgen-testing-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-testing-macosx64`
+- `io.github.nabobery:kotlin-sdkgen-transport-ktor-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-transport-ktor-macosx64`
+
+The release-verification macOS lane links the Intel target test binaries for each product module as compile-only
+evidence. The lane runs on an arm64 host, so these Intel binaries are not executed; the existing arm64 device,
+simulator, and macOS targets retain their host-appropriate link or execution checks. The new targets are included
+in the same BCV `apiCheck` gate as the other supported KMP targets: the committed `.klib.api` baselines now list
+`iosX64` and `macosX64` in their target headers. The per-publication staged KLib `klib dump-abi` comparison this
+ADR decided on is not yet implemented for any target; the staged-repository verifier currently checks coordinate
+presence, sidecars, signatures, paths, and checksums only, and the new targets inherit that same gap.

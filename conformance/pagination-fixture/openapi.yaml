@@ -2,9 +2,10 @@ openapi: 3.1.0
 info:
   title: Pagination Fixture
   description: >
-    A small, purpose-built GitHub-shaped spec proving RFC 8288 Link-header pagination generation (task T7):
-    one operation whose next page is sourced from the response's Link header via x-sdkgen-pagination
-    headerNextUrl metadata, generated end to end through the real engine/emitter pipeline.
+    A small, purpose-built GitHub-shaped spec proving pagination generation end to end through the real
+    engine/emitter pipeline: `listIssues` sources its next page from the response's RFC 8288 Link header
+    (x-sdkgen-pagination headerNextUrl), and `listWidgets` walks numeric offset/limit pages
+    (x-sdkgen-pagination offsetLimit) with a declared responseTotal.
   version: "1"
 servers:
   - url: https://api.pagination-fixture.test
@@ -46,6 +47,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /repos/widgets:
+    get:
+      operationId: listWidgets
+      summary: Lists widgets, paginated via numeric offset/limit query parameters.
+      x-sdkgen-pagination:
+        style: offsetLimit
+        requestOffset: offset
+        requestLimit: limit
+        responseItems: /data
+        responseTotal: /total
+      security:
+        - apiKey: []
+      parameters:
+        - name: offset
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: kind
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: A page of widgets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WidgetPage"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     apiKey:
@@ -75,6 +111,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Issue"
+    Widget:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    WidgetPage:
+      type: object
+      additionalProperties: false
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Widget"
+        total:
+          type: integer
     ErrorResponse:
       type: object
       additionalProperties: false

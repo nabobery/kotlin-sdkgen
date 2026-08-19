@@ -1,11 +1,10 @@
 package com.nabobery.sdkgen.generated
 
+import com.nabobery.sdkgen.generated.chat.ChatClient
 import com.nabobery.sdkgen.generated.chat.ChatClient.SendChatCompletionRequestResponse
 import com.nabobery.sdkgen.runtime.BackoffHints
 import com.nabobery.sdkgen.runtime.CallOptions
-import com.nabobery.sdkgen.runtime.PaginationDescriptor
 import com.nabobery.sdkgen.runtime.PolicyOverride
-import com.nabobery.sdkgen.runtime.PropertyPath
 import com.nabobery.sdkgen.runtime.ResponseSelector
 import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkAuthentication
@@ -13,24 +12,22 @@ import com.nabobery.sdkgen.runtime.SdkAuthenticationException
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkRequestBody
 import com.nabobery.sdkgen.runtime.SdkResponseResult
-import com.nabobery.sdkgen.runtime.StreamingDescriptor
+import com.nabobery.sdkgen.runtime.TransportCapabilities
 import com.nabobery.sdkgen.runtime.bodies.MultipartBody
 import com.nabobery.sdkgen.runtime.bodies.TransferEvent
 import com.nabobery.sdkgen.runtime.bodies.TransferObserver
 import com.nabobery.sdkgen.runtime.observation.SdkLifecycleObserver
-import com.nabobery.sdkgen.runtime.pagination.PageEnvelope
-import com.nabobery.sdkgen.runtime.pagination.PageRequest
-import com.nabobery.sdkgen.runtime.pagination.PaginationEngine
-import com.nabobery.sdkgen.runtime.streaming.sseFlow
-import com.nabobery.sdkgen.testing.ChunkedByteStream
 import com.nabobery.sdkgen.testing.FakeByteStream
 import com.nabobery.sdkgen.testing.FakeTransport
-import com.nabobery.sdkgen.testing.sseEventFixture
-import com.nabobery.sdkgen.testing.sseStreamFixture
+import com.nabobery.sdkgen.testing.assertClosedWith
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.put
@@ -75,51 +72,233 @@ class OpenRouterFixtureConformanceTest {
         }
 
     @Test
-    fun cursorPaginationExposesPageAndItemFlows() =
+    fun generatedModelsPagesWalksOffsetAndStopsOnAShortPage() =
         runTest {
-            val engine =
-                PaginationEngine<String, String>(
-                    PaginationDescriptor.CursorToken(
-                        requestCursorParam = "cursor",
-                        responseItemsPath = PropertyPath("data"),
-                        responseNextCursorPath = PropertyPath("next_cursor"),
-                    ),
-                    operationId = "list-fixture",
-                )
-            val fetch: suspend (PageRequest) -> PageEnvelope<String, String> = { request ->
-                when (request) {
-                    PageRequest.First -> PageEnvelope("page-1", listOf("a", "b"), nextCursor = "next")
-                    PageRequest.NextCursor("next") -> PageEnvelope("page-2", listOf("c"))
-                    else -> error("Unexpected page request: $request")
-                }
-            }
+            val transport =
+                FakeTransport()
+                    .enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(modelsPage("model-1", "model-2").encodeToByteArray())),
+                    ).enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(modelsPage("model-3").encodeToByteArray())),
+                    )
 
-            assertEquals(listOf("page-1", "page-2"), engine.pages(fetch).toList().map { it.value })
-            assertEquals(listOf("a", "b", "c"), engine.items(fetch).toList())
+            val pages =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
+                ).models.getModelsPages(limit = 2).toList()
+
+            assertEquals(
+                listOf(listOf("model-1", "model-2"), listOf("model-3")),
+                pages.map { page -> page.items.map { it.id } },
+            )
+            assertEquals(listOf(true, false), pages.map { it.hasNext })
+            assertEquals(
+                listOf(
+                    "https://openrouter.test/models?limit=2",
+                    "https://openrouter.test/models?limit=2&offset=2",
+                ),
+                transport.capturedRequests.map { it.uri },
+            )
         }
 
     @Test
-    fun sseChatFixtureIsIncrementalAndCancellationClosesWithSameCause() =
+    fun generatedFilesPagesThreadsTheResponseCursor() =
         runTest {
-            val payload =
-                sseStreamFixture(
-                    sseEventFixture("{\"delta\":\"hel\"}"),
-                    sseEventFixture("{\"delta\":\"lo\"}"),
+            val transport =
+                FakeTransport()
+                    .enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(filesPage("file-1", "next").encodeToByteArray())),
+                    ).enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(filesPage("file-2", null).encodeToByteArray())),
+                    )
+
+            val pages =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
+                ).files.listFilesPages(limit = 1).toList()
+
+            assertEquals(listOf(listOf("file-1"), listOf("file-2")), pages.map { page -> page.items.map { it.id } })
+            assertEquals(listOf(true, false), pages.map { it.hasNext })
+            assertEquals(
+                listOf(
+                    "https://openrouter.test/files?limit=1",
+                    "https://openrouter.test/files?cursor=next&limit=1",
+                ),
+                transport.capturedRequests.map { it.uri },
+            )
+        }
+
+    @Test
+    fun generatedFilesItemsFlattensPagesAcrossTheCursorWalk() =
+        runTest {
+            val transport =
+                FakeTransport()
+                    .enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(filesPage("file-1", "next").encodeToByteArray())),
+                    ).enqueueResponse(
+                        200,
+                        body = FakeByteStream(listOf(filesPage("file-2", null).encodeToByteArray())),
+                    )
+
+            val items =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    authentication = SdkAuthentication { it },
+                ).files.listFilesItems(limit = 1).toList()
+
+            assertEquals(listOf("file-1", "file-2"), items.map { it.id })
+            assertEquals(
+                listOf(
+                    "https://openrouter.test/files?limit=1",
+                    "https://openrouter.test/files?cursor=next&limit=1",
+                ),
+                transport.capturedRequests.map { it.uri },
+            )
+        }
+
+    @Test
+    fun generatedChatStreamPreservesRequestFlagAndDecodesHostileChunks() =
+        runTest {
+            val firstEvent = chatStreamEvent("hé")
+            val secondEvent = chatStreamEvent("llo")
+            val preSentinelBytes = (firstEvent + secondEvent + "data: [DONE]\n\n").encodeToByteArray()
+            val utf8Split = firstEvent.indexOf("é").let { firstEvent.substring(0, it).encodeToByteArray().size + 1 }
+            val eventSplit = firstEvent.encodeToByteArray().size + secondEvent.encodeToByteArray().size / 2
+            val preSentinelChunks =
+                listOf(
+                    preSentinelBytes.copyOfRange(0, utf8Split),
+                    preSentinelBytes.copyOfRange(utf8Split, eventSplit),
+                    preSentinelBytes.copyOfRange(eventSplit, preSentinelBytes.size),
                 )
-            val stream = ChunkedByteStream(payload, List(payload.size) { 1 })
-            val observed = mutableListOf<String>()
+            val unexpectedPostDoneRead = IllegalStateException("Post-[DONE] chat chunk was read")
+            val stream =
+                FakeByteStream(
+                    chunks = preSentinelChunks + listOf(chatStreamEvent("poison").encodeToByteArray()),
+                    failure = unexpectedPostDoneRead,
+                    failAtRead = preSentinelChunks.size,
+                )
+            val transport =
+                FakeTransport(
+                    TransportCapabilities(supportsStreaming = true),
+                ).enqueueResponse(
+                    200,
+                    headers = listOf(SdkHeader("Content-Type", "text/event-stream")),
+                    body = stream,
+                )
+            val client =
+                OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
+
+            val request = chatRequestWithStream()
+            val events = client.chat.sendChatCompletionRequestStream(request).toList()
+
+            assertEquals(listOf("hé", "llo"), events.map { it.data.choices.single().delta.content })
+            assertEquals("sendChatCompletionRequest", transport.capturedRequests.single().operationId)
+            val requestBody = consume(requireNotNull(transport.capturedRequests.single().body)).decodeToString()
+            assertEquals(SdkJson.encodeToString(request), requestBody)
+            assertTrue(requestBody.contains("\"stream\":true"))
+            assertTrue(stream.closed)
+        }
+
+    @Test
+    fun generatedChatStreamCancellationClosesWithSameCause() =
+        runTest {
             val cancellation = CancellationException("stop after first event")
+            val stream =
+                FakeByteStream(
+                    listOf((chatStreamEvent("first") + chatStreamEvent("second")).encodeToByteArray()),
+                )
+            val transport =
+                FakeTransport(TransportCapabilities(supportsStreaming = true)).enqueueResponse(
+                    200,
+                    headers = listOf(SdkHeader("Content-Type", "text/event-stream")),
+                    body = stream,
+                )
+            val client =
+                OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
 
             assertFailsWith<CancellationException> {
-                sseFlow({ stream }, StreamingDescriptor.ServerSentEvents()).collect { event ->
-                    observed += event.data
+                client.chat.sendChatCompletionRequestStream(chatRequestWithStream()).collect {
                     throw cancellation
                 }
             }.also { assertSame(cancellation, it) }
 
-            assertEquals(listOf("{\"delta\":\"hel\"}"), observed)
+            stream.assertClosedWith(cancellation)
+        }
+
+    @Test
+    fun generatedChatStreamNonSuccessIsTypedApiException() =
+        runTest {
+            val body =
+                FakeByteStream(listOf("{\"error\":{\"code\":400,\"message\":\"bad model\"}}".encodeToByteArray()))
+            val transport =
+                FakeTransport(TransportCapabilities(supportsStreaming = true)).enqueueResponse(
+                    400,
+                    headers = listOf(SdkHeader("Content-Type", "application/json")),
+                    body = body,
+                )
+            val client =
+                OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
+
+            val failure =
+                assertFailsWith<com.nabobery.sdkgen.generated.chat.ChatClient.SendChatCompletionRequestApiException> {
+                    client.chat.sendChatCompletionRequestStream(chatRequestWithStream()).toList()
+                }
+
+            assertEquals(400, failure.statusCode)
+            val error =
+                assertIs<ChatClient.SendChatCompletionRequestResponse.Http400Json>(failure.error)
+            assertEquals(400, error.json.error.code)
+            assertEquals("bad model", error.json.error.message)
+            body.assertClosedWith(failure)
+        }
+
+    @Test
+    fun generatedImagesStreamSurfacesInBandErrorValueAndClosesAtDone() =
+        runTest {
+            val preSentinelRaw =
+                "data: {\"data\":{\"error\":{\"message\":\"provider failed\"," +
+                    "\"code\":\"bad_request\"},\"type\":\"error\"}}\n\n" +
+                    "data: [DONE]\n\n"
+            val preSentinelChunks =
+                preSentinelRaw.encodeToByteArray().toList().chunked(5).map { it.toByteArray() }
+            val poisonChunk =
+                (
+                    "data: {\"data\":{\"error\":{\"message\":\"poison\",\"code\":\"poison\"}," +
+                        "\"type\":\"error\"}}\n\n"
+                ).encodeToByteArray()
+            val unexpectedPostDoneRead = IllegalStateException("Post-[DONE] images chunk was read")
+            val stream =
+                FakeByteStream(
+                    chunks = preSentinelChunks + listOf(poisonChunk),
+                    failure = unexpectedPostDoneRead,
+                    failAtRead = preSentinelChunks.size,
+                )
+            val transport =
+                FakeTransport(TransportCapabilities(supportsStreaming = true)).enqueueResponse(
+                    200,
+                    headers = listOf(SdkHeader("Content-Type", "text/event-stream")),
+                    body = stream,
+                )
+            val client =
+                OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
+
+            val event = client.images.createImagesStream(imageRequestWithStream()).toList().single()
+
+            val error = requireNotNull(event.data.imageGenStreamErrorEvent)
+            assertEquals("provider failed", error.error.message)
+            assertEquals("bad_request", error.error.code)
+            assertEquals("error", error.type.value)
             assertTrue(stream.closed)
-            assertSame(cancellation, stream.closeCause)
         }
 
     @Test
@@ -317,6 +496,94 @@ class OpenRouterFixtureConformanceTest {
 
             assertTrue(transport.capturedRequests.isEmpty())
         }
+
+    private fun chatStreamEvent(content: String): String =
+        "data: {\"data\":{\"choices\":[{\"delta\":{\"content\":\"$content\"},\"finish_reason\":null,\"index\":0}]," +
+            "\"created\":1,\"id\":\"chat-1\",\"model\":\"test\",\"object\":\"chat.completion.chunk\"}}\n\n"
+
+    private fun chatRequestWithStream(): ChatRequest =
+        chatRequest {
+            messages =
+                listOf(
+                    SdkJson.decodeFromJsonElement(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("content", "hello")
+                        },
+                    ),
+                )
+            stream = true
+        }
+
+    private fun imageRequestWithStream(): ImageGenerationRequest =
+        imageGenerationRequest {
+            model = "openai/dall-e-3"
+            prompt = "a test image"
+            stream = true
+        }
+
+    private fun modelsPage(vararg ids: String): String =
+        SdkJson.encodeToString(
+            buildJsonObject {
+                put("data", buildJsonArray { ids.forEach { add(modelJson(it)) } })
+                put("links", buildJsonObject { put("next", JsonNull) })
+                put("total_count", ids.size)
+            },
+        )
+
+    private fun modelJson(id: String): JsonObject =
+        buildJsonObject {
+            put(
+                "architecture",
+                buildJsonObject {
+                    put("input_modalities", buildJsonArray { add(JsonPrimitive("text")) })
+                    put("instruct_type", JsonNull)
+                    put("modality", "text->text")
+                    put("output_modalities", buildJsonArray { add(JsonPrimitive("text")) })
+                    put("tokenizer", "GPT")
+                },
+            )
+            put("canonical_slug", id)
+            put("context_length", 128000)
+            put("created", 1)
+            put("default_parameters", JsonNull)
+            put("expiration_date", JsonNull)
+            put("id", id)
+            put("knowledge_cutoff", JsonNull)
+            put("links", buildJsonObject { put("details", "/api/v1/models/$id/endpoints") })
+            put("name", id)
+            put("per_request_limits", JsonNull)
+            put("pricing", buildJsonObject { put("completion", "0"); put("prompt", "0") })
+            put("supported_parameters", buildJsonArray {})
+            put("supported_voices", JsonNull)
+            put("top_provider", buildJsonObject { put("is_moderated", false) })
+        }
+
+    private fun filesPage(id: String, cursor: String?): String =
+        SdkJson.encodeToString(
+            buildJsonObject {
+                put("cursor", cursor?.let(::JsonPrimitive) ?: JsonNull)
+                put(
+                    "data",
+                    buildJsonArray {
+                        add(
+                            buildJsonObject {
+                                put("created_at", "2025-01-01T00:00:00Z")
+                                put("downloadable", false)
+                                put("filename", "$id.txt")
+                                put("id", id)
+                                put("mime_type", "text/plain")
+                                put("size_bytes", 1)
+                                put("type", "file")
+                            },
+                        )
+                    },
+                )
+                put("first_id", id)
+                put("has_more", cursor != null)
+                put("last_id", id)
+            },
+        )
 
     private fun chatRequest(): ChatRequest =
         chatRequest {

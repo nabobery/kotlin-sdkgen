@@ -1069,6 +1069,120 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
+    fun offsetLimitPaginationSeedsFromTheQueryParameterWhenAPathParameterSharesTheName() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val int = KotlinTypeRef("kotlin", "Int")
+        val client =
+            OperationClientDeclaration(
+                symbolId = "client:CompileClient",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "CompileClient",
+                resolvedName = "CompileClient",
+                kdoc = "Offset-limit shadow compile regression client.",
+                codecsObjectName = "CompileCodecs",
+                securitySchemes = mapOf("bearer" to OperationSecuritySchemeDeclaration.HttpBearer()),
+                operations =
+                    listOf(
+                        OperationDeclaration(
+                            symbolId = "operation:page",
+                            order = 0,
+                            operationId = "page",
+                            method = "GET",
+                            path = "/items/{offset}",
+                            requestMediaTypes = emptyList(),
+                            responseMediaTypes = listOf("application/json"),
+                            successStatusCodes = setOf(200),
+                            requestType = KotlinTypeRef("kotlin", "Unit"),
+                            responseType = KotlinTypeRef(PACKAGE, "PageResponse"),
+                            requestCodecPropertyName = "pageRequestCodec",
+                            responseCodecPropertyName = "pageResponseCodec",
+                            requestCodecConstantName = "PAGE_REQUEST_CODEC_ID",
+                            responseCodecConstantName = "PAGE_RESPONSE_CODEC_ID",
+                            requestCodecId = "page.request",
+                            responseCodecId = "page.response",
+                            responseMode = OperationResponseMode.BUFFERED,
+                            deadlines = OperationDeadlines(null, null, null),
+                            methodKdoc = "Offset-limit shadow compile regression.",
+                            parameters =
+                                listOf(
+                                    // A required String path parameter that shadows the pagination offset name.
+                                    OperationParameterDeclaration(
+                                        "offset",
+                                        OperationParameterLocation.PATH,
+                                        string,
+                                        required = true,
+                                    ),
+                                    // The actual (offset, QUERY) pagination control the emitter must bind.
+                                    OperationParameterDeclaration(
+                                        "offset",
+                                        OperationParameterLocation.QUERY,
+                                        int,
+                                        required = false,
+                                    ),
+                                    OperationParameterDeclaration(
+                                        "limit",
+                                        OperationParameterLocation.QUERY,
+                                        int,
+                                        required = false,
+                                    ),
+                                ),
+                            pagination =
+                                PaginationDeclaration.OffsetLimit(
+                                    requestOffsetParam = "offset",
+                                    requestLimitParam = "limit",
+                                    responseItemsPath = "data",
+                                    responseTotalPath = null,
+                                    itemType = string,
+                                ),
+                        ),
+                    ),
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "CompileClient", listOf(client)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ).files
+        // The offset pagination control must bind to the (offset, QUERY) parameter, never the same-named path
+        // parameter. The query offset is optional, so a correct seed renders the nullable form
+        // `?.toLong() ?: 0L`; binding the required String path parameter instead would render a non-null
+        // `.toLong()` and seed pagination from the wrong value at runtime. This is why name-only selection is a
+        // defect the compiler cannot catch — String.toLong() compiles.
+        val clientSource =
+            rendered.first { it.path.endsWith("CompileClient.kt") }.bytes.decodeToString()
+        assertTrue(
+            clientSource.contains("?.toLong() ?: 0L"),
+            "offset-limit seed must bind the nullable query offset; rendered client was:\n$clientSource",
+        )
+        compileGenerated(
+            rendered +
+                RenderedKotlinFile(
+                    "${PACKAGE.replace('.', '/')}/PageResponse.kt",
+                    pageResponseStub().encodeToByteArray(),
+                ),
+        )
+    }
+
+    @Test
     fun operationAndMixedStreamMetadataUsePublicationLazyDelegatesAndCompile() {
         val string = KotlinTypeRef("kotlin", "String")
         val operation =

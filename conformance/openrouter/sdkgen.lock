@@ -1,6 +1,6 @@
 {
   "version": "v1alpha1",
-  "configDigest": "3300f5599fc73e17ac56d2f3e203e61304557eebf0ea755077c37806e48083f5",
+  "configDigest": "4c2395b17adf82080ab66a7f833880f76c7f58fae4397eafdf226386c57901a1",
   "source": {
     "canonicalUri": "sdkgen://source/openapi.yaml",
     "sha256": "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47",
@@ -11,7 +11,7 @@
     {
       "id": "openrouter-full-spec-compat",
       "canonicalUri": "sdkgen://overlay/openrouter-full-spec-compat",
-      "sha256": "a3a19d6525e6420cf2385a4f559f7bfdfa301e4ec9d33f425a2443146775bdfb"
+      "sha256": "f6f1916254474e974484ab516e3cd29f81902783f617a48f3034652b6628f8c2"
     }
   ],
   "generator": {

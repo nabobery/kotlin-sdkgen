@@ -61,7 +61,8 @@ internal fun AdaptationContext.adaptOperations(root: JsonNode): List<OperationMo
                     message = failure.message.orEmpty(),
                     remediation = "Correct the canonical extension to match its published schema.",
                     phase = DiagnosticPhase.ADAPTATION,
-                    source = rootDocument.source(failure.pointer),
+                    // The pointer may name a required-but-absent field, which has no recorded location.
+                    source = rootDocument.sourceNearest(failure.pointer),
                     relatedSymbolId = operationSymbolId,
                 )
             } catch (failure: Throwable) {
@@ -654,9 +655,24 @@ private fun adaptPagination(
 ): PaginationModel {
     requireExtensionObject(node, pointer)
     return when (val style = requireExtensionString(node, pointer, "style")) {
-        "cursor" -> adaptCursorPagination(node, pointer)
-        "headerNextUrl" -> adaptHeaderNextUrlPagination(node, pointer)
-        else -> invalidExtension("$pointer/style", "must equal 'cursor' or 'headerNextUrl', was '$style'")
+        "cursor" -> {
+            adaptCursorPagination(node, pointer)
+        }
+
+        "headerNextUrl" -> {
+            adaptHeaderNextUrlPagination(node, pointer)
+        }
+
+        "offsetLimit" -> {
+            adaptOffsetLimitPagination(node, pointer)
+        }
+
+        else -> {
+            invalidExtension(
+                "$pointer/style",
+                "must equal 'cursor', 'headerNextUrl', or 'offsetLimit', was '$style'",
+            )
+        }
     }
 }
 
@@ -686,6 +702,24 @@ private fun adaptHeaderNextUrlPagination(
     requireExtensionConstant(node, pointer, "style", "headerNextUrl")
     return PaginationModel.HeaderNextUrl(
         responseItems = requireJsonPointer(node, pointer, "responseItems"),
+    )
+}
+
+private fun adaptOffsetLimitPagination(
+    node: JsonNode,
+    pointer: String,
+): PaginationModel.OffsetLimit {
+    requireExtensionFields(
+        node,
+        pointer,
+        setOf("style", "requestOffset", "requestLimit", "responseItems", "responseTotal"),
+    )
+    requireExtensionConstant(node, pointer, "style", "offsetLimit")
+    return PaginationModel.OffsetLimit(
+        requestOffset = requireExtensionString(node, pointer, "requestOffset"),
+        requestLimit = requireExtensionString(node, pointer, "requestLimit"),
+        responseItems = requireJsonPointer(node, pointer, "responseItems"),
+        responseTotal = optionalJsonPointer(node, pointer, "responseTotal"),
     )
 }
 
@@ -765,6 +799,12 @@ private fun requireExtensionString(
     }
     return value.textValue()
 }
+
+private fun optionalJsonPointer(
+    node: JsonNode,
+    pointer: String,
+    field: String,
+): JsonPointer? = if (node.has(field)) requireJsonPointer(node, pointer, field) else null
 
 private fun requireJsonPointer(
     node: JsonNode,

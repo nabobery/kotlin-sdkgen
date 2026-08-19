@@ -1,0 +1,63 @@
+package com.nabobery.sdkgen.generated
+
+import kotlin.Boolean
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for
+ * sdkgen://source/openapi.yaml#/components/schemas/AnthropicDocumentBlockParam/properties/citations.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/AnthropicDocumentBlockParam/properties/citations
+ */
+@Serializable(with = InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae.Serializer::class)
+public class InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae(
+  public val enabled: Boolean? = null,
+) {
+  public class Builder {
+    public var enabled: Boolean? = null
+
+    public fun build(): InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae = InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae(
+      enabled = enabled,
+    )
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae must be a JSON object")
+      return InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae(
+        enabled = rawObject["enabled"]?.let { json.decodeFromJsonElement<Boolean>(it) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae) {
+      val jsonEncoder = encoder.requireJsonEncoder("InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        value.enabled?.let { put("enabled", json.encodeToJsonElement(it)) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun inlineAnthropicDocumentBlockParamCitationsXe5f0a7ae(block: InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae.Builder.() -> Unit): InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae = InlineAnthropicDocumentBlockParamCitationsXe5f0a7ae.build(block)

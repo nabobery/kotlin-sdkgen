@@ -81,7 +81,8 @@ internal class CanonicalExtensionValidator {
         when (style.takeIf(JsonNode::isTextual)?.textValue()) {
             "cursor" -> validateCursorPagination(value, pointer)
             "headerNextUrl" -> validateHeaderNextUrlPagination(value, pointer)
-            else -> invalid(stylePointer, "must equal 'cursor' or 'headerNextUrl'")
+            "offsetLimit" -> validateOffsetLimitPagination(value, pointer)
+            else -> invalid(stylePointer, "must equal 'cursor', 'headerNextUrl', or 'offsetLimit'")
         }
     }
 
@@ -108,6 +109,22 @@ internal class CanonicalExtensionValidator {
         requireAllowedFields(value, pointer, setOf("style", "responseItems"))
         requireConstant(value, pointer, "style", "headerNextUrl")
         requirePointer(value, pointer, "responseItems")
+    }
+
+    private fun validateOffsetLimitPagination(
+        value: JsonNode,
+        pointer: String,
+    ) {
+        requireAllowedFields(
+            value,
+            pointer,
+            setOf("style", "requestOffset", "requestLimit", "responseItems", "responseTotal"),
+        )
+        requireConstant(value, pointer, "style", "offsetLimit")
+        requireNonEmptyString(value, pointer, "requestOffset")
+        requireNonEmptyString(value, pointer, "requestLimit")
+        requirePointer(value, pointer, "responseItems")
+        if (value.has("responseTotal")) requirePointer(value, pointer, "responseTotal")
     }
 
     private fun validateIdempotency(

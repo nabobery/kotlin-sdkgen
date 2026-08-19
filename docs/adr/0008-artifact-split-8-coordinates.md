@@ -94,3 +94,22 @@ package now would touch every one of the roughly 17.8k files in the committed cr
 snapshots and invalidate every pinned digest that depends on them, for zero namespace-verification benefit.
 The groupId is the only thing Central's ownership proof actually checks, so it is the only thing this
 amendment changes.
+
+## Amendment (2026-08-18): Intel Apple target variants
+
+The eight-coordinate product split remains unchanged at the root-coordinate level. The three published KMP
+products now also publish their `iosX64` and `macosX64` variants, adding these six physical Maven coordinates to
+the version train:
+
+- `io.github.nabobery:kotlin-sdkgen-runtime-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-runtime-macosx64`
+- `io.github.nabobery:kotlin-sdkgen-testing-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-testing-macosx64`
+- `io.github.nabobery:kotlin-sdkgen-transport-ktor-iosx64`
+- `io.github.nabobery:kotlin-sdkgen-transport-ktor-macosx64`
+
+These are target variants selected through Kotlin Multiplatform metadata, not additional product roots. The
+release inventory and staged-publication checks require every variant, including the existing arm64 Apple variants,
+under its ADR-0008 artifact ID. Release verification links the Intel target test binaries on the arm64 macOS runner
+as compile-only evidence because the Intel binaries cannot execute there; the arm64 Apple variants retain their
+host-appropriate execution or link checks.

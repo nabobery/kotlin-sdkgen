@@ -781,6 +781,20 @@ internal sealed interface PaginationDeclaration {
         override val responseItemsPath: String,
         override val itemType: KotlinTypeRef? = null,
     ) : PaginationDeclaration
+
+    /**
+     * Numeric offset/limit pagination: [requestOffsetParam]/[requestLimitParam] name the generated operation's
+     * offset/page-size query parameters, [responseItemsPath] locates the item list, and [responseTotalPath] — when
+     * declared — points at the total-count field used to stop exactly at the total. Unlike [CursorToken] there is
+     * no response continuation pointer; the engine advances the offset by the observed page size.
+     */
+    data class OffsetLimit(
+        val requestOffsetParam: String,
+        val requestLimitParam: String,
+        override val responseItemsPath: String,
+        val responseTotalPath: String?,
+        override val itemType: KotlinTypeRef? = null,
+    ) : PaginationDeclaration
 }
 
 internal sealed interface StreamingDeclaration {
@@ -1141,6 +1155,7 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
                 when (val value = pagination) {
                     is PaginationDeclaration.CursorToken -> value.copy(itemType = value.itemType?.rewritten())
                     is PaginationDeclaration.HeaderNextUrl -> value.copy(itemType = value.itemType?.rewritten())
+                    is PaginationDeclaration.OffsetLimit -> value.copy(itemType = value.itemType?.rewritten())
                     null -> null
                 },
             streaming = streaming,
