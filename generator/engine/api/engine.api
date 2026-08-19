@@ -2193,6 +2193,23 @@ public final class com/nabobery/sdkgen/model/PaginationModel$HeaderNextUrl : com
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/nabobery/sdkgen/model/PaginationModel$OffsetLimit : com/nabobery/sdkgen/model/PaginationModel {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun component4 ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;)Lcom/nabobery/sdkgen/model/PaginationModel$OffsetLimit;
+	public static synthetic fun copy$default (Lcom/nabobery/sdkgen/model/PaginationModel$OffsetLimit;Ljava/lang/String;Ljava/lang/String;Lcom/nabobery/sdkgen/model/JsonPointer;Lcom/nabobery/sdkgen/model/JsonPointer;ILjava/lang/Object;)Lcom/nabobery/sdkgen/model/PaginationModel$OffsetLimit;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequestLimit ()Ljava/lang/String;
+	public final fun getRequestOffset ()Ljava/lang/String;
+	public final fun getResponseItems ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public final fun getResponseTotal ()Lcom/nabobery/sdkgen/model/JsonPointer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/nabobery/sdkgen/model/ParameterLocation : java/lang/Enum {
 	public static final field COOKIE Lcom/nabobery/sdkgen/model/ParameterLocation;
 	public static final field HEADER Lcom/nabobery/sdkgen/model/ParameterLocation;

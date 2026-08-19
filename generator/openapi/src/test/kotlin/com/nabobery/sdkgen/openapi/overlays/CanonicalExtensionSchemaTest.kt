@@ -11,7 +11,7 @@ class CanonicalExtensionSchemaTest {
             DocumentCodec.parseJson(
                 checkNotNull(javaClass.getResourceAsStream("/schemas/x-sdkgen-pagination.schema.json")).readBytes(),
             )
-        listOf("responseItems", "responseNextCursor").forEach { field ->
+        listOf("responseItems", "responseNextCursor", "responseTotal").forEach { field ->
             val pattern = Regex(schema.at("/properties/$field/pattern").textValue())
 
             listOf("/data~", "/data~2", "/data/~").forEach { pointer ->

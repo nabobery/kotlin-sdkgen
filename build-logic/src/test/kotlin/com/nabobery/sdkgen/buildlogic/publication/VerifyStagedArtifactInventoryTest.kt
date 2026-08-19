@@ -19,6 +19,23 @@ internal class VerifyStagedArtifactInventoryTest {
     lateinit var temporaryDirectory: Path
 
     @Test
+    fun releaseInventoryIncludesAllPublishedIntelAppleVariants() {
+        assertTrue(
+            Adr0008ProductArtifactIds.releaseProductArtifactIds.containsAll(
+                setOf(
+                    "kotlin-sdkgen-runtime-iosx64",
+                    "kotlin-sdkgen-runtime-macosx64",
+                    "kotlin-sdkgen-testing-iosx64",
+                    "kotlin-sdkgen-testing-macosx64",
+                    "kotlin-sdkgen-transport-ktor-iosx64",
+                    "kotlin-sdkgen-transport-ktor-macosx64",
+                ),
+            ),
+            "release inventory must include all six Intel Apple product variants",
+        )
+    }
+
+    @Test
     fun verifiesAConsistentInventoryAgainstItsRepository() {
         val repository = temporaryDirectory.resolve("repository")
         writeFullRepository(repository)
@@ -238,7 +255,17 @@ internal class VerifyStagedArtifactInventoryTest {
     fun acceptsPerTargetVariantsAndTheGradlePluginMarker() {
         val repository = temporaryDirectory.resolve("repository")
         writeFullRepository(repository)
-        listOf("jvm", "iosarm64", "js", "linuxx64", "android", "mingwx64", "macosarm64").forEach { target ->
+        listOf(
+            "jvm",
+            "iosarm64",
+            "iosx64",
+            "js",
+            "linuxx64",
+            "android",
+            "mingwx64",
+            "macosarm64",
+            "macosx64",
+        ).forEach { target ->
             val artifactId = "kotlin-sdkgen-runtime-$target"
             repository
                 .resolve("io/github/nabobery/$artifactId/$VERSION")

@@ -1378,6 +1378,10 @@ internal class StandardProjection : DeclarationProjection {
     ): PaginationDeclaration? =
         when (val pagination = operation.pagination) {
             is com.nabobery.sdkgen.model.PaginationModel.Cursor -> {
+                requireQueryParameter(operation, pagination.requestCursor, "cursor")
+                pagination.requestLimit?.let { requireQueryParameter(operation, it, "limit") }
+                requireEmittableResponsePath(operation, context, pagination.responseItems, "cursor items")
+                requireEmittableResponsePath(operation, context, pagination.responseNextCursor, "cursor nextCursor")
                 PaginationDeclaration.CursorToken(
                     requestCursorParam = pagination.requestCursor,
                     requestLimitParam = pagination.requestLimit,
@@ -1388,16 +1392,175 @@ internal class StandardProjection : DeclarationProjection {
             }
 
             is com.nabobery.sdkgen.model.PaginationModel.HeaderNextUrl -> {
+                requireEmittableResponsePath(operation, context, pagination.responseItems, "headerNextUrl items")
                 PaginationDeclaration.HeaderNextUrl(
                     responseItemsPath = pagination.responseItems.segments.joinToString("."),
                     itemType = paginationItemType(operation, context, pagination.responseItems),
                 )
             }
 
+            is com.nabobery.sdkgen.model.PaginationModel.OffsetLimit -> {
+                projectOffsetLimitPagination(operation, context, pagination)
+            }
+
             null -> {
                 null
             }
         }
+
+    private fun projectOffsetLimitPagination(
+        operation: OperationModel,
+        context: SchemaProjectionContext,
+        pagination: com.nabobery.sdkgen.model.PaginationModel.OffsetLimit,
+    ): PaginationDeclaration.OffsetLimit {
+        if (pagination.requestOffset == pagination.requestLimit) {
+            unsupported(
+                "offsetLimit pagination offset and limit must name distinct parameters, " +
+                    "both name '${pagination.requestOffset}'",
+            )
+        }
+        requireIntegralQueryParameter(operation, context, pagination.requestOffset, "offset")
+        val limitType = requireIntegralQueryParameter(operation, context, pagination.requestLimit, "limit")
+        if (limitType.simpleName == "Long") {
+            unsupported(
+                "offsetLimit pagination limit parameter '${pagination.requestLimit}' projects to Long (int64); the " +
+                    "runtime page size is Int — declare the limit parameter as a 32-bit integer",
+            )
+        }
+        requireEmittableResponsePath(operation, context, pagination.responseItems, "offsetLimit items")
+        pagination.responseTotal?.let { total ->
+            requireIntegralResponseField(operation, context, total)
+            requireEmittableResponsePath(operation, context, total, "offsetLimit total")
+        }
+        return PaginationDeclaration.OffsetLimit(
+            requestOffsetParam = pagination.requestOffset,
+            requestLimitParam = pagination.requestLimit,
+            responseItemsPath = pagination.responseItems.segments.joinToString("."),
+            responseTotalPath = pagination.responseTotal?.segments?.joinToString("."),
+            itemType = paginationItemType(operation, context, pagination.responseItems),
+        )
+    }
+
+    /**
+     * Fails closed on a pagination response path the code generator cannot render faithfully. Two
+     * representations bound what is emittable: response paths round-trip through a dotted string, so a segment
+     * that itself contains '.' cannot be encoded; and the generated accessor walks intermediate segments with
+     * plain member access, so a nullable or optional intermediate would emit code that does not compile.
+     * Single-segment paths (the common case) always pass.
+     */
+    private fun requireEmittableResponsePath(
+        operation: OperationModel,
+        context: SchemaProjectionContext,
+        pointer: com.nabobery.sdkgen.model.JsonPointer,
+        role: String,
+    ) {
+        pointer.segments.firstOrNull { it.contains('.') }?.let { segment ->
+            unsupported(
+                "$role pagination path segment '$segment' contains '.', which the generator's path " +
+                    "representation cannot encode",
+            )
+        }
+        if (pointer.segments.size <= 1) return
+        val intermediates = pointer.segments.dropLast(1)
+        operation.responses
+            .filter(::isSuccessResponse)
+            .flatMap { response -> response.content }
+            .mapNotNull { content -> content.schema }
+            .forEach { schema ->
+                var current = context.dereference(schema)
+                intermediates.forEach { segment ->
+                    val property =
+                        context.flattenObjectProperties(current).firstOrNull { it.name == segment }
+                            ?: unsupported("$role pagination path segment '$segment' is not present on ${current.id}")
+                    if (property.requiredness != Requiredness.REQUIRED ||
+                        context.isEffectivelyNullable(property.schema)
+                    ) {
+                        unsupported(
+                            "$role pagination path traverses optional or nullable intermediate '$segment'; the " +
+                                "generated accessor would not compile — only non-null intermediates are supported",
+                        )
+                    }
+                    current = context.dereference(property.schema)
+                }
+            }
+    }
+
+    /**
+     * Validates that [parameterName] is a `in: query` parameter of [operation]. Cursor pagination controls carry
+     * no integral constraint, but emission binds them by (name, query location), so a non-query control must be
+     * rejected here rather than silently failing to bind at emission.
+     */
+    private fun requireQueryParameter(
+        operation: OperationModel,
+        parameterName: String,
+        role: String,
+    ) {
+        operation.parameters.firstOrNull {
+            it.name == parameterName && it.location == ParameterLocation.QUERY
+        } ?: if (operation.parameters.any { it.name == parameterName }) {
+            unsupported("cursor pagination $role parameter '$parameterName' must be declared in: query")
+        } else {
+            unsupported("cursor pagination $role parameter '$parameterName' is not declared on the operation")
+        }
+    }
+
+    /** Validates that [parameterName] is an integral `in: query` parameter of [operation], returning its type. */
+    private fun requireIntegralQueryParameter(
+        operation: OperationModel,
+        context: SchemaProjectionContext,
+        parameterName: String,
+        role: String,
+    ): KotlinTypeRef {
+        // OpenAPI parameter identity is the (name, location) pair, so a same-named path parameter may
+        // legitimately coexist with the query parameter — select by both, never by name alone.
+        val parameter =
+            operation.parameters.firstOrNull {
+                it.name == parameterName && it.location == ParameterLocation.QUERY
+            } ?: if (operation.parameters.any { it.name == parameterName }) {
+                unsupported("offsetLimit pagination $role parameter '$parameterName' must be declared in: query")
+            } else {
+                unsupported(
+                    "offsetLimit pagination $role parameter '$parameterName' is not declared on the operation",
+                )
+            }
+        val schemaRef =
+            parameter.schema
+                ?: unsupported("offsetLimit pagination $role parameter '$parameterName' has no schema")
+        val type = context.typeFor(schemaRef, "${operation.operationId} $parameterName parameter")
+        if (!(type.packageName == "kotlin" && (type.simpleName == "Int" || type.simpleName == "Long"))) {
+            unsupported(
+                "offsetLimit pagination $role parameter '$parameterName' must be an integer, was ${type.simpleName}",
+            )
+        }
+        return type
+    }
+
+    /** Validates that [responseTotal] points at a single common integral field on the success response body. */
+    private fun requireIntegralResponseField(
+        operation: OperationModel,
+        context: SchemaProjectionContext,
+        responseTotal: com.nabobery.sdkgen.model.JsonPointer,
+    ) {
+        val responseSchemas =
+            operation.responses
+                .filter(::isSuccessResponse)
+                .flatMap { response -> response.content }
+                .mapNotNull { content -> content.schema }
+        val totalTypes =
+            responseSchemas
+                .map { schema ->
+                    context.typeAtPath(schema, responseTotal.segments, "${operation.operationId} pagination total")
+                }.distinct()
+        val totalType =
+            totalTypes.singleOrNull()
+                ?: unsupported("offsetLimit pagination responseTotal must resolve to one common field type")
+        if (!(totalType.packageName == "kotlin" && (totalType.simpleName == "Int" || totalType.simpleName == "Long"))) {
+            unsupported(
+                "offsetLimit pagination responseTotal '${responseTotal.value}' must point at an integer field, " +
+                    "was ${totalType.simpleName}",
+            )
+        }
+    }
 
     private fun paginationItemType(
         operation: OperationModel,
@@ -1965,6 +2128,24 @@ private class SchemaProjectionContext(
         }
         val itemSchema = current.items ?: unsupported("pagination path '$path' does not resolve to an array")
         return typeFor(itemSchema, inlineName)
+    }
+
+    /** Resolves the projected type of the (scalar) field at [path] within [root], without requiring an array. */
+    fun typeAtPath(
+        root: SchemaRef,
+        path: List<String>,
+        inlineName: String,
+    ): KotlinTypeRef {
+        var current = dereference(root)
+        var currentRef = root
+        path.forEach { segment ->
+            val property =
+                flattenObjectProperties(current).firstOrNull { candidate -> candidate.name == segment }
+                    ?: unsupported("pagination path segment '$segment' is not present on ${current.id}")
+            currentRef = property.schema
+            current = dereference(property.schema)
+        }
+        return typeFor(currentRef, inlineName)
     }
 
     fun dereference(schemaRef: SchemaRef): SchemaModel = dereference(schemaRef.schemaId)

@@ -188,6 +188,23 @@ internal data class SourceDocument(
                 locations[pointer]
                     ?: error("No source location for $canonicalUri#$pointer"),
         )
+
+    /**
+     * Like [source], but a pointer with no recorded location (e.g. a diagnostic naming a REQUIRED-but-absent
+     * field) anchors to its nearest existing ancestor's location while keeping the requested [pointer] intact.
+     */
+    fun sourceNearest(pointer: String): SourcePointer {
+        var candidate = pointer
+        while (true) {
+            val location = locations[candidate]
+            if (location != null) {
+                return SourcePointer(documentUri = canonicalUri, jsonPointer = pointer, location = location)
+            }
+            val cut = candidate.lastIndexOf('/')
+            if (cut < 0) return source(pointer)
+            candidate = candidate.substring(0, cut)
+        }
+    }
 }
 
 internal class SourceRepository private constructor(

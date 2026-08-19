@@ -499,6 +499,18 @@ public sealed interface PaginationModel {
     public data class HeaderNextUrl(
         public val responseItems: JsonPointer,
     ) : PaginationModel
+
+    /**
+     * Numeric offset/limit pagination: [requestOffset] and [requestLimit] name the query parameters carrying the
+     * zero-based offset and page size, [responseItems] locates the item list in the decoded body, and termination
+     * is a short (or empty) page — or [responseTotal], when declared, pointing at the total item count.
+     */
+    public data class OffsetLimit(
+        public val requestOffset: String,
+        public val requestLimit: String,
+        public val responseItems: JsonPointer,
+        public val responseTotal: JsonPointer?,
+    ) : PaginationModel
 }
 
 /** Canonical operation streaming metadata adapted from `x-sdkgen-streaming`. */

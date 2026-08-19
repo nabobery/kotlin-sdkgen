@@ -3,15 +3,15 @@
     "generatorVersion": "fixture-verification",
     "edition": "community",
     "kotlinPoetVersion": "2.3.0",
-    "configDigest": "b72d375109d40a569d9a8d08860fc8c3177474e6c44dbe6325de44eee26dcbf2",
-    "declarationModelSha256": "29f2531892657a43a9505c2b1ac38153f065e9f4b81f69878c1ca6b7dbf4e2f0",
-    "effectiveContractSha256": "ac0da4229f07e40bcb9b19d468cc7be26591e0ec10283dedee2300396a66e102",
-    "semanticModelSha256": "58f716009a7bb3b19de7d170126e17b6a17e2045c16d4f36d2101a30ae992762",
-    "kotlinApiSha256": "3141a579acb38b5b8fcb16ca07f25302ac2ca49dc7e7e505f5cc70a7f2caf46b",
+    "configDigest": "9ff460acbd819f4759a4a4da72a80fb3ba1d0204a01849548dcd334ca515e7d2",
+    "declarationModelSha256": "924785735e957b48f3cd1e1d68cbd79b9280c3604f5ff60229f1ec1f3afe1b86",
+    "effectiveContractSha256": "2602438f453d055590335937b2c675ced78eb3bf02e9233de7abf1caa7f669ba",
+    "semanticModelSha256": "69c2ae3e36cb9dce56466606e2ead50f5936d2cb2f30f6244f1c08ffa9aeb328",
+    "kotlinApiSha256": "f7c61baaf09f9da1825c97c2e567d14d6ccdea3e606ba803fc92109f498fc636",
     "source": {
         "canonicalUri": "sdkgen://pagination-fixture/openapi.yaml",
-        "sha256": "ac0da4229f07e40bcb9b19d468cc7be26591e0ec10283dedee2300396a66e102",
-        "contentLength": 2237
+        "sha256": "2602438f453d055590335937b2c675ced78eb3bf02e9233de7abf1caa7f669ba",
+        "contentLength": 3772
     },
     "references": [],
     "overlays": [],
@@ -53,8 +53,16 @@
             "sha256": "4c810f7e8ed56b923faa5ee907fbc26f5af9dd4550277aa8a2240d4bb340eb0d"
         },
         {
+            "path": "com/nabobery/sdkgen/generated/Widget.kt",
+            "sha256": "d7658e2a077ff748148edde57c16075872f2f9938f5fac973db153793cf1a592"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/WidgetPage.kt",
+            "sha256": "53870f795076183f74ee15c2384aefabffbb3992bf14dc9ecb3398a819e87453"
+        },
+        {
             "path": "com/nabobery/sdkgen/generated/repos/ReposClient.kt",
-            "sha256": "021400eb08d43e4f686d442dc1add8da27f856b0fcc7dcbb59a10774f1252c2a"
+            "sha256": "e47718db5e8dd262420af9809d78cbe8b168a92e9acab3d870f029babc0c1a08"
         }
     ]
 }

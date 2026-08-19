@@ -7,9 +7,177 @@ actions:
   remove: true
 - target: $['paths']['/rerank']['post']['responses']['200']['content']['text/event-stream']
   remove: true
-- target: $['paths']['/chat/completions']['post']['responses']['200']['content']['text/event-stream']
+- target: "$['paths']['/chat/completions']['post']"
+  update:
+    x-sdkgen-streaming:
+      mode: sse
+      requestFlag: stream
+      responseContentType: text/event-stream
+      sentinel: "[DONE]"
+- target: "$['paths']['/chat/completions']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
   remove: true
-- target: $['paths']['/images']['post']['responses']['200']['content']['text/event-stream']
+- target: "$['paths']['/images']['post']"
+  update:
+    x-sdkgen-streaming:
+      mode: sse
+      requestFlag: stream
+      responseContentType: text/event-stream
+      sentinel: "[DONE]"
+- target: "$['paths']['/images']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
+  remove: true
+- target: "$['paths']['/byok']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/byok']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/datasets/app-rankings']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/datasets/app-rankings']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/embeddings/models']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/embeddings/models']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/files']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: cursor
+      requestCursor: cursor
+      requestLimit: limit
+      responseItems: /data
+      responseNextCursor: /cursor
+- target: "$['paths']['/files']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/guardrails']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/guardrails']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/guardrails/{id}/assignments/keys']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/guardrails/{id}/assignments/keys']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/guardrails/{id}/assignments/members']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/guardrails/{id}/assignments/members']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/guardrails/assignments/keys']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/guardrails/assignments/keys']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/guardrails/assignments/members']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/guardrails/assignments/members']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/models']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/models']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/models/user']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/models/user']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/observability/destinations']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/observability/destinations']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/organization/members']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/organization/members']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/presets']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/presets']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/presets/{slug}/versions']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/presets/{slug}/versions']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/workspaces']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/workspaces']['get']['x-speakeasy-pagination']"
+  remove: true
+- target: "$['paths']['/workspaces/{id}/members']['get']"
+  update:
+    x-sdkgen-pagination:
+      style: offsetLimit
+      requestOffset: offset
+      requestLimit: limit
+      responseItems: /data
+- target: "$['paths']['/workspaces/{id}/members']['get']['x-speakeasy-pagination']"
   remove: true
 - target: $['paths']['/messages']
   remove: true

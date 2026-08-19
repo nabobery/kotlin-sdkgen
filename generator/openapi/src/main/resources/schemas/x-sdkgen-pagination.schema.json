@@ -3,11 +3,16 @@
     "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-pagination.schema.json",
     "type": "object",
     "properties": {
-        "style": { "enum": ["cursor", "headerNextUrl"] },
+        "style": { "enum": ["cursor", "headerNextUrl", "offsetLimit"] },
         "requestCursor": { "type": "string", "minLength": 1 },
+        "requestOffset": { "type": "string", "minLength": 1 },
         "requestLimit": { "type": "string", "minLength": 1 },
         "responseItems": { "type": "string", "pattern": "^/(?:[^~]|~[01])*$" },
         "responseNextCursor": {
+            "type": "string",
+            "pattern": "^/(?:[^~]|~[01])*$"
+        },
+        "responseTotal": {
             "type": "string",
             "pattern": "^/(?:[^~]|~[01])*$"
         }
@@ -48,6 +53,28 @@
                     "responseItems": {}
                 },
                 "required": ["style", "responseItems"]
+            }
+        },
+        {
+            "if": {
+                "properties": { "style": { "const": "offsetLimit" } },
+                "required": ["style"]
+            },
+            "then": {
+                "additionalProperties": false,
+                "properties": {
+                    "style": {},
+                    "requestOffset": {},
+                    "requestLimit": {},
+                    "responseItems": {},
+                    "responseTotal": {}
+                },
+                "required": [
+                    "style",
+                    "requestOffset",
+                    "requestLimit",
+                    "responseItems"
+                ]
             }
         }
     ]

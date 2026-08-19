@@ -7,6 +7,18 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 
 ## [Unreleased]
 
+### Added
+
+- Server-sent event streaming for the OpenRouter conformance SDK: chat-completion and image operations now
+  expose generated buffered, `WithResponse`, and `Stream` methods, with `[DONE]` sentinel handling.
+- `offsetLimit` pagination generation (`x-sdkgen-pagination` with `offset`/`limit` request parameters and an
+  optional total field), producing `Pages`/`Items` flows alongside the existing cursor and header-URL styles.
+- Activation of all 17 OpenRouter paginated operations — 16 `offsetLimit` and one cursor — through canonical
+  overlay metadata.
+- `iosX64` and `macosX64` publication for the `runtime-core`, `runtime-testing`, and `transport-ktor` KMP
+  modules, adding the `-runtime-iosx64`, `-runtime-macosx64`, `-testing-iosx64`, `-testing-macosx64`,
+  `-transport-ktor-iosx64`, and `-transport-ktor-macosx64` coordinates under `io.github.nabobery`.
+
 ### Changed
 
 - Updated Ktor to `3.5.2` and refreshed the reproducible Kotlin/JS dependency lock.

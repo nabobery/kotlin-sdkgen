@@ -356,6 +356,100 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `offsetLimit pagination adapts to typed metadata with optional responseTotal`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Offset pagination, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                        responseTotal: /total
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+        val operation = document.operations.single()
+
+        assertEquals(
+            PaginationModel.OffsetLimit(
+                requestOffset = "offset",
+                requestLimit = "limit",
+                responseItems = JsonPointer("/data"),
+                responseTotal = JsonPointer("/total"),
+            ),
+            operation.pagination,
+        )
+    }
+
+    @Test
+    fun `offsetLimit pagination adapts without responseTotal to a null pointer`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.1.0
+                info: { title: Offset pagination, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestOffset: offset
+                        requestLimit: limit
+                        responseItems: /data
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+        val operation = document.operations.single()
+
+        assertEquals(
+            PaginationModel.OffsetLimit(
+                requestOffset = "offset",
+                requestLimit = "limit",
+                responseItems = JsonPointer("/data"),
+                responseTotal = null,
+            ),
+            operation.pagination,
+        )
+    }
+
+    @Test
+    fun `offsetLimit pagination reports a helpful failure when requestOffset is missing`() {
+        val result =
+            adaptYamlResult(
+                """
+                openapi: 3.1.0
+                info: { title: Offset pagination, version: 1.0.0 }
+                paths:
+                  /items:
+                    get:
+                      operationId: listItems
+                      x-sdkgen-pagination:
+                        style: offsetLimit
+                        requestLimit: limit
+                        responseItems: /data
+                      responses:
+                        '200': { description: ok }
+                """.trimIndent(),
+            )
+
+        val diagnostic = result.document.diagnostics.single { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION }
+        assertEquals(
+            "/paths/~1items/get/x-sdkgen-pagination/requestOffset",
+            diagnostic.source.jsonPointer,
+        )
+    }
+
+    @Test
     fun `overlay canonical extensions adapt end to end`() {
         val source =
             """

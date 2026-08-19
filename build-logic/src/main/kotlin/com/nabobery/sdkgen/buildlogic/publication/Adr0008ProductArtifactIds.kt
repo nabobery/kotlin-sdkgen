@@ -66,11 +66,13 @@ public object Adr0008ProductArtifactIds {
             "android",
             "iosarm64",
             "iossimulatorarm64",
+            "iosx64",
             "js",
             "jvm",
             "linuxarm64",
             "linuxx64",
             "macosarm64",
+            "macosx64",
             "mingwx64",
         )
 

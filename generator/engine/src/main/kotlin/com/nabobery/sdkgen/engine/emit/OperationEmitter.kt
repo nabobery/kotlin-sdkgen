@@ -11,6 +11,7 @@ import com.nabobery.sdkgen.engine.declarations.MultipartPartDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationParameterDeclaration
+import com.nabobery.sdkgen.engine.declarations.OperationParameterLocation
 import com.nabobery.sdkgen.engine.declarations.OperationRequestBodyAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
@@ -311,6 +312,7 @@ private data class OperationMethodNames(
     val responseDecoderName: String? = null,
     val parameterNames: Map<OperationParameterDeclaration, String> = emptyMap(),
     val cursorParameterName: String? = null,
+    val offsetParameterName: String? = null,
     val limitParameterName: String? = null,
     /** `<operationName>Stream`, collision-allocated; populated only for [OperationResponseMode.MIXED] operations. */
     val streamName: String? = null,
@@ -338,6 +340,7 @@ private fun operationMethodNames(
         val current = names.getValue(operation)
         val parameterNames = operationParameterNames(operation)
         val pagination = operation.pagination as? PaginationDeclaration.CursorToken
+        val offsetPagination = operation.pagination as? PaginationDeclaration.OffsetLimit
         val responseTypeName =
             if (typedResponseAlternativesSupported(operation)) {
                 uniqueMemberName(
@@ -399,11 +402,21 @@ private fun operationMethodNames(
                 parameterNames = parameterNames,
                 cursorParameterName =
                     pagination?.requestCursorParam?.let { raw ->
-                        operation.parameters.firstOrNull { it.name == raw }?.let(parameterNames::get)
+                        operation.parameters
+                            .firstOrNull { it.name == raw && it.location == OperationParameterLocation.QUERY }
+                            ?.let(parameterNames::get)
+                    },
+                offsetParameterName =
+                    offsetPagination?.requestOffsetParam?.let { raw ->
+                        operation.parameters
+                            .firstOrNull { it.name == raw && it.location == OperationParameterLocation.QUERY }
+                            ?.let(parameterNames::get)
                     },
                 limitParameterName =
-                    pagination?.requestLimitParam?.let { raw ->
-                        operation.parameters.firstOrNull { it.name == raw }?.let(parameterNames::get)
+                    (pagination?.requestLimitParam ?: offsetPagination?.requestLimitParam)?.let { raw ->
+                        operation.parameters
+                            .firstOrNull { it.name == raw && it.location == OperationParameterLocation.QUERY }
+                            ?.let(parameterNames::get)
                     },
             )
     }
@@ -1775,7 +1788,26 @@ private fun paginationExpression(operation: OperationDeclaration): CodeBlock =
                 pagination.responseItemsPath,
             )
         }
+
+        is PaginationDeclaration.OffsetLimit -> {
+            CodeBlock
+                .builder()
+                .add(
+                    "%T.OffsetLimit(requestOffsetParam = %S, requestLimitParam = %S, ",
+                    PAGINATION_DESCRIPTOR,
+                    pagination.requestOffsetParam,
+                    pagination.requestLimitParam,
+                ).add(
+                    "responseItemsPath = %T(%S), responseTotalPath = %L)",
+                    PROPERTY_PATH,
+                    pagination.responseItemsPath,
+                    nullablePropertyPathExpression(pagination.responseTotalPath),
+                ).build()
+        }
     }
+
+private fun nullablePropertyPathExpression(path: String?): CodeBlock =
+    path?.let { CodeBlock.of("%T(%S)", PROPERTY_PATH, it) } ?: CodeBlock.of("null")
 
 private fun streamingExpression(operation: OperationDeclaration): CodeBlock =
     when (val streaming = operation.streaming) {
@@ -2179,7 +2211,7 @@ private fun EmissionContext.paginatedOperationFunction(
             )
     function.addStatement(
         "val engine = %L",
-        paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
+        paginationEngineExpression(operation, names, metadataPropertyName, responseType, itemType, pagination),
     )
     function.addStatement(
         "return engine.firstPage { pageRequest -> %L(%L, pageRequest, options) }",
@@ -2213,7 +2245,7 @@ private fun EmissionContext.paginationPagesFunction(
                 "@param options Execution options, including pagination bounds.\n",
         ).addStatement(
             "return %L.pages(fetch = { pageRequest -> %L(%L, pageRequest, options) }, pagination = options.pagination)",
-            paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
+            paginationEngineExpression(operation, names, metadataPropertyName, responseType, itemType, pagination),
             requireNotNull(names.fetchPageName),
             pageFetchArguments(operation, names),
         ).build()
@@ -2241,7 +2273,7 @@ private fun EmissionContext.paginationItemsFunction(
                 "@param options Execution options, including pagination bounds.\n",
         ).addStatement(
             "return %L.items(fetch = { pageRequest -> %L(%L, pageRequest, options) }, pagination = options.pagination)",
-            paginationEngineExpression(metadataPropertyName, responseType, itemType, pagination),
+            paginationEngineExpression(operation, names, metadataPropertyName, responseType, itemType, pagination),
             requireNotNull(names.fetchPageName),
             pageFetchArguments(operation, names),
         ).build()
@@ -2361,12 +2393,46 @@ private fun EmissionContext.pageFetcherFunction(
             body.add("requestUri = requestUri,\n")
             body.unindent().add(")\n")
         }
+
+        is PaginationDeclaration.OffsetLimit -> {
+            body.add(
+                "val response = executor.execute<%T, %T>(%T(pageMetadata, baseUri, pageRequestValue, %L, %L), " +
+                    "%L, %T.%L, %T.%L, options)\n",
+                requestType,
+                responseType,
+                SDK_EXECUTION_REQUEST,
+                requestCodecIds(operation, codecsType),
+                pageRequestParametersExpression(operation, names),
+                responseCodecIds(operation, codecsType),
+                codecsType,
+                "${operation.requestCodecPropertyName}Registry",
+                codecsType,
+                "${operation.responseCodecPropertyName}Registry",
+            )
+            val totalPath = pagination.responseTotalPath
+            if (totalPath != null) {
+                body.add(
+                    "return %T(value = response, items = %L.orEmpty(), totalCount = %L?.toLong())\n",
+                    PAGE_ENVELOPE,
+                    responsePathExpression("response", pagination.responseItemsPath),
+                    responsePathExpression("response", totalPath),
+                )
+            } else {
+                body.add(
+                    "return %T(value = response, items = %L.orEmpty())\n",
+                    PAGE_ENVELOPE,
+                    responsePathExpression("response", pagination.responseItemsPath),
+                )
+            }
+        }
     }
     function.addCode(body.build())
     return function.build()
 }
 
 private fun paginationEngineExpression(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
     metadataPropertyName: String,
     responseType: TypeName,
     itemType: TypeName,
@@ -2376,6 +2442,7 @@ private fun paginationEngineExpression(
         when (pagination) {
             is PaginationDeclaration.CursorToken -> "CursorToken"
             is PaginationDeclaration.HeaderNextUrl -> "HeaderNextUrl"
+            is PaginationDeclaration.OffsetLimit -> "OffsetLimit"
         }
     return CodeBlock
         .builder()
@@ -2391,9 +2458,33 @@ private fun paginationEngineExpression(
             if (pagination is PaginationDeclaration.HeaderNextUrl) {
                 add("trustedHosts = paginationTrustedHosts,\n")
             }
+            if (pagination is PaginationDeclaration.OffsetLimit) {
+                // Widening Int -> Long is always safe; the limit is Int? by the offsetLimit contract (Task 2.4
+                // rejects an int64/Long limit), so the engine's Int? page size is passed through unconverted.
+                add("requestedPageSize = %L,\n", requireNotNull(names.limitParameterName))
+                add("initialOffset = %L,\n", offsetSeedExpression(operation, names, pagination))
+            }
         }.unindent()
         .add(")")
         .build()
+}
+
+private fun offsetSeedExpression(
+    operation: OperationDeclaration,
+    names: OperationMethodNames,
+    pagination: PaginationDeclaration.OffsetLimit,
+): CodeBlock {
+    val offsetName = requireNotNull(names.offsetParameterName)
+    val offsetParameter =
+        operation.parameters.firstOrNull {
+            it.name == pagination.requestOffsetParam && it.location == OperationParameterLocation.QUERY
+        }
+    val offsetNullable = offsetParameter == null || !offsetParameter.required || offsetParameter.type.nullable
+    return if (offsetNullable) {
+        CodeBlock.of("%L?.toLong() ?: 0L", offsetName)
+    } else {
+        CodeBlock.of("%L.toLong()", offsetName)
+    }
 }
 
 private fun responsePathExpression(
@@ -2423,6 +2514,7 @@ private fun parameterListExpression(
     pageRequestAware: Boolean,
 ): CodeBlock {
     val pagination = operation.pagination as? PaginationDeclaration.CursorToken
+    val offsetPagination = operation.pagination as? PaginationDeclaration.OffsetLimit
     if (operation.parameters.isEmpty()) return CodeBlock.of("emptyList()")
     val result = CodeBlock.builder()
     if (pageRequestAware && pagination != null && names.cursorParameterName != null) {
@@ -2534,12 +2626,24 @@ private fun parameterListExpression(
             ParameterSerialization.PrimitiveUnion,
             -> {
                 val valueExpression =
-                    if (pageRequestAware && pagination?.requestCursorParam == parameter.name &&
-                        names.cursorParameterName != null
-                    ) {
-                        CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
-                    } else {
-                        parameterValuesExpression(parameter, parameterName)
+                    when {
+                        pageRequestAware && pagination?.requestCursorParam == parameter.name &&
+                            parameter.location == OperationParameterLocation.QUERY &&
+                            names.cursorParameterName != null -> {
+                            CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
+                        }
+
+                        pageRequestAware && offsetPagination?.requestOffsetParam == parameter.name &&
+                            parameter.location == OperationParameterLocation.QUERY &&
+                            names.offsetParameterName != null -> {
+                            // No-narrowing contract: the Long continuation offset is spliced straight into the
+                            // query value; the caller's typed Int offset is used only for the first page.
+                            offsetParameterValuesExpression(parameter, parameterName)
+                        }
+
+                        else -> {
+                            parameterValuesExpression(parameter, parameterName)
+                        }
                     }
                 result.add(
                     "add(%T(location = %T.%L, name = %S, values = %L))\n",
@@ -2558,6 +2662,20 @@ private fun parameterListExpression(
     }
     return result.build()
 }
+
+private fun offsetParameterValuesExpression(
+    parameter: OperationParameterDeclaration,
+    parameterName: String,
+): CodeBlock =
+    CodeBlock
+        .builder()
+        .add("when (pageRequest) {\n")
+        .indent()
+        .add("is %T.NextOffset -> listOf(pageRequest.offset.toString())\n", PAGE_REQUEST)
+        .add("else -> %L\n", parameterValuesExpression(parameter, parameterName))
+        .unindent()
+        .add("}")
+        .build()
 
 private fun parameterValuesExpression(
     parameter: OperationParameterDeclaration,
