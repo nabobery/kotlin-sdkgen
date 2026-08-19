@@ -1,12 +1,9 @@
 # Publishing guide
 
-> **Implementation status (2026-08-14):** Complete POM metadata, reproducible javadoc jars, in-memory PGP
-> signing, CycloneDX SBOM generation, Nmcp Central Portal aggregation, Gradle Plugin Portal publication,
-> GitHub artifact attestation, and a protected manual release workflow are implemented. The `release`
-> environment requires explicit maintainer approval without administrator bypass, its `main`/`v*` deployment
-> policy and all six expected secret names are present, and the maintainer has confirmed the publication
-> accounts and signing key are ready. The protected `v0.1.0` workflow published to Maven Central and
-> submitted the first Gradle plugin version; that plugin remains under the portal's manual review.
+> **Implementation status:** Complete POM metadata, reproducible javadoc jars, in-memory PGP signing, CycloneDX
+> SBOM generation, Central Portal aggregation, Gradle Plugin Portal publication, GitHub artifact attestation, and
+> a protected manual release workflow are implemented. Release-specific status belongs in the corresponding
+> GitHub Release and workflow record rather than this guide.
 
 This is the guide for actually setting up credentials and publishing Kotlin SDKGen's artifacts. It is
 written for the project owner, not for a contributor. It complements — and does not duplicate —
@@ -31,35 +28,34 @@ credential-free and never publishes; `.github/workflows/release.yml` is the only
 - `com.gradle.plugin-publish` provides `validatePlugins` and `publishPlugins` for the Gradle plugin.
 - CycloneDX generates the SBOM and GitHub attests the staged release artifacts in the protected workflow.
 
-**What also works today**, and is the safest first step: the isolated local-repository staging
-rehearsal. It was executed for real during release readiness closure — 1,190 artifacts staged, exactly the 8 ADR-0008
-coordinates (plus the Gradle plugin marker), zero internal-coordinate leakage, `verifyPublicationMetadata`
-and `verifyStagedArtifactInventory` both green. Section 5 contains the reproducible commands.
+The safest first step is the isolated local-repository staging rehearsal. It verifies the eight ADR-0008 coordinates
+and Gradle plugin marker, rejects internal-coordinate leakage, and validates publication metadata and the staged
+artifact inventory. Section 5 contains the reproducible commands.
 
 The structure of the rest of this guide: what must be true before a first publish (§1), how to set up each
 credential (§2), the recommended release mechanism and why (§3), the version/release flow (§4), the dry-run
-commands that work right now (§5), and a first-release checklist (§6).
+commands that work right now (§5), and the release checklist (§6).
 
 ## 1. Prerequisites checklist
 
 In dependency order. "Code" means a change to this repository; "account" means something the owner does
 externally (no code change).
 
-| # | Prerequisite | Type | Status | Blocked on |
-| - | --- | --- | --- | --- |
-| 1 | `ANDROID_HOME` set (Android SDK installed) | account/env | required today | The publish graph pulls in `runtime:core`'s Android variant. The first release readiness rehearsal attempt failed with `SDK location not found` before this was set. CI already provisions it (`android-actions/setup-android` in `release-verification.yml`); a human running this locally must set it themselves. |
-| 2 | POM metadata (`pom { }` block: license, developers, SCM URL) | code | complete | Applied to every ADR-0008 Maven publication |
-| 3 | GPG signing wired into the build (`signing` plugin) | code | complete | In-memory signing; release mode fails closed without credentials |
-| 4 | Dokka documentation jar task | code | complete | Reproducible, non-empty Dokka HTML jar attached with the `javadoc` classifier to every product publication |
-| 5 | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account | maintainer verified | See §2, "Maven Central" |
-| 6 | Central Portal user token generated | account/credential | verified by `v0.1.0` publication | Depends on #5 |
-| 7 | GPG key pair generated, public key published to a keyserver | account/credential | maintainer verified; signing rehearsed | The protected rehearsal proves the private key and passphrase pair works |
-| 8 | Central Portal publishing plugin applied (Nmcp) | code | complete | Nmcp 1.6.1; `USER_MANAGED` by default, with tag-bound release opting into `AUTOMATIC` and a bounded wait |
-| 9 | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin` | code | complete | Plugin Portal 2.1.1; `validatePlugins` is rehearsed |
-| 10 | Gradle Plugin Portal account + API key/secret | account/credential | submission verified; first version under manual review | Portal availability remains pending until review completes |
-| 11 | SBOM (CycloneDX) | code | complete | CycloneDX 3.3.0 aggregate BOM |
-| 12 | Provenance attestation wiring (`actions/attest-build-provenance`) | code | complete | Immutable v4.1.0 action SHA in `release.yml` |
-| 13 | GitHub Environment with required reviewer, scoped publish secrets | account/CI config | complete | The maintainer is the required reviewer with self-review allowed for solo operation; administrator bypass is disabled, the `main`/`v*` policy is active, and all six secrets exist |
+| #   | Prerequisite                                                                        | Type               | Status                                 | Blocked on                                                                                                                                                                         |
+| --- | ----------------------------------------------------------------------------------- | ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `ANDROID_HOME` set (Android SDK installed)                                          | account/env        | required today                         | The publish graph pulls in `runtime:core`'s Android variant. CI provisions it with `android-actions/setup-android`; a human running this locally must set it themselves.           |
+| 2   | POM metadata (`pom { }` block: license, developers, SCM URL)                        | code               | complete                               | Applied to every ADR-0008 Maven publication                                                                                                                                        |
+| 3   | GPG signing wired into the build (`signing` plugin)                                 | code               | complete                               | In-memory signing; release mode fails closed without credentials                                                                                                                   |
+| 4   | Dokka documentation jar task                                                        | code               | complete                               | Reproducible, non-empty Dokka HTML jar attached with the `javadoc` classifier to every product publication                                                                         |
+| 5   | Central Portal namespace verification (`io.github.nabobery`, decision already made) | account            | maintainer verified                    | See §2, "Maven Central"                                                                                                                                                            |
+| 6   | Central Portal user token generated                                                 | account/credential | required for publication               | Depends on #5                                                                                                                                                                      |
+| 7   | GPG key pair generated, public key published to a keyserver                         | account/credential | maintainer verified; signing rehearsed | The protected rehearsal proves the private key and passphrase pair works                                                                                                           |
+| 8   | Central Portal publishing plugin applied (Nmcp)                                     | code               | complete                               | Nmcp 1.6.1; `USER_MANAGED` by default, with tag-bound release opting into `AUTOMATIC` and a bounded wait                                                                           |
+| 9   | `com.gradle.plugin-publish` applied to `integrations/gradle-plugin`                 | code               | complete                               | Plugin Portal 2.1.1; `validatePlugins` is rehearsed                                                                                                                                |
+| 10  | Gradle Plugin Portal account + API key/secret                                       | account/credential | required for publication               | Verify each released version independently                                                                                                                                         |
+| 11  | SBOM (CycloneDX)                                                                    | code               | complete                               | CycloneDX 3.3.0 aggregate BOM                                                                                                                                                      |
+| 12  | Provenance attestation wiring (`actions/attest-build-provenance`)                   | code               | complete                               | Immutable v4.1.0 action SHA in `release.yml`                                                                                                                                       |
+| 13  | GitHub Environment with required reviewer, scoped publish secrets                   | account/CI config  | complete                               | The maintainer is the required reviewer with self-review allowed for solo operation; administrator bypass is disabled, the `main`/`v*` policy is active, and all six secrets exist |
 
 The remaining unchecked items are release-specific verification and publication steps.
 
@@ -90,51 +86,51 @@ maintain.
 3. Generate a **user token** (Account → Generate User Token). This produces a token username and token
    password pair — distinct from your Central Portal login password.
 4. Store it:
-   - **GitHub secret names:** `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`
-   - **Local testing** (`~/.gradle/gradle.properties`, outside this repo):
-     ```properties
-     mavenCentralUsername=<PLACEHOLDER_TOKEN_USERNAME>
-     mavenCentralPassword=<PLACEHOLDER_TOKEN_PASSWORD>
-     ```
-   These property names match the applied Nmcp plugin and the protected workflow's environment-variable bridge.
+    - **GitHub secret names:** `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`
+    - **Local testing** (`~/.gradle/gradle.properties`, outside this repo):
+        ```properties
+        mavenCentralUsername=<PLACEHOLDER_TOKEN_USERNAME>
+        mavenCentralPassword=<PLACEHOLDER_TOKEN_PASSWORD>
+        ```
+    These property names match the applied Nmcp plugin and the protected workflow's environment-variable bridge.
 
 ### GPG signing key
 
 1. Generate a dedicated release key (do not reuse a personal email key for this if avoidable):
-   ```bash
-   gpg --full-generate-key
-   ```
-   Choose RSA 4096, and **set an expiration date** (e.g. 2 years) rather than "never" — an expiring key
-   forces a deliberate rotation decision instead of an indefinite standing credential.
+    ```bash
+    gpg --full-generate-key
+    ```
+    Choose RSA 4096, and **set an expiration date** (e.g. 2 years) rather than "never" — an expiring key
+    forces a deliberate rotation decision instead of an indefinite standing credential.
 2. Publish the public key to a keyserver so Central can verify signatures against it:
-   ```bash
-   gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
-   ```
+    ```bash
+    gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+    ```
 3. Export the armored private key for use as a CI secret:
-   ```bash
-   gpg --export-secret-keys --armor <KEY_ID> > release-signing-key.asc
-   ```
-   Treat `release-signing-key.asc` as a secret file the moment it is created. Delete it from local disk once
-   it is loaded into the GitHub Environment secret store; never commit it, attach it to an issue, or paste it
-   into chat.
+    ```bash
+    gpg --export-secret-keys --armor <KEY_ID> > release-signing-key.asc
+    ```
+    Treat `release-signing-key.asc` as a secret file the moment it is created. Delete it from local disk once
+    it is loaded into the GitHub Environment secret store; never commit it, attach it to an issue, or paste it
+    into chat.
 4. Passphrase handling: choose a strong passphrase when generating the key. It is a second secret, stored
    separately from the key material — never derive it from, or store it alongside, the same value as the
    key export.
 5. Store both:
-   - **GitHub secret names:** `GPG_SIGNING_KEY` (the full armored private key contents), `GPG_SIGNING_PASSPHRASE`
-   - **Local testing** (`~/.gradle/gradle.properties`):
-     ```properties
-     signing.keyId=<PLACEHOLDER_LAST_8_HEX_OF_KEY_ID>
-     signing.password=<PLACEHOLDER_PASSPHRASE>
-     signing.secretKeyRingFile=<PLACEHOLDER_PATH_TO_LOCAL_SECRING>
-     ```
-     or, using Gradle's in-memory signing form (works without a keyring file, which fits CI better):
-     ```properties
-     signingInMemoryKey=<PLACEHOLDER_ARMORED_PRIVATE_KEY>
-     signingInMemoryKeyPassword=<PLACEHOLDER_PASSPHRASE>
-     ```
-   These are the conventional Gradle `signing` plugin property names. The applied publishing convention also
-   accepts the `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE` environment variables used by CI.
+    - **GitHub secret names:** `GPG_SIGNING_KEY` (the full armored private key contents), `GPG_SIGNING_PASSPHRASE`
+    - **Local testing** (`~/.gradle/gradle.properties`):
+        ```properties
+        signing.keyId=<PLACEHOLDER_LAST_8_HEX_OF_KEY_ID>
+        signing.password=<PLACEHOLDER_PASSPHRASE>
+        signing.secretKeyRingFile=<PLACEHOLDER_PATH_TO_LOCAL_SECRING>
+        ```
+        or, using Gradle's in-memory signing form (works without a keyring file, which fits CI better):
+        ```properties
+        signingInMemoryKey=<PLACEHOLDER_ARMORED_PRIVATE_KEY>
+        signingInMemoryKeyPassword=<PLACEHOLDER_PASSPHRASE>
+        ```
+    These are the conventional Gradle `signing` plugin property names. The applied publishing convention also
+    accepts the `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE` environment variables used by CI.
 6. The private key and passphrase must never enter the repository at any point — not in a commit, not in a
    throwaway branch, not in a `.gitignore`d file that gets force-added, not in a build script default. Per
    `docs/release-runbook.md`, only ever rehearse with a separate throwaway key, never this one.
@@ -147,21 +143,21 @@ credentials and the tag-bound protected-workflow authorization described in §3.
 1. Create an account at `plugins.gradle.org` and register as a publisher.
 2. Generate an API key/secret pair from the portal's account settings.
 3. Store it:
-   - **GitHub secret names:** `GRADLE_PUBLISH_KEY`, `GRADLE_PUBLISH_SECRET`
-   - **Local testing** (`~/.gradle/gradle.properties`):
-     ```properties
-     gradle.publish.key=<PLACEHOLDER_API_KEY>
-     gradle.publish.secret=<PLACEHOLDER_API_SECRET>
-     ```
-   These are the exact property names `com.gradle.plugin-publish` reads by convention.
+    - **GitHub secret names:** `GRADLE_PUBLISH_KEY`, `GRADLE_PUBLISH_SECRET`
+    - **Local testing** (`~/.gradle/gradle.properties`):
+        ```properties
+        gradle.publish.key=<PLACEHOLDER_API_KEY>
+        gradle.publish.secret=<PLACEHOLDER_API_SECRET>
+        ```
+    These are the exact property names `com.gradle.plugin-publish` reads by convention.
 
 ### Credential summary
 
-| Credential | GitHub secret name(s) | Local property (in `~/.gradle/gradle.properties`) |
-| --- | --- | --- |
-| Central Portal token | `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | `mavenCentralUsername`, `mavenCentralPassword` |
-| GPG signing key | `GPG_SIGNING_KEY`, `GPG_SIGNING_PASSPHRASE` | `signingInMemoryKey`, `signingInMemoryKeyPassword` |
-| Gradle Plugin Portal | `GRADLE_PUBLISH_KEY`, `GRADLE_PUBLISH_SECRET` | `gradle.publish.key`, `gradle.publish.secret` |
+| Credential           | GitHub secret name(s)                              | Local property (in `~/.gradle/gradle.properties`)  |
+| -------------------- | -------------------------------------------------- | -------------------------------------------------- |
+| Central Portal token | `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD` | `mavenCentralUsername`, `mavenCentralPassword`     |
+| GPG signing key      | `GPG_SIGNING_KEY`, `GPG_SIGNING_PASSPHRASE`        | `signingInMemoryKey`, `signingInMemoryKeyPassword` |
+| Gradle Plugin Portal | `GRADLE_PUBLISH_KEY`, `GRADLE_PUBLISH_SECRET`      | `gradle.publish.key`, `gradle.publish.secret`      |
 
 ## 3. The recommended release mechanism
 
@@ -210,11 +206,11 @@ workflow refuses a branch ref, a mismatched version, or a tag whose commit is no
 
 ## 4. Version and release flow
 
-`sdkgenVersion` is currently `0.1.0-SNAPSHOT` (`gradle.properties:9`).
+The default development version is stored in `gradle.properties` as `sdkgenVersion`.
 
 - **SNAPSHOT versions** (`-SNAPSHOT` suffix) are for local/CI iteration only. Maven Central **rejects
   SNAPSHOT publications** outright — a real release must bump `sdkgenVersion` to a plain release version
-  (e.g. `0.1.0`) before publishing.
+  (for example, `0.2.1`) before publishing.
 - **Version validation:** `release.yml` validates its required version input against the strict
   `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$` grammar and rejects SNAPSHOT versions before
   using the quoted value in any Gradle argument. It also requires the selected ref to be the matching
@@ -229,7 +225,6 @@ marker, detected no internal-coordinate leakage, and passed both verification ta
 
 ```bash
 # ANDROID_HOME must be set first — the publish graph pulls in runtime:core's Android variant.
-# The first release readiness rehearsal attempt failed with "SDK location not found" without this.
 export ANDROID_HOME="$HOME/Library/Android/sdk"   # adjust to your local SDK install
 
 # 1. Publish every ADR-0008 coordinate to an isolated local file repository — never a remote one.
@@ -256,7 +251,7 @@ export ANDROID_HOME="$HOME/Library/Android/sdk"   # adjust to your local SDK ins
   :conformance:publication:verifyStagedArtifactInventory
 ```
 
-To rehearse a specific release-candidate version rather than the default `0.1.0-SNAPSHOT`, add
+To rehearse a specific release-candidate version rather than the development SNAPSHOT, add
 `-PsdkgenVersion=<version>` to every one of the three commands above (all three must agree — each
 `./gradlew` invocation is a fresh process with `--no-daemon`, so the property does not carry over between
 them).
@@ -276,9 +271,9 @@ header comment and by `permissions: contents: read` at both workflow and job sco
 The credential-free rehearsal does not sign or attest artifacts. After that same gate passes for a tagged
 release SHA, the protected `release.yml` job adds release-mode signing, per-coordinate Dokka/POM validation,
 the aggregate SBOM, deterministic bundle creation, artifact upload, and provenance attestation before it
-reaches either portal. Only an explicitly authorized first publication can prove those external boundaries.
+reaches either portal. Only an explicitly authorized publication can prove those external boundaries for a version.
 
-## 6. First-release checklist
+## 6. Release checklist
 
 Ordered; each step assumes the previous ones are done.
 
@@ -287,32 +282,30 @@ Ordered; each step assumes the previous ones are done.
 3. [x] Produce a reproducible `-javadoc.jar` for every publication.
 4. [x] Apply release-gated in-memory signing so every publication is signed.
 5. [x] Confirm the working GPG release key's public key is on a keyserver. The protected rehearsal has
-   verified the private-key/passphrase secrets without exposing them.
+       verified the private-key/passphrase secrets without exposing them.
 6. [x] Verify and register the chosen Central Portal namespace; generate the user token (§2).
 7. [x] Make the protected release opt into Nmcp `AUTOMATIC` mode and wait for `PUBLISHED` before publishing the plugin.
 8. [x] Generate an aggregate CycloneDX SBOM.
-9. [x] Confirm Plugin Portal publisher ownership. The authenticated `0.1.0` submission succeeded; the first
-   version remains under the portal's manual review.
+9. [x] Confirm Plugin Portal publisher ownership and credential availability.
 10. [x] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
-    deployment policy.
+        deployment policy.
 11. [x] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
-    version already published to either portal.
+        version already published to either portal.
 12. [x] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
-    and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real
-    release" step 3).
+        and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real
+        release" step 3).
 13. [x] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact
-    identity, signatures, and any SBOM are version-specific.
+        identity, signatures, and any SBOM are version-specific.
 14. [x] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback,
-    no project substitution) to prove the graph resolves independently.
+        no project substitution) to prove the graph resolves independently.
 15. [x] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from
-    that tag with the matching `version`, then obtain the required-reviewer approval on the Environment.
-16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed. Central is verified for
-    `0.1.0`; the first plugin publication is awaiting the portal's manual review.
+        that tag with the matching `version`, then obtain the required-reviewer approval on the Environment.
+16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed for this version.
 17. [x] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
 18. [ ] Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain`), the
-    applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
+        applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
 19. [ ] **Post-publish verification:** resolve every published coordinate from a fresh, unrelated project
-    (not this repository) against the real Central repository, confirm the version and checksums match what
-    was staged, and confirm the artifact is visible on `central.sonatype.com` and (if published) on
-    `plugins.gradle.org`.
-20. [x] Update `docs/release-runbook.md`'s "Current publication status" section with the verified release state.
+        (not this repository) against the real Central repository, confirm the version and checksums match what
+        was staged, and confirm the artifact is visible on `central.sonatype.com` and (if published) on
+        `plugins.gradle.org`.
+20. [ ] Publish the version's release record and retain links to the successful workflows and attestations.

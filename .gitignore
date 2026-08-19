@@ -18,5 +18,7 @@ claudex*.log
 /scratchpad/
 
 # Internal phase plans, review notes, and raw evidence stay local.
+/docs/archive/
 /docs/phase[0-9]/
 /docs/plans/
+/conformance/openrouter/evidence/

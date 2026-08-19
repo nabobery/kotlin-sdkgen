@@ -8,29 +8,28 @@ trusting this page.
 reported 426/161 (72.6%/27.4%). That revision is superseded on two counts — the numbers **and the stated
 cause** — see [What the earlier revision got wrong](#what-the-earlier-revision-got-wrong).
 
-Historical checkpoints are preserved unchanged and are not rewritten:
-[`t11-stripe-conformance.md`](t11-stripe-conformance.md) (430/157) and
-[`stripe-waivers.tsv`](stripe-waivers.tsv) / [`stripe-exclusion-delta.tsv`](stripe-exclusion-delta.tsv)
-(157 + 4 = 161) remain the record at their commits.
+The versioned [`stripe-waivers.tsv`](stripe-waivers.tsv) and
+[`stripe-exclusion-delta.tsv`](stripe-exclusion-delta.tsv) inventories preserve the prior 157 + 4 = 161
+boundary for comparison.
 
 ## The headline numbers
 
 The pinned Stripe OpenAPI snapshot (`conformance/stripe/openapi.json`, SHA-256
 `e24a26de4188fd64dec4c043d5d3726277fdcb07556a493ea481c305b0a223d8`) declares **587 operations**. Of those:
 
-| | Operations | Share of 587 |
-| --- | ---: | ---: |
-| **Generated** (present in the typed client) | **519** | **88.4%** |
-| **Excluded** (absent from the typed client) | **68** | **11.6%** |
+|                                             | Operations | Share of 587 |
+| ------------------------------------------- | ---------: | -----------: |
+| **Generated** (present in the typed client) |    **519** |    **88.4%** |
+| **Excluded** (absent from the typed client) |     **68** |    **11.6%** |
 
 The excluded 68 break down into three categories:
 
-| Category | Operations | Share of 587 | What it means |
-| --- | ---: | ---: | --- |
-| `form-composition` | 58 | 9.9% | The operation's form body is a union (`anyOf`) of shapes whose JSON wire kinds overlap, so the encoder cannot tell which branch a caller's value belongs to without guessing. |
-| `form-object-no-declared-shape` | 6 | 1.0% | A nested form object declares no properties *and* omits `additionalProperties`, so the source states no shape for it at all. Unlike a JSON body, which can degrade to `JsonObject`, a form body has no primitive for serializing an undeclared shape as `key=value` pairs. |
-| `parameter-deep-object-nonprimitive-{array,property}` | 4 | 0.7% | A `deepObject`-style query parameter contains a nested array or property whose own schema is itself an object/array rather than a primitive scalar, which the bracket-indexed encoding contract does not cover. |
-| **Total excluded** | **68** | **11.6%** | |
+| Category                                              | Operations | Share of 587 | What it means                                                                                                                                                                                                                                                              |
+| ----------------------------------------------------- | ---------: | -----------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form-composition`                                    |         58 |         9.9% | The operation's form body is a union (`anyOf`) of shapes whose JSON wire kinds overlap, so the encoder cannot tell which branch a caller's value belongs to without guessing.                                                                                              |
+| `form-object-no-declared-shape`                       |          6 |         1.0% | A nested form object declares no properties _and_ omits `additionalProperties`, so the source states no shape for it at all. Unlike a JSON body, which can degrade to `JsonObject`, a form body has no primitive for serializing an undeclared shape as `key=value` pairs. |
+| `parameter-deep-object-nonprimitive-{array,property}` |          4 |         0.7% | A `deepObject`-style query parameter contains a nested array or property whose own schema is itself an object/array rather than a primitive scalar, which the bracket-indexed encoding contract does not cover.                                                            |
+| **Total excluded**                                    |     **68** |    **11.6%** |                                                                                                                                                                                                                                                                            |
 
 58 + 6 + 4 = 68, and 587 − 68 = 519. Reproduction commands are in [How to reproduce these
 counts](#how-to-reproduce-these-counts) below.
@@ -84,7 +83,7 @@ What remains prohibited, and therefore still excluded:
 Each carries its own diagnostic and its own reason hash, so they are waivable and countable independently
 rather than collapsed into one bucket.
 
-Where the generator *can* express dynamic keys with a real type — a typed `Map<String, T>` for a schema whose
+Where the generator _can_ express dynamic keys with a real type — a typed `Map<String, T>` for a schema whose
 additional-property value has a declared shape, as with Stripe's `metadata` — it already does, and ADR-0014
 leaves that path untouched.
 

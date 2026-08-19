@@ -1,8 +1,8 @@
 # Release runbook
 
-Kotlin SDKGen published its first Maven Central artifacts as version `0.1.0`. This runbook is the
-operational procedure for subsequent releases; release records and attestations remain the evidence
-for individual publications.
+Kotlin SDKGen publishes versioned artifacts to Maven Central and the Gradle Plugin Portal. This runbook is the
+operational procedure for releases; GitHub Releases, workflow records, and attestations remain the evidence for
+individual publications.
 
 ## Core invariant: Maven Central releases are immutable
 
@@ -17,13 +17,10 @@ effectively true for the Gradle Plugin Portal. This means:
 - Treat publication as a deliberate, explicitly authorized action distinct from ordinary CI. It
   must never be a side effect of merging to `main` or of a scheduled workflow.
 
-## Current publication status (as of this document)
+## Publication surfaces and controls
 
-- The protected `v0.1.0` workflow completed successfully for the tagged `main` commit. Version
-  `0.1.0` is available from Maven Central and its release bundle has a GitHub provenance attestation.
-- The initial Gradle Plugin Portal publication was submitted successfully and is awaiting the
-  portal's one-time manual review. The GitHub Release record will be published after its release
-  notes are reviewed and the plugin becomes publicly resolvable.
+- Released versions are available from Maven Central, the Gradle Plugin Portal, and GitHub Releases. Verify all
+  three surfaces before announcing a release as complete.
 - ADR-0008 fixes eight public coordinates (`kotlin-sdkgen-engine`, `-cli`, `-gradle-plugin`,
   `-runtime`, `-transport-ktor`, `-transport-okhttp`, `-transport-java-http`, `-testing`).
   `build-logic/src/main/kotlin/sdkgen.publishing.gradle.kts` creates Maven publications for
@@ -63,8 +60,7 @@ become eligible.
 
 ## Real release (requires explicit human authorization — never automatic)
 
-This procedure was exercised by the `v0.1.0` release. Follow it for every subsequent version rather
-than treating the first successful run as permanent evidence for a later release.
+Follow this procedure for every version. A prior successful release is not evidence for a later release.
 
 1. Confirm the target commit is the reviewed, merged commit on `main` intended for release (never a task or
    integration worktree branch), then create the protected `v<version>` tag at that exact commit.
@@ -83,7 +79,7 @@ than treating the first successful run as permanent evidence for a later release
    manual review after the workflow succeeds; do not claim portal availability until it resolves.
 7. Publish release notes summarizing the effective contract diff
    (`sdkgen diff`/`sdkgen explain` output where applicable — see `generator/cli/.../
-   DiffCommand.kt` and `ExplainCommand.kt`), the applied-overlay report, the conformance/waiver
+DiffCommand.kt` and `ExplainCommand.kt`), the applied-overlay report, the conformance/waiver
    summary, and the target compile matrix.
 8. Record the protected tag, portal records, release notes, and attestation together as release evidence.
 

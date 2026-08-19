@@ -12,7 +12,7 @@ Kotlin SDKGen has three trust-relevant surfaces:
    closure) from local disk and turning it into a semantic model, declarations, and emitted
    Kotlin source (`generator/openapi`, `generator/engine`).
 2. **Generated-runtime execution** — the shared runtime (`runtime/core`) and transport adapters
-   that a *generated* SDK uses at the consumer's own runtime, including credential handling.
+   that a _generated_ SDK uses at the consumer's own runtime, including credential handling.
 3. **Release and distribution** — building, signing, and publishing SDKGen's own artifacts
    (`build-logic/.../sdkgen.publishing.gradle.kts`), and any future scheduled automation that
    opens pull requests from upstream spec drift (release automation, not yet built).
@@ -137,13 +137,13 @@ metadata and being resolved against an attacker-controlled repository.
 
 **Current status:** release-mode signing, complete POM metadata, per-publication sources and Dokka
 artifacts, checksums, an aggregate CycloneDX SBOM, and coordinate-leakage verification are implemented.
-The protected `v0.1.0` workflow built and verified the signed repository before publishing to Maven
-Central, and GitHub attested its deterministic release bundle. Remote credentials are available only
+The protected release workflow builds and verifies the signed repository before publishing to Maven
+Central, and GitHub attests its deterministic release bundle. Remote credentials are available only
 to the protected publication job; ordinary CI and release verification cannot read them.
 
 **Owner / 1.0 disposition:** release maintainers; preserve the signed-artifact, SBOM, provenance,
-isolated-consumer, and coordinate-leakage gates for every release. Verify each portal independently;
-the first Gradle plugin version remains under the portal's manual review.
+isolated-consumer, and coordinate-leakage gates for every release. Verify each portal independently
+and confirm each released version resolves from both publication portals.
 
 ## Threat 6: Untrusted code execution from an automated drift/update pull request
 
@@ -157,8 +157,7 @@ repository write or secret access.
 write-capable pull-request job, scope-checks the generated patch, and pins actions by full SHA.
 `.github/workflows/release-verification.yml` has read-only repository permissions and no release
 credentials. It runs Gradle publication only against an isolated local repository and never invokes
-remote Central or Plugin Portal publication. Drift checks and release verification completed
-successfully on GitHub-hosted runners for `v0.1.0`.
+remote Central or Plugin Portal publication. Each release must retain its own successful workflow evidence.
 
 **Owner / 1.0 disposition:** release owner; the initial operational-evidence gap is closed. Preserve
 the same unprivileged verification and protected-publication boundaries for subsequent releases.

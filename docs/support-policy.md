@@ -1,6 +1,6 @@
 # Support policy
 
-Kotlin SDKGen `0.1.0` is a production-oriented preview published to Maven Central. This policy
+Kotlin SDKGen `0.2.0` is a production-oriented preview published to Maven Central. This policy
 describes support for published versions while the project remains in preview.
 
 ## Current state
@@ -48,8 +48,12 @@ public API does not model.
 
 The generated Stripe SDK is organized into 75 resource clients. For untagged operations,
 [ADR-0017](adr/0017-skip-api-version-path-segments-when-grouping.md) derives the resource group from the
-first non-version path segment. This is the coverage represented by `0.1.0`; it does not imply that excluded
+first non-version path segment. This coverage does not imply that excluded
 operations are supported.
+
+The OpenRouter corpus generates 86 of 89 operations in `0.2.0`. Its current coverage and the two generator
+limitations responsible for the remaining exclusions are documented in the
+[OpenRouter corpus README](../conformance/openrouter/README.md).
 
 ## Target/platform support notes
 

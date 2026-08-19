@@ -5,7 +5,7 @@ transports, deterministic output, and compatibility tooling designed for long-li
 
 > [!IMPORTANT]
 > Kotlin SDKGen is a **production-oriented preview**. It is exercised against large real-world API
-> descriptions. Version `0.1.0` is available from Maven Central, and the Gradle plugin is published
+> descriptions. Version `0.2.0` is available from Maven Central, and the Gradle plugin is published
 > on the Gradle Plugin Portal. Public APIs may change while the project remains in preview.
 
 ## Why Kotlin SDKGen?
@@ -57,14 +57,14 @@ Other CLI commands are available through the same entry point:
   --args='generate --config ../../conformance/openrouter/sdkgen.yaml'
 ```
 
-| Command | Purpose |
-| --- | --- |
-| `validate` | Parse, adapt, and validate without writing generated output. |
-| `generate` | Generate Kotlin sources and publication metadata. |
-| `check` | Confirm checked-in output still matches the effective inputs. |
-| `diff` | Compare effective and generated contracts. |
-| `explain` | Trace a symbol or diagnostic back to its source. |
-| `compat` | Compare source, semantic-model, Kotlin-API, behavior, and ABI evidence. |
+| Command    | Purpose                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| `validate` | Parse, adapt, and validate without writing generated output.            |
+| `generate` | Generate Kotlin sources and publication metadata.                       |
+| `check`    | Confirm checked-in output still matches the effective inputs.           |
+| `diff`     | Compare effective and generated contracts.                              |
+| `explain`  | Trace a symbol or diagnostic back to its source.                        |
+| `compat`   | Compare source, semantic-model, Kotlin-API, behavior, and ABI evidence. |
 
 The versioned configuration and JSON CLI contracts are documented in
 [`docs/cli-contract-v1alpha1.md`](docs/cli-contract-v1alpha1.md).
@@ -78,7 +78,7 @@ sources into Kotlin/JVM or `commonMain` automatically:
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("io.github.nabobery.kotlin-sdkgen") version "0.1.0"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.2.0"
 }
 
 kotlin {
@@ -139,11 +139,11 @@ test matrix and platform qualifications.
 
 The repository keeps generated snapshots and executable consumers for three independently shaped APIs:
 
-| Corpus | What it demonstrates |
-| --- | --- |
-| [OpenRouter](conformance/openrouter/) | Representative KMP generation, typed model contracts, authentication, and typed responses. |
-| [GitHub REST](conformance/github/) | 7,169 generated Kotlin files; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions. |
-| [Stripe](conformance/stripe/) | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses. |
+| Corpus                                | What it demonstrates                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [OpenRouter](conformance/openrouter/) | KMP generation with typed contracts, SSE streaming, pagination, authentication, retries, and typed errors.                                  |
+| [GitHub REST](conformance/github/)    | 7,169 generated Kotlin files; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.                        |
+| [Stripe](conformance/stripe/)         | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses. |
 
 These corpora are conformance fixtures, not supported third-party SDK distributions. Their pinned inputs, overlays,
 waivers, snapshots, and consumer tests make generator changes reviewable at realistic scale.
@@ -156,11 +156,11 @@ or the [`Stripe client snapshot`](conformance/stripe/.snapshots/41a6e92abf3a36ac
 
 The checked-in benchmark measures the complete generation pipeline against the GitHub REST corpus.
 
-| Metric | Result |
-| --- | ---: |
-| Samples | 81.787 s, 82.060 s, 83.700 s |
-| Median | **82.060 s** |
-| Enforced budget | 96.000 s |
+| Metric          |                       Result |
+| --------------- | ---------------------------: |
+| Samples         | 81.787 s, 82.060 s, 83.700 s |
+| Median          |                 **82.060 s** |
+| Enforced budget |                     96.000 s |
 
 Environment: Linux amd64, JDK 17.0.19, one Gradle worker, and a 2 GiB heap. The records are stored in
 [`generator/engine/benchmarks/records`](generator/engine/benchmarks/records/) and checked against
@@ -171,21 +171,23 @@ and heap rather than treating this number as a cross-machine speed claim.
 
 ## Project status
 
-Implemented and released in `0.1.0`:
+Implemented and released through `0.2.0`:
 
 - CLI, generation engine, KMP runtime, three transports, and cacheable Gradle integration.
 - Corpus-scale generation, consumer compilation, compatibility reporting, ABI checks, and deterministic snapshots.
 - Signed Maven publication with sources, Dokka documentation, POM metadata, checksums, SBOMs, and clean
   external-consumer resolution.
 - Tag-bound release automation with credential-free verification and protected publication.
+- Server-sent event streaming, offset/limit pagination, and Intel Apple publication variants for the portable
+  runtime, testing library, and Ktor transport.
 
-Release follow-up in progress:
+The OpenRouter conformance corpus currently generates 86 of 89 operations. The three intentionally excluded
+operations and the generator limitations blocking them are documented in the
+[`OpenRouter corpus README`](conformance/openrouter/README.md).
 
-- Publish the reviewed GitHub release notes for the existing `v0.1.0` tag.
-
-See the [`release readiness results`](docs/archive/release-readiness/RESULTS.md),
-[`changelog`](CHANGELOG.md), [`support policy`](docs/support-policy.md), and
-[`release runbook`](docs/release-runbook.md) for the current evidence and limitations.
+See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
+[`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,
+limitations, and maintainer procedures.
 
 ## Build and contribute
 
