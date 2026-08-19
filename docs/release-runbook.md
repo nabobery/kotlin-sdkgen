@@ -77,9 +77,10 @@ Follow this procedure for every version. A prior successful release is not evide
 6. Confirm Central made every coordinate available, confirm the Plugin Portal submission and review
    status, and retain the GitHub provenance attestation. A first plugin publication may remain under
    manual review after the workflow succeeds; do not claim portal availability until it resolves.
-7. Publish release notes summarizing the effective contract diff
-   (`sdkgen diff`/`sdkgen explain` output where applicable — see `generator/cli/.../
-DiffCommand.kt` and `ExplainCommand.kt`), the applied-overlay report, the conformance/waiver
+7. Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain` output where
+   applicable; see [`DiffCommand.kt`](../generator/cli/src/main/kotlin/com/nabobery/sdkgen/cli/DiffCommand.kt) and
+   [`ExplainCommand.kt`](../generator/cli/src/main/kotlin/com/nabobery/sdkgen/cli/ExplainCommand.kt)), the
+   applied-overlay report, the conformance/waiver
    summary, and the target compile matrix.
 8. Record the protected tag, portal records, release notes, and attestation together as release evidence.
 

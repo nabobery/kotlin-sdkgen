@@ -88,28 +88,36 @@ maintain.
 4. Store it:
     - **GitHub secret names:** `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`
     - **Local testing** (`~/.gradle/gradle.properties`, outside this repo):
+
         ```properties
         mavenCentralUsername=<PLACEHOLDER_TOKEN_USERNAME>
         mavenCentralPassword=<PLACEHOLDER_TOKEN_PASSWORD>
         ```
+
     These property names match the applied Nmcp plugin and the protected workflow's environment-variable bridge.
 
 ### GPG signing key
 
 1. Generate a dedicated release key (do not reuse a personal email key for this if avoidable):
+
     ```bash
     gpg --full-generate-key
     ```
+
     Choose RSA 4096, and **set an expiration date** (e.g. 2 years) rather than "never" — an expiring key
     forces a deliberate rotation decision instead of an indefinite standing credential.
 2. Publish the public key to a keyserver so Central can verify signatures against it:
+
     ```bash
     gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
     ```
+
 3. Export the armored private key for use as a CI secret:
+
     ```bash
     gpg --export-secret-keys --armor <KEY_ID> > release-signing-key.asc
     ```
+
     Treat `release-signing-key.asc` as a secret file the moment it is created. Delete it from local disk once
     it is loaded into the GitHub Environment secret store; never commit it, attach it to an issue, or paste it
     into chat.
@@ -119,16 +127,20 @@ maintain.
 5. Store both:
     - **GitHub secret names:** `GPG_SIGNING_KEY` (the full armored private key contents), `GPG_SIGNING_PASSPHRASE`
     - **Local testing** (`~/.gradle/gradle.properties`):
+
         ```properties
         signing.keyId=<PLACEHOLDER_LAST_8_HEX_OF_KEY_ID>
         signing.password=<PLACEHOLDER_PASSPHRASE>
         signing.secretKeyRingFile=<PLACEHOLDER_PATH_TO_LOCAL_SECRING>
         ```
+
         or, using Gradle's in-memory signing form (works without a keyring file, which fits CI better):
+
         ```properties
         signingInMemoryKey=<PLACEHOLDER_ARMORED_PRIVATE_KEY>
         signingInMemoryKeyPassword=<PLACEHOLDER_PASSPHRASE>
         ```
+
     These are the conventional Gradle `signing` plugin property names. The applied publishing convention also
     accepts the `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE` environment variables used by CI.
 6. The private key and passphrase must never enter the repository at any point — not in a commit, not in a
@@ -145,10 +157,12 @@ credentials and the tag-bound protected-workflow authorization described in §3.
 3. Store it:
     - **GitHub secret names:** `GRADLE_PUBLISH_KEY`, `GRADLE_PUBLISH_SECRET`
     - **Local testing** (`~/.gradle/gradle.properties`):
+
         ```properties
         gradle.publish.key=<PLACEHOLDER_API_KEY>
         gradle.publish.secret=<PLACEHOLDER_API_SECRET>
         ```
+
     These are the exact property names `com.gradle.plugin-publish` reads by convention.
 
 ### Credential summary
