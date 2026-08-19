@@ -19,7 +19,7 @@ okhttp = "5.4.0"
 agp = "9.2.1"
 kotlinx-io = "0.9.1"
 gradle-plugin-publish = "2.1.1"
-cyclonedx = "3.3.0"
+cyclonedx = "3.4.1"
 dokka = "2.2.0"
 
 [libraries]
