@@ -7,6 +7,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-19
+
 ### Added
 
 - Server-sent event streaming for the OpenRouter conformance SDK: chat-completion and image operations now
@@ -47,5 +49,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 - Updated the Kotlin/JS dependency lock to resolve known vulnerable transitive packages before the
   initial publication.
 
-[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nabobery/kotlin-sdkgen/tree/v0.1.0
