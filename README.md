@@ -129,7 +129,7 @@ The KMP runtime and Ktor transport currently target:
 - mingw x64
 
 The iOS x64 and macOS x64 (Intel) targets are cross-compiled and published; they are gated by compile/link
-evidence rather than on-host test execution, as CI runs on arm64 hosts.
+evidence rather than on-host test execution, as the Apple verification lane runs on an arm64 host.
 
 Linux ARM64 and mingw x64 are compile-gate targets. Simulator tests require the corresponding Xcode runtime.
 Wasm, watchOS, and tvOS are not currently supported. See [`runtime/README.md`](runtime/README.md) for the exact

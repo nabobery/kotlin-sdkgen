@@ -7,9 +7,9 @@
 - Kotlin/JS, both Node.js and browser (`useKarma { useChromeHeadless() }`)
 - Android (`com.android.kotlin.multiplatform.library`, opt-in via `sdkgen.kotlin-kmp-android`)
 - iOS ARM64, iOS simulator ARM64, and iOS x64 (Intel; cross-compiled, compile/link evidence only — not
-  executed on the arm64 CI host)
-- macOS ARM64 and macOS x64 (Intel; cross-compiled, compile/link evidence only — not executed on the
-  arm64 CI host)
+  executed by the arm64 Apple verification lane)
+- macOS ARM64 and macOS x64 (Intel; cross-compiled, compile/link evidence only — not executed by the
+  arm64 Apple verification lane)
 - Linux x64 and Linux ARM64 (secondary/compile-gate matrix — see below)
 - mingw x64 (secondary/compile-gate matrix — see below)
 
