@@ -11,11 +11,17 @@ import com.nabobery.sdkgen.engine.config.RuntimeDefaults
 import com.nabobery.sdkgen.engine.config.SdkgenConfigV1Alpha1
 import com.nabobery.sdkgen.engine.config.SourceConfig
 import com.nabobery.sdkgen.engine.config.TargetFamily
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.readBytes
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -38,7 +44,6 @@ class FixtureReproducibilityTest {
             clientName = "StreamingFixtureClient",
             maxAttempts = 3,
             configPath = Path.of(requireNotNull(System.getProperty("engine.streaming.fixture.config"))),
-            generatorVersion = "0.1.0-alpha.1",
         )
     }
 
@@ -62,13 +67,67 @@ class FixtureReproducibilityTest {
         assertTrue(message.contains("extra generated files: generated-only.bin"))
     }
 
+    @Test
+    fun committedGeneratorVersionReadsManifestVersion() {
+        val committed = Files.createTempDirectory("fixture-committed-version")
+        Files.writeString(committed.resolve("manifest.json"), """{"generatorVersion":"distinctive-9.9.9"}""")
+
+        assertEquals("distinctive-9.9.9", committedGeneratorVersion(committed))
+    }
+
+    @Test
+    fun committedGeneratorVersionRejectsMissingVersion() {
+        val committed = Files.createTempDirectory("fixture-committed-missing")
+        Files.writeString(committed.resolve("manifest.json"), """{"edition":"community"}""")
+
+        val failure = assertFailsWith<IllegalArgumentException> { committedGeneratorVersion(committed) }
+        assertTrue(requireNotNull(failure.message).contains("non-blank generatorVersion"))
+    }
+
+    @Test
+    fun committedGeneratorVersionRejectsBlankVersion() {
+        val committed = Files.createTempDirectory("fixture-committed-blank")
+        Files.writeString(committed.resolve("manifest.json"), """{"generatorVersion":"   "}""")
+
+        val failure = assertFailsWith<IllegalArgumentException> { committedGeneratorVersion(committed) }
+        assertTrue(requireNotNull(failure.message).contains("non-blank generatorVersion"))
+    }
+
+    @Test
+    fun committedGeneratorVersionReportsManifestPathForMalformedJson() {
+        val committed = Files.createTempDirectory("fixture-committed-malformed")
+        Files.writeString(committed.resolve("manifest.json"), "not json {")
+
+        val failure = assertFailsWith<IllegalArgumentException> { committedGeneratorVersion(committed) }
+        assertTrue(requireNotNull(failure.message).contains(committed.resolve("manifest.json").toString()))
+        assertTrue(failure.cause is SerializationException)
+    }
+
+    private fun committedGeneratorVersion(committed: Path): String {
+        val manifestPath = committed.resolve("manifest.json")
+        val manifest =
+            try {
+                Json.parseToJsonElement(Files.readString(manifestPath))
+            } catch (failure: SerializationException) {
+                throw IllegalArgumentException("Committed fixture manifest $manifestPath is not valid JSON", failure)
+            }
+        val version =
+            manifest
+                .jsonObject["generatorVersion"]
+                ?.jsonPrimitive
+                ?.contentOrNull
+                ?.takeIf(String::isNotBlank)
+        return requireNotNull(version) {
+            "Committed fixture manifest $manifestPath must contain a non-blank generatorVersion"
+        }
+    }
+
     private fun verifyFixture(
         name: String,
         canonicalUri: String,
         clientName: String,
         maxAttempts: Int,
         configPath: Path? = null,
-        generatorVersion: String = "fixture-verification",
     ) {
         val source = Path.of(requireNotNull(System.getProperty("engine.$name.fixture.source")))
         val committed = Path.of(requireNotNull(System.getProperty("engine.$name.fixture.committed")))
@@ -91,7 +150,8 @@ class FixtureReproducibilityTest {
                     output = OutputConfig("sources", "resources", "manifest.json"),
                 )
 
-        GenerationPipeline(generatorVersion).generate(
+        val committedVersion = committedGeneratorVersion(committed)
+        GenerationPipeline(committedVersion).generate(
             config = config,
             source = ResolvedSource(source, canonicalUri, digest, bytes.size.toLong()),
             overlays = emptyList(),

@@ -1,0 +1,50 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-discussion-edited/properties/action.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/webhook-discussion-edited/properties/action
+ */
+@Serializable(with = InlineWebhookDiscussionEditedActionX66d8be77.Serializer::class)
+public sealed class InlineWebhookDiscussionEditedActionX66d8be77 {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `edited`.
+   */
+  public data object Edited : InlineWebhookDiscussionEditedActionX66d8be77() {
+    public override val `value`: String = "edited"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookDiscussionEditedActionX66d8be77()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookDiscussionEditedActionX66d8be77 = when (value) {
+      Edited.value -> Edited
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineWebhookDiscussionEditedActionX66d8be77> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookDiscussionEditedActionX66d8be77", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookDiscussionEditedActionX66d8be77 = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookDiscussionEditedActionX66d8be77) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

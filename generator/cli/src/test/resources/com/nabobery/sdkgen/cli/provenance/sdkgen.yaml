@@ -1,0 +1,19 @@
+version: v1alpha1
+source:
+  uri: openapi.yaml
+kotlin:
+  packageName: com.nabobery.sdkgen.provenance.generated
+  coordinates:
+    groupId: com.nabobery.sdkgen
+    artifactId: provenance-fixture
+  naming:
+    clientName: ProvenanceFixtureClient
+  targets:
+    - jvm
+output:
+  sources: generated
+  resources: generated-resources
+  manifest: generated/manifest.json
+verification:
+  gates:
+    - schema
