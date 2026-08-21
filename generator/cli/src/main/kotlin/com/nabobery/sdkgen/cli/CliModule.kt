@@ -514,7 +514,7 @@ internal fun generationLock(inputs: CommandInputs): GenerationLockPublication {
                             },
                 ),
             overlays = inputs.overlays.map { LockedOverlay(it.id, it.canonicalUri, it.sha256) },
-            generator = LockedGenerator(GENERATOR_VERSION, "community"),
+            generator = LockedGenerator(SdkGenCliVersion.current(), "community"),
             compatibilityProfiles =
                 inputs.config.compatibilityProfiles.map { LockedCompatibilityProfile(it.id, it.version) },
             plugins =
@@ -567,7 +567,7 @@ internal fun deleteRecursively(root: Path) {
 
 internal fun pipeline(): GenerationPipeline =
     GenerationPipeline(
-        generatorVersion = GENERATOR_VERSION,
+        generatorVersion = SdkGenCliVersion.current(),
         kotlinPoetVersion = KOTLIN_POET_VERSION,
     )
 
@@ -637,7 +637,6 @@ internal fun Diagnostic.toCliDiagnostic(): CliDiagnostic =
         remediation = remediation,
     )
 
-internal const val GENERATOR_VERSION = "0.1.0-alpha.1"
 internal val KOTLIN_POET_VERSION = SdkGenDependencyVersions.kotlinPoet
 internal val COMPACT_JSON: Json = Json { prettyPrint = false }
 internal val MANIFEST_JSON: Json =

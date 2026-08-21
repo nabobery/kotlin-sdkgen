@@ -1,0 +1,81 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ * Generated model for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhooks_pull_request_5/properties/_links/properties/commits.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/webhooks_pull_request_5/properties/_links/properties/commits
+ */
+@Serializable(with = InlineWebhooksPullRequest5LinksCommitsX85514fda.Serializer::class)
+public class InlineWebhooksPullRequest5LinksCommitsX85514fda(
+  /**
+   * Wire format: `uri-template`. Represented as `String` in this release; SDKGen does not validate this format.
+   */
+  public val href: String,
+) {
+  public class Builder {
+    private var hrefValue: String? = null
+
+    public var href: String
+      get() = requireNotNull(hrefValue) { "href is required" }
+      set(`value`) {
+        hrefValue = value
+      }
+
+    public fun build(): InlineWebhooksPullRequest5LinksCommitsX85514fda {
+      check(hrefValue != null) { "href is required" }
+      return InlineWebhooksPullRequest5LinksCommitsX85514fda(
+        href = href,
+      )
+    }
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): InlineWebhooksPullRequest5LinksCommitsX85514fda = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<InlineWebhooksPullRequest5LinksCommitsX85514fda> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): InlineWebhooksPullRequest5LinksCommitsX85514fda {
+      val jsonDecoder = decoder.requireJsonDecoder("InlineWebhooksPullRequest5LinksCommitsX85514fda")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("InlineWebhooksPullRequest5LinksCommitsX85514fda must be a JSON object")
+      val href = json.decodeRequired<String>(rawObject, "href")
+      return InlineWebhooksPullRequest5LinksCommitsX85514fda(
+        href = href,
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhooksPullRequest5LinksCommitsX85514fda) {
+      val jsonEncoder = encoder.requireJsonEncoder("InlineWebhooksPullRequest5LinksCommitsX85514fda")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        put("href", value.href)
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun inlineWebhooksPullRequest5LinksCommitsX85514fda(block: InlineWebhooksPullRequest5LinksCommitsX85514fda.Builder.() -> Unit): InlineWebhooksPullRequest5LinksCommitsX85514fda = InlineWebhooksPullRequest5LinksCommitsX85514fda.build(block)
+
+private inline fun <reified T> Json.decodeRequired(raw: JsonObject, name: String): T {
+  val element = raw[name] ?: throw SerializationException("InlineWebhooksPullRequest5LinksCommitsX85514fda is missing required property '" + name + "'")
+  return decodeFromJsonElement(element)
+}

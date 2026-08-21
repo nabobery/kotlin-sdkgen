@@ -11,6 +11,10 @@ application {
     mainClass = "com.nabobery.sdkgen.cli.CliModuleKt"
 }
 
+tasks.jar {
+    manifest.attributes["Implementation-Version"] = project.version.toString()
+}
+
 dependencies {
     implementation(project(":generator:engine"))
     implementation(libs.jackson.databind)
@@ -50,4 +54,28 @@ tasks.test {
     systemProperty("cli.committedParityMatrix", committedParityMatrix.asFile.absolutePath)
     systemProperty("cli.githubPostProjection", githubPostProjection.asFile.absolutePath)
     systemProperty("cli.githubGeneratedManifest", githubGeneratedManifest.asFile.absolutePath)
+
+    // `PackagedCliProvenanceTest` runs the packaged sdkgen CLI end to end so it exercises the JAR manifest's
+    // stamped `Implementation-Version`, which a `java.class.path` (classes-directory) run cannot prove. The whole
+    // installed distribution is registered as a lazy input (not just the launcher script) so that a JAR-only change
+    // -- e.g. a manifest-stamping change at the same sdkgenVersion -- still invalidates this task and re-runs the
+    // provenance proof; the input provider is derived from the `installDist` task provider, so its build dependency
+    // is carried implicitly. The launcher path and the stamped version are passed through a
+    // `CommandLineArgumentProvider` so nothing is read at configuration time (the repo fails the build on
+    // configuration-cache problems).
+    val installedCliDistribution = tasks.named<Sync>("installDist")
+    val packagedLauncher = installedCliDistribution.map { it.destinationDir.resolve("bin/cli") }
+    inputs
+        .dir(installedCliDistribution.map { it.destinationDir })
+        .withPropertyName("packagedCliDistribution")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    val stampedVersion = providers.gradleProperty("sdkgenVersion")
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf(
+                "-Dcli.packagedExecutable=${packagedLauncher.get().absolutePath}",
+                "-Dcli.expectedPackagedVersion=${stampedVersion.get()}",
+            )
+        },
+    )
 }

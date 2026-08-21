@@ -39,7 +39,7 @@ class ParityMatrixTest {
             ParityRegistry.expectedConfigFileDigest("stress-streaming"),
         )
         assertEquals(
-            "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b",
+            "21e1e1b6046859e3b4d7ad1af072538a2e7819a228173cd26623e89e886863f6",
             ParityRegistry.expectedLockFileDigest("stress-streaming"),
         )
         assertEquals(ABSENT_OVERLAY_SHA256, ParityRegistry.expectedOverlayDigest("stress-streaming"))

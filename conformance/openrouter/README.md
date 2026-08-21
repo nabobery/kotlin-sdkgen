@@ -32,15 +32,31 @@ pagination across JVM and JavaScript test lanes.
 
 Three operations are not generated in version 0.2.0:
 
-| Operation                   | Path                         | Generator limitation                                                                                                            |
-| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `createMessages`            | `POST /messages`             | The response uses divergent `allOf` properties that cannot yet be projected into one faithful Kotlin type.                      |
-| `createResponses`           | `POST /responses`            | The response uses the same divergent `allOf` pattern; two request fields that reach this graph are also removed by the overlay. |
-| `createAudioTranscriptions` | `POST /audio/transcriptions` | Multipart emission currently assumes a binary property named `file`; this request names it `inputAudio`.                        |
+| Operation                   | Path                         | Generator limitation                                     |
+| --------------------------- | ---------------------------- | -------------------------------------------------------- |
+| `createMessages`            | `POST /messages`             | Conflicting `allOf` properties across branches.          |
+| `createResponses`           | `POST /responses`            | Same conflicting `allOf` pattern.                        |
+| `createAudioTranscriptions` | `POST /audio/transcriptions` | JSON and multipart requests declare incompatible schemas. |
 
-These operations are excluded rather than generated with guessed or lossy types. Closing both root generator
-limitations—divergent `allOf` projection and multipart binary-property selection—is expected to restore all three
-operations and raise this corpus from 86/89 to 89/89.
+`/messages` and `/responses` compose their response schemas with `allOf`, which is a logical AND: a value must
+satisfy every branch at once. These branches redeclare the same property with conflicting types and nullability, so
+no single Kotlin property can satisfy both declarations and the generator refuses to guess one. (The upstream spec
+author appears to intend inheritance-style property replacement at these points, but the document still expresses it
+as a strict intersection.) For `/responses`, two request fields that reach the same graph are additionally removed by
+the compatibility overlay.
+
+`/audio/transcriptions` accepts audio two ways: its `application/json` request sends a base64 `input_audio` object,
+while its `multipart/form-data` request sends a binary `file` part. The two media types therefore declare incompatible
+request schemas, and the generator emits one request value per operation rather than media-type-specific variants, so
+it cannot represent the operation.
+
+The generator reports these as `SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION` (and related `-SCHEMA`) diagnostics.
+`incompatible-request-media` is not a generator diagnostic id; it is a category this corpus's blocker-inventory test
+synthesizes from the diagnostic message to track the audio case.
+
+These operations are excluded rather than generated with guessed or lossy types. Resolving conflicting `allOf`
+properties and supporting media-specific request variants would restore all three operations and raise this corpus
+from 86/89 to 89/89.
 
 The remaining `SDKGEN-LEGACY-NULLABLE-COMPOSITION` diagnostics describe OpenAPI 3.0-style null-only branches. They
 are warnings and do not exclude operations.

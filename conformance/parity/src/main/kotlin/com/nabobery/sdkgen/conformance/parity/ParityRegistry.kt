@@ -10,10 +10,10 @@ internal object ParityRegistry {
     const val STRIPE_EFFECTIVE_CONFIG_SHA256: String =
         "09c792d932d37ad2f6db6b761977fa2d754e1a3fa78dccabbe3532c1ed4a9918"
     const val GITHUB_CONFIG_FILE_SHA256: String = "d285a8579aa5defae335b0207f4c5aecfe312cf4034c3dbaac2d916ee134d1de"
-    const val GITHUB_LOCK_FILE_SHA256: String = "0a43bce30f2756618be7cb7608d721d8e820967d65de57ad29231f346da00462"
+    const val GITHUB_LOCK_FILE_SHA256: String = "72a86ccb4f9fdc49560919e70638cf7340eb79e72055a105b03932588c2ff84b"
     const val GITHUB_OVERLAY_SHA256: String = "4bb4eb28ee5b424cea50c9ea92047ed35e49282273800ab7e1ab4cd83b083288"
     const val STRIPE_CONFIG_FILE_SHA256: String = "71928294e15d61a94b623cc4aa740616ad755d0be1b97539f5e363aaeb9e8407"
-    const val STRIPE_LOCK_FILE_SHA256: String = "52457ea9e6b03bcbb4b3d2612a179244d96c760c880c2e770c2a9ea854ecce1b"
+    const val STRIPE_LOCK_FILE_SHA256: String = "e6de80a84b4622ffb89b576f6a9956a4365cdde17e014fd2a7f5d4985f4a19e9"
     const val OPENROUTER_OVERLAY_SHA256: String =
         "f6f1916254474e974484ab516e3cd29f81902783f617a48f3034652b6628f8c2"
     const val OPENROUTER_CORPUS_SHA256: String =
@@ -23,7 +23,7 @@ internal object ParityRegistry {
     const val OPENROUTER_CONFIG_FILE_SHA256: String =
         "82e71e0acfba994b20c63f86ba758dbc9f77b6c65ae6e579b1583212eaedf2c3"
     const val OPENROUTER_LOCK_FILE_SHA256: String =
-        "c91abda228837b2925cda9562f0e56a138d2ac3a47f677e6dd42e09f53c97da1"
+        "6cc96b2afde199c8ccd82fd762829915d5f6cce9d4109fc5645ea29e92a4ed22"
     const val STREAMING_STRESS_CORPUS_SHA256: String =
         "dded4479630d80330121116f80bba85040ec52f0f85e5530691e40a5c7698dd5"
     const val STREAMING_STRESS_EFFECTIVE_CONFIG_SHA256: String =
@@ -31,7 +31,7 @@ internal object ParityRegistry {
     const val STREAMING_STRESS_CONFIG_FILE_SHA256: String =
         "86d9109d162a38b72a5c5e04b1a488a7a3630246c34c3f6ca0888f68774b95c3"
     const val STREAMING_STRESS_LOCK_FILE_SHA256: String =
-        "5c51196d1ebeee98d0f86f7719833b7ea466048c2cafb040d72cfd6937fd304b"
+        "21e1e1b6046859e3b4d7ad1af072538a2e7819a228173cd26623e89e886863f6"
     const val TOOLCHAIN_SHA256: String = "14524001f6ba12986dc3f7766d59080b82f8278f8c81abe7734fd1f0347cbb20"
 
     private val expectedCorpusDigests =

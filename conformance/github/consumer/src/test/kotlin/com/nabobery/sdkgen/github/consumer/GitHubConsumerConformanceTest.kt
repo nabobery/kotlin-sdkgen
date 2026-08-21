@@ -575,6 +575,6 @@ class GitHubConsumerConformanceTest {
          * Last moved by the regeneration that materialized the object oneOf discriminator predicate-correctness
          * fix from 7d40f6ec8.
          */
-        const val MANIFEST_SHA256 = "be4ee9cee2531ea2bf9b6f7c554661767aae1f331beb45b122dde37efe107e87"
+        const val MANIFEST_SHA256 = "8a0cd6e40230fee785e615d9d4a00b7abd473c85ba55d0c6c38f2156befa3914"
     }
 }
