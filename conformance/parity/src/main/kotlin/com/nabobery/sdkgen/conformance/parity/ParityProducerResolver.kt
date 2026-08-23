@@ -16,7 +16,8 @@ internal data class ProducerInputPaths(
     val corpus: File,
     val config: File?,
     val lock: File?,
-    val overlay: File?,
+    /** The corpus's configured overlays, in exact `sdkgen.yaml` application order. */
+    val overlays: List<File>,
     val toolchain: File,
     val generatedDirectory: File,
     val absentOverlaySha256: String? = null,
@@ -27,7 +28,11 @@ internal data class ProducerInputPaths(
                 corpus = repositoryRoot.resolve("conformance/github/openapi.yaml"),
                 config = repositoryRoot.resolve("conformance/github/sdkgen.yaml"),
                 lock = repositoryRoot.resolve("conformance/github/sdkgen.lock"),
-                overlay = repositoryRoot.resolve("conformance/github/overlays/code-search-runtime-semantics.yaml"),
+                overlays =
+                    listOf(
+                        repositoryRoot.resolve("conformance/github/overlays/code-search-runtime-semantics.yaml"),
+                        repositoryRoot.resolve("conformance/github/overlays/allof-resolution-audit.yaml"),
+                    ),
                 toolchain = repositoryRoot.resolve("gradle/libs.versions.toml"),
                 generatedDirectory = repositoryRoot.resolve("conformance/github/generated"),
             )
@@ -37,7 +42,7 @@ internal data class ProducerInputPaths(
                 corpus = repositoryRoot.resolve("conformance/stripe/openapi.json"),
                 config = repositoryRoot.resolve("conformance/stripe/sdkgen.yaml"),
                 lock = repositoryRoot.resolve("conformance/stripe/sdkgen.lock"),
-                overlay = null,
+                overlays = emptyList(),
                 toolchain = repositoryRoot.resolve("gradle/libs.versions.toml"),
                 generatedDirectory = repositoryRoot.resolve("conformance/stripe/generated"),
             )
@@ -47,7 +52,11 @@ internal data class ProducerInputPaths(
                 corpus = repositoryRoot.resolve("conformance/openrouter/openapi.yaml"),
                 config = repositoryRoot.resolve("conformance/openrouter/sdkgen.yaml"),
                 lock = repositoryRoot.resolve("conformance/openrouter/sdkgen.lock"),
-                overlay = repositoryRoot.resolve("conformance/openrouter/overlays/full-spec-compat.yaml"),
+                overlays =
+                    listOf(
+                        repositoryRoot.resolve("conformance/openrouter/overlays/allof-resolution-audit.yaml"),
+                        repositoryRoot.resolve("conformance/openrouter/overlays/full-spec-compat.yaml"),
+                    ),
                 toolchain = repositoryRoot.resolve("gradle/libs.versions.toml"),
                 generatedDirectory = repositoryRoot.resolve("conformance/openrouter/generated"),
             )
@@ -348,8 +357,9 @@ internal object ProducerProvenanceResolver {
             configFileSha256 = configBytes?.sha256(),
             lockFileSha256 = lockBytes?.sha256(),
             overlaySha256 =
-                paths.overlay?.let { requiredBytes(it, "overlay").sha256() }
-                    ?: paths.absentOverlaySha256,
+                ParityRegistry.overlaySetDigest(
+                    paths.overlays.map { overlay -> requiredBytes(overlay, "overlay").sha256() },
+                ) ?: paths.absentOverlaySha256,
             generatedArtifactSha256 = generated.treeSha256,
             manifestSha256 = generated.manifestSha256,
         )

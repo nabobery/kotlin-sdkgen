@@ -66,6 +66,58 @@ public class KotlinxSerializationCodec<T>(
     }
 }
 
+/**
+ * Raw text codec: the string value IS the wire document. Encoding transmits the value's UTF-8 bytes verbatim
+ * under the declared media type — never a JSON representation — and decoding reads the body back as UTF-8 text.
+ * Generated SDKs bind this codec to request bodies whose contract is a plain-text media type (`text/plain`,
+ * `text/x-markdown`, `text/csv`, ...) carried by a string schema. Construct via [of] (required bodies) or
+ * [ofNullable] (optional bodies, where the executor never encodes an absent body — a null reaching [encode]
+ * is a contract violation and fails).
+ */
+public class RawTextCodec<T> private constructor(
+    override val id: String,
+    override val mediaTypes: Set<String>,
+    private val fromText: (String) -> T,
+    private val toText: (T) -> String,
+    private val maxBufferedBytes: Long,
+) : MediaTypeCodec<T> {
+    init {
+        require(mediaTypes.isNotEmpty()) { "a raw text codec must declare at least one media type" }
+        require(maxBufferedBytes > 0) { "maxBufferedBytes must be positive" }
+    }
+
+    override suspend fun encode(
+        value: T,
+        mediaType: String,
+    ): SdkRequestBody = SdkRequestBody.Bytes(toText(value).encodeToByteArray(), mediaType)
+
+    override suspend fun decode(
+        body: SdkByteStream,
+        mediaType: String?,
+    ): T = fromText(body.toByteArray(maxBufferedBytes).decodeToString())
+
+    public companion object {
+        public fun of(
+            id: String,
+            mediaTypes: Set<String>,
+            maxBufferedBytes: Long = KotlinxSerializationCodec.DEFAULT_MAX_BUFFERED_BYTES,
+        ): RawTextCodec<String> = RawTextCodec(id, mediaTypes, { it }, { it }, maxBufferedBytes)
+
+        public fun ofNullable(
+            id: String,
+            mediaTypes: Set<String>,
+            maxBufferedBytes: Long = KotlinxSerializationCodec.DEFAULT_MAX_BUFFERED_BYTES,
+        ): RawTextCodec<String?> =
+            RawTextCodec(
+                id,
+                mediaTypes,
+                { it },
+                { value -> requireNotNull(value) { "a raw text request body cannot be null" } },
+                maxBufferedBytes,
+            )
+    }
+}
+
 public class MediaTypeCodecRegistry<T> private constructor(
     private val codecs: List<MediaTypeCodec<T>>,
     private val defaultCodecId: String?,

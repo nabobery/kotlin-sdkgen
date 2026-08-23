@@ -1,0 +1,69 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-pull-request-unlocked/properties/pull_request/properties/req
+ * uested_reviewers/items/oneOf/0/properties/type.
+ *
+ * Source:
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-pull-request-unlocked/properties/pull_request/properties/req
+ * uested_reviewers/items/oneOf/0/properties/type
+ */
+@Serializable(with = InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f.Serializer::class)
+public sealed class InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `Bot`.
+   */
+  public data object Bot : InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f() {
+    public override val `value`: String = "Bot"
+  }
+
+  /**
+   * Documented value. Wire value: `User`.
+   */
+  public data object User : InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f() {
+    public override val `value`: String = "User"
+  }
+
+  /**
+   * Documented value. Wire value: `Organization`.
+   */
+  public data object Organization : InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f() {
+    public override val `value`: String = "Organization"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f = when (value) {
+      Bot.value -> Bot
+      User.value -> User
+      Organization.value -> Organization
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookPullRequestUnc059PullRequestRequestedReviewersItemTypeX9669c17f) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

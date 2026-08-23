@@ -1,6 +1,8 @@
 package com.nabobery.sdkgen.engine.spi
 
 import com.nabobery.sdkgen.model.AdditionalPropertiesModel
+import com.nabobery.sdkgen.model.AllOfPropertyResolution
+import com.nabobery.sdkgen.model.AllOfResolutionSource
 import com.nabobery.sdkgen.model.CompositionModel
 import com.nabobery.sdkgen.model.Diagnostic
 import com.nabobery.sdkgen.model.DiscriminatorModel
@@ -81,6 +83,16 @@ private fun CompositionModel.immutableSnapshot(): CompositionModel =
 private fun PropertyOwnership.immutableSnapshot(): PropertyOwnership =
     copy(constraints = constraints.immutableJsonMapSnapshot())
 
+private fun AllOfPropertyResolution.immutableSnapshot(): AllOfPropertyResolution =
+    copy(
+        branch =
+            when (val selected = branch) {
+                is AllOfResolutionSource.Referenced -> selected.copy()
+                is AllOfResolutionSource.Inline -> selected.copy()
+            },
+        source = source.copy(),
+    )
+
 private fun PropertyModel.immutableSnapshot(): PropertyModel =
     copy(
         schema = schema.immutableSnapshot(),
@@ -121,6 +133,8 @@ private fun SchemaModel.immutableSnapshot(): SchemaModel =
         additionalProperties = additionalProperties?.immutableSnapshot(),
         compositions = immutableList(compositions.map(CompositionModel::immutableSnapshot)),
         allOfPropertyOwnership = immutableList(allOfPropertyOwnership.map(PropertyOwnership::immutableSnapshot)),
+        allOfPropertyResolutions =
+            immutableList(allOfPropertyResolutions.map(AllOfPropertyResolution::immutableSnapshot)),
         extensions = extensions.immutableJsonMapSnapshot(),
     )
 

@@ -125,11 +125,30 @@ internal class StandardProjection : DeclarationProjection {
             )
         declarations += schemaDeclarations
 
+        // Operations are projected in this deterministic order, so variant names committed by one operation are
+        // observed by every later operation: secondary variant allocation is document-scoped. Reservations are
+        // committed only AFTER an operation projects successfully — an operation excluded by a later failure
+        // emits no callables, so its tentative names must not block siblings (no phantom reservations).
+        val reservedRequestVariantNames = mutableSetOf<String>()
         val operationOutcomes =
             request.document.operations
                 .sortedWith(compareBy(OperationModel::operationId, OperationModel::method, OperationModel::path))
                 .mapIndexed { index, operation ->
-                    projectOperationOutcome(request, operation, index, context, memberPlan)
+                    val outcome =
+                        projectOperationOutcome(
+                            request,
+                            operation,
+                            index,
+                            context,
+                            memberPlan,
+                            reservedRequestVariantNames,
+                        )
+                    if (outcome is OperationProjectionOutcome.Declaration) {
+                        outcome.value.requestVariants.forEach { variant ->
+                            reservedRequestVariantNames.add(variant.methodName)
+                        }
+                    }
+                    outcome
                 }
         val operations = operationOutcomes.filterIsInstance<OperationProjectionOutcome.Declaration>().map { it.value }
         operations.forEach { projected ->
@@ -356,9 +375,11 @@ internal class StandardProjection : DeclarationProjection {
         order: Int,
         context: SchemaProjectionContext,
         memberPlan: MemberNamePlan,
+        reservedRequestVariantNames: Set<String>,
     ): OperationProjectionOutcome =
         try {
-            val projected = projectOperation(request, operation, order, context, memberPlan)
+            val projected =
+                projectOperation(request, operation, order, context, memberPlan, reservedRequestVariantNames)
             if (
                 projected.responseMode == OperationResponseMode.STREAMING &&
                 !projected.hasCompatibleOrdinaryResponseShape()
@@ -386,6 +407,8 @@ internal class StandardProjection : DeclarationProjection {
                 GenerationDiagnosticCode.UNREPRESENTABLE_RAW_RESPONSE_ALTERNATIVE,
                 failure,
             )
+        } catch (failure: VariantNameCollisionException) {
+            diagnosticOutcome(request, operation, GenerationDiagnosticCode.NAME_COLLISION, failure)
         } catch (failure: UnrepresentableOperationException) {
             diagnosticOutcome(request, operation, GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, failure)
         } catch (failure: RuntimeException) {
@@ -423,6 +446,7 @@ internal class StandardProjection : DeclarationProjection {
         order: Int,
         context: SchemaProjectionContext,
         memberPlan: MemberNamePlan,
+        reservedRequestVariantNames: Set<String>,
     ): OperationDeclaration {
         val responseMode = operationResponseMode(operation)
         val responseAlternatives = projectResponseAlternatives(request, operation, context)
@@ -459,14 +483,25 @@ internal class StandardProjection : DeclarationProjection {
             } else {
                 responseAlternatives
             }
-        val requestAlternatives = projectRequestBodyAlternatives(request, operation, context)
-        val requestMediaTypes = requestAlternatives.map(OperationRequestBodyAlternative::mediaType)
         val responseMediaTypes =
             (if (responseMode == OperationResponseMode.MIXED) bufferedSuccessAlternatives else successfulAlternatives)
                 .flatMap(OperationResponseAlternative::mediaTypes)
                 .distinct()
         val operationName = memberPlan.operationName(operation)
         val requestBodyRequired = operation.requestBody?.requiredness == Requiredness.REQUIRED
+        val requestBody =
+            projectRequestBodyAlternatives(
+                request,
+                operation,
+                context,
+                primaryMethodName = operationName,
+                claimedMemberNames = memberPlan.claimedMemberNames,
+                reservedVariantNames = reservedRequestVariantNames,
+                requestBodyRequired = requestBodyRequired,
+            )
+        val requestVariants = requestBody.variants
+        val requestAlternatives = requestBody.primaryAlternatives
+        val requestMediaTypes = requestAlternatives.map(OperationRequestBodyAlternative::mediaType)
         val requestType =
             requestAlternatives
                 .firstOrNull()
@@ -523,6 +558,7 @@ internal class StandardProjection : DeclarationProjection {
                     projectParameter(request, operation, parameter, context)
                 },
             requestBodyAlternatives = requestAlternatives,
+            requestVariants = requestVariants,
             responseAlternatives = declaredResponseAlternatives,
             security =
                 operation.securityAlternatives.map { requirement ->
@@ -810,59 +846,378 @@ internal class StandardProjection : DeclarationProjection {
         )
     }
 
+    /**
+     * The primary request-body alternatives (one per media type of the operation's primary variant) plus every
+     * callable request-media variant. Media families that used to be rejected as mutually incompatible now project
+     * one variant per family; all per-media validation inside each alternative is unchanged.
+     */
+    private data class RequestBodyProjection(
+        val primaryAlternatives: List<OperationRequestBodyAlternative>,
+        val variants: List<OperationRequestVariantDeclaration>,
+    )
+
+    /** One projected media alternative before grouping into callable variants. */
+    private data class ProjectedContentEntry(
+        val mediaType: String,
+        val family: RequestMediaFamily,
+        val type: KotlinTypeRef,
+        val multipartParts: List<MultipartPartDeclaration>,
+        val formFields: List<FormFieldDeclaration>,
+        val source: SourcePointer,
+    )
+
+    private enum class RequestMediaFamily {
+        /** `multipart/form-data`: object-part projection, part validation, and the fixed `Multipart` suffix. */
+        MULTIPART,
+
+        /** `application/x-www-form-urlencoded`: form-field projection/validation and the fixed `Form` suffix. */
+        FORM_URL_ENCODED,
+
+        /** `application/json` and `+json` structured syntaxes: kotlinx-serialization JSON bodies. */
+        JSON,
+
+        /** Text media types whose schema resolves to a string: raw UTF-8 text, never a JSON representation. */
+        TEXT,
+
+        /** `application/octet-stream` byte-stream bodies: transferred raw, no serialization codec. */
+        BINARY,
+    }
+
+    /**
+     * Total order over media groups built only from intrinsic keys: the minimum normalized media type, then the
+     * group's sorted raw media types (raw strings are unique per operation, so this is a total order). Group
+     * choice, secondary ordering, and same-suffix disambiguation are therefore independent of content order.
+     */
+    private val groupMediaOrder =
+        compareBy<List<ProjectedContentEntry>>(
+            { group -> group.minOf { entry -> normalizeMediaType(entry.mediaType) } },
+            { group -> group.map { entry -> entry.mediaType }.sorted().joinToString(",") },
+        )
+
     private fun projectRequestBodyAlternatives(
         request: DeclarationProjectionRequest,
         operation: OperationModel,
         context: SchemaProjectionContext,
-    ): List<OperationRequestBodyAlternative> {
-        val requestBody = operation.requestBody ?: return emptyList()
-        val formContent =
-            requestBody.content.firstOrNull { content ->
-                content.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)
-            }
-        if (formContent != null && requestBody.content.size > 1) {
-            val alternative = requestBody.content.first { content -> content !== formContent }
-            unsupported(
-                "form request body has another media alternative; explicit request media selection is not supported",
-                alternative.source,
-            )
-        }
-        val bodyTypes =
+        primaryMethodName: String,
+        claimedMemberNames: Set<String>,
+        reservedVariantNames: Set<String>,
+        requestBodyRequired: Boolean,
+    ): RequestBodyProjection {
+        val requestBody = operation.requestBody ?: return RequestBodyProjection(emptyList(), emptyList())
+        if (requestBody.content.isEmpty()) return RequestBodyProjection(emptyList(), emptyList())
+        // Each media alternative is projected independently with its existing per-media validation intact;
+        // incompatible media families no longer reject the whole operation — they become callable variants.
+        val entries =
             requestBody.content.mapIndexed { contentIndex, content ->
-                content.schema?.let { schema ->
-                    context.typeFor(schema, "${operation.operationId} request $contentIndex")
-                } ?: KotlinTypeRef("kotlin", "Unit")
+                val bodyType =
+                    content.schema?.let { schema ->
+                        context.typeFor(schema, "${operation.operationId} request $contentIndex")
+                    } ?: KotlinTypeRef("kotlin", "Unit")
+                val family =
+                    requestMediaFamily(content.mediaType, bodyType)
+                        ?: unsupported(
+                            "request media type '${content.mediaType}' has no supported wire encoding for its " +
+                                "resolved body type; only JSON, raw text (string schema), raw byte-stream, " +
+                                "form, and multipart/form-data representations can be encoded faithfully",
+                            content.source,
+                        )
+                ProjectedContentEntry(
+                    mediaType = content.mediaType,
+                    family = family,
+                    type = bodyType,
+                    multipartParts =
+                        if (family == RequestMediaFamily.MULTIPART) {
+                            projectMultipartParts(operation, content.schema, content.encoding, bodyType, context)
+                        } else {
+                            emptyList()
+                        },
+                    formFields =
+                        if (family == RequestMediaFamily.FORM_URL_ENCODED) {
+                            projectFormFields(content, bodyType, context)
+                        } else {
+                            emptyList()
+                        },
+                    source = content.source,
+                )
             }
-        val selectedType = bodyTypes.firstOrNull()
-        val incompatibleIndex = bodyTypes.indexOfFirst { type -> type != selectedType }
-        if (incompatibleIndex >= 0) {
-            val content = requestBody.content[incompatibleIndex]
-            unsupported(
-                "request media types use incompatible request schemas; media-type-specific request values are not supported",
-                content.schema?.let(context::dereference)?.source ?: content.source,
+        val groups = groupCompatibleEntries(entries)
+        // application/json claims the unsuffixed method whenever it is present; otherwise the canonically first
+        // family keeps it, which preserves the exact public name every single-family operation has today.
+        // Group choice and secondary ordering use a total order over intrinsic group keys (minimum normalized
+        // media type, then the sorted raw media types), so allocation never depends on parsed content ordering.
+        val jsonGroups =
+            groups.filter { group -> group.any { entry -> normalizeMediaType(entry.mediaType) == JSON_MEDIA_TYPE } }
+        val primaryGroup = (jsonGroups.ifEmpty { groups }).minWith(groupMediaOrder)
+        val secondaries = groups.filter { group -> group !== primaryGroup }.sortedWith(groupMediaOrder)
+        val variants =
+            mutableListOf(
+                variantFrom(
+                    group = primaryGroup,
+                    methodName = primaryMethodName,
+                    nameSuffix = "",
+                    operationIdentity = operation.operationId,
+                    requestBodyRequired = requestBodyRequired,
+                ),
             )
+        // Secondary names are checked against a document-scoped set: primaries of all operations plus every
+        // variant COMMITTED by an earlier successfully-projected operation (reservations are committed by the
+        // caller only after the whole operation projects — a later failure must not leave phantom reservations
+        // that block siblings from names no emitted member actually owns).
+        val takenNames = claimedMemberNames.toMutableSet()
+        takenNames.addAll(reservedVariantNames)
+        val allocatedThisOperation = mutableSetOf<String>()
+        secondaries.forEach { group ->
+            var suffix = preferredVariantSuffix(group)
+            var candidateName = "$primaryMethodName$suffix"
+            if (candidateName in allocatedThisOperation) {
+                // Several same-family groups can tie on their preferred fixed suffix when their normalized media
+                // types are equal but their codec-relevant encodings differ; the later-sorted group falls back to
+                // the sanitized subtype suffix so both encodings stay callable under stable names. The fallback
+                // applies ONLY to this intra-operation tie — a collision with any name owned outside this
+                // operation fails closed below, never silently renames.
+                suffix = fallbackVariantSuffix(group)
+                candidateName = "$primaryMethodName$suffix"
+            }
+            if (!takenNames.add(candidateName)) {
+                val loser = group.minBy { entry -> normalizeMediaType(entry.mediaType) }
+                throw VariantNameCollisionException(
+                    "callable request-media variant '$candidateName' for '${operation.operationId}' " +
+                        "(media type '${loser.mediaType}') collides with an existing public method; no rename of " +
+                        "the existing method is permitted, so the variant cannot be named",
+                    loser.source,
+                )
+            }
+            allocatedThisOperation.add(candidateName)
+            variants +=
+                variantFrom(
+                    group = group,
+                    methodName = candidateName,
+                    nameSuffix = suffix,
+                    operationIdentity = operation.operationId,
+                    requestBodyRequired = requestBodyRequired,
+                )
         }
-        return requestBody.content.mapIndexed { contentIndex, content ->
-            val bodyType = bodyTypes[contentIndex]
-            OperationRequestBodyAlternative(
-                mediaType = content.mediaType,
-                type = bodyType,
-                required = requestBody.requiredness == Requiredness.REQUIRED,
-                multipartParts =
-                    if (content.mediaType.equals("multipart/form-data", ignoreCase = true)) {
-                        projectMultipartParts(operation, content.schema, content.encoding, bodyType, context)
-                    } else {
-                        emptyList()
-                    },
-                formFields =
-                    if (content.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)) {
-                        projectFormFields(content, bodyType, context)
-                    } else {
-                        emptyList()
-                    },
-            )
+        return RequestBodyProjection(
+            primaryAlternatives =
+                primaryGroup.map { entry ->
+                    OperationRequestBodyAlternative(
+                        mediaType = entry.mediaType,
+                        type = entry.type,
+                        multipartParts = entry.multipartParts,
+                        formFields = entry.formFields,
+                        required = requestBodyRequired,
+                    )
+                },
+            variants = variants,
+        )
+    }
+
+    /**
+     * Groups media alternatives into callable variants: entries share a variant only when they belong to the same
+     * media family, resolve to the same body type, AND carry identical codec-relevant metadata (multipart parts,
+     * form fields) — otherwise a merged variant would advertise media types it cannot encode faithfully. A
+     * single-family operation whose entries agree on all of that keeps exactly the grouped alternatives — and
+     * therefore the exact public method — it had before callable variants existed.
+     */
+    private fun groupCompatibleEntries(entries: List<ProjectedContentEntry>): List<List<ProjectedContentEntry>> {
+        val groups = mutableListOf<MutableList<ProjectedContentEntry>>()
+        entries.forEach { entry ->
+            val group =
+                groups.firstOrNull { candidate ->
+                    val first = candidate.first()
+                    first.family == entry.family &&
+                        first.type == entry.type &&
+                        sameMultipartParts(first.multipartParts, entry.multipartParts) &&
+                        sameFormFields(first.formFields, entry.formFields)
+                }
+            if (group == null) {
+                groups.add(mutableListOf(entry))
+            } else {
+                group.add(entry)
+            }
+        }
+        return groups
+    }
+
+    /**
+     * Classifies a request media alternative into its wire-encoding family, or `null` for a representation the
+     * generator cannot encode faithfully — the caller fails closed rather than defaulting to JSON. Only
+     * parameter-normalized `multipart/form-data` is the multipart family with part projection/validation; other
+     * multipart subtypes have no faithful encoding and are refused. A raw byte-stream body is BINARY under ANY
+     * remaining media type — the stream's bytes are the document, so `application/pdf`, `image/png`, and
+     * `application/octet-stream` all transfer it verbatim without a serialization codec. Every media comparison
+     * goes through [normalizeMediaType], so parameters and case never change the classification.
+     */
+    private fun requestMediaFamily(
+        mediaType: String,
+        bodyType: KotlinTypeRef,
+    ): RequestMediaFamily? {
+        val normalized = normalizeMediaType(mediaType)
+        return when {
+            normalized == MULTIPART_FORM_DATA_MEDIA_TYPE -> RequestMediaFamily.MULTIPART
+
+            normalized == FORM_URL_ENCODED_MEDIA_TYPE -> RequestMediaFamily.FORM_URL_ENCODED
+
+            isOneShotByteStreamType(bodyType) -> RequestMediaFamily.BINARY
+
+            // `application/json`, legacy aliases like `text/json`, and every `+json` structured syntax.
+            normalized.substringAfter('/', missingDelimiterValue = "").let { subtype ->
+                subtype == "json" || subtype.endsWith("+json")
+            } -> RequestMediaFamily.JSON
+
+            normalized.startsWith("text/") &&
+                bodyType.packageName == "kotlin" &&
+                bodyType.simpleName == "String" -> RequestMediaFamily.TEXT
+
+            else -> null
         }
     }
+
+    /** Stable preferred suffix for a non-primary variant: fixed for the two wire-form families, else the sanitized subtype. */
+    private fun preferredVariantSuffix(group: List<ProjectedContentEntry>): String =
+        when (group.first().family) {
+            RequestMediaFamily.MULTIPART -> {
+                "Multipart"
+            }
+
+            RequestMediaFamily.FORM_URL_ENCODED -> {
+                "Form"
+            }
+
+            RequestMediaFamily.JSON,
+            RequestMediaFamily.TEXT,
+            RequestMediaFamily.BINARY,
+            -> {
+                sanitizedSubtypeSuffix(group.minOf { entry -> normalizeMediaType(entry.mediaType) })
+            }
+        }
+
+    /**
+     * Deterministic disambiguation for the (only) case several same-family groups tie on their preferred fixed
+     * suffix — equal normalized media types with differing encodings, ordered by [groupMediaOrder]: the later-sorted
+     * group falls back to the sanitized subtype suffix so both encodings stay callable under stable names.
+     */
+    private fun fallbackVariantSuffix(group: List<ProjectedContentEntry>): String =
+        sanitizedSubtypeSuffix(group.minOf { entry -> normalizeMediaType(entry.mediaType) })
+
+    private fun normalizeMediaType(mediaType: String): String =
+        mediaType.substringBefore(';').trim().lowercase(Locale.ROOT)
+
+    private fun sanitizedSubtypeSuffix(normalizedMediaType: String): String {
+        val subtype = normalizedMediaType.substringAfter('/', missingDelimiterValue = "")
+        val words = Regex("[^a-z0-9]+").split(subtype).filter(String::isNotEmpty)
+        return words.joinToString("") { word -> word.replaceFirstChar(Char::uppercaseChar) }.ifEmpty { "Other" }
+    }
+
+    private fun variantFrom(
+        group: List<ProjectedContentEntry>,
+        methodName: String,
+        nameSuffix: String,
+        operationIdentity: String,
+        requestBodyRequired: Boolean,
+    ): OperationRequestVariantDeclaration =
+        OperationRequestVariantDeclaration(
+            methodName = methodName,
+            nameSuffix = nameSuffix,
+            operationIdentity = operationIdentity,
+            mediaTypes = group.map { entry -> entry.mediaType },
+            type = group.first().type,
+            required = requestBodyRequired,
+            multipartParts = group.first().multipartParts,
+            formFields = group.first().formFields,
+            replayability = replayabilityFor(group),
+            encoding =
+                when (group.first().family) {
+                    RequestMediaFamily.MULTIPART -> RequestBodyEncoding.MULTIPART
+                    RequestMediaFamily.FORM_URL_ENCODED -> RequestBodyEncoding.FORM
+                    RequestMediaFamily.JSON -> RequestBodyEncoding.JSON
+                    RequestMediaFamily.TEXT -> RequestBodyEncoding.TEXT
+                    RequestMediaFamily.BINARY -> RequestBodyEncoding.BINARY
+                },
+        )
+
+    /**
+     * Value and urlencoded bodies encode to in-memory bytes and keep today's replay behavior. A body is
+     * NON-replayable whenever it consumes one-shot byte streams: either its resolved body type IS the one-shot
+     * stream type (for any media family — e.g. an `application/octet-stream` body typed `string/format: binary`),
+     * or it is multipart containing a one-shot stream part. Retry safety is never weakened for uniformity.
+     */
+    private fun replayabilityFor(group: List<ProjectedContentEntry>): RequestBodyReplayability =
+        if (
+            group.any { entry ->
+                isOneShotByteStreamType(entry.type) || entry.multipartParts.any(::isOneShotByteStreamPart)
+            }
+        ) {
+            RequestBodyReplayability.NON_REPLAYABLE
+        } else {
+            RequestBodyReplayability.REPLAYABLE
+        }
+
+    private fun isOneShotByteStreamType(type: KotlinTypeRef): Boolean =
+        type.packageName == RUNTIME_PACKAGE && type.simpleName == ONE_SHOT_STREAM_TYPE_NAME
+
+    private fun isOneShotByteStreamPart(part: MultipartPartDeclaration): Boolean = isOneShotByteStreamType(part.type)
+
+    private fun sameMultipartParts(
+        left: List<MultipartPartDeclaration>,
+        right: List<MultipartPartDeclaration>,
+    ): Boolean =
+        left.size == right.size &&
+            left.zip(right).all { (l, r) ->
+                l.wireName == r.wireName &&
+                    l.accessorName == r.accessorName &&
+                    l.type == r.type &&
+                    l.required == r.required &&
+                    l.contentType == r.contentType &&
+                    l.indexedElements == r.indexedElements &&
+                    l.headers == r.headers
+            }
+
+    private fun sameFormFields(
+        left: List<FormFieldDeclaration>,
+        right: List<FormFieldDeclaration>,
+    ): Boolean =
+        left.size == right.size &&
+            left.zip(right).all { (l, r) ->
+                l.wireName == r.wireName &&
+                    l.accessorName == r.accessorName &&
+                    l.type == r.type &&
+                    l.required == r.required &&
+                    sameFormValue(l.value, r.value)
+            }
+
+    private fun sameFormValue(
+        left: FormValueDeclaration,
+        right: FormValueDeclaration,
+    ): Boolean =
+        when {
+            left is FormValueDeclaration.Scalar && right is FormValueDeclaration.Scalar -> {
+                left.kind == right.kind
+            }
+
+            left is FormValueDeclaration.Array && right is FormValueDeclaration.Array -> {
+                sameFormValue(left.element, right.element)
+            }
+
+            left is FormValueDeclaration.Map && right is FormValueDeclaration.Map -> {
+                left.valuesAreJsonElements == right.valuesAreJsonElements && sameFormValue(left.value, right.value)
+            }
+
+            left is FormValueDeclaration.Union && right is FormValueDeclaration.Union -> {
+                left.branches.size == right.branches.size &&
+                    left.branches.zip(right.branches).all { (l, r) ->
+                        l.accessorName == r.accessorName && l.kind == r.kind && sameFormValue(l.value, r.value)
+                    }
+            }
+
+            left is FormValueDeclaration.Object && right is FormValueDeclaration.Object -> {
+                sameFormFields(left.fields, right.fields)
+            }
+
+            else -> {
+                false
+            }
+        }
 
     private fun projectFormFields(
         content: MediaTypeModel,
@@ -1287,6 +1642,17 @@ internal class StandardProjection : DeclarationProjection {
                             else -> "application/json"
                         },
                 indexedElements = indexedElements,
+                // For indexed parts the emitter serializes each element, so carry the resolved element type: a
+                // string element renders verbatim, a string-backed forward-compat enum element via its `.value`.
+                elementType =
+                    propertySchema.items?.let { items -> context.typeFor(items, "${field.resolvedName}Item") },
+                // A non-indexed string-backed open-enum scalar (the same shape the form-scalar OPEN_ENUM path
+                // detects) must be written as a plain text part carrying `.value`; without this the generic fallback
+                // JSON-encodes it and quotes the wire text.
+                openEnumScalar =
+                    !indexedElements &&
+                        propertySchema.enum != null &&
+                        propertySchema.types.filterNot { type -> type == "null" } == listOf("string"),
                 headers = encoding?.headers.orEmpty(),
             )
         }
@@ -1651,12 +2017,24 @@ internal class StandardProjection : DeclarationProjection {
         message: String,
     ) : UnrepresentableOperationException(message)
 
+    /** Raised when a callable request-media variant cannot be named without renaming an existing public method. */
+    private class VariantNameCollisionException(
+        message: String,
+        source: SourcePointer?,
+    ) : UnrepresentableOperationException(message, source)
+
     private fun unsupported(
         message: String,
         source: SourcePointer? = null,
     ): Nothing = throw UnrepresentableOperationException(message, source)
 
     private companion object {
+        const val JSON_MEDIA_TYPE = "application/json"
+        const val OCTET_STREAM_MEDIA_TYPE = "application/octet-stream"
+        const val MULTIPART_FORM_DATA_MEDIA_TYPE = "multipart/form-data"
+        const val FORM_URL_ENCODED_MEDIA_TYPE = "application/x-www-form-urlencoded"
+        const val RUNTIME_PACKAGE = "com.nabobery.sdkgen.runtime"
+        const val ONE_SHOT_STREAM_TYPE_NAME = "SdkByteStream"
         val SAFE_METHODS = setOf("GET", "HEAD", "OPTIONS", "TRACE")
         val IDEMPOTENT_METHODS = setOf("PUT", "DELETE")
         val diagnosticComparator =
@@ -1926,6 +2304,13 @@ private class MemberNamePlan(
     fun operationName(operation: OperationModel): String =
         names[operation.operationIdentityKey()] ?: error("Missing operation name")
 
+    /**
+     * Every member name already claimed by an operation in this document. Callable request-media variants must
+     * not usurp any of them: an unresolvable name collision fails closed with a typed diagnostic instead.
+     * Cached on first access (the name plan is complete before projection reads it).
+     */
+    val claimedMemberNames: Set<String> by lazy(LazyThreadSafetyMode.NONE) { names.values.toSet() }
+
     private fun OperationModel.operationIdentityKey(): String = "$method|$operationId|$path"
 }
 
@@ -1939,6 +2324,11 @@ private class SchemaProjectionContext(
 ) {
     private val document = request.document
     private val failures = initialFailedSchemaIds.toMutableSet()
+    private val intersectionResolver =
+        SchemaIntersectionResolver(
+            dereference = { id -> dereference(id) },
+            effectivelyNullable = { ref -> isEffectivelyNullable(ref) },
+        )
 
     val failedSchemaIds: Set<SchemaId>
         get() = failures.toSet()
@@ -2209,13 +2599,27 @@ private class SchemaProjectionContext(
                 properties[property.name] = property
                 return
             }
-            val priorType = typeFor(prior.schema, "${effective.id.value} ${prior.name}")
-            val nextType = typeFor(property.schema, "${effective.id.value} ${property.name}")
-            if (priorType != nextType || prior.nullability != property.nullability) {
-                unsupported("conflicting allOf property '${property.name}'")
-            }
-            if (property.requiredness == Requiredness.REQUIRED && prior.requiredness != Requiredness.REQUIRED) {
-                properties[property.name] = prior.copy(requiredness = Requiredness.REQUIRED)
+            // Every duplicate declaration routes through the strict resolver — there is deliberately no
+            // same-projected-type fast path: two operands that project to the same Kotlin type can still differ
+            // in constraints, content contracts, or compositions, and keeping `prior` unexamined would make the
+            // retained schema node depend on allOf branch order. Pairs the algebra cannot prove equal surface as
+            // conflicting-allOf blockers and are resolved by audited overrides, never silently.
+            when (val result = intersectionResolver.resolve(effective, prior, property)) {
+                is IntersectionResult.Resolved -> {
+                    properties[property.name] = result.property
+                }
+
+                is IntersectionResult.AuditedOverride -> {
+                    properties[property.name] = result.property
+                }
+
+                is IntersectionResult.Unsupported -> {
+                    // Preserve the exact legacy reason AND source (schema.source, via the catch's fallback) so
+                    // category classification, the GitHub blocker ledger, and every reasonSha256-pinned waiver stay
+                    // byte-stable. The resolver's stable rule id and both operand source locations live on
+                    // `result.provenance` for the conformance status ledger rather than churning the exclusion identity.
+                    unsupported("conflicting allOf property '${property.name}'")
+                }
             }
         }
         effective.properties.forEach(::addProperty)

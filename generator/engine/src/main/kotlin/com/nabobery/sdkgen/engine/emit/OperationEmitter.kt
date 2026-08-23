@@ -13,11 +13,14 @@ import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationParameterDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationParameterLocation
 import com.nabobery.sdkgen.engine.declarations.OperationRequestBodyAlternative
+import com.nabobery.sdkgen.engine.declarations.OperationRequestVariantDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationResponseAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaration
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
 import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
+import com.nabobery.sdkgen.engine.declarations.RequestBodyEncoding
+import com.nabobery.sdkgen.engine.declarations.RequestBodyReplayability
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
 import com.nabobery.sdkgen.engine.declarations.RetryDeclaration
 import com.nabobery.sdkgen.engine.declarations.StreamingDeclaration
@@ -40,6 +43,7 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
+import java.util.Locale
 
 internal fun EmissionContext.emitOperationClient(
     file: FileSpec.Builder,
@@ -51,10 +55,10 @@ internal fun EmissionContext.emitOperationClient(
     }
     val clientType = ClassName(declaration.packageName, declaration.resolvedName)
     val codecsType = ClassName(declaration.packageName, declaration.codecsObjectName)
-    file.addType(codecsObject(declaration, codecsType))
+    val methodNames = operationMethodNames(declaration.operations)
+    file.addType(codecsObject(declaration, codecsType, methodNames))
 
     val singleOperation = declaration.operations.singleOrNull()
-    val methodNames = operationMethodNames(declaration.operations)
     val requiresSecurityAuthentication =
         declaration.operations.any { operation ->
             operation.security.any { requirement -> requirement.schemes.isNotEmpty() }
@@ -137,7 +141,11 @@ internal fun EmissionContext.emitOperationClient(
             )
         val ordinaryResponseSupported = operation.hasCompatibleOrdinaryResponseShape()
         if (ordinaryResponseSupported) {
-            clientBuilder.addFunction(operationFunction(operation, clientType, codecsType, metadataPropertyName, names))
+            names.variantMembers.forEach { variant ->
+                clientBuilder.addFunction(
+                    operationFunction(operation, variant, clientType, codecsType, metadataPropertyName, names),
+                )
+            }
         }
         if (names.responseTypeName != null) {
             names.errorTypeName?.let { clientBuilder.addType(responseErrorType(operation, it)) }
@@ -146,9 +154,11 @@ internal fun EmissionContext.emitOperationClient(
                 clientBuilder.addType(typedApiExceptionType(operation, clientType, names))
             }
             clientBuilder.addType(responseDecoderType(operation, clientType, codecsType, names))
-            clientBuilder.addFunction(
-                withResponseFunction(operation, clientType, codecsType, metadataPropertyName, names),
-            )
+            names.variantMembers.forEach { variant ->
+                clientBuilder.addFunction(
+                    withResponseFunction(operation, variant, clientType, codecsType, metadataPropertyName, names),
+                )
+            }
         }
         if (operation.pagination != null && ordinaryResponseSupported) {
             clientBuilder.addFunction(paginationPagesFunction(operation, metadataPropertyName, names))
@@ -166,6 +176,18 @@ internal fun EmissionContext.emitOperationClient(
                     operationMetadata(operation),
                 ).build(),
         )
+        names.secondaryVariants.forEach { variant ->
+            companionBuilder.addProperty(
+                PropertySpec
+                    .builder(requireNotNull(variant.metadataPropertyName), OPERATION_METADATA)
+                    .addModifiers(KModifier.INTERNAL)
+                    .delegate(
+                        "lazy(%T.PUBLICATION) { %L }",
+                        LAZY_THREAD_SAFETY_MODE,
+                        operationMetadata(operation, requireNotNull(variant.mediaTypes)),
+                    ).build(),
+            )
+        }
         if (operation.responseMode == OperationResponseMode.MIXED) {
             val streamMetadataPropertyName = "${metadataPropertyName}Stream"
             companionBuilder.addProperty(
@@ -316,12 +338,182 @@ private data class OperationMethodNames(
     val limitParameterName: String? = null,
     /** `<operationName>Stream`, collision-allocated; populated only for [OperationResponseMode.MIXED] operations. */
     val streamName: String? = null,
+    /**
+     * One member-name bundle per callable request-media variant, primary first. The primary reuses every
+     * operation-level name byte-identically; secondary variants carry collision-allocated metadata and
+     * `WithResponse` names plus their own codec identity.
+     */
+    val variantMembers: List<VariantMembers> = emptyList(),
+) {
+    /** Variants after the primary — each carries its own dedicated companion metadata property. */
+    val secondaryVariants: List<VariantMembers>
+        get() = variantMembers.drop(1)
+}
+
+/**
+ * Everything the emitter needs to emit ONE callable method + request-codec path for one request-media variant.
+ * Shared operation semantics (parameters, auth, responses, errors, deadlines, retry policy) stay on
+ * [OperationMethodNames]/[OperationDeclaration]; only the request surface is per-variant here.
+ */
+private class VariantMembers(
+    /** Full callable member name (`names.operationName` for the primary). */
+    val methodName: String,
+    /** True for the unsuffixed primary variant, which keeps every operation-level naming choice. */
+    val isPrimary: Boolean,
+    /** Exact media types this variant serves; hardwired into its own [OperationMetadata]. */
+    val mediaTypes: List<String>?,
+    /** Exact request wire type carried by this variant. */
+    val type: KotlinTypeRef,
+    /** Whether the request body must be present when calling this variant. */
+    val required: Boolean,
+    /** Multipart part metadata; non-empty only for multipart variants. */
+    val multipartParts: List<MultipartPartDeclaration>,
+    /** Form field metadata; non-empty only for form-url-encoded variants. */
+    val formFields: List<FormFieldDeclaration>,
+    /** Declared retry/replay safety; validated against the generated body encoding at emission time. */
+    val replayability: RequestBodyReplayability,
+    /** The wire encoding this variant commits to; the ONLY signal codec emission dispatches on. */
+    val encoding: RequestBodyEncoding,
+    /** Collision-allocated `<method>Metadata` companion property name; null for the primary (operation-level name). */
+    val metadataPropertyName: String?,
+    /** Collision-allocated `<method>WithResponse` name; null when no typed response API exists or for the primary. */
+    val withResponseName: String?,
+    /** Request-codec stored property inside the codecs object. */
+    val codecPropertyName: String,
+    /** Request-codec id `const val` name. */
+    val codecConstantName: String,
+    /** Request-codec identifier string passed to the runtime registry select. */
+    val codecId: String,
 )
+
+/**
+ * Resolves one operation's callable variants to their emitted member names. The primary variant (index 0) reuses
+ * every operation-level name so single-variant output stays byte-identical; each secondary variant allocates its
+ * metadata property, `WithResponse` entry point, and codec identity against the same collision set.
+ */
+private fun variantMembersFor(
+    operation: OperationDeclaration,
+    current: OperationMethodNames,
+    used: MutableSet<String>,
+    usedCodecConstants: MutableSet<String>,
+): List<VariantMembers> =
+    callableVariants(operation).mapIndexed { index, source ->
+        if (index == 0) {
+            VariantMembers(
+                methodName = current.operationName,
+                isPrimary = true,
+                mediaTypes = null,
+                type = source.type,
+                required = source.required,
+                multipartParts = source.multipartParts.toList(),
+                formFields = source.formFields.toList(),
+                replayability = source.replayability,
+                encoding = source.encoding,
+                metadataPropertyName = null,
+                withResponseName = current.withResponseName,
+                codecPropertyName = operation.requestCodecPropertyName,
+                codecConstantName = operation.requestCodecConstantName,
+                codecId = operation.requestCodecId,
+            )
+        } else {
+            val baseMetadata = uniqueMemberName("${source.methodName}Metadata", used)
+            VariantMembers(
+                methodName = source.methodName,
+                isPrimary = false,
+                mediaTypes = source.mediaTypes.toList(),
+                type = source.type,
+                required = source.required,
+                multipartParts = source.multipartParts.toList(),
+                formFields = source.formFields.toList(),
+                replayability = source.replayability,
+                encoding = source.encoding,
+                metadataPropertyName = baseMetadata,
+                withResponseName =
+                    current.withResponseName?.let {
+                        uniqueMemberName("${source.methodName}WithResponse", used)
+                    },
+                codecPropertyName = "${source.methodName}RequestCodec",
+                // The screaming-snake transform is lossy ("AB" and "Ab" both become "_AB"), so the constant is
+                // allocated through the client-wide constant name plan: a collision takes a deterministic
+                // numeric suffix instead of emitting two identical `const val`s that fail to compile.
+                codecConstantName =
+                    uniqueMemberName(
+                        source.methodName
+                            .replaceFirstChar(Char::uppercaseChar)
+                            .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+                            .uppercase(Locale.ROOT) + "_REQUEST_CODEC_ID",
+                        usedCodecConstants,
+                    ),
+                codecId = operation.requestCodecId + source.nameSuffix,
+            )
+        }
+    }
+
+/**
+ * The callable request-media variants of [operation]: its declared [OperationDeclaration.requestVariants] when the
+ * projection populated them, else one synthetic primary derived from the operation-level request surface.
+ * Declarations that predate the variant seam (hand-built models and operations without a request body) have no
+ * projected variants but must keep emitting exactly what they emitted before.
+ */
+private fun callableVariants(operation: OperationDeclaration): List<OperationRequestVariantDeclaration> =
+    if (operation.requestVariants.isEmpty()) {
+        listOf(operation.legacyPrimaryVariant())
+    } else {
+        operation.requestVariants
+    }
+
+private fun OperationDeclaration.legacyPrimaryVariant(): OperationRequestVariantDeclaration {
+    val multipartParts =
+        requestBodyAlternatives.firstOrNull { it.multipartParts.isNotEmpty() }?.multipartParts ?: emptyList()
+    return OperationRequestVariantDeclaration(
+        methodName = operationId,
+        nameSuffix = "",
+        operationIdentity = operationIdentity,
+        mediaTypes = requestMediaTypesForEmission(),
+        type = requestType,
+        required = requestBodyRequired,
+        multipartParts = multipartParts,
+        formFields =
+            requestBodyAlternatives
+                .firstOrNull { alternative ->
+                    alternative.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)
+                }?.formFields ?: emptyList(),
+        // Derived, never declared: these operations predate the variant seam, so their replay safety is exactly
+        // what their encoding always produced at runtime.
+        replayability =
+            if (requestType.isRawStream() || multipartParts.any { part -> part.type.isRawStream() }) {
+                RequestBodyReplayability.NON_REPLAYABLE
+            } else {
+                RequestBodyReplayability.REPLAYABLE
+            },
+        // Hand-built pre-variant models never carry a projected encoding; derive it from the shape they always
+        // emitted (raw stream, form fields, multipart parts, else the historical kotlinx JSON body) so their
+        // output stays byte-identical.
+        encoding =
+            when {
+                requestType.isRawStream() -> RequestBodyEncoding.BINARY
+
+                multipartParts.isNotEmpty() -> RequestBodyEncoding.MULTIPART
+
+                requestBodyAlternatives.any { alternative ->
+                    alternative.mediaType.equals("application/x-www-form-urlencoded", ignoreCase = true)
+                } -> RequestBodyEncoding.FORM
+
+                else -> RequestBodyEncoding.JSON
+            },
+    )
+}
 
 private fun operationMethodNames(
     operations: List<OperationDeclaration>,
 ): Map<OperationDeclaration, OperationMethodNames> {
     val used = mutableSetOf("executor", "baseUri")
+    // Client-wide codec-constant plan, seeded with every operation-level constant so a secondary variant's
+    // screaming-snake constant can never silently duplicate a primary's (or another variant's) `const val`.
+    val usedCodecConstants =
+        operations.flatMapTo(mutableSetOf()) { operation ->
+            listOf(operation.requestCodecConstantName, operation.responseCodecConstantName)
+        }
     val names = linkedMapOf<OperationDeclaration, OperationMethodNames>()
     operations.forEach { operation ->
         operation.unrepresentableRawResponseAlternative()?.let { alternative ->
@@ -333,6 +525,15 @@ private fun operationMethodNames(
         ) {
             "Operation '${operation.operationIdentity}' has incompatible successful streaming response shapes; " +
                 "no callable API can be emitted."
+        }
+        callableVariants(operation).forEach { variant ->
+            val encoded = encodedBodyReplayability(variant)
+            require(variant.replayability == encoded) {
+                "Request-media variant '${variant.methodName}' of '${operation.operationIdentity}' declares " +
+                    "replayability ${variant.replayability} but its generated body encodes as $encoded; a " +
+                    "declared ${RequestBodyReplayability.NON_REPLAYABLE} body must consume one-shot streams and a " +
+                    "${RequestBodyReplayability.REPLAYABLE} body must be fully in-memory."
+            }
         }
         names[operation] = OperationMethodNames(uniqueMemberName(operation.operationId, used))
     }
@@ -419,9 +620,30 @@ private fun operationMethodNames(
                             ?.let(parameterNames::get)
                     },
             )
+        // Allocated last so every pre-existing name keeps its exact collision numbering.
+        names[operation] =
+            names
+                .getValue(
+                    operation,
+                ).copy(
+                    variantMembers =
+                        variantMembersFor(operation, names.getValue(operation), used, usedCodecConstants),
+                )
     }
     return names
 }
+
+/**
+ * The retry/replay safety the runtime will actually observe for [variant]'s generated request body: a body is
+ * one-shot (never retried) exactly when it IS a raw stream or is multipart carrying a raw-stream part — the two
+ * encodings that bind an [SdkRequestBody.OneShot] at generation time.
+ */
+private fun encodedBodyReplayability(variant: OperationRequestVariantDeclaration): RequestBodyReplayability =
+    if (variant.type.isRawStream() || variant.multipartParts.any { part -> part.type.isRawStream() }) {
+        RequestBodyReplayability.NON_REPLAYABLE
+    } else {
+        RequestBodyReplayability.REPLAYABLE
+    }
 
 private fun operationParameterNames(operation: OperationDeclaration): Map<OperationParameterDeclaration, String> {
     val used = mutableSetOf("request", "options", "pageRequest")
@@ -813,19 +1035,20 @@ private fun responseAlternativeDecodeExpression(
 
 private fun withResponseFunction(
     operation: OperationDeclaration,
+    variant: VariantMembers,
     clientType: ClassName,
     codecsType: ClassName,
-    metadataPropertyName: String,
+    primaryMetadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
     val responseTypeName = requireNotNull(names.responseTypeName)
     val responseInterface = clientType.nestedClass(responseTypeName)
-    val requestType = operation.requestType.toTypeName()
+    val requestType = variantRequestBodyType(variant).toTypeName()
     return FunSpec
-        .builder(requireNotNull(names.withResponseName))
+        .builder(requireNotNull(variant.withResponseName))
         .addModifiers(KModifier.PUBLIC, KModifier.SUSPEND)
         .apply {
-            requestParameter(operation)?.let(::addParameter)
+            variantRequestParameter(variant)?.let(::addParameter)
             operationParameterSpecs(operation, names).forEach(::addParameter)
         }.addParameter(optionsParameter())
         .returns(SDK_RESPONSE_RESULT.parameterizedBy(responseInterface))
@@ -835,12 +1058,12 @@ private fun withResponseFunction(
             requestType,
             responseInterface,
             SDK_EXECUTION_REQUEST,
-            metadataPropertyName,
-            requestValue(operation),
-            requestCodecIds(operation, codecsType),
+            variant.metadataProperty(primaryMetadataPropertyName),
+            variantRequestValue(variant),
+            variantRequestCodecIds(variant, codecsType),
             requestParametersExpression(operation, names),
             codecsType,
-            "${operation.requestCodecPropertyName}Registry",
+            "${variant.codecPropertyName}Registry",
             requireNotNull(names.responseDecoderName),
         ).build()
 }
@@ -889,13 +1112,19 @@ private class OperationCodecMembers(
 private fun EmissionContext.codecsObject(
     declaration: OperationClientDeclaration,
     codecsType: ClassName,
+    methodNames: Map<OperationDeclaration, OperationMethodNames>,
 ): TypeSpec {
     val builder = TypeSpec.objectBuilder(codecsType).addModifiers(KModifier.INTERNAL)
     // Emit once unpartitioned to measure. Below the bound this is also the final output, so small clients are
     // byte-for-byte unaffected by partitioning existing at all.
-    val flat = declaration.operations.map { operation -> operationCodecMembers(operation, outerOwner = null) }
+    val flat =
+        declaration.operations.map { operation ->
+            operationCodecMembers(operation, methodNames.getValue(operation).variantMembers, outerOwner = null)
+        }
     if (flat.sumOf { members -> members.storedProperties.size } <= CODEC_PARTITION_STORED_PROPERTIES) {
-        declaration.operations.forEach { operation -> addOperationCodecs(builder, builder, operation, null) }
+        declaration.operations.forEach { operation ->
+            addOperationCodecs(builder, builder, operation, methodNames.getValue(operation).variantMembers, null)
+        }
         return builder.build()
     }
 
@@ -904,7 +1133,8 @@ private fun EmissionContext.codecsObject(
     val partitions = mutableListOf<MutableList<OperationCodecMembers>>()
     var storedInCurrent = 0
     declaration.operations.forEach { operation ->
-        val members = operationCodecMembers(operation, outerOwner = codecsType)
+        val members =
+            operationCodecMembers(operation, methodNames.getValue(operation).variantMembers, outerOwner = codecsType)
         val overflows = storedInCurrent + members.storedProperties.size > CODEC_PARTITION_STORED_PROPERTIES
         if (partitions.isEmpty() || overflows) {
             partitions += mutableListOf<OperationCodecMembers>()
@@ -948,11 +1178,12 @@ private fun EmissionContext.codecsObject(
 /** Emits one operation's codecs into scratch builders so they can be measured and placed. */
 private fun EmissionContext.operationCodecMembers(
     operation: OperationDeclaration,
+    variantMembers: List<VariantMembers>,
     outerOwner: ClassName?,
 ): OperationCodecMembers {
     val outer = TypeSpec.objectBuilder("Scratch")
     val stored = TypeSpec.objectBuilder("Scratch")
-    addOperationCodecs(outer, stored, operation, outerOwner)
+    addOperationCodecs(outer, stored, operation, variantMembers, outerOwner)
     return OperationCodecMembers(outer.build(), stored.build().propertySpecs)
 }
 
@@ -961,12 +1192,14 @@ private fun EmissionContext.operationCodecMembers(
  * the `const val` codec identifiers and the nested form/multipart codec objects, all internal protocol glue
  * that costs no `<clinit>` bytecode. [membersBuilder] receives the stored properties. They are
  * the same builder unless the codecs object is partitioned. [outerOwner] qualifies references from a partition
- * back to [outerBuilder]'s members, and is null when the two are the same object.
+ * back to [outerBuilder]'s members, and is null when the two are the same object. Secondary request-media
+ * variants add their own codec identity (id constant, codec, registry) after the primary's.
  */
 private fun EmissionContext.addOperationCodecs(
     outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
     operation: OperationDeclaration,
+    variantMembers: List<VariantMembers>,
     outerOwner: ClassName?,
 ) {
     val requestType = operation.requestType.toTypeName()
@@ -977,8 +1210,7 @@ private fun EmissionContext.addOperationCodecs(
     val responseRegistryType = MEDIA_TYPE_CODEC_REGISTRY.parameterizedBy(responseType)
     val requestCodecSupported = operation.requestType.requiresSerializationCodec()
     val responseCodecSupported = operation.responseCodecSupported()
-    val multipartRequest = operation.multipartRequestBody()
-    val formRequest = operation.formRequestBody()
+    val primaryVariant = variantMembers.first()
 
     fun outerReference(name: String): CodeBlock =
         if (outerOwner == null) CodeBlock.of("%L", name) else CodeBlock.of("%T.%L", outerOwner, name)
@@ -991,30 +1223,87 @@ private fun EmissionContext.addOperationCodecs(
                 .initializer("%S", operation.requestCodecId)
                 .build(),
         )
-        if (formRequest != null) {
-            addFormRequestCodec(outerBuilder, codecsBuilder, operation, formRequest, requestCodecType, ::outerReference)
-        } else if (multipartRequest != null) {
-            addMultipartRequestCodec(
-                outerBuilder,
-                codecsBuilder,
-                operation,
-                multipartRequest,
-                requestCodecType,
-                ::outerReference,
-            )
-        } else {
-            codecsBuilder.addProperty(
-                PropertySpec
-                    .builder(operation.requestCodecPropertyName, requestCodecType)
-                    .addModifiers(KModifier.PRIVATE)
-                    .initializer(
-                        "%T(%L, %L, %M)",
-                        KOTLINX_SERIALIZATION_CODEC,
-                        outerReference(operation.requestCodecConstantName),
-                        serializerExpression(operation.requestType),
-                        sdkJson,
-                    ).build(),
-            )
+        when (primaryVariant.encoding) {
+            RequestBodyEncoding.FORM -> {
+                addFormRequestCodec(
+                    outerBuilder,
+                    codecsBuilder,
+                    operation.requestType,
+                    OperationRequestBodyAlternative(
+                        mediaType =
+                            primaryVariant.mediaTypes?.firstOrNull()
+                                ?: operation.requestMediaTypesForEmission().first(),
+                        type = operation.requestType,
+                        required = primaryVariant.required,
+                        formFields = primaryVariant.formFields,
+                    ),
+                    operation.formCodecObjectName(),
+                    primaryVariant.mediaTypes ?: operation.requestMediaTypesForEmission(),
+                    operation.requestCodecId,
+                    operation.requestCodecPropertyName,
+                    requestCodecType,
+                    ::outerReference,
+                )
+            }
+
+            RequestBodyEncoding.MULTIPART -> {
+                addMultipartRequestCodec(
+                    outerBuilder,
+                    codecsBuilder,
+                    operation.requestType,
+                    OperationRequestBodyAlternative(
+                        mediaType =
+                            primaryVariant.mediaTypes?.firstOrNull()
+                                ?: operation.requestMediaTypesForEmission().first(),
+                        type = operation.requestType,
+                        required = primaryVariant.required,
+                        multipartParts = primaryVariant.multipartParts,
+                    ),
+                    operation.multipartCodecObjectName(),
+                    primaryVariant.mediaTypes ?: operation.requestMediaTypesForEmission(),
+                    operation.requestCodecId,
+                    operation.requestCodecPropertyName,
+                    requestCodecType,
+                    ::outerReference,
+                )
+            }
+
+            RequestBodyEncoding.TEXT -> {
+                codecsBuilder.addProperty(
+                    PropertySpec
+                        .builder(operation.requestCodecPropertyName, requestCodecType)
+                        .addModifiers(KModifier.PRIVATE)
+                        .initializer(
+                            "%T.%L(%L, %L)",
+                            RAW_TEXT_CODEC,
+                            if (operation.requestType.nullable) "ofNullable" else "of",
+                            outerReference(operation.requestCodecConstantName),
+                            mediaTypesSetExpression(operation.requestMediaTypesForEmission()),
+                        ).build(),
+                )
+            }
+
+            RequestBodyEncoding.BINARY -> {
+                error(
+                    "binary primary request body of '${operation.operationIdentity}' must carry a raw " +
+                        "byte-stream wire type and never emits a serialization codec",
+                )
+            }
+
+            RequestBodyEncoding.JSON -> {
+                codecsBuilder.addProperty(
+                    PropertySpec
+                        .builder(operation.requestCodecPropertyName, requestCodecType)
+                        .addModifiers(KModifier.PRIVATE)
+                        .initializer(
+                            "%T(%L, %L, %M)",
+                            KOTLINX_SERIALIZATION_CODEC,
+                            outerReference(operation.requestCodecConstantName),
+                            serializerExpression(operation.requestType),
+                            sdkJson,
+                        ).build(),
+                )
+            }
         }
     }
     if (responseCodecSupported) {
@@ -1097,6 +1386,138 @@ private fun EmissionContext.addOperationCodecs(
                 .build(),
         )
     }
+    variantMembers.drop(1).forEach { variant ->
+        addSecondaryVariantRequestCodecs(outerBuilder, codecsBuilder, variant, ::outerReference)
+    }
+}
+
+/**
+ * Emits one secondary request-media variant's codec identity after its operation's primary codecs: the same shape
+ * the primary emits for the variant's media family — kotlinx serialization codec, form codec object, or multipart
+ * codec object — under the variant's own id constant, codec property, and registry, so each callable method
+ * executes only its own encoding. Variants whose wire type needs no serialization codec (raw streams, bodies)
+ * still get their own empty registry.
+ */
+private fun EmissionContext.addSecondaryVariantRequestCodecs(
+    outerBuilder: TypeSpec.Builder,
+    codecsBuilder: TypeSpec.Builder,
+    variant: VariantMembers,
+    outerReference: (String) -> CodeBlock,
+) {
+    val wireType = variantRequestBodyType(variant)
+    val mediaTypes = requireNotNull(variant.mediaTypes)
+    val requestCodecType = MEDIA_TYPE_CODEC.parameterizedBy(wireType.toTypeName())
+    val requestRegistryType = MEDIA_TYPE_CODEC_REGISTRY.parameterizedBy(wireType.toTypeName())
+    if (!wireType.requiresSerializationCodec()) {
+        codecsBuilder.addProperty(
+            PropertySpec
+                .builder("${variant.codecPropertyName}Registry", requestRegistryType)
+                .addModifiers(KModifier.INTERNAL)
+                .initializer("%T.of()", MEDIA_TYPE_CODEC_REGISTRY)
+                .build(),
+        )
+        return
+    }
+    outerBuilder.addProperty(
+        PropertySpec
+            .builder(variant.codecConstantName, STRING)
+            .addModifiers(KModifier.INTERNAL, KModifier.CONST)
+            .initializer("%S", variant.codecId)
+            .build(),
+    )
+    when (variant.encoding) {
+        RequestBodyEncoding.FORM -> {
+            addFormRequestCodec(
+                outerBuilder,
+                codecsBuilder,
+                wireType,
+                OperationRequestBodyAlternative(
+                    mediaType = mediaTypes.first(),
+                    type = wireType,
+                    required = variant.required,
+                    formFields = variant.formFields,
+                ),
+                "${variant.methodName.replaceFirstChar(Char::uppercaseChar)}FormCodec",
+                mediaTypes,
+                variant.codecId,
+                variant.codecPropertyName,
+                requestCodecType,
+                outerReference,
+            )
+        }
+
+        RequestBodyEncoding.MULTIPART -> {
+            addMultipartRequestCodec(
+                outerBuilder,
+                codecsBuilder,
+                wireType,
+                OperationRequestBodyAlternative(
+                    mediaType = mediaTypes.first(),
+                    type = wireType,
+                    required = variant.required,
+                    multipartParts = variant.multipartParts,
+                ),
+                "${variant.methodName.replaceFirstChar(Char::uppercaseChar)}MultipartCodec",
+                mediaTypes,
+                variant.codecId,
+                variant.codecPropertyName,
+                requestCodecType,
+                outerReference,
+            )
+        }
+
+        RequestBodyEncoding.TEXT -> {
+            codecsBuilder.addProperty(
+                PropertySpec
+                    .builder(variant.codecPropertyName, requestCodecType)
+                    .addModifiers(KModifier.PRIVATE)
+                    .initializer(
+                        // The string value IS the wire document: raw UTF-8 bytes under this variant's media
+                        // types, never a JSON representation.
+                        "%T.%L(%L, %L)",
+                        RAW_TEXT_CODEC,
+                        if (wireType.nullable) "ofNullable" else "of",
+                        outerReference(variant.codecConstantName),
+                        mediaTypesSetExpression(mediaTypes),
+                    ).build(),
+            )
+        }
+
+        RequestBodyEncoding.BINARY -> {
+            // Raw byte-stream bodies never reach this point: their wire type fails
+            // `requiresSerializationCodec()` above and they keep an empty registry (executor-native transfer).
+            error(
+                "binary request variant '${variant.methodName}' must carry a raw byte-stream wire type, " +
+                    "found ${wireType.packageName}.${wireType.simpleName}",
+            )
+        }
+
+        RequestBodyEncoding.JSON -> {
+            codecsBuilder.addProperty(
+                PropertySpec
+                    .builder(variant.codecPropertyName, requestCodecType)
+                    .addModifiers(KModifier.PRIVATE)
+                    .initializer(
+                        // The variant's own mediaTypes are bound exactly like the primary's form/multipart codec
+                        // objects bind theirs: the executor sends this variant's declared Content-Type, and a
+                        // codec advertising only the kotlinx defaults could never be selected for a non-JSON one.
+                        "%T(%L, %L, %M, %L)",
+                        KOTLINX_SERIALIZATION_CODEC,
+                        outerReference(variant.codecConstantName),
+                        serializerExpression(wireType),
+                        sdkJson,
+                        mediaTypesSetExpression(mediaTypes),
+                    ).build(),
+            )
+        }
+    }
+    codecsBuilder.addProperty(
+        PropertySpec
+            .builder("${variant.codecPropertyName}Registry", requestRegistryType)
+            .addModifiers(KModifier.INTERNAL)
+            .initializer("%T.of(%L)", MEDIA_TYPE_CODEC_REGISTRY, variant.codecPropertyName)
+            .build(),
+    )
 }
 
 private fun OperationDeclaration.formRequestBody(): OperationRequestBodyAlternative? =
@@ -1110,36 +1531,39 @@ private fun OperationDeclaration.multipartRequestBody(): OperationRequestBodyAlt
 private fun EmissionContext.addFormRequestCodec(
     outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
-    operation: OperationDeclaration,
+    wireType: KotlinTypeRef,
     form: OperationRequestBodyAlternative,
+    codecObjectName: String,
+    mediaTypes: List<String>,
+    codecId: String,
+    codecPropertyName: String,
     requestCodecType: TypeName,
     outerReference: (String) -> CodeBlock,
 ) {
-    val codecObjectName = operation.formCodecObjectName()
     val codecObject =
         TypeSpec
             .objectBuilder(codecObjectName)
             .addModifiers(KModifier.INTERNAL)
-            .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(operation.requestType.toTypeName()))
+            .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(wireType.toTypeName()))
             .addProperty(
                 PropertySpec
                     .builder("id", STRING)
                     .addModifiers(KModifier.OVERRIDE)
-                    .initializer("%S", operation.requestCodecId)
+                    .initializer("%S", codecId)
                     .build(),
             ).addProperty(
                 PropertySpec
                     .builder("mediaTypes", SET.parameterizedBy(STRING))
                     .addModifiers(KModifier.OVERRIDE)
-                    .initializer("setOf(%S)", form.mediaType)
+                    .initializer(mediaTypesSetExpression(mediaTypes))
                     .build(),
-            ).addFunction(formEncodeFunction(operation, form))
-            .addFunction(formDecodeFunction(operation))
+            ).addFunction(formEncodeFunction(wireType, form))
+            .addFunction(formDecodeFunction(wireType))
             .build()
     outerBuilder.addType(codecObject)
     codecsBuilder.addProperty(
         PropertySpec
-            .builder(operation.requestCodecPropertyName, requestCodecType)
+            .builder(codecPropertyName, requestCodecType)
             .addModifiers(KModifier.PRIVATE)
             .initializer("%L", outerReference(codecObjectName))
             .build(),
@@ -1150,7 +1574,7 @@ private fun OperationDeclaration.formCodecObjectName(): String =
     operationId.replaceFirstChar(Char::uppercaseChar) + "FormCodec"
 
 private fun EmissionContext.formEncodeFunction(
-    operation: OperationDeclaration,
+    wireType: KotlinTypeRef,
     form: OperationRequestBodyAlternative,
 ): FunSpec {
     val body = CodeBlock.builder()
@@ -1163,7 +1587,7 @@ private fun EmissionContext.formEncodeFunction(
     return FunSpec
         .builder("encode")
         .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
-        .addParameter("value", operation.requestType.toTypeName())
+        .addParameter("value", wireType.toTypeName())
         .addParameter("mediaType", STRING)
         .returns(SDK_REQUEST_BODY)
         .addCode(body.build())
@@ -1304,49 +1728,52 @@ private fun EmissionContext.addFormValue(
     }
 }
 
-private fun EmissionContext.formDecodeFunction(operation: OperationDeclaration): FunSpec =
+private fun EmissionContext.formDecodeFunction(wireType: KotlinTypeRef): FunSpec =
     FunSpec
         .builder("decode")
         .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
         .addParameter("body", SDK_BYTE_STREAM)
         .addParameter("mediaType", STRING.copy(nullable = true))
-        .returns(operation.requestType.toTypeName())
+        .returns(wireType.toTypeName())
         .addStatement("error(%S)", "Form request codecs do not decode response bodies.")
         .build()
 
 private fun EmissionContext.addMultipartRequestCodec(
     outerBuilder: TypeSpec.Builder,
     codecsBuilder: TypeSpec.Builder,
-    operation: OperationDeclaration,
+    wireType: KotlinTypeRef,
     multipart: OperationRequestBodyAlternative,
+    codecObjectName: String,
+    mediaTypes: List<String>,
+    codecId: String,
+    codecPropertyName: String,
     requestCodecType: TypeName,
     outerReference: (String) -> CodeBlock,
 ) {
-    val codecObjectName = operation.multipartCodecObjectName()
     val codecObject =
         TypeSpec
             .objectBuilder(codecObjectName)
             .addModifiers(KModifier.INTERNAL)
-            .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(operation.requestType.toTypeName()))
+            .addSuperinterface(MEDIA_TYPE_CODEC.parameterizedBy(wireType.toTypeName()))
             .addProperty(
                 PropertySpec
                     .builder("id", STRING)
                     .addModifiers(KModifier.OVERRIDE)
-                    .initializer("%S", operation.requestCodecId)
+                    .initializer("%S", codecId)
                     .build(),
             ).addProperty(
                 PropertySpec
                     .builder("mediaTypes", SET.parameterizedBy(STRING))
                     .addModifiers(KModifier.OVERRIDE)
-                    .initializer("setOf(%S)", multipart.mediaType)
+                    .initializer(mediaTypesSetExpression(mediaTypes))
                     .build(),
-            ).addFunction(multipartEncodeFunction(operation, multipart))
-            .addFunction(multipartDecodeFunction(operation))
+            ).addFunction(multipartEncodeFunction(wireType, multipart))
+            .addFunction(multipartDecodeFunction(wireType))
             .build()
     outerBuilder.addType(codecObject)
     codecsBuilder.addProperty(
         PropertySpec
-            .builder(operation.requestCodecPropertyName, requestCodecType)
+            .builder(codecPropertyName, requestCodecType)
             .addModifiers(KModifier.PRIVATE)
             .initializer("%L", outerReference(codecObjectName))
             .build(),
@@ -1357,7 +1784,7 @@ private fun OperationDeclaration.multipartCodecObjectName(): String =
     operationId.replaceFirstChar(Char::uppercaseChar) + "MultipartCodec"
 
 private fun EmissionContext.multipartEncodeFunction(
-    operation: OperationDeclaration,
+    wireType: KotlinTypeRef,
     multipart: OperationRequestBodyAlternative,
 ): FunSpec {
     val body = CodeBlock.builder()
@@ -1391,7 +1818,7 @@ private fun EmissionContext.multipartEncodeFunction(
     return FunSpec
         .builder("encode")
         .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
-        .addParameter("value", operation.requestType.toTypeName())
+        .addParameter("value", wireType.toTypeName())
         .addParameter("mediaType", STRING)
         .returns(SDK_REQUEST_BODY)
         .addCode(body.build())
@@ -1414,14 +1841,38 @@ private fun EmissionContext.addIndexedMultipartTextParts(
     )
     body.nextControlFlow("else")
     body.beginControlFlow("%L.forEachIndexed { index, element ->", expression)
-    body.addStatement(
-        "multipart.text(name = %S + %S + index + %S, value = element, mediaType = %S, headers = %L)",
-        part.wireName,
-        "[",
-        "]",
-        part.contentType,
-        headers,
-    )
+    // A wire name that already ends with `[]` is the documented OpenAI-style repeated-parameter convention: emit each
+    // element under the UNCHANGED name rather than appending another `[index]` (which the server does not recognize).
+    val name =
+        if (part.wireName.endsWith("[]")) {
+            CodeBlock.of("%S", part.wireName)
+        } else {
+            CodeBlock.of("%S + %S + index + %S", part.wireName, "[", "]")
+        }
+    val elementType = part.elementType
+    when {
+        // Plain string element (or a defensive absent element type): the loop variable is already the wire text.
+        elementType == null || elementType.isString() -> {
+            body.addStatement(
+                "multipart.text(name = %L, value = element, mediaType = %S, headers = %L)",
+                name,
+                part.contentType,
+                headers,
+            )
+        }
+
+        // String-backed forward-compat enum element: `projectMultipartParts` admits only string-typed indexed
+        // elements, so the sole non-String element type is an open-enum wrapper with a `.value` String, which we
+        // serialize here exactly as the form-scalar path does for `FormScalarKind.OPEN_ENUM`.
+        else -> {
+            body.addStatement(
+                "multipart.text(name = %L, value = element.value, mediaType = %S, headers = %L)",
+                name,
+                part.contentType,
+                headers,
+            )
+        }
+    }
     body.endControlFlow()
     body.endControlFlow()
 }
@@ -1454,6 +1905,19 @@ private fun EmissionContext.addMultipartPart(
             )
         }
 
+        // A string-backed forward-compat open-enum scalar: write the enum's `.value` as a plain text part, exactly as
+        // the form-scalar OPEN_ENUM path and the indexed open-enum element path do. The generic JSON fallback below
+        // would instead quote the wire text (e.g. `"verbose_json"`), which servers reject.
+        part.openEnumScalar -> {
+            body.addStatement(
+                "multipart.text(name = %S, value = %L.value, mediaType = %S, headers = %L)",
+                part.wireName,
+                expression,
+                part.contentType,
+                headers,
+            )
+        }
+
         else -> {
             body.addStatement(
                 "multipart.bytes(name = %S, value = %M.encodeToString(%L).encodeToByteArray(), " +
@@ -1476,13 +1940,13 @@ private fun multipartHeaders(part: MultipartPartDeclaration): CodeBlock {
     return result.add(")").build()
 }
 
-private fun EmissionContext.multipartDecodeFunction(operation: OperationDeclaration): FunSpec =
+private fun EmissionContext.multipartDecodeFunction(wireType: KotlinTypeRef): FunSpec =
     FunSpec
         .builder("decode")
         .addModifiers(KModifier.OVERRIDE, KModifier.SUSPEND)
         .addParameter("body", SDK_BYTE_STREAM)
         .addParameter("mediaType", STRING.copy(nullable = true))
-        .returns(operation.requestType.toTypeName())
+        .returns(wireType.toTypeName())
         .addStatement("error(%S)", "Multipart request codecs do not decode response bodies.")
         .build()
 
@@ -1570,6 +2034,31 @@ private fun EmissionContext.serializerExpression(type: KotlinTypeRef): CodeBlock
     return expression.build()
 }
 
+/**
+ * A secondary callable variant's dedicated metadata: identical shared operation semantics to [operationMetadata],
+ * but hardwired to this variant's own exact request media types — this is what makes each emitted method send its
+ * own Content-Type instead of selecting one at runtime.
+ */
+private fun operationMetadata(
+    operation: OperationDeclaration,
+    variantRequestMediaTypes: List<String>,
+): CodeBlock =
+    operationMetadata(
+        operation,
+        // A MIXED operation's secondary variants expose buffered surfaces, so their metadata downgrades MIXED to
+        // BUFFERED; a pure-STREAMING operation's secondary keeps STREAMING because its Flow method executes
+        // through the streaming path. See operationFunction's dispatch.
+        runtimeResponseModeName =
+            if (operation.responseMode == OperationResponseMode.MIXED) {
+                "BUFFERED"
+            } else {
+                operation.responseMode.runtimeName()
+            },
+        totalDeadlineMillis = operation.deadlines.totalMillis,
+        retryConnectionErrors = operation.retry.retryConnectionErrors,
+        variantRequestMediaTypes = variantRequestMediaTypes,
+    )
+
 private fun operationMetadata(operation: OperationDeclaration): CodeBlock =
     operationMetadata(
         operation,
@@ -1605,8 +2094,9 @@ private fun operationMetadata(
     runtimeResponseModeName: String,
     totalDeadlineMillis: Long?,
     retryConnectionErrors: Boolean,
+    variantRequestMediaTypes: List<String>? = null,
 ): CodeBlock {
-    val requestMediaTypes = operation.requestMediaTypesForEmission()
+    val requestMediaTypes = variantRequestMediaTypes ?: operation.requestMediaTypesForEmission()
     val responseMediaTypes = operation.responseMediaTypesForEmission()
     return CodeBlock
         .builder()
@@ -1653,6 +2143,16 @@ private fun operationMetadata(
 private fun mediaTypesExpression(mediaTypes: List<String>): CodeBlock {
     if (mediaTypes.isEmpty()) return CodeBlock.of("emptyList()")
     val values = CodeBlock.builder().add("listOf(")
+    mediaTypes.forEachIndexed { index, value ->
+        if (index > 0) values.add(", ")
+        values.add("%S", value)
+    }
+    return values.add(")").build()
+}
+
+private fun mediaTypesSetExpression(mediaTypes: List<String>): CodeBlock {
+    if (mediaTypes.isEmpty()) return CodeBlock.of("emptySet()")
+    val values = CodeBlock.builder().add("setOf(")
     mediaTypes.forEachIndexed { index, value ->
         if (index > 0) values.add(", ")
         values.add("%S", value)
@@ -1848,46 +2348,89 @@ private fun OperationResponseMode.runtimeName(): String =
 
 private fun EmissionContext.operationFunction(
     operation: OperationDeclaration,
+    variant: VariantMembers,
     clientType: ClassName,
     codecsType: ClassName,
-    metadataPropertyName: String,
+    primaryMetadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec =
     when {
-        operation.pagination != null -> {
-            paginatedOperationFunction(operation, metadataPropertyName, names)
+        // Pagination entry points stay bound to the primary variant's request encoding. Every callable variant of a
+        // STREAMING operation gets the streaming Flow surface over its own media family — a streaming operation
+        // emits no response codec ids, so routing any of its variants through the buffered execution path would
+        // generate a method that always throws after performing transport.
+        operation.pagination != null && variant.isPrimary -> {
+            paginatedOperationFunction(operation, primaryMetadataPropertyName, names)
         }
 
         operation.responseMode == OperationResponseMode.STREAMING -> {
-            streamingOperationFunction(operation, codecsType, metadataPropertyName, names)
+            streamingOperationFunction(operation, variant, codecsType, primaryMetadataPropertyName, names)
         }
 
         else -> {
-            bufferedOperationFunction(operation, clientType, codecsType, metadataPropertyName, names)
+            bufferedOperationFunction(operation, variant, clientType, codecsType, primaryMetadataPropertyName, names)
         }
+    }
+
+/** The metadata property this variant's methods execute against (primary resolves through the generic-name rule). */
+private fun VariantMembers.metadataProperty(primaryMetadataPropertyName: String): String =
+    if (isPrimary) primaryMetadataPropertyName else requireNotNull(metadataPropertyName)
+
+/**
+ * The exact Kotlin parameter type one callable variant's request body is emitted with: the variant's declared wire
+ * type, made nullable when the body is optional — the same rule the operation-level [OperationDeclaration.requestType]
+ * applies, so the primary variant's signature stays byte-identical.
+ */
+private fun variantRequestBodyType(variant: VariantMembers): KotlinTypeRef =
+    if (variant.required || variant.type.isUnit()) variant.type else variant.type.copy(nullable = true)
+
+/** Per-variant mirror of [requestParameter]: null only when this variant's wire type is `Unit`. */
+private fun variantRequestParameter(variant: VariantMembers): ParameterSpec? {
+    if (variant.type.isUnit()) return null
+    return ParameterSpec
+        .builder("request", variantRequestBodyType(variant).toTypeName())
+        .apply {
+            if (!variant.required) defaultValue("null")
+        }.build()
+}
+
+private fun variantRequestValue(variant: VariantMembers): CodeBlock =
+    if (variant.type.isUnit()) CodeBlock.of("Unit") else CodeBlock.of("request")
+
+private fun variantRequestCodecIds(
+    variant: VariantMembers,
+    codecsType: ClassName,
+): CodeBlock =
+    if (variant.type.requiresSerializationCodec()) {
+        CodeBlock.of("listOf(%T.%L)", codecsType, variant.codecConstantName)
+    } else {
+        CodeBlock.of("emptyList()")
     }
 
 private fun EmissionContext.bufferedOperationFunction(
     operation: OperationDeclaration,
+    variant: VariantMembers,
     clientType: ClassName,
     codecsType: ClassName,
-    metadataPropertyName: String,
+    primaryMetadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
-    val requestType = operation.requestType.toTypeName()
+    val requestType = variantRequestBodyType(variant).toTypeName()
     val responseType = operation.responseType.toTypeName()
     val function =
         FunSpec
-            .builder(names.operationName)
+            .builder(variant.methodName)
             .addModifiers(KModifier.PUBLIC, KModifier.SUSPEND)
             .apply {
-                requestParameter(operation)?.let(::addParameter)
+                variantRequestParameter(variant)?.let(::addParameter)
                 operationParameterSpecs(operation, names).forEach(::addParameter)
             }.addParameter(optionsParameter())
             .returns(responseType)
-            .addKdoc("%L", bufferedKDoc(operation, names))
+            .addKdoc("%L", bufferedKDoc(operation, names, variant))
     if (names.apiExceptionTypeName != null) {
-        function.addCode(typedErrorExecutionCode(operation, clientType, codecsType, metadataPropertyName, names))
+        function.addCode(
+            typedErrorExecutionCode(operation, variant, clientType, codecsType, primaryMetadataPropertyName, names),
+        )
         return function.build()
     }
     when {
@@ -1896,12 +2439,12 @@ private fun EmissionContext.bufferedOperationFunction(
                 "return executor.executeBodyless<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)",
                 requestType,
                 SDK_EXECUTION_REQUEST,
-                metadataPropertyName,
-                requestValue(operation),
-                requestCodecIds(operation, codecsType),
+                variant.metadataProperty(primaryMetadataPropertyName),
+                variantRequestValue(variant),
+                variantRequestCodecIds(variant, codecsType),
                 requestParametersExpression(operation, names),
                 codecsType,
-                "${operation.requestCodecPropertyName}Registry",
+                "${variant.codecPropertyName}Registry",
             )
         }
 
@@ -1910,12 +2453,12 @@ private fun EmissionContext.bufferedOperationFunction(
                 "return executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)",
                 requestType,
                 SDK_EXECUTION_REQUEST,
-                metadataPropertyName,
-                requestValue(operation),
-                requestCodecIds(operation, codecsType),
+                variant.metadataProperty(primaryMetadataPropertyName),
+                variantRequestValue(variant),
+                variantRequestCodecIds(variant, codecsType),
                 requestParametersExpression(operation, names),
                 codecsType,
-                "${operation.requestCodecPropertyName}Registry",
+                "${variant.codecPropertyName}Registry",
             )
         }
 
@@ -1925,13 +2468,13 @@ private fun EmissionContext.bufferedOperationFunction(
                 requestType,
                 responseType,
                 SDK_EXECUTION_REQUEST,
-                metadataPropertyName,
-                requestValue(operation),
-                requestCodecIds(operation, codecsType),
+                variant.metadataProperty(primaryMetadataPropertyName),
+                variantRequestValue(variant),
+                variantRequestCodecIds(variant, codecsType),
                 requestParametersExpression(operation, names),
                 responseCodecIds(operation, codecsType),
                 codecsType,
-                "${operation.requestCodecPropertyName}Registry",
+                "${variant.codecPropertyName}Registry",
                 codecsType,
                 "${operation.responseCodecPropertyName}Registry",
             )
@@ -1942,12 +2485,13 @@ private fun EmissionContext.bufferedOperationFunction(
 
 private fun typedErrorExecutionCode(
     operation: OperationDeclaration,
+    variant: VariantMembers,
     clientType: ClassName,
     codecsType: ClassName,
-    metadataPropertyName: String,
+    primaryMetadataPropertyName: String,
     names: OperationMethodNames,
 ): CodeBlock {
-    val requestType = operation.requestType.toTypeName()
+    val requestType = variantRequestBodyType(variant).toTypeName()
     val responseType = operation.responseType.toTypeName()
     val responseInterface = clientType.nestedClass(requireNotNull(names.responseTypeName))
     val apiExceptionType = clientType.nestedClass(requireNotNull(names.apiExceptionTypeName))
@@ -1959,11 +2503,11 @@ private fun typedErrorExecutionCode(
         .add(
             "request = %T(%L, baseUri, %L, %L, %L),\n",
             SDK_EXECUTION_REQUEST,
-            metadataPropertyName,
-            requestValue(operation),
-            requestCodecIds(operation, codecsType),
+            variant.metadataProperty(primaryMetadataPropertyName),
+            variantRequestValue(variant),
+            variantRequestCodecIds(variant, codecsType),
             requestParametersExpression(operation, names),
-        ).add("requestCodecs = %T.%L,\n", codecsType, "${operation.requestCodecPropertyName}Registry")
+        ).add("requestCodecs = %T.%L,\n", codecsType, "${variant.codecPropertyName}Registry")
         .add("responseDecoder = %L,\n", requireNotNull(names.responseDecoderName))
         .add("mapSuccess = { response ->\n")
         .indent()
@@ -2017,8 +2561,9 @@ private fun typedErrorExecutionCode(
 
 private fun EmissionContext.streamingOperationFunction(
     operation: OperationDeclaration,
+    variant: VariantMembers,
     codecsType: ClassName,
-    metadataPropertyName: String,
+    primaryMetadataPropertyName: String,
     names: OperationMethodNames,
 ): FunSpec {
     require(operation.streaming is StreamingDeclaration.ServerSentEvents) {
@@ -2027,11 +2572,12 @@ private fun EmissionContext.streamingOperationFunction(
     return sseFlowFunction(
         operation = operation,
         codecsType = codecsType,
-        metadataPropertyName = metadataPropertyName,
-        functionName = names.operationName,
+        metadataPropertyName = variant.metadataProperty(primaryMetadataPropertyName),
+        functionName = variant.methodName,
         elementType = operation.responseType,
         names = names,
-        kdoc = streamingKDoc(operation, names),
+        kdoc = streamingKDoc(operation, names, variant),
+        variant = variant,
     )
 }
 
@@ -2127,15 +2673,23 @@ private fun EmissionContext.sseFlowFunction(
     elementType: KotlinTypeRef,
     names: OperationMethodNames,
     kdoc: String,
+    variant: VariantMembers? = null,
 ): FunSpec {
-    val requestType = operation.requestType.toTypeName()
+    // Only the request side varies per callable variant; event decoding is the operation's shared response surface.
+    // A null [variant] (the MIXED operation's dedicated stream entry point) keeps the operation-level request path.
+    val requestType = (variant?.let(::variantRequestBodyType) ?: operation.requestType).toTypeName()
+    val requestParameter = variant?.let(::variantRequestParameter) ?: requestParameter(operation)
+    val requestValueExpression = variant?.let(::variantRequestValue) ?: requestValue(operation)
+    val codecIdsExpression =
+        variant?.let { variantRequestCodecIds(it, codecsType) } ?: requestCodecIds(operation, codecsType)
+    val registryName = "${variant?.codecPropertyName ?: operation.requestCodecPropertyName}Registry"
     val returnElementType = if (elementType.isSseEvent()) SSE_EVENT else elementType.toTypeName()
     val function =
         FunSpec
             .builder(functionName)
             .addModifiers(KModifier.PUBLIC)
             .apply {
-                requestParameter(operation)?.let(::addParameter)
+                requestParameter?.let(::addParameter)
                 operationParameterSpecs(operation, names).forEach(::addParameter)
             }.addParameter(optionsParameter())
             .returns(FLOW.parameterizedBy(returnElementType))
@@ -2159,11 +2713,11 @@ private fun EmissionContext.sseFlowFunction(
             requestType,
             SDK_EXECUTION_REQUEST,
             metadataPropertyName,
-            requestValue(operation),
-            requestCodecIds(operation, codecsType),
+            requestValueExpression,
+            codecIdsExpression,
             requestParametersExpression(operation, names),
             codecsType,
-            "${operation.requestCodecPropertyName}Registry",
+            registryName,
         )
     }
     body.unindent().add("},\n")
@@ -2829,10 +3383,17 @@ private fun withResponseKDoc(
 private fun bufferedKDoc(
     operation: OperationDeclaration,
     names: OperationMethodNames,
+    variant: VariantMembers,
 ): String =
     buildString {
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
+        if (!variant.isPrimary) {
+            append(
+                "Encodes the request body as ${requireNotNull(variant.mediaTypes).joinToString(", ")}; this " +
+                    "operation's other request media families are served by sibling callable variants.\n\n",
+            )
+        }
         if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
         append(operationParameterKDoc(operation, names))
         append("@param options Execution options.\n")
@@ -2856,10 +3417,17 @@ private fun bufferedKDoc(
 private fun streamingKDoc(
     operation: OperationDeclaration,
     names: OperationMethodNames,
+    variant: VariantMembers? = null,
 ): String =
     buildString {
         append(sanitizeKDoc(operation.methodKdoc))
         append("\n\n")
+        if (variant != null && !variant.isPrimary) {
+            append(
+                "Encodes the request body as ${requireNotNull(variant.mediaTypes).joinToString(", ")}; this " +
+                    "operation's other request media families are served by sibling callable variants.\n\n",
+            )
+        }
         if (!operation.requestType.isUnit()) append("@param request Request body sent to the operation.\n")
         append(operationParameterKDoc(operation, names))
         append("@param options Execution options.\n")

@@ -27,6 +27,7 @@ import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.SET
 import com.squareup.kotlinpoet.STRING
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 
 internal fun EmissionContext.emitOneOf(
@@ -490,7 +491,64 @@ private fun EmissionContext.oneOfDeserializeBody(
     return code.build()
 }
 
+// The JVM caps every method descriptor at 255 argument slots (JVMS 4.11 / 4.3.3), counting the implicit
+// receiver and with `long`/`double` occupying two slots each. A Kotlin `data class` with N constructor
+// parameters emits a synthetic `copy$default(receiver, p1..pN, mask0..maskK, DefaultConstructorMarker)`,
+// which is the widest descriptor the class produces:
+//   slots = 1 (receiver) + Σ(parameter slots) + ceil(N / 32) (Int mask words) + 1 (DefaultConstructorMarker)
+// When that width breaches the cap, kotlinc still COMPILES the class but the JVM REJECTS it at load time with
+// `ClassFormatError: Too many arguments in method signature`. Large discriminated unions (e.g. the 49-branch
+// StreamEvents union) generate an inspection carrier whose flat data-class shape trips exactly this limit.
+//
+// Every inspection-carrier parameter occupies a single JVM slot: the value carriers are always emitted as
+// nullable (hence boxed reference) types even when the branch value is a Long/Double, and the remaining
+// parameters are `Boolean` or `List<String>` references. So the carrier's parameter count equals its slot
+// count, and the widest synthetic width is `params + 1 + ceil(params / 32) + 1`.
+//
+// Below the threshold we keep today's flat `internal data class` VERBATIM (byte-identical for every existing
+// golden/corpus). At or above it we emit an `internal class` with a no-arg constructor and mutable fields,
+// assigned imperatively by `inspect<Name>`; no generated union logic ever uses the carrier's `copy`/`equals`
+// (verified across the OpenRouter/GitHub/Stripe corpora), so dropping the data-class shape is behaviour-
+// preserving. The 200-slot threshold leaves a 55-slot margin below the 255 cap.
+private const val INSPECTION_CARRIER_SLOT_THRESHOLD = 200
+
+private fun oneOfInspectionParameterCount(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): Int {
+    var count = 0
+    inspectionPlan.states.forEach { state ->
+        count += 1 // value carrier
+        if (state.presentName != null) count += 1
+        count += 1 // decoded flag
+        if (state.matchesName != null) count += 1
+    }
+    count += model.cases.size // one Boolean per branch
+    count += 2 // rawEmpty + failures
+    return count
+}
+
+private fun oneOfInspectionExceedsSlotLimit(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): Boolean {
+    val params = oneOfInspectionParameterCount(model, inspectionPlan)
+    val maskWords = (params + 31) / 32
+    val widestSyntheticSlots = params + 1 + maskWords + 1
+    return widestSyntheticSlots > INSPECTION_CARRIER_SLOT_THRESHOLD
+}
+
 private fun oneOfInspection(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): TypeSpec =
+    if (oneOfInspectionExceedsSlotLimit(model, inspectionPlan)) {
+        oneOfInspectionMutableCarrier(model, inspectionPlan)
+    } else {
+        oneOfInspectionDataCarrier(model, inspectionPlan)
+    }
+
+private fun oneOfInspectionDataCarrier(
     model: OneOfDeclaration,
     inspectionPlan: OneOfInspectionPlan,
 ): TypeSpec {
@@ -545,6 +603,57 @@ private fun oneOfInspection(
     )
     return type.primaryConstructor(constructor.build()).build()
 }
+
+// Oversized variant: a plain `internal class` with a no-arg constructor and mutable fields (same names/types
+// as the data-class carrier, nullable value carriers initialised to `null`, flags to `false`, `failures` to
+// an empty list). `inspect<Name>` assigns the fields imperatively. This keeps every generated method's
+// descriptor trivially narrow, so the JVM accepts the class at load time regardless of branch count.
+private fun oneOfInspectionMutableCarrier(
+    model: OneOfDeclaration,
+    inspectionPlan: OneOfInspectionPlan,
+): TypeSpec {
+    val type =
+        TypeSpec
+            .classBuilder("${model.resolvedName}Inspection")
+            .addModifiers(KModifier.INTERNAL)
+    inspectionPlan.states.forEach { state ->
+        val field = state.field
+        type.addProperty(mutableInspectionField(state.valueName, field.type.toTypeName().copy(nullable = true), "null"))
+        state.presentName?.let { type.addProperty(mutableInspectionField(it, BOOLEAN, "false")) }
+        type.addProperty(mutableInspectionField(state.decodedName, BOOLEAN, "false"))
+        state.matchesName?.let { type.addProperty(mutableInspectionField(it, BOOLEAN, "false")) }
+    }
+    model.cases.forEach { case ->
+        type.addProperty(mutableInspectionField(inspectionPlan.caseMatchName(case), BOOLEAN, "false"))
+    }
+    type.addProperty(mutableInspectionField("rawEmpty", BOOLEAN, "false"))
+    type.addProperty(mutableInspectionField("failures", LIST.parameterizedBy(STRING), "emptyList()"))
+    type.addProperty(
+        PropertySpec
+            .builder("names", LIST.parameterizedBy(STRING))
+            .getter(FunSpec.getterBuilder().addCode(oneOfNamesBody(model, inspectionPlan)).build())
+            .build(),
+    )
+    type.addProperty(
+        PropertySpec
+            .builder("size", INT)
+            .getter(FunSpec.getterBuilder().addStatement("return names.size").build())
+            .build(),
+    )
+    return type.build()
+}
+
+private fun mutableInspectionField(
+    name: String,
+    type: TypeName,
+    initializer: String,
+): PropertySpec =
+    PropertySpec
+        .builder(name, type)
+        .addModifiers(KModifier.INTERNAL)
+        .mutable(true)
+        .initializer(initializer)
+        .build()
 
 private fun oneOfNamesBody(
     model: OneOfDeclaration,
@@ -614,39 +723,65 @@ private fun inspectOneOf(
             } ?: legacyExpression
         body.addStatement("val %L = %L", inspectionPlan.caseMatchName(case), expression)
     }
-    body.add("return %T(\n", ClassName(model.packageName, "${model.resolvedName}Inspection")).indent()
-    inspectionPlan.states.forEach { state ->
-        body.add("%L = %L,\n", state.valueName, state.valueName)
-        state.presentName?.let { presentName ->
-            body.add("%L = %L,\n", presentName, presentName)
+    val inspectionType = ClassName(model.packageName, "${model.resolvedName}Inspection")
+    // The `failures` list is built identically for both carrier shapes; only the surrounding assignment
+    // syntax differs (constructor argument vs. imperative field write on the no-arg carrier).
+    val appendFailures: CodeBlock.Builder.() -> Unit = {
+        indent()
+        model.cases.forEach { case ->
+            val condition = "!${inspectionPlan.caseMatchName(case)}"
+            val failure =
+                if (case.matchesEmptyObject) {
+                    "${case.resolvedName}: expected a closed empty object"
+                } else {
+                    val names = case.matchFields.joinToString("' and '") { it.wireName }
+                    "${case.resolvedName}: branch predicate did not match properties '$names'"
+                }
+            addStatement("if ($condition) add(%S)", failure)
         }
-        body.add("%L = %L,\n", state.decodedName, state.decodedName)
-        state.matchesName?.let { matchesName ->
-            body.add("%L = %L,\n", matchesName, matchesName)
-        }
+        unindent()
     }
-    model.cases.forEach { case ->
-        val name = inspectionPlan.caseMatchName(case)
-        body.add("%L = %L,\n", name, name)
-    }
-    body.add("rawEmpty = rawEmpty,\n")
-    body.add("failures = buildList {\n").indent()
-    model.cases.forEach { case ->
-        val condition = "!${inspectionPlan.caseMatchName(case)}"
-        val failure =
-            if (case.matchesEmptyObject) {
-                "${case.resolvedName}: expected a closed empty object"
-            } else {
-                val names = case.matchFields.joinToString("' and '") { it.wireName }
-                "${case.resolvedName}: branch predicate did not match properties '$names'"
+    if (oneOfInspectionExceedsSlotLimit(model, inspectionPlan)) {
+        // Oversized carrier: no-arg construction plus imperative field assignment, avoiding the
+        // 255-slot method-signature limit the flat data-class constructor/copy would breach.
+        body.addStatement("val inspection = %T()", inspectionType)
+        inspectionPlan.states.forEach { state ->
+            body.addStatement("inspection.%L = %L", state.valueName, state.valueName)
+            state.presentName?.let { presentName ->
+                body.addStatement("inspection.%L = %L", presentName, presentName)
             }
-        body.addStatement("if ($condition) add(%S)", failure)
+            body.addStatement("inspection.%L = %L", state.decodedName, state.decodedName)
+            state.matchesName?.let { matchesName ->
+                body.addStatement("inspection.%L = %L", matchesName, matchesName)
+            }
+        }
+        model.cases.forEach { case ->
+            val name = inspectionPlan.caseMatchName(case)
+            body.addStatement("inspection.%L = %L", name, name)
+        }
+        body.addStatement("inspection.rawEmpty = rawEmpty")
+        body.add("inspection.failures = buildList {\n").apply(appendFailures).add("}\n")
+        body.addStatement("return inspection")
+    } else {
+        body.add("return %T(\n", inspectionType).indent()
+        inspectionPlan.states.forEach { state ->
+            body.add("%L = %L,\n", state.valueName, state.valueName)
+            state.presentName?.let { presentName ->
+                body.add("%L = %L,\n", presentName, presentName)
+            }
+            body.add("%L = %L,\n", state.decodedName, state.decodedName)
+            state.matchesName?.let { matchesName ->
+                body.add("%L = %L,\n", matchesName, matchesName)
+            }
+        }
+        model.cases.forEach { case ->
+            val name = inspectionPlan.caseMatchName(case)
+            body.add("%L = %L,\n", name, name)
+        }
+        body.add("rawEmpty = rawEmpty,\n")
+        body.add("failures = buildList {\n").apply(appendFailures).add("},\n")
+        body.unindent().add(")\n")
     }
-    body
-        .unindent()
-        .add("},\n")
-        .unindent()
-        .add(")\n")
     return FunSpec
         .builder("inspect${model.resolvedName}")
         .addModifiers(KModifier.PRIVATE)

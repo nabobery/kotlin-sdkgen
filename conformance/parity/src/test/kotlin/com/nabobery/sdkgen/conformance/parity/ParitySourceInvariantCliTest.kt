@@ -71,7 +71,7 @@ class ParitySourceInvariantCliTest {
                             corpus = corpus.toFile(),
                             config = null,
                             lock = null,
-                            overlay = null,
+                            overlays = emptyList(),
                             toolchain = toolchain.toFile(),
                             generatedDirectory = rootLink.toFile(),
                         ),

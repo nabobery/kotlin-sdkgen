@@ -352,6 +352,16 @@ internal fun adaptComponentSchema(
         return true
     } catch (cancellation: CancellationException) {
         throw cancellation
+    } catch (failure: CanonicalExtensionAdaptationException) {
+        state.addDiagnostic(
+            code = DiagnosticCode.INVALID_CANONICAL_EXTENSION,
+            message = failure.message.orEmpty(),
+            remediation = "Correct the canonical extension to match its published schema and current schema branches.",
+            phase = DiagnosticPhase.ADAPTATION,
+            source = document.sourceNearest(failure.pointer),
+            relatedSymbolId = "schema:$name",
+        )
+        return false
     } catch (failure: Throwable) {
         state.addDiagnostic(
             code = DiagnosticCode.SCHEMA_ADAPTATION_FAILED,

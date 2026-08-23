@@ -1,0 +1,115 @@
+overlay: 1.1.0
+info:
+  title: GitHub audited allOf-resolution overrides
+  version: 1.0.0
+# Audited x-sdkgen-allof-resolution overrides for the 14 proof-table auditedOverride rows (9 parents).
+# Winner is the webhook override branch (allOf/1, the inline redeclaration) per each row's
+# intendedOutcome in docs/conformance/evidence/schema-intersection-proof-table.tsv. Branch identity is
+# the resolved-form inlineSchemaSha256 of that branch; propertySchemaSha256 pins the winning property.
+actions:
+  - target: "$['components']['schemas']['webhook-fork']['properties']['forkee']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          owner:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "17b46c8cadfc6c3c975da53debc84ad15a3ecb1bd2886f9217ce546f48f595a4"
+              propertySchemaSha256: "b24cfbe0a1e8a9e14f701d5558bea32115ee115aa850520dc1b2a9fafe1877f2"
+  - target: "$['components']['schemas']['webhook-issue-comment-created']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          assignee:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "c946a1c566f4362bd4cfdfefadec64a19201f68466c2276bcf9b4175a5498469"
+              propertySchemaSha256: "03ab7640bfb75cf01c8d8550bf684265bb3390774aeb42f3022134408c337ae3"
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "c946a1c566f4362bd4cfdfefadec64a19201f68466c2276bcf9b4175a5498469"
+              propertySchemaSha256: "72dd9bd4b4458047b3cf9b61587febf3d9b75224778464bf5403fd69d638daa4"
+  - target: "$['components']['schemas']['webhook-issue-comment-deleted']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          assignee:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "03ab7640bfb75cf01c8d8550bf684265bb3390774aeb42f3022134408c337ae3"
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "616c176cc36b834cfdbf5269ddce097c3721a86da9e187a1ad0803ed0bfa6751"
+  - target: "$['components']['schemas']['webhook-issue-comment-edited']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          assignee:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "c946a1c566f4362bd4cfdfefadec64a19201f68466c2276bcf9b4175a5498469"
+              propertySchemaSha256: "03ab7640bfb75cf01c8d8550bf684265bb3390774aeb42f3022134408c337ae3"
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "c946a1c566f4362bd4cfdfefadec64a19201f68466c2276bcf9b4175a5498469"
+              propertySchemaSha256: "72dd9bd4b4458047b3cf9b61587febf3d9b75224778464bf5403fd69d638daa4"
+  - target: "$['components']['schemas']['webhook-issue-comment-pinned']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          assignee:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "03ab7640bfb75cf01c8d8550bf684265bb3390774aeb42f3022134408c337ae3"
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "616c176cc36b834cfdbf5269ddce097c3721a86da9e187a1ad0803ed0bfa6751"
+  - target: "$['components']['schemas']['webhook-issue-comment-unpinned']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          assignee:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "03ab7640bfb75cf01c8d8550bf684265bb3390774aeb42f3022134408c337ae3"
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "16cf0111d58a3ab838a1454bfab46b6560d18e65a6694c368a2fe486397bfff4"
+              propertySchemaSha256: "616c176cc36b834cfdbf5269ddce097c3721a86da9e187a1ad0803ed0bfa6751"
+  - target: "$['components']['schemas']['webhook-issues-closed']['properties']['issue']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          user:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "ffd057ac6f188f87ba56af3173f630868e1c24273676233881476b0ac812aad6"
+              propertySchemaSha256: "616c176cc36b834cfdbf5269ddce097c3721a86da9e187a1ad0803ed0bfa6751"
+  - target: "$['components']['schemas']['webhook-project-card-moved']['properties']['project_card']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          creator:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "aac28ab51ec57769b6274409a8f6c4588f371577fc9380afeb5c59b7d8748aab"
+              propertySchemaSha256: "59cbb75ae2b3480c5a49e4da4f463a9cf7267e68a7af4618200cb2f9941986dd"
+  - target: "$['components']['schemas']['webhook-workflow-job-in-progress']['properties']['workflow_job']"
+    update:
+      x-sdkgen-allof-resolution:
+        properties:
+          steps:
+            strategy: unionSupersede
+            source:
+              inlineSchemaSha256: "dc8e8900efe4b4cd3de8599a800185e44a873ca7245d64f54ec103d6194222c9"
+              propertySchemaSha256: "1bde88fe7ca5a72cc92088150ac4318f7a4c8b35644063d84a85c8c3aa1ae022"

@@ -3,7 +3,11 @@
 package com.nabobery.sdkgen.openapi
 
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.nabobery.sdkgen.model.AdditionalPropertiesModel
+import com.nabobery.sdkgen.model.AllOfPropertyResolution
+import com.nabobery.sdkgen.model.AllOfResolutionSource
+import com.nabobery.sdkgen.model.AllOfResolutionStrategy
 import com.nabobery.sdkgen.model.CompositionKind
 import com.nabobery.sdkgen.model.CompositionModel
 import com.nabobery.sdkgen.model.DiagnosticCode
@@ -25,6 +29,7 @@ import com.nabobery.sdkgen.model.SchemaId
 import com.nabobery.sdkgen.model.SchemaModel
 import com.nabobery.sdkgen.model.SchemaRef
 import com.nabobery.sdkgen.model.SourcePointer
+import com.nabobery.sdkgen.openapi.overlays.DocumentCodec
 import java.util.TreeMap
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -49,6 +54,19 @@ private data class OneOfNullBranch(
     val isLegacy: Boolean,
     val sourcePointer: String,
 )
+
+/** A standard OpenAPI 3.1 `{ type: "null" }` branch. */
+private fun JsonNode.isStandardNullBranch(): Boolean = get("type").typeNames() == listOf("null")
+
+/**
+ * The exact legacy lone `{ nullable: true }` marker branch: an object whose only member is
+ * `nullable: true`, recognized as null-accepting under the SDKGen OpenAPI 3.0 compatibility policy.
+ */
+private fun JsonNode.isLegacyLoneNullableBranch(): Boolean =
+    isObject && size() == 1 && path("nullable").booleanOrFalse()
+
+/** An unconstrained branch (`{}` or boolean `true`) that structurally admits any value, including `null`. */
+private fun JsonNode.isUnconstrainedBranch(): Boolean = (isObject && size() == 0) || (isBoolean && booleanValue())
 
 private fun AdaptationContext.normalizeNullability(
     document: SourceDocument,
@@ -109,9 +127,8 @@ private fun AdaptationContext.normalizeAnyOfNullability(
 ): List<NullabilityOrigin> =
     buildList {
         node.get("anyOf")?.takeIf(JsonNode::isArray)?.forEachIndexed { index, branch ->
-            val standardNullBranch = branch.get("type").typeNames() == listOf("null")
-            val legacyNullBranch =
-                branch.isObject && branch.size() == 1 && branch.path("nullable").booleanOrFalse()
+            val standardNullBranch = branch.isStandardNullBranch()
+            val legacyNullBranch = branch.isLegacyLoneNullableBranch()
             if (standardNullBranch || legacyNullBranch) {
                 val sourcePointer =
                     if (standardNullBranch) {
@@ -155,11 +172,9 @@ private fun AdaptationContext.normalizeOneOfNullability(
     val nullBranches =
         branchesNode.mapIndexedNotNull { index, branch ->
             val resolved = resolveOneOfBranchForNullCheck(document, branch)
-            val standardNullBranch = resolved.get("type").typeNames() == listOf("null")
-            val legacyNullBranch =
-                resolved.isObject && resolved.size() == 1 && resolved.path("nullable").booleanOrFalse()
-            val unconstrainedBranch =
-                (resolved.isObject && resolved.size() == 0) || (resolved.isBoolean && resolved.booleanValue())
+            val standardNullBranch = resolved.isStandardNullBranch()
+            val legacyNullBranch = resolved.isLegacyLoneNullableBranch()
+            val unconstrainedBranch = resolved.isUnconstrainedBranch()
             if (!standardNullBranch && !legacyNullBranch && !unconstrainedBranch) return@mapIndexedNotNull null
             val sourcePointer =
                 when {
@@ -277,6 +292,7 @@ internal fun AdaptationContext.adaptSchema(
             }
         val compositions =
             applyNullableCompositionPolicy(document, pointer, node, rawCompositions)
+        val allOfPropertyResolutions = adaptAllOfPropertyResolutions(document, pointer, node, compositions)
         val schema =
             SchemaModel(
                 id = requestedId,
@@ -303,6 +319,7 @@ internal fun AdaptationContext.adaptSchema(
                 compositions = compositions,
                 allOfPropertyOwnership = allOfOwnership(compositions),
                 extensions = node.nonCanonicalExtensions(),
+                allOfPropertyResolutions = allOfPropertyResolutions,
                 source = source,
                 acceptsOnlyNull = acceptsOnlyNull,
                 contentEncoding = contentKeywords.encoding,
@@ -321,6 +338,397 @@ internal fun AdaptationContext.adaptSchema(
         schemasInProgress.remove(requestedId)
     }
 }
+
+private fun AdaptationContext.adaptAllOfPropertyResolutions(
+    document: SourceDocument,
+    pointer: String,
+    node: JsonNode,
+    compositions: List<CompositionModel>,
+): List<AllOfPropertyResolution> {
+    val extensionPointer = "$pointer/x-sdkgen-allof-resolution"
+    val extension = node.get("x-sdkgen-allof-resolution") ?: return emptyList()
+    val allOf =
+        node.get("allOf")?.takeIf(JsonNode::isArray)
+            ?: invalidAllOfResolution(extensionPointer, "requires a schema with an array-valued allOf")
+    if (compositions.count { it.kind == CompositionKind.ALL_OF } != 1) {
+        invalidAllOfResolution(extensionPointer, "requires exactly one allOf composition")
+    }
+    if (!extension.isObject) invalidAllOfResolution(extensionPointer, "must be an object")
+    requireAllOfFields(extension, extensionPointer, setOf("properties"))
+    val propertiesPointer = "$extensionPointer/properties"
+    val properties = extension.get("properties") ?: invalidAllOfResolution(propertiesPointer, "is required")
+    if (!properties.isObject) invalidAllOfResolution(propertiesPointer, "must be an object")
+
+    return properties
+        .properties()
+        .asSequence()
+        .toList()
+        .sortedBy { it.key }
+        .map { (propertyName, entry) ->
+            val entryPointer = "$propertiesPointer/${escapePointerSegment(propertyName)}"
+            if (!entry.isObject) invalidAllOfResolution(entryPointer, "must be an object")
+            requireAllOfFields(entry, entryPointer, setOf("strategy", "source"))
+            val strategyPointer = "$entryPointer/strategy"
+            val strategy = entry.get("strategy")
+            if (strategy?.textOrNull() != "unionSupersede") {
+                invalidAllOfResolution(strategyPointer, "must equal 'unionSupersede'")
+            }
+            val sourcePointer = "$entryPointer/source"
+            val source = entry.get("source") ?: invalidAllOfResolution(sourcePointer, "is required")
+            if (!source.isObject) invalidAllOfResolution(sourcePointer, "must be an object")
+            requireAllOfFields(
+                source,
+                sourcePointer,
+                setOf("ref", "inlineSchemaSha256", "propertySchemaSha256"),
+            )
+            // Enforce the ref/inline XOR by JSON field *presence* before validating either field's value,
+            // so a malformed second identity (e.g. a valid 'ref' beside a non-textual 'inlineSchemaSha256')
+            // can never be silently ignored and accepted as the other form.
+            val hasRef = source.has("ref")
+            val hasInline = source.has("inlineSchemaSha256")
+            if (hasRef == hasInline) {
+                invalidAllOfResolution(sourcePointer, "must contain exactly one of 'ref' or 'inlineSchemaSha256'")
+            }
+            val ref =
+                if (hasRef) {
+                    source.get("ref")?.textOrNull()?.takeIf(String::isNotEmpty)
+                        ?: invalidAllOfResolution("$sourcePointer/ref", "must be a non-empty string")
+                } else {
+                    null
+                }
+            val inlineDigest =
+                if (hasInline) {
+                    requireSha256Field(
+                        source,
+                        "$sourcePointer/inlineSchemaSha256",
+                        "inlineSchemaSha256",
+                    )
+                } else {
+                    null
+                }
+            val propertyDigest =
+                requireSha256Field(source, "$sourcePointer/propertySchemaSha256", "propertySchemaSha256")
+            val matches =
+                allOf
+                    .mapIndexed { index, branch -> index to branch }
+                    .filter { (_, branch) ->
+                        when {
+                            ref != null -> {
+                                branch.get("\$ref")?.textOrNull() == ref
+                            }
+
+                            else -> {
+                                branch.get("\$ref") == null &&
+                                    resolvedSchemaDigest(document, branch) == inlineDigest
+                            }
+                        }
+                    }
+            if (matches.size != 1) {
+                // Name every candidate so an overlay author (or a digest-shift after a resolved-form change)
+                // can re-derive the correct election without reverse-engineering the canonical form.
+                val candidates =
+                    allOf
+                        .mapIndexed { index, branch ->
+                            val identity =
+                                branch.get("\$ref")?.textOrNull()
+                                    ?: "inlineSchemaSha256=${resolvedSchemaDigest(document, branch)}"
+                            "allOf/$index: $identity"
+                        }.joinToString("; ")
+                invalidAllOfResolution(
+                    sourcePointer,
+                    "selected exactly one allOf branch but matched ${matches.size} (candidates: $candidates)",
+                )
+            }
+            val (branchIndex, branch) = matches.single()
+            // Follow the branch's full $ref/alias chain (not just one hop) so a property declared behind an
+            // alias binds, and require an unambiguous declaration when more than one chain layer declares it.
+            val candidates = collectChainProperties(document, "$pointer/allOf/$branchIndex", branch, propertyName)
+            if (candidates.isEmpty()) {
+                invalidAllOfResolution(
+                    sourcePointer,
+                    "property '$propertyName' is missing from the selected allOf branch and its reference chain",
+                )
+            }
+            val digestsByForm = candidates.associateBy { resolvedSchemaDigest(it.document, it.node) }
+            if (digestsByForm.size > 1) {
+                invalidAllOfResolution(
+                    sourcePointer,
+                    "property '$propertyName' is declared ambiguously across the selected allOf branch reference " +
+                        "chain (${digestsByForm.keys.sorted().joinToString(", ")})",
+                )
+            }
+            val (actualPropertyDigest, selectedProperty) = digestsByForm.entries.single().toPair()
+            if (actualPropertyDigest != propertyDigest) {
+                invalidAllOfResolution(
+                    "$sourcePointer/propertySchemaSha256",
+                    "does not match the resolved schema of property '$propertyName' at " +
+                        "'${selectedProperty.document.canonicalUri}#${selectedProperty.pointer}' " +
+                        "(expected $actualPropertyDigest)",
+                )
+            }
+            // Resolve the winning branch's declaration of the property to the semantic-model SchemaId the
+            // adapter assigned it, so the engine's strict resolver can elect this branch by matching an
+            // operand's identity directly — never by re-digesting the adapted model (whose structural digest
+            // could not agree with the source-byte propertySchemaSha256 computed here). The single allOf
+            // composition's branches are 1:1 with the raw allOf array indices (see adaptComposition), so
+            // branchIndex names the same branch on both sides.
+            val allOfComposition = compositions.single { it.kind == CompositionKind.ALL_OF }
+            // An accepted audited extension must bind exactly once: a validated entry whose winning branch
+            // cannot be resolved to a semantic property SchemaId would otherwise carry a null election that the
+            // resolver silently ignores — the override would validate, then do nothing, and the conflict would
+            // surface as an ordinary blocker with the audit apparently in place. Fail adaptation instead.
+            val winningBranchRef =
+                allOfComposition.branches.getOrNull(branchIndex)
+                    ?: invalidAllOfResolution(
+                        sourcePointer,
+                        "selected allOf branch index $branchIndex has no adapted composition branch",
+                    )
+            val winningPropertySchemaId =
+                branchPropertySchemaId(winningBranchRef.schemaId, propertyName, mutableSetOf())
+                    ?: invalidAllOfResolution(
+                        sourcePointer,
+                        "property '$propertyName' could not be bound to a semantic schema id on the selected " +
+                            "allOf branch '${winningBranchRef.schemaId.value}'",
+                    )
+            AllOfPropertyResolution(
+                propertyName = propertyName,
+                strategy = AllOfResolutionStrategy.UNION_SUPERSEDE,
+                branch =
+                    ref?.let(AllOfResolutionSource::Referenced)
+                        ?: AllOfResolutionSource.Inline(inlineDigest!!),
+                propertySchemaSha256 = propertyDigest,
+                source = document.source(entryPointer),
+                winningPropertySchemaId = winningPropertySchemaId,
+            )
+        }
+}
+
+/**
+ * The semantic [SchemaId] the adapter assigned to the selected allOf branch's declaration of
+ * [propertyName]: the property declared directly on [branchSchemaId], else the same lookup across a
+ * `$ref`/alias wrapper or a nested `allOf` branch subtree. Returns `null` when no single semantic node
+ * carries the property; the caller then FAILS adaptation (an accepted audited election must bind exactly
+ * once — [AllOfPropertyResolution.winningPropertySchemaId] is non-null by contract), rather than
+ * producing an entry the engine would have to ignore.
+ */
+private fun AdaptationContext.branchPropertySchemaId(
+    branchSchemaId: SchemaId,
+    propertyName: String,
+    visited: MutableSet<SchemaId>,
+): SchemaId? {
+    val schema = schemas[branchSchemaId] ?: return null
+    if (!visited.add(schema.id)) return null
+    schema.properties.firstOrNull { it.name == propertyName }?.let { return it.schema.schemaId }
+    schema.referenceTarget?.let { return branchPropertySchemaId(it, propertyName, visited) }
+    return schema.compositions
+        .filter { it.kind == CompositionKind.ALL_OF }
+        .flatMap { it.branches }
+        .mapNotNull { branchPropertySchemaId(it.schemaId, propertyName, visited) }
+        .singleOrNull()
+}
+
+private fun requireAllOfFields(
+    node: JsonNode,
+    pointer: String,
+    allowed: Set<String>,
+) {
+    node.fieldNames().asSequence().filterNot(allowed::contains).sorted().firstOrNull()?.let { field ->
+        invalidAllOfResolution("$pointer/${escapePointerSegment(field)}", "is not a supported field")
+    }
+}
+
+private fun isSha256(value: String?): Boolean = value != null && Regex("^[0-9a-f]{64}$").matches(value)
+
+private fun requireSha256Field(
+    source: JsonNode,
+    pointer: String,
+    field: String,
+): String {
+    val value = source.get(field)?.textOrNull()
+    if (value == null || !isSha256(value)) {
+        invalidAllOfResolution(pointer, "must be exactly 64 lowercase hexadecimal characters")
+    }
+    return value
+}
+
+/** One layer of a branch reference chain that declares the audited property. */
+private data class ChainProperty(
+    val document: SourceDocument,
+    val pointer: String,
+    val node: JsonNode,
+)
+
+/**
+ * Walks the selected allOf branch and returns every layer that declares [propertyName] under its own
+ * `properties`. The walk follows three structural relations — the SAME ones the semantic-side
+ * [branchPropertySchemaId] traverses, so validation and id-binding agree on what a branch "declares":
+ * - the node's own `properties/[propertyName]`;
+ * - each `$ref`/alias hop, resolved against the document that declared it so external references use their
+ *   own base URI;
+ * - every branch of a nested `allOf` (a property may live only inside a deeper allOf layer).
+ * Reference cycles terminate deterministically: a `$ref` target whose canonical `<documentUri>#<pointer>`
+ * id has already been visited ends that path (the finite JSON tree bounds the non-`$ref` recursion). The
+ * caller requires the returned layers to agree on a single resolved property form (see
+ * [resolvedSchemaDigest]); a genuinely ambiguous chain is reported rather than silently resolved.
+ */
+private fun AdaptationContext.collectChainProperties(
+    startDocument: SourceDocument,
+    startPointer: String,
+    startNode: JsonNode,
+    propertyName: String,
+): List<ChainProperty> {
+    val results = mutableListOf<ChainProperty>()
+    val visited = mutableSetOf<String>()
+
+    fun walk(
+        document: SourceDocument,
+        pointer: String,
+        node: JsonNode,
+    ) {
+        node.get("properties")?.takeIf(JsonNode::isObject)?.get(propertyName)?.let { property ->
+            results +=
+                ChainProperty(
+                    document = document,
+                    pointer = "$pointer/properties/${escapePointerSegment(propertyName)}",
+                    node = property,
+                )
+        }
+        node.get("allOf")?.takeIf(JsonNode::isArray)?.forEachIndexed { index, branch ->
+            walk(document, "$pointer/allOf/$index", branch)
+        }
+        val rawReference = node.get("\$ref")?.textOrNull() ?: return
+        val resolved =
+            try {
+                repository.resolveReference(document.canonicalUri, rawReference)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                invalidAllOfResolution(
+                    "$pointer/\$ref",
+                    "cannot resolve '$rawReference': ${failure.message}",
+                )
+            }
+        if (!visited.add("${resolved.document.canonicalUri}#${resolved.pointer}")) return
+        walk(resolved.document, resolved.pointer, resolved.document.root.at(resolved.pointer))
+    }
+
+    walk(startDocument, startPointer, startNode)
+    return results
+}
+
+/**
+ * The SHA-256, over UTF-8, of the *resolved structural form* of [node] (see [resolvedSchemaForm]):
+ * canonical JSON — object keys sorted, no insignificant whitespace, via [DocumentCodec.canonicalJson]
+ * — of the schema with every `$ref` replaced by the content of its target, transitively. This is the
+ * exact representation an overlay author's `inlineSchemaSha256`/`propertySchemaSha256` must reproduce,
+ * so mutating a referenced target without touching the `$ref` text still shifts the digest and fails
+ * the audit closed.
+ */
+private fun AdaptationContext.resolvedSchemaDigest(
+    document: SourceDocument,
+    node: JsonNode,
+): String =
+    DocumentCodec.sha256(
+        DocumentCodec.canonicalJson(resolvedSchemaForm(document, node, mutableSetOf())).encodeToByteArray(),
+    )
+
+/**
+ * Builds the resolved structural form of [node]: a JSON tree in which every `$ref` is replaced,
+ * transitively, by the content of its target. Each reference resolves against the document that
+ * declared it. When a `$ref` is reached whose canonical target id (`<documentUri>#<pointer>`) is
+ * already being resolved on the current path, it is a cycle and is substituted with the deterministic
+ * token object `{ "$sdkgen-allof-resolution-cycle": "<documentUri>#<pointer>" }` instead of recursing
+ * forever; an unresolvable `$ref` is likewise substituted with
+ * `{ "$sdkgen-allof-resolution-unresolved-ref": "<raw reference>" }`. Sibling keywords declared
+ * alongside a `$ref` apply conjunctively: when a sibling and the resolved target declare the same
+ * keyword, both values are preserved in a `$sdkgen-allof-resolution-conjunction` token.
+ */
+private fun AdaptationContext.resolvedSchemaForm(
+    document: SourceDocument,
+    node: JsonNode,
+    activeReferences: MutableSet<String>,
+): JsonNode =
+    when {
+        node.isObject -> {
+            val rawReference = node.get("\$ref").textOrNull()
+            if (rawReference != null) {
+                resolvedReferenceForm(document, node, rawReference, activeReferences)
+            } else {
+                val result = DocumentCodec.objectNode()
+                node.properties().forEach { (name, value) ->
+                    result.set<JsonNode>(name, resolvedSchemaForm(document, value, activeReferences))
+                }
+                result
+            }
+        }
+
+        node.isArray -> {
+            val result = DocumentCodec.arrayNode()
+            node.forEach { result.add(resolvedSchemaForm(document, it, activeReferences)) }
+            result
+        }
+
+        else -> {
+            node.deepCopy()
+        }
+    }
+
+private fun AdaptationContext.resolvedReferenceForm(
+    document: SourceDocument,
+    node: JsonNode,
+    rawReference: String,
+    activeReferences: MutableSet<String>,
+): JsonNode {
+    val resolved =
+        try {
+            repository.resolveReference(document.canonicalUri, rawReference)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Throwable) {
+            return DocumentCodec.objectNode().put("\$sdkgen-allof-resolution-unresolved-ref", rawReference)
+        }
+    val canonicalId = "${resolved.document.canonicalUri}#${resolved.pointer}"
+    if (!activeReferences.add(canonicalId)) {
+        return DocumentCodec.objectNode().put("\$sdkgen-allof-resolution-cycle", canonicalId)
+    }
+    val targetForm =
+        try {
+            resolvedSchemaForm(resolved.document, resolved.document.root.at(resolved.pointer), activeReferences)
+        } finally {
+            activeReferences.remove(canonicalId)
+        }
+    val siblings = node.properties().filter { (name, _) -> name != "\$ref" }
+    if (siblings.isEmpty() || targetForm !is ObjectNode) return targetForm
+    val merged = DocumentCodec.objectNode()
+    targetForm.properties().forEach { (name, value) -> merged.set<JsonNode>(name, value) }
+    siblings.forEach { (name, value) ->
+        val resolvedSibling = resolvedSchemaForm(document, value, activeReferences)
+        val shadowed = merged.get(name)
+        if (shadowed == null) {
+            merged.set<JsonNode>(name, resolvedSibling)
+        } else {
+            // JSON Schema applies `$ref` siblings CONJUNCTIVELY — both the target's keyword and the sibling's
+            // constrain the value. The digest form must keep both: a last-wins replacement would drop the
+            // target's declaration from the hashed bytes, and a mutation of that shadowed keyword could then
+            // drift without shifting the digest, silently weakening the fail-closed audit guarantee.
+            merged.set<JsonNode>(
+                name,
+                DocumentCodec
+                    .objectNode()
+                    .set<ObjectNode>(
+                        "\$sdkgen-allof-resolution-conjunction",
+                        DocumentCodec.arrayNode().add(shadowed).add(resolvedSibling),
+                    ),
+            )
+        }
+    }
+    return merged
+}
+
+private fun invalidAllOfResolution(
+    pointer: String,
+    reason: String,
+): Nothing = throw CanonicalExtensionAdaptationException(pointer, reason)
 
 private data class ContentKeywords(
     val encoding: String?,
@@ -533,8 +941,7 @@ private fun AdaptationContext.hasExplicitNullBranch(
     val branches = node.get(field)?.takeIf(JsonNode::isArray) ?: return false
     return branches.any { branch ->
         val resolved = resolveOneOfBranchForNullCheck(document, branch)
-        resolved.get("type").typeNames() == listOf("null") ||
-            (resolved.isObject && resolved.size() == 1 && resolved.path("nullable").booleanOrFalse())
+        resolved.isStandardNullBranch() || resolved.isLegacyLoneNullableBranch()
     }
 }
 
@@ -764,6 +1171,112 @@ private fun AdaptationContext.resolveSchemaReference(
     return targetId
 }
 
+/**
+ * Branch indices whose *direct* legacy lone `{ nullable: true }` marker is canonicalized to a
+ * null-only branch, making the marker semantically identical to a `{ type: "null" }` branch (the
+ * OpenAPI 3.1 idiom) instead of surviving as an empty value branch with no exact JSON kind.
+ *
+ * `anyOf` is permissive, mirroring [normalizeAnyOfNullability]: every direct marker qualifies.
+ * `oneOf` mirrors [normalizeOneOfNullability]'s exactly-one rule: markers are canonicalized only
+ * when the `oneOf` has exactly one null-accepting branch overall, so an ambiguous `oneOf` (which
+ * stays non-nullable and is reported) is left untouched. Only direct inline markers are considered;
+ * `$ref` branches are never expanded here, so which branches are *recognized* is not broadened.
+ */
+private fun AdaptationContext.canonicalLegacyNullBranchIndices(
+    document: SourceDocument,
+    node: JsonNode,
+    field: String,
+    kind: CompositionKind,
+): Set<Int> {
+    if (kind == CompositionKind.ALL_OF) return emptySet()
+    val branches = node.get(field)?.takeIf(JsonNode::isArray) ?: return emptySet()
+    val directLegacyMarkers =
+        branches
+            .withIndex()
+            .filter { (_, branch) -> branch.isLegacyLoneNullableBranch() }
+            .map { it.index }
+            .toSet()
+    if (directLegacyMarkers.isEmpty()) return emptySet()
+    return when (kind) {
+        CompositionKind.ANY_OF -> {
+            directLegacyMarkers
+        }
+
+        CompositionKind.ONE_OF -> {
+            if (oneOfNullAcceptingBranchCount(document, branches) == 1) directLegacyMarkers else emptySet()
+        }
+
+        CompositionKind.ALL_OF -> {
+            emptySet()
+        }
+    }
+}
+
+/** Counts `oneOf` branches that accept `null` under [normalizeOneOfNullability]'s exact recognition rule. */
+private fun AdaptationContext.oneOfNullAcceptingBranchCount(
+    document: SourceDocument,
+    branches: JsonNode,
+): Int =
+    branches.count { branch ->
+        val resolved = resolveOneOfBranchForNullCheck(document, branch)
+        resolved.isStandardNullBranch() || resolved.isLegacyLoneNullableBranch() || resolved.isUnconstrainedBranch()
+    }
+
+/**
+ * Authoritatively installs and returns a reference to a null-only branch schema at [branchPointer],
+ * standing in for the empty value schema a raw `{ nullable: true }` marker would otherwise adapt into.
+ * The identity and source match [adaptSchemaUse]'s so provenance and discriminator branch ids are stable.
+ *
+ * Canonicalization is order-independent: if an alphabetically-earlier component `$ref`s this branch
+ * pointer directly, the ordinary adaptation of the lone marker may already occupy [branchPointer]'s
+ * canonical id. Because a `$ref` links to `schemas` by id (see [adaptSchemaUse]/[resolveSchemaReference])
+ * rather than copying, overwriting the shared entry here re-points that alias at the canonical null-only
+ * model too. The overwrite is guarded: the only replaceable pre-existing value is the ordinary,
+ * typeless adaptation of *this exact* lone `{ nullable: true }` marker; anything else fails loudly.
+ */
+private fun AdaptationContext.nullOnlyBranchRef(
+    document: SourceDocument,
+    branchPointer: String,
+    branchNode: JsonNode,
+): SchemaRef {
+    val source = document.source(branchPointer)
+    val id = canonicalSchemaId(document, branchPointer)
+    val existing = schemas[id]
+    if (existing == null || !existing.acceptsOnlyNull) {
+        if (existing != null) {
+            require(branchNode.isLegacyLoneNullableBranch()) {
+                "Refusing to canonicalize null-only branch at '$id': raw branch node is not a lone " +
+                    "'{ nullable: true }' marker."
+            }
+            require(existing.isOrdinaryLoneNullableAdaptation()) {
+                "Refusing to overwrite schema at '$id' during null-only branch canonicalization: the " +
+                    "existing entry is not the ordinary adaptation of a lone '{ nullable: true }' marker."
+            }
+        }
+        schemas[id] = nullOnlySchema(id, source)
+    }
+    return SchemaRef(id, source)
+}
+
+/**
+ * The ordinary adaptation of a lone `{ nullable: true }` marker: a typeless, contentless schema that is
+ * nullable purely via the OpenAPI 3.0 marker and carries no other assertions. This is the only value
+ * [nullOnlyBranchRef] is permitted to replace when canonicalizing a branch identity.
+ */
+private fun SchemaModel.isOrdinaryLoneNullableAdaptation(): Boolean =
+    !acceptsOnlyNull &&
+        referenceTarget == null &&
+        types.isEmpty() &&
+        format == null &&
+        properties.isEmpty() &&
+        compositions.isEmpty() &&
+        items == null &&
+        additionalProperties == null &&
+        enum == null &&
+        constraints.isEmpty() &&
+        requiredPropertyNames.isEmpty() &&
+        nullability == Nullability.NULLABLE
+
 private fun AdaptationContext.adaptComposition(
     document: SourceDocument,
     pointer: String,
@@ -773,9 +1286,15 @@ private fun AdaptationContext.adaptComposition(
 ): CompositionModel? {
     val branchesNode = node.get(field) ?: return null
     if (!branchesNode.isArray) return null
+    val canonicalNullBranchIndices = canonicalLegacyNullBranchIndices(document, node, field, kind)
     val branches =
         branchesNode.mapIndexed { index, branch ->
-            adaptSchemaUse(document, "$pointer/$field/$index", branch)
+            val branchPointer = "$pointer/$field/$index"
+            if (index in canonicalNullBranchIndices) {
+                nullOnlyBranchRef(document, branchPointer, branch)
+            } else {
+                adaptSchemaUse(document, branchPointer, branch)
+            }
         }
     val discriminator =
         if (kind == CompositionKind.ONE_OF) {

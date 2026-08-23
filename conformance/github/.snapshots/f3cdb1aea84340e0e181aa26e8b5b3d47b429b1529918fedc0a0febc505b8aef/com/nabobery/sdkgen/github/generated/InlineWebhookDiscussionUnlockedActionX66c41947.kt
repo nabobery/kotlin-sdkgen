@@ -1,0 +1,50 @@
+package com.nabobery.sdkgen.github.generated
+
+import kotlin.String
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+
+/**
+ * Forward-compatible enum for
+ * sdkgen://source/openapi.yaml#/components/schemas/webhook-discussion-unlocked/properties/action.
+ *
+ * Source: sdkgen://source/openapi.yaml#/components/schemas/webhook-discussion-unlocked/properties/action
+ */
+@Serializable(with = InlineWebhookDiscussionUnlockedActionX66c41947.Serializer::class)
+public sealed class InlineWebhookDiscussionUnlockedActionX66c41947 {
+  public abstract val `value`: String
+
+  /**
+   * Documented value. Wire value: `unlocked`.
+   */
+  public data object Unlocked : InlineWebhookDiscussionUnlockedActionX66c41947() {
+    public override val `value`: String = "unlocked"
+  }
+
+  public data class SdkUnknown(
+    public override val `value`: String,
+  ) : InlineWebhookDiscussionUnlockedActionX66c41947()
+
+  public companion object {
+    public fun fromValue(`value`: String): InlineWebhookDiscussionUnlockedActionX66c41947 = when (value) {
+      Unlocked.value -> Unlocked
+      else -> SdkUnknown(value)
+    }
+  }
+
+  internal object Serializer : KSerializer<InlineWebhookDiscussionUnlockedActionX66c41947> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("com.nabobery.sdkgen.github.generated.InlineWebhookDiscussionUnlockedActionX66c41947", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): InlineWebhookDiscussionUnlockedActionX66c41947 = fromValue(decoder.decodeString())
+
+    override fun serialize(encoder: Encoder, `value`: InlineWebhookDiscussionUnlockedActionX66c41947) {
+      encoder.encodeString(value.value)
+    }
+  }
+}

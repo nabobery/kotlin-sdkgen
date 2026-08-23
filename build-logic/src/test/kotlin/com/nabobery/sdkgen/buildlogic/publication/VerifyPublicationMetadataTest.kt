@@ -308,6 +308,7 @@ internal class VerifyPublicationMetadataTest {
         val engineResources =
             setOf(
                 "schemas/x-sdkgen-idempotency.schema.json",
+                "schemas/x-sdkgen-allof-resolution.schema.json",
                 "schemas/x-sdkgen-pagination.schema.json",
                 "schemas/x-sdkgen-streaming.schema.json",
             )

@@ -1,0 +1,68 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlin.String
+import kotlin.Unit
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.put
+
+/**
+ *
+ *
+ * Source: sdkgen://source/openapi.json#/components/schemas/payment_method_details_payment_record_blik
+ */
+@Serializable(with = PaymentMethodDetailsPaymentRecordBlik.Serializer::class)
+public class PaymentMethodDetailsPaymentRecordBlik(
+  /**
+   * A unique and immutable identifier assigned by BLIK to every buyer.
+   */
+  public val buyerId: String? = null,
+) {
+  public class Builder {
+    /**
+     * A unique and immutable identifier assigned by BLIK to every buyer.
+     */
+    public var buyerId: String? = null
+
+    public fun build(): PaymentMethodDetailsPaymentRecordBlik = PaymentMethodDetailsPaymentRecordBlik(
+      buyerId = buyerId,
+    )
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): PaymentMethodDetailsPaymentRecordBlik = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<PaymentMethodDetailsPaymentRecordBlik> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): PaymentMethodDetailsPaymentRecordBlik {
+      val jsonDecoder = decoder.requireJsonDecoder("PaymentMethodDetailsPaymentRecordBlik")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("PaymentMethodDetailsPaymentRecordBlik must be a JSON object")
+      return PaymentMethodDetailsPaymentRecordBlik(
+        buyerId = rawObject["buyer_id"]?.let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<String?>(element) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: PaymentMethodDetailsPaymentRecordBlik) {
+      val jsonEncoder = encoder.requireJsonEncoder("PaymentMethodDetailsPaymentRecordBlik")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        value.buyerId?.let { put("buyer_id", it) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun paymentMethodDetailsPaymentRecordBlik(block: PaymentMethodDetailsPaymentRecordBlik.Builder.() -> Unit): PaymentMethodDetailsPaymentRecordBlik = PaymentMethodDetailsPaymentRecordBlik.build(block)

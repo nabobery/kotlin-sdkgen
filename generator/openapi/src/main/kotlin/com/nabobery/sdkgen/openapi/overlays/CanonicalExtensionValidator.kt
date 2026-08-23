@@ -3,16 +3,19 @@ package com.nabobery.sdkgen.openapi.overlays
 import com.fasterxml.jackson.databind.JsonNode
 import com.nabobery.sdkgen.model.JsonPointer
 import com.nabobery.sdkgen.openapi.CANONICAL_OPERATION_EXTENSIONS
+import com.nabobery.sdkgen.openapi.CANONICAL_SCHEMA_EXTENSIONS
+import com.nabobery.sdkgen.openapi.collectSchemaObjectPointers
 import com.nabobery.sdkgen.openapi.isDirectOperationExtension
 
 internal class CanonicalExtensionValidator {
     fun validate(document: JsonNode) {
-        validateNode(document, "")
+        validateNode(document, "", collectSchemaObjectPointers(document))
     }
 
     private fun validateNode(
         node: JsonNode,
         pointer: String,
+        schemaPointers: Set<String>,
     ) {
         if (node.isObject) {
             node.properties().forEach { (name, value) ->
@@ -28,6 +31,16 @@ internal class CanonicalExtensionValidator {
                         validateExtension(name, value, childPointer)
                     }
 
+                    name in CANONICAL_SCHEMA_EXTENSIONS -> {
+                        if (pointer !in schemaPointers || !node.path("allOf").isArray) {
+                            invalid(
+                                childPointer,
+                                "is only allowed as a direct property of a Schema Object with allOf",
+                            )
+                        }
+                        validateExtension(name, value, childPointer)
+                    }
+
                     name.startsWith("x-sdkgen-") -> {
                         validateExtension(name, value, childPointer)
                     }
@@ -37,12 +50,12 @@ internal class CanonicalExtensionValidator {
                     }
 
                     else -> {
-                        validateNode(value, childPointer)
+                        validateNode(value, childPointer, schemaPointers)
                     }
                 }
             }
         } else if (node.isArray) {
-            node.forEachIndexed { index, value -> validateNode(value, "$pointer/$index") }
+            node.forEachIndexed { index, value -> validateNode(value, "$pointer/$index", schemaPointers) }
         }
     }
 
@@ -55,6 +68,7 @@ internal class CanonicalExtensionValidator {
             "x-sdkgen-streaming" -> validateStreaming(value, pointer)
             "x-sdkgen-pagination" -> validatePagination(value, pointer)
             "x-sdkgen-idempotency" -> validateIdempotency(value, pointer)
+            "x-sdkgen-allof-resolution" -> validateAllOfResolution(value, pointer)
             else -> throw ExtensionValidationException("Unknown SDKGen extension '$name' at $pointer")
         }
     }
@@ -127,6 +141,38 @@ internal class CanonicalExtensionValidator {
         if (value.has("responseTotal")) requirePointer(value, pointer, "responseTotal")
     }
 
+    private fun validateAllOfResolution(
+        value: JsonNode,
+        pointer: String,
+    ) {
+        requireObject(value, pointer)
+        requireAllowedFields(value, pointer, setOf("properties"))
+        val propertiesPointer = JsonPointerSupport.child(pointer, "properties")
+        val properties = value.get("properties") ?: invalid(propertiesPointer, "is required")
+        requireObject(properties, propertiesPointer)
+        properties.properties().forEach { (propertyName, entry) ->
+            val entryPointer = JsonPointerSupport.child(propertiesPointer, propertyName)
+            requireObject(entry, entryPointer)
+            requireAllowedFields(entry, entryPointer, setOf("strategy", "source"))
+            requireConstant(entry, entryPointer, "strategy", "unionSupersede")
+            val sourcePointer = JsonPointerSupport.child(entryPointer, "source")
+            val source = entry.get("source") ?: invalid(sourcePointer, "is required")
+            requireObject(source, sourcePointer)
+            requireAllowedFields(source, sourcePointer, setOf("ref", "inlineSchemaSha256", "propertySchemaSha256"))
+            val hasRef = source.has("ref")
+            val hasInline = source.has("inlineSchemaSha256")
+            if (hasRef == hasInline) {
+                invalid(sourcePointer, "must contain exactly one of 'ref' or 'inlineSchemaSha256'")
+            }
+            if (hasRef) {
+                requireNonEmptyString(source, sourcePointer, "ref")
+            } else {
+                requireSha256(source, sourcePointer, "inlineSchemaSha256")
+            }
+            requireSha256(source, sourcePointer, "propertySchemaSha256")
+        }
+    }
+
     private fun validateIdempotency(
         value: JsonNode,
         pointer: String,
@@ -195,6 +241,18 @@ internal class CanonicalExtensionValidator {
         val actual = value.get(field) ?: invalid(fieldPointer, "is required")
         if (!actual.isTextual || actual.textValue().isEmpty()) {
             invalid(fieldPointer, "must be a non-empty string")
+        }
+    }
+
+    private fun requireSha256(
+        value: JsonNode,
+        pointer: String,
+        field: String,
+    ) {
+        val fieldPointer = JsonPointerSupport.child(pointer, field)
+        val actual = value.get(field) ?: invalid(fieldPointer, "is required")
+        if (!actual.isTextual || !Regex("^[0-9a-f]{64}$").matches(actual.textValue())) {
+            invalid(fieldPointer, "must be exactly 64 lowercase hexadecimal characters")
         }
     }
 

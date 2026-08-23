@@ -357,6 +357,23 @@ public final class com/nabobery/sdkgen/runtime/PropertyPath {
 	public final synthetic fun unbox-impl ()Ljava/lang/String;
 }
 
+public final class com/nabobery/sdkgen/runtime/RawTextCodec : com/nabobery/sdkgen/runtime/MediaTypeCodec {
+	public static final field Companion Lcom/nabobery/sdkgen/runtime/RawTextCodec$Companion;
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/Set;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun decode (Lcom/nabobery/sdkgen/runtime/SdkByteStream;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun encode (Ljava/lang/Object;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getId ()Ljava/lang/String;
+	public fun getMediaTypes ()Ljava/util/Set;
+	public fun getStructuredSyntaxSuffixes ()Ljava/util/Set;
+}
+
+public final class com/nabobery/sdkgen/runtime/RawTextCodec$Companion {
+	public final fun of (Ljava/lang/String;Ljava/util/Set;J)Lcom/nabobery/sdkgen/runtime/RawTextCodec;
+	public static synthetic fun of$default (Lcom/nabobery/sdkgen/runtime/RawTextCodec$Companion;Ljava/lang/String;Ljava/util/Set;JILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/RawTextCodec;
+	public final fun ofNullable (Ljava/lang/String;Ljava/util/Set;J)Lcom/nabobery/sdkgen/runtime/RawTextCodec;
+	public static synthetic fun ofNullable$default (Lcom/nabobery/sdkgen/runtime/RawTextCodec$Companion;Ljava/lang/String;Ljava/util/Set;JILjava/lang/Object;)Lcom/nabobery/sdkgen/runtime/RawTextCodec;
+}
+
 public final class com/nabobery/sdkgen/runtime/RedirectCapability : java/lang/Enum {
 	public static final field UNSUPPORTED Lcom/nabobery/sdkgen/runtime/RedirectCapability;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;

@@ -52,6 +52,13 @@ class GitHubConformanceGenerationTest {
                     zeroMatchPolicy = ZeroMatchPolicy.FAIL,
                     conflictPolicy = OverlayConflictPolicy.FAIL,
                 ),
+                OverlayConfig(
+                    id = "github-allof-resolution-audit",
+                    uri = "overlays/allof-resolution-audit.yaml",
+                    sha256 = AUDIT_OVERLAY_SHA256,
+                    zeroMatchPolicy = ZeroMatchPolicy.FAIL,
+                    conflictPolicy = OverlayConflictPolicy.FAIL,
+                ),
             ),
             config.overlays,
         )
@@ -132,11 +139,18 @@ class GitHubConformanceGenerationTest {
         val pipeline = GenerationPipeline("sdkgen-maintainers")
 
         val baseline = pipeline.validate(config.copy(acceptedWaivers = emptyList()), source, overlays())
-        // 139 after ADR-0016 reclaimed the 18 primitive-union parameter operations, down from 157. Those 18
-        // were the only exclusions the corpus ledger did not cover, so the exclusion set and the ledger's 139
-        // accepted waivers now coincide exactly — which is what made the corpus regenerable.
-        assertEquals(139, baseline.exclusions.size)
-        assertEquals(mapOf("schema" to 99, "operation" to 40), baseline.exclusions.countByKind())
+        // The audited allOf-resolution overrides (ADR 0021) clear the nine proven GitHub object-merge parents and their nine
+        // dependent closures. The two webhook-status commit email intersections stay soundly Unsupported, so the
+        // regenerated ledger and waiver list contain 119 exclusions: 79 schemas and 40 operations.
+        assertEquals(119, baseline.exclusions.size)
+        assertEquals(mapOf("schema" to 79, "operation" to 40), baseline.exclusions.countByKind())
+        // Blocker-transition contract: the direct-allOf-conflict subset of the frozen ledger. The 0.3.0
+        // schema-intersection resolver drives this single named constant to 0; flip it there to capture the RED.
+        assertEquals(
+            EXPECTED_DIRECT_ALL_OF_CONFLICTS,
+            baseline.exclusions.count { exclusion -> "conflicting allOf property" in exclusion.reason },
+            "GitHub direct allOf-conflict blocker count drifted from the frozen baseline",
+        )
         assertEquals(
             frozen.map(FrozenExclusion::identity).toSet(),
             baseline.exclusions
@@ -408,12 +422,20 @@ class GitHubConformanceGenerationTest {
     private fun overlays(): List<ResolvedGenerationOverlay> {
         val path = source().path.parent.resolve("overlays/code-search-runtime-semantics.yaml")
         val bytes = path.readBytes()
+        val auditPath = source().path.parent.resolve("overlays/allof-resolution-audit.yaml")
+        val auditBytes = auditPath.readBytes()
         return listOf(
             ResolvedGenerationOverlay(
                 id = "github-code-search-runtime-semantics",
                 path = path,
                 canonicalUri = "sdkgen://overlay/github-code-search-runtime-semantics",
                 sha256 = bytes.sha256(),
+            ),
+            ResolvedGenerationOverlay(
+                id = "github-allof-resolution-audit",
+                path = auditPath,
+                canonicalUri = "sdkgen://overlay/github-allof-resolution-audit",
+                sha256 = auditBytes.sha256(),
             ),
         )
     }
@@ -448,8 +470,8 @@ class GitHubConformanceGenerationTest {
                     disposition = values[11],
                 )
             }.also { rows ->
-                assertEquals(139, rows.size)
-                assertEquals(139, rows.map(FrozenExclusion::waiverId).toSet().size)
+                assertEquals(119, rows.size)
+                assertEquals(119, rows.map(FrozenExclusion::waiverId).toSet().size)
             }
     }
 
@@ -561,9 +583,15 @@ class GitHubConformanceGenerationTest {
     }
 
     private companion object {
+        // Blocker-transition baseline. Was 12; the strict-intersection resolver cleared one all-strict
+        // parent (webhook-workflow-job-completed), and the audited overlays resolved the nine proven
+        // object-merge parents. Only the two webhook-status commit email intersections remain: their strict
+        // intersection (non-null formatted email) is not nameable by an existing node without synthesis.
+        const val EXPECTED_DIRECT_ALL_OF_CONFLICTS = 2
         const val CANONICAL_URI = "sdkgen://source/openapi.yaml"
         const val SOURCE_SHA256 = "350102b39f8575f9ef0eb7db96fc2f80f5cbfefbfbaf64d243bc696348d00b63"
         const val CODE_SEARCH_OVERLAY_SHA256 = "4bb4eb28ee5b424cea50c9ea92047ed35e49282273800ab7e1ab4cd83b083288"
+        const val AUDIT_OVERLAY_SHA256 = "3f190ddaa20e9b0ca074e6c82b61d7ff1911df25586cc1f1ffa38a18b35e78f3"
         val FROZEN_HEADER =
             listOf(
                 "kind",

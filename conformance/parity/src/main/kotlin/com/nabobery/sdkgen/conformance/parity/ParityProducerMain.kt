@@ -49,7 +49,8 @@ public object StripeParityProducerCli {
     public fun main(args: Array<String>) {
         require(args.size in 15..17) {
             "Usage: <repository-root> <registry.json> <producer> <subject> <task> <run-id> " +
-                "<passed|failed> <events.txt> <output.json> <corpus> <config> <lock> <overlay-or-dash> <toolchain> " +
+                "<passed|failed> <events.txt> <output.json> <corpus> <config> <lock> <ordered-overlays-or-dash> " +
+                "<toolchain> " +
                 "<generated-directory> [task-failure-reason] [comma-separated-optional-exclusions]"
         }
         val repositoryRoot = File(args[0])
@@ -159,7 +160,8 @@ internal fun produce(
 ) {
     require(args.size in 15..17) {
         "Usage: <repository-root> <registry.json> <producer> <subject> <task> <run-id> " +
-            "<passed|failed> <events.txt> <output.json> <corpus> <config> <lock> <overlay-or-dash> <toolchain> " +
+            "<passed|failed> <events.txt> <output.json> <corpus> <config> <lock> <ordered-overlays-or-dash> " +
+            "<toolchain> " +
             "<generated-directory> [task-failure-reason] [comma-separated-optional-exclusions]"
     }
     val repositoryRoot = File(args[0])
@@ -195,7 +197,9 @@ internal fun produce(
                         corpus = File(args[9]),
                         config = optionalFileArgument(args[10]),
                         lock = optionalFileArgument(args[11]),
-                        overlay = optionalFileArgument(args[12]),
+                        // Comma-separated ordered overlay list (`-` for none): the whole configured set binds
+                        // into provenance, so no overlay edit can escape parity hashing.
+                        overlays = overlayFileArguments(args[12]),
                         toolchain = File(args[13]),
                         generatedDirectory = File(args[14]),
                         absentOverlaySha256 = ABSENT_OVERLAY_SHA256.takeIf { args[12] == "-" },
@@ -212,6 +216,9 @@ internal fun produce(
 }
 
 private fun optionalFileArgument(argument: String): File? = argument.takeUnless { it == "-" }?.let(::File)
+
+private fun overlayFileArguments(argument: String): List<File> =
+    if (argument == "-") emptyList() else argument.split(',').filter(String::isNotBlank).map(::File)
 
 internal fun producePortableSourceFixture(
     generatedSourceDirectory: File,

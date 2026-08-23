@@ -153,6 +153,21 @@ public object SnapshotRenderer {
                 "  owner ${ownership.propertyName} -> ${ownership.ownerSchemaId} constraints=${ownership.constraints.renderMap()} @${ownership.source.render()}",
             )
         }
+        schema.allOfPropertyResolutions
+            .sortedBy(AllOfPropertyResolution::propertyName)
+            .forEach { resolution ->
+                val branch =
+                    when (val selected = resolution.branch) {
+                        is AllOfResolutionSource.Referenced -> "ref:${selected.ref}"
+                        is AllOfResolutionSource.Inline -> "inline:${selected.schemaSha256}"
+                    }
+                appendLine(
+                    "  allOfResolution ${resolution.propertyName} strategy=${resolution.strategy} " +
+                        "branch=$branch propertySha256=${resolution.propertySchemaSha256} " +
+                        "winningProperty=${resolution.winningPropertySchemaId.value} " +
+                        "@${resolution.source.render()}",
+                )
+            }
         appendLine("  extensions ${schema.extensions.renderMap()}")
     }
 

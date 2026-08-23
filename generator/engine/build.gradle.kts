@@ -102,6 +102,10 @@ tasks.test {
     val t10GitHubConfig = rootProject.layout.projectDirectory.file("conformance/github/sdkgen.yaml")
     val t10GitHubCodeSearchOverlay =
         rootProject.layout.projectDirectory.file("conformance/github/overlays/code-search-runtime-semantics.yaml")
+    val schemaIntersectionProofTable =
+        rootProject.layout.projectDirectory.file("docs/conformance/evidence/schema-intersection-proof-table.tsv")
+    val proofTableRegeneration =
+        providers.systemProperty("prooftable.regen").map { it == "true" }.getOrElse(false)
 
     // These fixtures/goldens are read at test execution time via the system properties below;
     // declare them explicitly so Gradle tracks their contents (not just the path string baked
@@ -130,6 +134,16 @@ tasks.test {
     inputs.file(t12GitHubExclusionDelta).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t10GitHubConfig).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.file(t10GitHubCodeSearchOverlay).withPathSensitivity(PathSensitivity.RELATIVE)
+    // SchemaIntersectionProofTableTest reads (and, under -Dprooftable.regen, rewrites) this committed TSV via a
+    // path derived from engine.githubFile, so declare it explicitly: a TSV-only edit must re-run the test rather
+    // than leaving it UP-TO-DATE/FROM-CACHE and silently skipping the drift check.
+    inputs.file(schemaIntersectionProofTable).withPathSensitivity(PathSensitivity.RELATIVE)
+    if (proofTableRegeneration) {
+        // Regeneration intentionally overwrites the declared proof-table input, so this opt-in mode must execute
+        // rather than reusing an up-to-date result or restoring a cached test output.
+        outputs.upToDateWhen { false }
+        outputs.cacheIf { false }
+    }
     outputs.dir(fixtureOutputRoot)
     outputs.dir(stripeGeneratedOutput)
 
@@ -154,6 +168,8 @@ tasks.test {
     systemProperty("engine.t10GitHubBlockerInventory", t10GitHubBlockerInventory.asFile.absolutePath)
     systemProperty("engine.githubExclusionDelta", t12GitHubExclusionDelta.asFile.absolutePath)
     systemProperty("engine.t10GitHubConfig", t10GitHubConfig.asFile.absolutePath)
+    // Opt-in regeneration of the frozen schema-intersection proof table (SchemaIntersectionProofTableTest).
+    systemProperty("prooftable.regen", proofTableRegeneration.toString())
     systemProperty("engine.emitterSource", emitterSource.asFile.absolutePath)
     systemProperty("engine.emissionContextSource", emissionContextSource.asFile.absolutePath)
     systemProperty("engine.pagination.fixture.source", paginationFixtureSource.asFile.absolutePath)

@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class DeclarationModelTest {
@@ -296,4 +297,226 @@ class DeclarationModelTest {
     fun kdocSanitizationRemovesTrailingWhitespaceFromEveryLine() {
         assertEquals("first\nsecond", sanitizeKDoc("first  \nsecond\t"))
     }
+
+    @Test
+    fun requestVariantsParticipateInCanonicalDigest() {
+        val baseline =
+            variantOperationModel(suffix = "Multipart", replayability = RequestBodyReplayability.NON_REPLAYABLE)
+        val changedSuffix =
+            variantOperationModel(suffix = "Upload", replayability = RequestBodyReplayability.NON_REPLAYABLE)
+        val changedReplayability =
+            variantOperationModel(suffix = "Multipart", replayability = RequestBodyReplayability.REPLAYABLE)
+
+        assertNotEquals(baseline.digest(), changedSuffix.digest(), "variant method suffix must affect the digest")
+        assertNotEquals(
+            baseline.digest(),
+            changedReplayability.digest(),
+            "variant replayability must affect the digest",
+        )
+    }
+
+    @Test
+    fun requestVariantListsAreDefensivelyCopiedAndShuffleDeterministically() {
+        val fields =
+            mutableListOf(
+                variantFormField("alpha"),
+                variantFormField("beta"),
+                variantFormField("gamma"),
+                variantFormField("delta"),
+            )
+        val value = FormValueDeclaration.Object(fields)
+        val variant =
+            requestVariant(
+                replayability = RequestBodyReplayability.REPLAYABLE,
+                formFields =
+                    listOf(
+                        FormFieldDeclaration(
+                            wireName = "root",
+                            accessorName = "root",
+                            type = KotlinTypeRef("com.example", "Nested"),
+                            required = true,
+                            value = value,
+                        ),
+                    ),
+            )
+        val variants = mutableListOf(variant)
+        val operation = operation(variants)
+        val model =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration("com.example", "WidgetClient", listOf(operationClient(listOf(operation)))),
+                ),
+            )
+
+        variants.clear()
+        assertEquals(
+            listOf(variant),
+            model.files
+                .single()
+                .declarations
+                .filterIsInstance<OperationClientDeclaration>()
+                .single()
+                .operations
+                .single()
+                .requestVariants,
+        )
+
+        val originalOrder = listOf("alpha", "beta", "gamma", "delta")
+
+        fun shuffledFieldOrder(seed: Int): List<String> =
+            model
+                .shuffled(seed)
+                .files
+                .single()
+                .declarations
+                .filterIsInstance<OperationClientDeclaration>()
+                .single()
+                .operations
+                .single()
+                .requestVariants
+                .single()
+                .formFields
+                .single()
+                .value
+                .let { it as FormValueDeclaration.Object }
+                .fields
+                .map(FormFieldDeclaration::wireName)
+
+        val changedSeed =
+            (1..40)
+                .firstOrNull { seed -> shuffledFieldOrder(seed) != originalOrder }
+        assertNotNull(
+            changedSeed,
+            "shuffling must reorder variant form fields for at least one deterministic seed",
+        )
+        assertEquals(originalOrder.toSet(), shuffledFieldOrder(changedSeed).toSet())
+        assertEquals(model.normalized().digest(), model.shuffled(changedSeed).normalized().digest())
+    }
+
+    @Test
+    fun requestVariantTypesRewriteWithRenames() {
+        val variant =
+            requestVariant(
+                replayability = RequestBodyReplayability.NON_REPLAYABLE,
+                multipartParts =
+                    listOf(
+                        MultipartPartDeclaration(
+                            wireName = "file",
+                            accessorName = "file",
+                            type = KotlinTypeRef("com.example", "Widget"),
+                            required = true,
+                            contentType = "application/octet-stream",
+                        ),
+                    ),
+            )
+        val rewritten =
+            KotlinDeclarationModel(
+                listOf(
+                    KotlinFileDeclaration(
+                        "com.example",
+                        "WidgetClient",
+                        listOf(operationClient(listOf(operation(listOf(variant))))),
+                    ),
+                ),
+            ).rewriteTypeReferences(mapOf(("com.example" to "Widget") to "RenamedWidget"))
+                .files
+                .single()
+                .declarations
+                .filterIsInstance<OperationClientDeclaration>()
+                .single()
+                .operations
+                .single()
+                .requestVariants
+                .single()
+
+        assertEquals("RenamedWidget", rewritten.type.simpleName)
+        assertEquals(
+            "RenamedWidget",
+            rewritten.multipartParts
+                .single()
+                .type.simpleName,
+        )
+    }
+
+    private fun variantFormField(name: String): FormFieldDeclaration =
+        FormFieldDeclaration(
+            wireName = name,
+            accessorName = name,
+            type = KotlinTypeRef("kotlin", "String"),
+            required = true,
+            value = FormValueDeclaration.Scalar(FormScalarKind.STRING),
+        )
+
+    private fun variantOperationModel(
+        suffix: String,
+        replayability: RequestBodyReplayability,
+    ): KotlinDeclarationModel =
+        KotlinDeclarationModel(
+            listOf(
+                KotlinFileDeclaration(
+                    packageName = "com.example",
+                    fileName = "WidgetClient",
+                    declarations =
+                        listOf(
+                            operationClient(
+                                listOf(
+                                    operation(
+                                        listOf(
+                                            requestVariant(
+                                                methodName = "getWidget$suffix",
+                                                nameSuffix = suffix,
+                                                replayability = replayability,
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                ),
+            ),
+        )
+
+    private fun requestVariant(
+        methodName: String = "getWidgetMultipart",
+        nameSuffix: String = "Multipart",
+        replayability: RequestBodyReplayability,
+        multipartParts: List<MultipartPartDeclaration> = emptyList(),
+        formFields: List<FormFieldDeclaration> = emptyList(),
+    ): OperationRequestVariantDeclaration =
+        OperationRequestVariantDeclaration(
+            methodName = methodName,
+            nameSuffix = nameSuffix,
+            operationIdentity = "getWidget",
+            mediaTypes = listOf("multipart/form-data"),
+            type = KotlinTypeRef("com.example", "Widget"),
+            required = true,
+            multipartParts = multipartParts,
+            formFields = formFields,
+            replayability = replayability,
+            encoding = RequestBodyEncoding.MULTIPART,
+        )
+
+    private fun operation(variants: List<OperationRequestVariantDeclaration>): OperationDeclaration =
+        OperationDeclaration(
+            symbolId = "operation:getWidget",
+            order = 0,
+            operationId = "getWidget",
+            method = "POST",
+            path = "/widgets",
+            requestMediaTypes = listOf("multipart/form-data"),
+            responseMediaTypes = listOf("application/json"),
+            successStatusCodes = setOf(200),
+            requestType = KotlinTypeRef("com.example", "Widget"),
+            responseType = KotlinTypeRef("com.example", "Widget"),
+            requestCodecPropertyName = "getWidgetRequestCodec",
+            responseCodecPropertyName = "getWidgetResponseCodec",
+            requestCodecConstantName = "GET_WIDGET_REQUEST_CODEC_ID",
+            responseCodecConstantName = "GET_WIDGET_RESPONSE_CODEC_ID",
+            requestCodecId = "getWidget.request",
+            responseCodecId = "getWidget.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(1_000, 1_000, null),
+            methodKdoc = "Creates a widget.",
+            requestVariants = variants,
+        )
 }

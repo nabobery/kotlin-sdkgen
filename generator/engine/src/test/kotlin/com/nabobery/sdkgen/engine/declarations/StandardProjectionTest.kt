@@ -1950,7 +1950,7 @@ class StandardProjectionTest {
     }
 
     @Test
-    fun diagnosesFormRequestsWithAnyOtherMediaAlternativeInEitherDocumentOrder() {
+    fun projectsFormAndJsonAlternativesAsCallableVariantsInEitherDocumentOrder() {
         val document =
             adapt(
                 """
@@ -1987,11 +1987,39 @@ class StandardProjectionTest {
             )
 
         val mapping = projectMapping(document)
+        val operations =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+                .associateBy { operation -> operation.operationIdentity }
         listOf("jsonFirst", "formFirst").forEach { operationId ->
-            val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:$operationId" }
-            assertTrue(diagnostic.message.contains("media alternative"))
-            assertTrue(diagnostic.source.jsonPointer.endsWith("/content/application~1json"))
-            assertTrue(mapping.exclusions.any { it.symbolId == "operation:$operationId" })
+            val operation = operations.getValue(operationId)
+            assertEquals(
+                listOf(
+                    listOf("application/json"),
+                    listOf("application/x-www-form-urlencoded"),
+                ),
+                operation.requestVariants.map { variant -> variant.mediaTypes },
+            )
+            assertEquals(
+                listOf(operationId to "", "${operationId}Form" to "Form"),
+                operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+            )
+            // Form metadata stays only on the Form variant.
+            assertTrue(
+                operation.requestVariants
+                    .first()
+                    .formFields
+                    .isEmpty(),
+            )
+            assertTrue(
+                operation.requestVariants
+                    .last()
+                    .formFields
+                    .isNotEmpty(),
+            )
+            assertTrue(mapping.diagnostics.none { it.symbolId == "operation:$operationId" })
         }
     }
 
@@ -4554,6 +4582,1226 @@ class StandardProjectionTest {
             assertTrue(rendered.contains(fragment), "emitter missing: $fragment")
             assertTrue(checkedIn.contains(fragment), "checked-in fixture missing: $fragment")
         }
+    }
+
+    @Test
+    fun dualMediaRequestBodiesProjectTwoCallableVariantsWithSharedOperationMetadata() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Dual media, version: "1" }
+                paths:
+                  /transcriptions:
+                    post:
+                      operationId: createTranscription
+                      tags: [media]
+                      parameters:
+                        - name: language
+                          in: query
+                          schema: { type: string }
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/JsonRequest' }
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/MultipartRequest' }
+                      responses:
+                        '200':
+                          description: ok
+                          content:
+                            application/json:
+                              schema: { ${'$'}ref: '#/components/schemas/JsonResponse' }
+                      security:
+                        - bearerAuth: []
+                components:
+                  securitySchemes:
+                    bearerAuth: { type: http, scheme: bearer }
+                  schemas:
+                    JsonRequest:
+                      type: object
+                      required: [model]
+                      properties:
+                        model: { type: string }
+                    MultipartRequest:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                        model: { type: string }
+                    JsonResponse:
+                      type: object
+                      properties: { text: { type: string } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        assertEquals(
+            emptyList(),
+            mapping.diagnostics.filter { diagnostic ->
+                "incompatible request schemas" in diagnostic.message ||
+                    "another media alternative" in diagnostic.message
+            },
+        )
+        val operation = project(document).operations.single()
+
+        val variants = operation.requestVariants
+        assertEquals(2, variants.size)
+
+        val json = variants.first()
+        assertEquals("createTranscription", json.methodName)
+        assertEquals("", json.nameSuffix)
+        assertEquals(listOf("application/json"), json.mediaTypes)
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "JsonRequest"), json.type)
+        assertEquals(true, json.required)
+        assertTrue(json.multipartParts.isEmpty(), "multipart metadata must stay off the json variant")
+        assertTrue(json.formFields.isEmpty())
+        assertEquals(RequestBodyReplayability.REPLAYABLE, json.replayability)
+        assertEquals("createTranscription", json.operationIdentity)
+
+        val multipart = variants.last()
+        assertEquals("createTranscriptionMultipart", multipart.methodName)
+        assertEquals("Multipart", multipart.nameSuffix)
+        assertEquals(listOf("multipart/form-data"), multipart.mediaTypes)
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "MultipartRequest"), multipart.type)
+        assertEquals(true, multipart.required)
+        assertEquals(
+            listOf("file", "model"),
+            multipart.multipartParts.map(MultipartPartDeclaration::wireName).sorted(),
+        )
+        assertTrue(multipart.formFields.isEmpty())
+        assertEquals(RequestBodyReplayability.NON_REPLAYABLE, multipart.replayability)
+        assertEquals("createTranscription", multipart.operationIdentity)
+
+        // Shared operation metadata stays a single parent-level copy that both variants hang off.
+        assertEquals("createTranscription", operation.operationIdentity)
+        assertEquals(listOf("language"), operation.parameters.map(OperationParameterDeclaration::name))
+        assertEquals(1, operation.responseAlternatives.size)
+        assertEquals(1, operation.security.size)
+        assertEquals(
+            listOf("application/json"),
+            operation.requestMediaTypes,
+            "the operation-level request surface describes the primary variant",
+        )
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "JsonRequest"), operation.requestType)
+        assertEquals(1, operation.requestBodyAlternatives.size)
+    }
+
+    @Test
+    fun dualMediaVariantNamesAreIdenticalUnderReversedContentDocumentOrder() {
+        val jsonFirst =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Dual media order, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/UploadParts' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                    UploadParts:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                """,
+            )
+        val multipartFirst =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Dual media order, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      requestBody:
+                        required: true
+                        content:
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/UploadParts' }
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                    UploadParts:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                """,
+            )
+
+        listOf(jsonFirst, multipartFirst).forEach { document ->
+            val operation = project(document).operations.single()
+            assertEquals(
+                listOf("createThing" to "", "createThingMultipart" to "Multipart"),
+                operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+                "document order must not change variant names",
+            )
+        }
+    }
+
+    @Test
+    fun formUrlEncodedVariantsUseTheFormSuffixWhileSingleMediaOperationsKeepTheirExactName() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Form media, version: "1" }
+                paths:
+                  /token:
+                    post:
+                      operationId: issueToken
+                      requestBody:
+                        required: true
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema: { ${'$'}ref: '#/components/schemas/TokenGrant' }
+                  /charge:
+                    post:
+                      operationId: createCharge
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/ChargeInput' }
+                          application/x-www-form-urlencoded:
+                            schema: { ${'$'}ref: '#/components/schemas/TokenGrant' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    TokenGrant:
+                      type: object
+                      required: [grant_type]
+                      properties:
+                        grant_type: { type: string }
+                    ChargeInput:
+                      type: object
+                      properties: { amount: { type: integer } }
+                """,
+            )
+
+        val operations = project(document).operations.associateBy(OperationDeclaration::operationIdentity)
+
+        val token = operations.getValue("issueToken")
+        assertEquals(
+            listOf("issueToken" to ""),
+            token.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+            "a single-media form operation keeps its exact public method name",
+        )
+
+        val charge = operations.getValue("createCharge")
+        assertEquals(
+            listOf(
+                listOf("application/json"),
+                listOf("application/x-www-form-urlencoded"),
+            ),
+            charge.requestVariants.map { variant -> variant.mediaTypes },
+        )
+        assertEquals(
+            listOf("createCharge" to "", "createChargeForm" to "Form"),
+            charge.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+    }
+
+    @Test
+    fun withoutApplicationJsonTheCanonicallyFirstFamilyStaysUnsuffixedAndSecondariesGetSuffixes() {
+        val multipartFirst =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: No json families, version: "1" }
+                paths:
+                  /submit:
+                    post:
+                      operationId: submitEntry
+                      requestBody:
+                        required: true
+                        content:
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/Upload' }
+                          application/x-www-form-urlencoded:
+                            schema: { ${'$'}ref: '#/components/schemas/Form' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Upload:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                    Form:
+                      type: object
+                      properties: { note: { type: string } }
+                """,
+            )
+        val formFirst =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: No json families, version: "1" }
+                paths:
+                  /submit:
+                    post:
+                      operationId: submitEntry
+                      requestBody:
+                        required: true
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema: { ${'$'}ref: '#/components/schemas/Form' }
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/Upload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Upload:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                    Form:
+                      type: object
+                      properties: { note: { type: string } }
+                """,
+            )
+
+        // With no application/json body, the canonically first family (lowest normalized media type — here the
+        // urlencoded form) keeps the unsuffixed method; the choice is independent of parsed content order.
+        listOf(multipartFirst, formFirst).forEach { document ->
+            val operation = project(document).operations.single()
+            assertEquals(
+                listOf("submitEntry" to "", "submitEntryMultipart" to "Multipart"),
+                operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+            )
+            assertEquals(
+                listOf(listOf("application/x-www-form-urlencoded"), listOf("multipart/form-data")),
+                operation.requestVariants.map { variant -> variant.mediaTypes },
+            )
+        }
+    }
+
+    @Test
+    fun secondaryVariantSuffixesComeFromSanitizedSubtypesAllocatedInNormalizedMediaTypeOrder() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Exotic families, version: "1" }
+                paths:
+                  /reports:
+                    post:
+                      operationId: createReport
+                      requestBody:
+                        required: true
+                        content:
+                          application/pdf:
+                            schema: { type: string, format: binary }
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Report' }
+                          text/csv:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Report:
+                      type: object
+                      properties: { title: { type: string } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        assertEquals(
+            listOf(
+                listOf("application/json"),
+                listOf("application/pdf"),
+                listOf("text/csv"),
+            ),
+            operation.requestVariants.map { variant -> variant.mediaTypes },
+        )
+        // application/json is present, so it is the unsuffixed method; the exotic families are allocated in
+        // normalized-media-type order (application/pdf before text/csv) with sanitized subtype suffixes.
+        assertEquals(
+            listOf("createReport" to "", "createReportPdf" to "Pdf", "createReportCsv" to "Csv"),
+            operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+    }
+
+    @Test
+    fun unresolvableSecondaryVariantNameCollisionsFailClosedWithTypedDiagnostics() {
+        fun spec(reverse: Boolean): String {
+            val dashEntry = "application/a-b+json:"
+            val dotEntry = "application/a.b+json:"
+            val first = if (reverse) dotEntry else dashEntry
+            val second = if (reverse) dashEntry else dotEntry
+            return """
+                openapi: 3.1.0
+                info: { title: Suffix collision, version: "1" }
+                paths:
+                  /collide:
+                    post:
+                      operationId: createCollide
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          $first
+                            schema: { type: integer }
+                          $second
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """.trimIndent()
+        }
+
+        listOf(false, true).forEach { reverse ->
+            val mapping = projectMapping(adapt(spec(reverse)))
+            val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createCollide" }
+            assertEquals(GenerationDiagnosticCode.NAME_COLLISION, diagnostic.code)
+            assertEquals(
+                "/paths/~1collide/post/requestBody/content/application~1a.b+json",
+                diagnostic.source.jsonPointer,
+                "document order (reverse=$reverse) must not change which variant loses the collision",
+            )
+            assertTrue(diagnostic.message.contains("createCollideABJson"), diagnostic.message)
+            assertTrue(diagnostic.message.contains("application/a.b+json"), diagnostic.message)
+            assertTrue(mapping.exclusions.any { exclusion -> exclusion.symbolId == "operation:createCollide" })
+            assertTrue(
+                mapping.model.files
+                    .flatMap(KotlinFileDeclaration::declarations)
+                    .filterIsInstance<OperationClientDeclaration>()
+                    .flatMap(OperationClientDeclaration::operations)
+                    .none { it.operationIdentity == "createCollide" },
+            )
+        }
+    }
+
+    @Test
+    fun secondaryVariantNamesThatWouldUsurpAnExistingSiblingMethodFailClosed() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Sibling collision, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      tags: [media]
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          text/csv:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                  /things/export:
+                    post:
+                      operationId: CreateThingCSV
+                      tags: [media]
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createThing" }
+        assertEquals(GenerationDiagnosticCode.NAME_COLLISION, diagnostic.code)
+        assertTrue(diagnostic.message.contains("createThingCsv"), diagnostic.message)
+        val survivors =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+        assertTrue(survivors.none { it.operationIdentity == "createThing" })
+        assertEquals("createThingCsv", survivors.single().operationId)
+    }
+
+    @Test
+    fun textOnlyMultipartVariantsRemainReplayable() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Text multipart, version: "1" }
+                paths:
+                  /notes:
+                    post:
+                      operationId: createNote
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Note' }
+                          multipart/form-data:
+                            schema:
+                              type: object
+                              required: [body]
+                              properties:
+                                body: { type: string }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Note:
+                      type: object
+                      properties: { body: { type: string } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        assertEquals(
+            listOf(RequestBodyReplayability.REPLAYABLE, RequestBodyReplayability.REPLAYABLE),
+            operation.requestVariants.map { variant -> variant.replayability },
+        )
+    }
+
+    @Test
+    fun compatibleMultiMediaAlternativesCollapseIntoOneUnsuffixedVariant() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Compatible medias, version: "1" }
+                paths:
+                  /payloads:
+                    post:
+                      operationId: createPayload
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          text/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        assertEquals(1, operation.requestVariants.size)
+        val variant = operation.requestVariants.single()
+        assertEquals("createPayload", variant.methodName)
+        assertEquals("", variant.nameSuffix)
+        assertEquals(listOf("application/json", "text/json"), variant.mediaTypes)
+        assertEquals(2, operation.requestBodyAlternatives.size)
+        assertEquals(listOf("application/json", "text/json"), operation.requestMediaTypes)
+    }
+
+    @Test
+    fun invalidSecondaryMediaAlternativeStillDiagnosesWithItsExistingMessage() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Invalid secondary, version: "1" }
+                paths:
+                  /mixed:
+                    post:
+                      operationId: createMixed
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          multipart/form-data:
+                            schema:
+                              oneOf:
+                                - type: object
+                                  properties: { a: { type: string } }
+                                - type: object
+                                  properties: { b: { type: string } }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createMixed" }
+        assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, diagnostic.code)
+        assertTrue(
+            "multipart request body cannot use oneOf or anyOf composition" in diagnostic.message,
+            diagnostic.message,
+        )
+    }
+
+    @Test
+    fun rawOpenRouterTranscriptionProjectsCallableMediaVariantsWithoutCrossMediaDiagnostic() {
+        val document =
+            SemanticAdapter()
+                .adapt(Path.of(requireNotNull(System.getProperty("engine.openRouterFile"))))
+                .document
+        val mapping = projectMapping(document)
+
+        assertTrue(
+            mapping.diagnostics.none { diagnostic -> "incompatible request schemas" in diagnostic.message },
+            "the raw OpenRouter dual-media transcription endpoint must not be rejected anymore",
+        )
+        val transcription =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+                .single { operation -> operation.operationIdentity == "createAudioTranscriptions" }
+        assertEquals(
+            listOf(
+                listOf("application/json"),
+                listOf("multipart/form-data"),
+            ),
+            transcription.requestVariants.map { variant -> variant.mediaTypes },
+        )
+        assertEquals(
+            listOf("createAudioTranscriptions" to "", "createAudioTranscriptionsMultipart" to "Multipart"),
+            transcription.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+    }
+
+    @Test
+    fun streamTypedNonMultipartBodiesAreNonReplayable() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Stream bodies, version: "1" }
+                paths:
+                  /blobs:
+                    post:
+                      operationId: uploadBlob
+                      requestBody:
+                        required: true
+                        content:
+                          application/octet-stream:
+                            schema: { type: string, format: binary }
+                  /documents:
+                    post:
+                      operationId: createDocument
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          application/pdf:
+                            schema: { type: string, format: binary }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        val operations = project(document).operations.associateBy(OperationDeclaration::operationIdentity)
+
+        val blob = operations.getValue("uploadBlob")
+        val blobVariant = blob.requestVariants.single()
+        assertEquals("uploadBlob", blobVariant.methodName)
+        assertEquals(KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"), blobVariant.type)
+        assertEquals(
+            RequestBodyReplayability.NON_REPLAYABLE,
+            blobVariant.replayability,
+            "a non-multipart body resolving to the one-shot stream type must stay NON_REPLAYABLE",
+        )
+
+        val documentOperation = operations.getValue("createDocument")
+        assertEquals(
+            listOf(RequestBodyReplayability.REPLAYABLE, RequestBodyReplayability.NON_REPLAYABLE),
+            documentOperation.requestVariants.map { variant -> variant.replayability },
+        )
+    }
+
+    @Test
+    fun secondaryVariantNamesAreReservedAcrossSiblingOperationsInProjectionOrder() {
+        fun spec(reverseContentEntries: Boolean): String {
+            fun entries(vararg items: String): String = items.joinToString("\n                          ")
+            val json =
+                "application/json:\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Payload' }"
+            val exoticFoo = "application/b-ar+json:\n                            schema: { type: string }"
+            val exoticFooB = "application/ar+json:\n                            schema: { type: integer }"
+            val fooContent =
+                if (reverseContentEntries) entries(exoticFoo, json) else entries(json, exoticFoo)
+            val fooBContent =
+                if (reverseContentEntries) entries(json, exoticFooB) else entries(exoticFooB, json)
+            return """
+                openapi: 3.1.0
+                info: { title: Sibling secondary collision, version: "1" }
+                paths:
+                  /foo:
+                    post:
+                      operationId: createFoo
+                      requestBody:
+                        required: true
+                        content:
+                          $fooContent
+                      responses: { '204': { description: ok } }
+                  /foo-b:
+                    post:
+                      operationId: createFooB
+                      requestBody:
+                        required: true
+                        content:
+                          $fooBContent
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """.trimIndent()
+        }
+
+        // createFoo + subtype b-ar+json and createFooB + subtype ar+json both sanitize to `createFooBArJson`;
+        // the operation projected first (deterministic projection order) wins, the later one fails closed.
+        // Reversing each operation's content entries must not change the outcome.
+        listOf(false, true).forEach { reverse ->
+            val mapping = projectMapping(adapt(spec(reverse)))
+            val diagnostic =
+                mapping.diagnostics.single { diagnostic -> diagnostic.symbolId == "operation:createFooB" }
+            assertEquals(GenerationDiagnosticCode.NAME_COLLISION, diagnostic.code)
+            assertTrue(diagnostic.message.contains("createFooBArJson"), diagnostic.message)
+            val survivors =
+                mapping.model.files
+                    .flatMap(KotlinFileDeclaration::declarations)
+                    .filterIsInstance<OperationClientDeclaration>()
+                    .flatMap(OperationClientDeclaration::operations)
+            val foo = survivors.single { it.operationIdentity == "createFoo" }
+            assertEquals(
+                listOf("createFoo" to "", "createFooBArJson" to "BArJson"),
+                foo.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+            )
+            assertTrue(survivors.none { it.operationIdentity == "createFooB" })
+        }
+    }
+
+    @Test
+    fun secondaryVariantCollisionWithASiblingPrimaryFailsClosedInsteadOfFallingBack() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Sibling primary owns the preferred suffix, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          multipart/form-data:
+                            schema: { ${'$'}ref: '#/components/schemas/Upload' }
+                      responses: { '204': { description: ok } }
+                  /things-multipart:
+                    post:
+                      operationId: createThingMultipart
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                    Upload:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                """.trimIndent(),
+            )
+        // The multipart secondary's preferred name 'createThingMultipart' is owned by a SIBLING primary. The
+        // fallback suffix exists only to disambiguate same-suffix encoding ties WITHIN one operation; an external
+        // owner must fail the operation closed — silently renaming to 'createThingFormData' would hide the clash.
+        val mapping = projectMapping(document)
+        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createThing" }
+        assertEquals(GenerationDiagnosticCode.NAME_COLLISION, diagnostic.code)
+        assertTrue(diagnostic.message.contains("createThingMultipart"), diagnostic.message)
+        val survivors =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+        assertTrue(survivors.none { it.operationIdentity == "createThing" })
+        assertTrue(survivors.any { it.operationIdentity == "createThingMultipart" })
+    }
+
+    @Test
+    fun failedOperationsDoNotLeavePhantomVariantNameReservations() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Phantom reservations, version: "1" }
+                paths:
+                  /foo:
+                    post:
+                      operationId: createFoo
+                      parameters:
+                        - name: broken
+                          in: query
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          application/b-ar+json:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                  /foo-b:
+                    post:
+                      operationId: createFooB
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          application/ar+json:
+                            schema: { type: integer }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """.trimIndent(),
+            )
+        // createFoo allocates the variant name 'createFooBArJson' but is then excluded by its schema-less parameter.
+        // Its reservation must not survive the failure: createFooB (which sanitizes to the same candidate) emits
+        // the callable, because no emitted member actually owns the name.
+        val mapping = projectMapping(document)
+        val fooDiagnostic = mapping.diagnostics.single { it.symbolId == "operation:createFoo" }
+        assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, fooDiagnostic.code)
+        assertTrue(
+            mapping.diagnostics.none { it.code == GenerationDiagnosticCode.NAME_COLLISION },
+            "an excluded operation's variant reservations must not block later siblings: ${mapping.diagnostics}",
+        )
+        val survivors =
+            mapping.model.files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OperationClientDeclaration>()
+                .flatMap(OperationClientDeclaration::operations)
+        val fooB = survivors.single { it.operationIdentity == "createFooB" }
+        assertEquals(
+            listOf("createFooB" to "", "createFooBArJson" to "ArJson"),
+            fooB.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+    }
+
+    @Test
+    fun multipartMixedRequestBodiesFailClosedWithoutAFaithfulEncoding() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Multipart mixed, version: "1" }
+                paths:
+                  /mixed:
+                    post:
+                      operationId: createMixed
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                          multipart/mixed:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                  /raw:
+                    post:
+                      operationId: sendRawMixed
+                      requestBody:
+                        required: true
+                        content:
+                          multipart/mixed:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        // Non-form-data multipart subtypes have no faithful wire encoding: transmitting a JSON (or raw string)
+        // document under `multipart/mixed` would corrupt the representation the contract declares. Both
+        // operations fail closed with a typed diagnostic instead of silently JSON-encoding.
+        val mapping = projectMapping(document)
+        listOf("createMixed", "sendRawMixed").forEach { operationId ->
+            val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:$operationId" }
+            assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, diagnostic.code, diagnostic.message)
+            assertTrue("no supported wire encoding" in diagnostic.message, diagnostic.message)
+            assertTrue("multipart/mixed" in diagnostic.message, diagnostic.message)
+        }
+        val operations = project(document).operations.associateBy(OperationDeclaration::operationIdentity)
+        assertTrue("createMixed" !in operations && "sendRawMixed" !in operations)
+    }
+
+    @Test
+    fun zeroPropertyFormBodiesProjectWithTheFormEncoding() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Empty form, version: "1" }
+                paths:
+                  /pings:
+                    post:
+                      operationId: createPing
+                      requestBody:
+                        required: true
+                        content:
+                          application/x-www-form-urlencoded:
+                            schema: { type: object, additionalProperties: false }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        val variant = operation.requestVariants.single()
+        // The encoding is carried explicitly: empty field metadata must never demote the variant to JSON.
+        assertEquals(RequestBodyEncoding.FORM, variant.encoding)
+        assertTrue(variant.formFields.isEmpty())
+    }
+
+    @Test
+    fun textBodiesProjectWithTheRawTextEncodingAndStringSchemasOnly() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Raw text, version: "1" }
+                paths:
+                  /render:
+                    post:
+                      operationId: renderRaw
+                      requestBody:
+                        required: true
+                        content:
+                          text/plain:
+                            schema: { type: string }
+                          text/x-markdown:
+                            schema: { type: string }
+                      responses: { '204': { description: ok } }
+                  /bad:
+                    post:
+                      operationId: renderObject
+                      requestBody:
+                        required: true
+                        content:
+                          text/plain:
+                            schema: { type: object, properties: { a: { type: string } } }
+                      responses: { '204': { description: ok } }
+                """,
+            )
+
+        val mapping = projectMapping(document)
+        // Compatible text aliases group into ONE raw-text variant carrying both media types.
+        val operations = project(document).operations.associateBy(OperationDeclaration::operationIdentity)
+        val renderRaw = operations.getValue("renderRaw")
+        val variant = renderRaw.requestVariants.single()
+        assertEquals(RequestBodyEncoding.TEXT, variant.encoding)
+        assertEquals(listOf("text/plain", "text/x-markdown"), variant.mediaTypes)
+        assertEquals(KotlinTypeRef("kotlin", "String"), variant.type)
+        // A text media whose schema is not a string has no faithful raw-text representation: fail closed.
+        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:renderObject" }
+        assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, diagnostic.code)
+        assertTrue("no supported wire encoding" in diagnostic.message, diagnostic.message)
+    }
+
+    @Test
+    fun parameterizedApplicationJsonKeepsTheUnsuffixedPrimary() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Parameterized json, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      requestBody:
+                        required: true
+                        content:
+                          text/plain:
+                            schema: { type: string }
+                          "application/json; charset=utf-8":
+                            schema: { ${'$'}ref: '#/components/schemas/Payload' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        assertEquals(
+            listOf("createThing" to "", "createThingPlain" to "Plain"),
+            operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+        val primary = operation.requestVariants.first()
+        assertEquals(listOf("application/json; charset=utf-8"), primary.mediaTypes)
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "Payload"), primary.type)
+        assertEquals(
+            KotlinTypeRef("kotlin", "String"),
+            operation.requestVariants.last().type,
+        )
+    }
+
+    @Test
+    fun parameterizedFormUrlEncodedGetsTheFormSuffixAndFormProjection() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info: { title: Parameterized form, version: "1" }
+                paths:
+                  /charge:
+                    post:
+                      operationId: createCharge
+                      requestBody:
+                        required: true
+                        content:
+                          application/json:
+                            schema: { ${'$'}ref: '#/components/schemas/ChargeInput' }
+                          "application/x-www-form-urlencoded; charset=utf-8":
+                            schema: { ${'$'}ref: '#/components/schemas/TokenGrant' }
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    TokenGrant:
+                      type: object
+                      required: [grant_type]
+                      properties:
+                        grant_type: { type: string }
+                    ChargeInput:
+                      type: object
+                      properties: { amount: { type: integer } }
+                """,
+            )
+
+        val operation = project(document).operations.single()
+        assertEquals(
+            listOf("createCharge" to "", "createChargeForm" to "Form"),
+            operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+        val form = operation.requestVariants.last()
+        assertEquals(listOf("application/x-www-form-urlencoded; charset=utf-8"), form.mediaTypes)
+        assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "TokenGrant"), form.type)
+        assertTrue(
+            form.formFields.map(FormFieldDeclaration::wireName).contains("grant_type"),
+            "parameterized form media types must go through real form-field projection/validation",
+        )
+    }
+
+    @Test
+    fun parameterizedJsonAliasesWithDistinctSchemasResolvePrimaryDeterministically() {
+        fun spec(reverse: Boolean): String {
+            fun entries(vararg items: String): String = items.joinToString("\n                          ")
+            val json =
+                "application/json:\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Payload' }"
+            val jsonAlias =
+                "\"application/json; charset=utf-8\":\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Other' }"
+            val content = if (reverse) entries(jsonAlias, json) else entries(json, jsonAlias)
+            return """
+                openapi: 3.1.0
+                info: { title: Json alias tie, version: "1" }
+                paths:
+                  /things:
+                    post:
+                      operationId: createThing
+                      requestBody:
+                        required: true
+                        content:
+                          $content
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                    Other:
+                      type: object
+                      properties: { title: { type: string } }
+                """.trimIndent()
+        }
+
+        listOf(false, true).forEach { reverse ->
+            val operation = project(adapt(spec(reverse))).operations.single()
+            assertEquals(
+                listOf("createThing" to "", "createThingJson" to "Json"),
+                operation.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+                "document order must not change which normalized-json group is primary (reverse=$reverse)",
+            )
+            assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "Payload"), operation.requestVariants.first().type)
+            assertEquals(KotlinTypeRef(GENERATED_PACKAGE, "Other"), operation.requestVariants.last().type)
+        }
+    }
+
+    @Test
+    fun sameFamilyVariantsWithDifferentEncodingsStaySeparateWithDeterministicFallbackSuffixes() {
+        fun spec(
+            withJsonPrimary: Boolean,
+            reverseMultipartEntries: Boolean = false,
+        ): String {
+            fun entries(vararg items: String): String = items.joinToString("\n                          ")
+            val json =
+                "application/json:\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Payload' }"
+            val plainFormData =
+                "multipart/form-data:\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Upload' }\n" +
+                    "                            encoding:\n" +
+                    "                              file:\n" +
+                    "                                contentType: text/plain"
+            val parameterizedFormData =
+                "\"multipart/form-data; charset=utf-8\":\n" +
+                    "                            schema: { ${'$'}ref: '#/components/schemas/Upload' }\n" +
+                    "                            encoding:\n" +
+                    "                              file:\n" +
+                    "                                contentType: application/octet-stream"
+            val multipartEntries =
+                if (reverseMultipartEntries) {
+                    listOf(parameterizedFormData, plainFormData)
+                } else {
+                    listOf(plainFormData, parameterizedFormData)
+                }
+            val content =
+                if (withJsonPrimary) {
+                    entries(json, *multipartEntries.toTypedArray())
+                } else {
+                    entries(*multipartEntries.toTypedArray())
+                }
+            return """
+                openapi: 3.1.0
+                info: { title: Encoding split, version: "1" }
+                paths:
+                  /uploads:
+                    post:
+                      operationId: ${if (withJsonPrimary) "createThing" else "createUpload"}
+                      requestBody:
+                        required: true
+                        content:
+                          $content
+                      responses: { '204': { description: ok } }
+                components:
+                  schemas:
+                    Payload:
+                      type: object
+                      properties: { name: { type: string } }
+                    Upload:
+                      type: object
+                      required: [file]
+                      properties:
+                        file: { type: string, format: binary }
+                """.trimIndent()
+        }
+
+        val withJson = projectMapping(adapt(spec(withJsonPrimary = true)))
+        assertTrue(
+            withJson.diagnostics.none { diagnostic -> diagnostic.code == GenerationDiagnosticCode.NAME_COLLISION },
+            "same-family groups with different encodings must not collide on the fixed suffix",
+        )
+        val dual = project(adapt(spec(withJsonPrimary = true))).operations.single()
+        assertEquals(3, dual.requestVariants.size)
+        assertEquals(
+            listOf("createThing", "createThingMultipart", "createThingFormData"),
+            dual.requestVariants.map { variant -> variant.methodName },
+        )
+        val textParts = dual.requestVariants[1]
+        assertEquals("Multipart", textParts.nameSuffix)
+        assertEquals(listOf("multipart/form-data"), textParts.mediaTypes)
+        assertEquals("text/plain", textParts.multipartParts.single().contentType)
+        val octetParts = dual.requestVariants[2]
+        assertEquals("FormData", octetParts.nameSuffix)
+        assertEquals(listOf("multipart/form-data; charset=utf-8"), octetParts.mediaTypes)
+        assertEquals("application/octet-stream", octetParts.multipartParts.single().contentType)
+
+        // Reversing the two multipart entries in the document must not change grouping, suffix allocation, or
+        // which variant carries which encoding metadata — groupMediaOrder is intrinsic, not positional.
+        val reversed =
+            project(adapt(spec(withJsonPrimary = true, reverseMultipartEntries = true))).operations.single()
+        assertEquals(
+            dual.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+            reversed.requestVariants.map { variant -> variant.methodName to variant.nameSuffix },
+        )
+
+        fun partContentTypes(variants: List<OperationRequestVariantDeclaration>): List<List<String?>> =
+            variants.map { variant -> variant.multipartParts.map(MultipartPartDeclaration::contentType) }
+
+        assertEquals(partContentTypes(dual.requestVariants), partContentTypes(reversed.requestVariants))
+
+        // Without a JSON body the canonically-first same-family group takes the unsuffixed method; only one
+        // secondary remains, so no fallback suffix is needed.
+        val single = project(adapt(spec(withJsonPrimary = false))).operations.single()
+        assertEquals(
+            listOf("createUpload", "createUploadMultipart"),
+            single.requestVariants.map { variant -> variant.methodName },
+        )
+        assertEquals(
+            "text/plain",
+            single.requestVariants[0]
+                .multipartParts
+                .single()
+                .contentType,
+        )
+        assertEquals(
+            "application/octet-stream",
+            single.requestVariants[1]
+                .multipartParts
+                .single()
+                .contentType,
+        )
+        assertEquals(listOf("multipart/form-data; charset=utf-8"), single.requestVariants[1].mediaTypes)
     }
 
     /**
