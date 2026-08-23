@@ -79,6 +79,8 @@ internal fun AdaptationContext.adaptOperations(root: JsonNode): List<OperationMo
 }
 
 private fun AdaptationContext.diagnoseMisplacedCanonicalExtensions(root: JsonNode) {
+    val schemaPointers = collectSchemaObjectPointers(root)
+
     fun visit(
         node: JsonNode,
         pointer: String,
@@ -95,6 +97,24 @@ private fun AdaptationContext.diagnoseMisplacedCanonicalExtensions(root: JsonNod
                                     "Invalid canonical extension at $childPointer: " +
                                         "is only allowed as a direct property of an OpenAPI Operation Object",
                                 remediation = "Move the canonical extension directly onto an OpenAPI Operation Object.",
+                                phase = DiagnosticPhase.ADAPTATION,
+                                source = rootDocument.source(childPointer),
+                                relatedSymbolId = operationSymbolId(root, childPointer),
+                            )
+                        }
+
+                        // A misplaced canonical schema extension is caught here on the zero-overlay path (where
+                        // OverlayApplicator's CanonicalExtensionValidator never runs) so it is diagnosed rather
+                        // than silently discarded by nonCanonicalExtensions(). Placement only requires the parent
+                        // to be a genuine Schema Object; the array-valued-allOf requirement is enforced (with a
+                        // precise pointer) by adaptAllOfPropertyResolutions, so it is not re-checked here.
+                        name in CANONICAL_SCHEMA_EXTENSIONS && pointer !in schemaPointers -> {
+                            addDiagnostic(
+                                code = DiagnosticCode.INVALID_CANONICAL_EXTENSION,
+                                message =
+                                    "Invalid canonical extension at $childPointer: " +
+                                        "is only allowed as a direct property of a Schema Object with allOf",
+                                remediation = "Move the canonical extension directly onto a Schema Object that declares allOf.",
                                 phase = DiagnosticPhase.ADAPTATION,
                                 source = rootDocument.source(childPointer),
                                 relatedSymbolId = operationSymbolId(root, childPointer),
@@ -643,11 +663,6 @@ private fun AdaptationContext.locateGeneric(
     val target = repository.resolveReference(document.canonicalUri, rawReference)
     return LocatedNode(target.document, target.pointer, target.document.root.at(target.pointer))
 }
-
-private class CanonicalExtensionAdaptationException(
-    val pointer: String,
-    reason: String,
-) : IllegalArgumentException("Invalid canonical extension at $pointer: $reason")
 
 private fun adaptPagination(
     node: JsonNode,

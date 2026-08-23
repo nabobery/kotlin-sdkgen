@@ -1,6 +1,8 @@
 package com.nabobery.sdkgen.engine.declarations
 
 import com.nabobery.sdkgen.model.AdditionalPropertiesModel
+import com.nabobery.sdkgen.model.AllOfPropertyResolution
+import com.nabobery.sdkgen.model.AllOfResolutionSource
 import com.nabobery.sdkgen.model.CompositionModel
 import com.nabobery.sdkgen.model.DiscriminatorModel
 import com.nabobery.sdkgen.model.EncodingModel
@@ -87,6 +89,12 @@ private fun SchemaModel.canonicalText(): String =
         append(
             ":allOfOwnership=",
         ).append(allOfPropertyOwnership.joinToString(",") { ownership -> ownership.canonicalText() })
+        append(":allOfResolutions=")
+            .append(
+                allOfPropertyResolutions
+                    .sortedBy(AllOfPropertyResolution::propertyName)
+                    .joinToString(",") { resolution -> resolution.canonicalText() },
+            )
         append(":extensions=").append(extensions.canonicalText())
         append(":properties=")
         properties.forEach { property -> append(property.canonicalText()).append(',') }
@@ -115,6 +123,18 @@ private fun CompositionModel.canonicalText(): String =
 
 private fun PropertyOwnership.canonicalText(): String =
     "ownership:$propertyName:${ownerSchemaId.value}:${constraints.canonicalText()}"
+
+private fun AllOfPropertyResolution.canonicalText(): String =
+    buildString {
+        append("resolution:").append(propertyName).append(':').append(strategy)
+        append(":branch=")
+        when (val selected = branch) {
+            is AllOfResolutionSource.Referenced -> append("ref:").append(selected.ref)
+            is AllOfResolutionSource.Inline -> append("inline:").append(selected.schemaSha256)
+        }
+        append(":propertySha256=").append(propertySchemaSha256)
+        append(":winningProperty=").append(winningPropertySchemaId.value)
+    }
 
 private fun PropertyModel.canonicalText(): String =
     buildString {

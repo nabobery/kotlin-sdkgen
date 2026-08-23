@@ -7,6 +7,43 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-23
+
+### Added
+
+- Strict `allOf` intersection algebra with audited overrides: duplicate `allOf` properties resolve through a
+  proven set-theoretic algebra, and contract-judgment cases are recorded explicitly via the new
+  `x-sdkgen-allof-resolution` canonical extension (per-property branch election by `$ref` or resolved-content
+  digest, fail-closed on drift). See ADR 0021 and the committed schema-intersection proof table.
+- Media-specific request variants: an operation whose request body declares several incompatible media types now
+  emits one callable method per compatible media group (`…Multipart`, `…Form`, sanitized-subtype suffixes) with
+  deterministic naming that fails closed on collisions, instead of rejecting the operation.
+- Explicit request-body wire encodings: JSON (`application/json`, aliases, `+json`), raw text (`text/*` over
+  string schemas, via the new `RawTextCodec` runtime codec), raw byte streams, form, and multipart. Unsupported
+  representations fail closed with a waivable diagnostic instead of silently JSON-encoding.
+- Full OpenRouter conformance surface: all 89 of 89 operations generate with zero blockers, including the
+  `/messages` and `/responses` streaming operations and both `/audio/transcriptions` media variants.
+- GitHub webhook payload reclamation through the audited overlays: 10 payload schemas (+10 inline sub-schemas)
+  now project; the accepted-waiver ledger shrank from 139 to 119.
+
+### Changed
+
+- **Wire contract**: a degenerate null-only `anyOf` member now canonicalizes into property nullability instead
+  of a `JsonElement?` catch-all branch; affected unions become strict two-branch unions whose non-matching
+  payloads throw the union's `NoMatchException` (previously they were silently absorbed).
+- **Wire correctness**: plain-text request bodies (GitHub `markdown/render-raw`) transmit raw UTF-8 text instead
+  of a JSON-quoted string; the Stripe multipart enum `purpose` field is emitted as bare text instead of a
+  JSON-quoted string; string-enum multipart parts and `[]`-named repeated parts encode per their contracts.
+- **Public model API (breaking)**: the semantic model — public API tracked by the generator's API dumps — gained
+  composition/audit types and fields (`SchemaModel` compositions, `AllOfPropertyResolution` with a now-required
+  `winningPropertySchemaId`, audit sources), breaking source and binary compatibility of the
+  `generator-model`/`generator-openapi` surface. Generated SDK surfaces are additive except for the wire-contract
+  changes above.
+- Oversized union inspection carriers (beyond a 200-JVM-slot synthetic-descriptor threshold) switch to a no-arg
+  mutable internal carrier to stay within the JVM's 255-slot method descriptor limit; behavior is unchanged.
+- Parity provenance binds each corpus's ordered configured overlay set (audit overlays included), so an
+  overlay-only edit can no longer escape parity input hashing.
+
 ## [0.2.0] - 2026-08-19
 
 ### Added
@@ -49,6 +86,7 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 - Updated the Kotlin/JS dependency lock to resolve known vulnerable transitive packages before the
   initial publication.
 
-[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nabobery/kotlin-sdkgen/tree/v0.1.0

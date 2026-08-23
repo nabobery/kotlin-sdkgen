@@ -39,7 +39,7 @@ class ParityMatrixTest {
             ParityRegistry.expectedConfigFileDigest("stress-streaming"),
         )
         assertEquals(
-            "21e1e1b6046859e3b4d7ad1af072538a2e7819a228173cd26623e89e886863f6",
+            "7e1d6f7463bf4845668f80450bd44f0db47a41a5d0344621f0db272be6814f7f",
             ParityRegistry.expectedLockFileDigest("stress-streaming"),
         )
         assertEquals(ABSENT_OVERLAY_SHA256, ParityRegistry.expectedOverlayDigest("stress-streaming"))
@@ -309,7 +309,7 @@ class ParityMatrixTest {
                                     generatedArtifactSha256 = "1".repeat(64),
                                     manifestSha256 = "2".repeat(64),
                                     lockFileSha256 = ParityRegistry.GITHUB_LOCK_FILE_SHA256,
-                                    overlaySha256 = ParityRegistry.GITHUB_OVERLAY_SHA256,
+                                    overlaySha256 = ParityRegistry.expectedOverlayDigest("github"),
                                 ),
                             ),
                     ),
@@ -340,7 +340,7 @@ class ParityMatrixTest {
                 generatedArtifactSha256 = "1".repeat(64),
                 manifestSha256 = "2".repeat(64),
                 lockFileSha256 = ParityRegistry.GITHUB_LOCK_FILE_SHA256,
-                overlaySha256 = ParityRegistry.GITHUB_OVERLAY_SHA256,
+                overlaySha256 = ParityRegistry.expectedOverlayDigest("github"),
             )
         val report =
             ParityAggregator.aggregate(
@@ -373,7 +373,7 @@ class ParityMatrixTest {
                 generatedArtifactSha256 = "1".repeat(64),
                 manifestSha256 = "2".repeat(64),
                 lockFileSha256 = ParityRegistry.GITHUB_LOCK_FILE_SHA256,
-                overlaySha256 = ParityRegistry.GITHUB_OVERLAY_SHA256,
+                overlaySha256 = ParityRegistry.expectedOverlayDigest("github"),
             )
 
         val valid =

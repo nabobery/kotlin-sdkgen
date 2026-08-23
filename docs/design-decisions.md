@@ -3,7 +3,7 @@
 | Field                             | Value                                                                                                                       |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Status                            | Living decision record                                                                                                      |
-| Last updated                      | 2026-07-16                                                                                                                  |
+| Last updated                      | 2026-08-23                                                                                                                  |
 | Product                           | Open-source OpenAPI 3.1 Kotlin and Kotlin Multiplatform SDK generator                                                       |
 | Relationship to `requirements.md` | Locked decisions here refine or supersede earlier proposals; the requirements will be reconciled after the design interview |
 
@@ -299,7 +299,33 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Union ambiguity diagnostics SHOULD emit a ready-to-apply overlay or `x-sdkgen-*` snippet that resolves the ambiguity, so strictness stays a workflow rather than a wall.
 - Permit an explicit contract extension or overlay to define priority only when the API's behavior is intentionally order-dependent and cannot be described structurally.
 - Generate a raw unknown case only when the effective schema intentionally models an open union; closed `oneOf` schemas remain closed.
+- Synthesized inline schema names — including the types behind `oneOf`/`anyOf` branches — are stable identity-addressed names (for example `InlineChatRequestStopX9225cac3`, whose suffix is a SHA-256 tag of the canonical `SchemaId` per [ADR 0012](adr/0012-synthesized-inline-naming-and-optionality-policy.md)), keeping the generated public API stable across regenerations. Audited overrides address source schema paths and select branches by `$ref` or resolved-content digest, not by generated names. See [ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md).
+- A degenerate `anyOf` member carrying only `{nullable/type: null}` canonicalizes into property nullability rather than a `JsonElement?` catch-all branch. This is a 0.3.0 wire-contract change: the union becomes a strict two-branch union, a payload matching no branch throws the union's `NoMatchException`, and explicit JSON `null` decodes to Kotlin `null`. The prior catch-all was an accident of legacy null-only handling. See [ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md).
 - Provide Kotlin constructors/factories, exhaustive `when` support, Java-friendly case inspection, and exact round-trip serialization.
+
+## Schema composition: strict `allOf` intersection, audited overrides, and request-media variants
+
+- Resolve duplicate `allOf` properties by a strict intersection algebra (logical AND), never a merge-by-overwrite. A property resolves only when the two branch declarations have a well-defined common Kotlin projection (formatted-string ∧ string, enum ∧ string, integer ∧ number, named-object ∧ free-form object, union ∧ member/union, structurally-identical refs); nullability is commutatively AND-composed. Where none exists, refuse (`Unsupported`) rather than emit a wrong contract. Every duplicate declaration routes through the resolver — there is no same-projected-type shortcut, so the retained schema node never depends on `allOf` branch order.
+- Record the proven boundary as committed evidence (`docs/conformance/evidence/schema-intersection-proof-table.tsv`), enforced by a judgment digest and regenerated only under `-Dprooftable.regen=true`. Rows whose sound intersection the resolver cannot name with an existing node (the two GitHub `webhook-status` commit-email intersections, where the only email-format node is nullable and the resolver never synthesizes nodes) stay soundly blocked and waived.
+- Where the correct resolution is a contract judgment, record it through the `x-sdkgen-allof-resolution` overlay extension: per property, an overlay action targets the source schema and elects the winning `allOf` branch by `$ref` or by resolved-content digest, pinning the property's resolved digest. The engine binds the election to a semantic property schema id exactly once or fails adaptation; it is checked before the strict algebra and fails closed on drift (a stale election is a hard error, never silently ignored).
+
+  ```yaml
+  actions:
+    - target: "$['components']['schemas']['MessagesResult']"
+      update:
+        x-sdkgen-allof-resolution:
+          properties:
+            usage:
+              strategy: unionSupersede
+              source:
+                # Elect the winning branch by $ref…
+                ref: '#/components/schemas/ProtocolResult'
+                # …or, for an inline branch, by its resolved-content digest:
+                # inlineSchemaSha256: "ce4e9e6f…"
+                propertySchemaSha256: "1f00b7e4…"   # resolved digest of the elected property schema
+  ```
+- Reject global last-wins property merge, deep-merge heuristics, and runtime content-type guessing for request bodies. Defer raw-preserving arbitrary intersections (no sound Kotlin projection).
+- Emit one callable method per compatible request-media group, each carrying an explicit wire-encoding commitment — JSON (`application/json`, aliases, `+json` syntaxes), raw text (`text/*` over string schemas, transmitted verbatim via `RawTextCodec`), raw byte streams, form, or multipart — never inferred from metadata shape, so a zero-property form still encodes as a form. Any other representation (XML, non-form-data multipart subtypes, text over non-string schemas) fails closed with a waivable diagnostic instead of defaulting to JSON. Naming: normalized JSON keeps the unsuffixed name, `multipart/form-data` takes the fixed `Multipart` suffix, `application/x-www-form-urlencoded` takes `Form`, any other supported media type takes a sanitized subtype suffix. Name reservation is document-scoped and collisions with external reserved names fail closed with `NAME_COLLISION`; internal emitter symbols (including lossy screaming-snake codec constants) allocate through collision-checked name plans. Grouping requires full codec-metadata equality. Non-replayable bodies (`SdkByteStream` or a streaming multipart part) emit as `SdkRequestBody.OneShot`, which the runtime's retry policy refuses to retry after send; buffered bodies stay eligible for retry subject to that policy. See [ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md).
 
 ## Kotlin baseline and portable format types
 

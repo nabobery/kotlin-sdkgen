@@ -71,6 +71,29 @@ internal data class KotlinDeclarationModel(
                 required = required,
             )
 
+        fun OperationRequestVariantDeclaration.shuffled(): OperationRequestVariantDeclaration =
+            OperationRequestVariantDeclaration(
+                methodName = methodName,
+                nameSuffix = nameSuffix,
+                operationIdentity = operationIdentity,
+                mediaTypes = mediaTypes,
+                type = type,
+                required = required,
+                multipartParts = multipartParts,
+                formFields =
+                    formFields.shuffled(random).map { field ->
+                        FormFieldDeclaration(
+                            wireName = field.wireName,
+                            accessorName = field.accessorName,
+                            type = field.type,
+                            required = field.required,
+                            value = field.value.shuffled(),
+                        )
+                    },
+                replayability = replayability,
+                encoding = encoding,
+            )
+
         fun OperationDeclaration.shuffled(): OperationDeclaration =
             OperationDeclaration(
                 symbolId = symbolId,
@@ -94,6 +117,7 @@ internal data class KotlinDeclarationModel(
                 methodKdoc = methodKdoc,
                 parameters = parameters,
                 requestBodyAlternatives = requestBodyAlternatives.map { alternative -> alternative.shuffled() },
+                requestVariants = requestVariants.map { variant -> variant.shuffled() },
                 responseAlternatives = responseAlternatives,
                 security = security,
                 safety = safety,
@@ -879,6 +903,18 @@ internal class MultipartPartDeclaration(
     val required: Boolean,
     val contentType: String,
     val indexedElements: Boolean = false,
+    /**
+     * For an indexed (array) part, the resolved element type serialized into each `name[i]` text entry; `null` for
+     * non-indexed parts. A `kotlin.String` element serializes verbatim, while a string-backed forward-compat enum
+     * element serializes via its `.value`, so the emitter must dispatch on this rather than on the array [type].
+     */
+    val elementType: KotlinTypeRef? = null,
+    /**
+     * `true` when this non-indexed scalar part is a string-backed forward-compat open enum whose [type] is a wrapper
+     * exposing a `.value` String. Such parts must be written as a plain `text` part carrying `.value` (matching the
+     * form-scalar OPEN_ENUM path), not JSON-encoded through the generic fallback which would quote the wire text.
+     */
+    val openEnumScalar: Boolean = false,
     headers: Map<String, JsonValue> = emptyMap(),
 ) {
     val headers: Map<String, JsonValue> = headers.toMap()
@@ -953,6 +989,78 @@ internal class OperationRequestBodyAlternative(
     val formFields: List<FormFieldDeclaration> = formFields.toList()
 }
 
+/** Retry/replay safety classification of one callable request-body variant, derived from its body encoding. */
+internal enum class RequestBodyReplayability {
+    /** The encoded body is fully in-memory and can be retransmitted verbatim on connection-error retries. */
+    REPLAYABLE,
+
+    /**
+     * The body consumes one-shot byte streams — either its resolved body type is the [SdkByteStream] one-shot
+     * stream type (for any media family) or it is multipart carrying parts with stream values — so a retry must
+     * rebuild the body from the caller's values instead of replaying consumed stream bytes.
+     */
+    NON_REPLAYABLE,
+}
+
+/**
+ * The wire encoding a request-media variant commits to. Carried explicitly on the declaration — never inferred
+ * from metadata emptiness — so a valid zero-property form or multipart body still encodes under its own family
+ * instead of falling back to JSON, and non-JSON representations are dispatched (or refused) deliberately.
+ */
+internal enum class RequestBodyEncoding {
+    /** `application/json` and `+json` structured syntaxes: kotlinx-serialization JSON document. */
+    JSON,
+
+    /** Text media types carried by a string schema: the string's UTF-8 bytes verbatim. */
+    TEXT,
+
+    /** Raw byte-stream bodies (`application/octet-stream`): transferred without a serialization codec. */
+    BINARY,
+
+    /** `application/x-www-form-urlencoded` field encoding. */
+    FORM,
+
+    /** `multipart/form-data` part encoding. */
+    MULTIPART,
+}
+
+/**
+ * One callable method variant of an operation's request body: a first-class declaration covering exactly one
+ * compatible media-family group. An operation whose request body carries several incompatible media families
+ * projects one variant per family instead of being rejected; every variant shares the owning operation's
+ * identity, parameters, responses, security, retry, idempotency, and streaming metadata, which remain a single
+ * parent-level copy on [OperationDeclaration].
+ */
+internal class OperationRequestVariantDeclaration(
+    /** Full Kotlin member name of this callable variant. */
+    val methodName: String,
+    /**
+     * Stable suffix distinguishing this variant's name from the operation's primary method name; empty for the
+     * unsuffixed primary variant.
+     */
+    val nameSuffix: String,
+    /** Original OpenAPI operation identity shared by every variant derived from the same operation. */
+    val operationIdentity: String,
+    /** Exact media types served by this variant, in document order (a group may serve compatible aliases). */
+    mediaTypes: List<String>,
+    /** Exact request body wire type carried by this variant. */
+    val type: KotlinTypeRef,
+    /** Whether the request body must be present when calling this variant. */
+    val required: Boolean,
+    /** Multipart/form metadata; populated only on variants serving `multipart/form-data`. */
+    multipartParts: List<MultipartPartDeclaration> = emptyList(),
+    /** Form-url-encoded metadata; populated only on `application/x-www-form-urlencoded` variants. */
+    formFields: List<FormFieldDeclaration> = emptyList(),
+    /** Replay/retry safety of this body encoding; never weakened to make variants uniform. */
+    val replayability: RequestBodyReplayability,
+    /** The wire encoding this variant commits to; drives codec emission, never inferred from metadata shape. */
+    val encoding: RequestBodyEncoding,
+) {
+    val mediaTypes: List<String> = mediaTypes.toList()
+    val multipartParts: List<MultipartPartDeclaration> = multipartParts.toList()
+    val formFields: List<FormFieldDeclaration> = formFields.toList()
+}
+
 internal class OperationDeclaration(
     val symbolId: String,
     val order: Int,
@@ -975,6 +1083,12 @@ internal class OperationDeclaration(
     val methodKdoc: String,
     parameters: List<OperationParameterDeclaration> = emptyList(),
     requestBodyAlternatives: List<OperationRequestBodyAlternative> = emptyList(),
+    /**
+     * Callable request-media variants projected from this operation's request body, primary first. Empty only for
+     * operations without a request body; single-family bodies project exactly one unsuffixed variant that mirrors
+     * [requestBodyAlternatives] and the operation-level request surface.
+     */
+    requestVariants: List<OperationRequestVariantDeclaration> = emptyList(),
     responseAlternatives: List<OperationResponseAlternative> = emptyList(),
     security: List<OperationSecurityRequirement> = emptyList(),
     val safety: OperationSafetyDeclaration = OperationSafetyDeclaration(),
@@ -1001,6 +1115,7 @@ internal class OperationDeclaration(
     val successStatusCodes: Set<Int> = successStatusCodes.toSet()
     val parameters: List<OperationParameterDeclaration> = parameters.toList()
     val requestBodyAlternatives: List<OperationRequestBodyAlternative> = requestBodyAlternatives.toList()
+    val requestVariants: List<OperationRequestVariantDeclaration> = requestVariants.toList()
     val responseAlternatives: List<OperationResponseAlternative> = responseAlternatives.toList()
     val security: List<OperationSecurityRequirement> = security.toList()
 }
@@ -1062,6 +1177,8 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
             required = required,
             contentType = contentType,
             indexedElements = indexedElements,
+            elementType = elementType?.rewritten(),
+            openEnumScalar = openEnumScalar,
             headers = headers,
         )
 
@@ -1118,6 +1235,20 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
             required = required,
         )
 
+    fun OperationRequestVariantDeclaration.rewritten(): OperationRequestVariantDeclaration =
+        OperationRequestVariantDeclaration(
+            methodName = methodName,
+            nameSuffix = nameSuffix,
+            operationIdentity = operationIdentity,
+            mediaTypes = mediaTypes,
+            type = type.rewritten(),
+            required = required,
+            multipartParts = multipartParts.map { part -> part.rewritten() },
+            formFields = formFields.map { field -> field.rewritten() },
+            replayability = replayability,
+            encoding = encoding,
+        )
+
     fun OperationDeclaration.rewritten(): OperationDeclaration =
         OperationDeclaration(
             symbolId = symbolId,
@@ -1145,6 +1276,8 @@ internal fun KotlinDeclarationModel.rewriteTypeReferences(
                 },
             requestBodyAlternatives =
                 requestBodyAlternatives.map { alternative -> alternative.rewritten() },
+            requestVariants =
+                requestVariants.map { variant -> variant.rewritten() },
             responseAlternatives =
                 responseAlternatives.map { alternative -> alternative.rewritten() },
             security = security,
@@ -1471,6 +1604,8 @@ private fun Declaration.canonicalText(): String =
                                 .append(':')
                                 .append(part.indexedElements)
                                 .append(':')
+                                .append(part.elementType?.canonicalText())
+                                .append(':')
                                 .append(part.accessorName)
                                 .append(':')
                                 .append(
@@ -1483,6 +1618,51 @@ private fun Declaration.canonicalText(): String =
                             .sortedWith(compareBy(FormFieldDeclaration::wireName, FormFieldDeclaration::accessorName))
                             .forEach { field ->
                                 append("|form-field:").append(field.canonicalText())
+                            }
+                    }
+                    operation.requestVariants.forEach { variant ->
+                        append("|request-variant:")
+                            .append(variant.methodName)
+                            .append(':')
+                            .append(variant.nameSuffix)
+                            .append(':')
+                            .append(variant.operationIdentity)
+                            .append(':')
+                            .append(variant.mediaTypes.joinToString(","))
+                            .append(':')
+                            .append(variant.type.canonicalText())
+                            .append(':')
+                            .append(variant.required)
+                            .append(':')
+                            .append(variant.replayability)
+                            .append(':')
+                            .append(variant.encoding)
+                        variant.multipartParts.forEach { part ->
+                            append("|variant-multipart-part:")
+                                .append(part.wireName)
+                                .append(':')
+                                .append(part.type.canonicalText())
+                                .append(':')
+                                .append(part.required)
+                                .append(':')
+                                .append(part.contentType)
+                                .append(':')
+                                .append(part.indexedElements)
+                                .append(':')
+                                .append(part.elementType?.canonicalText())
+                                .append(':')
+                                .append(part.accessorName)
+                                .append(':')
+                                .append(
+                                    part.headers.keys
+                                        .sorted()
+                                        .joinToString(","),
+                                )
+                        }
+                        variant.formFields
+                            .sortedWith(compareBy(FormFieldDeclaration::wireName, FormFieldDeclaration::accessorName))
+                            .forEach { field ->
+                                append("|variant-form-field:").append(field.canonicalText())
                             }
                     }
                     operation.responseAlternatives.forEach { alternative ->

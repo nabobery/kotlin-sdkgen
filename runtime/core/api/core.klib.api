@@ -881,6 +881,21 @@ final class <#A: kotlin/Any?> com.nabobery.sdkgen.runtime/MediaTypeCodecRegistry
     }
 }
 
+final class <#A: kotlin/Any?> com.nabobery.sdkgen.runtime/RawTextCodec : com.nabobery.sdkgen.runtime/MediaTypeCodec<#A> { // com.nabobery.sdkgen.runtime/RawTextCodec|null[0]
+    final val id // com.nabobery.sdkgen.runtime/RawTextCodec.id|{}id[0]
+        final fun <get-id>(): kotlin/String // com.nabobery.sdkgen.runtime/RawTextCodec.id.<get-id>|<get-id>(){}[0]
+    final val mediaTypes // com.nabobery.sdkgen.runtime/RawTextCodec.mediaTypes|{}mediaTypes[0]
+        final fun <get-mediaTypes>(): kotlin.collections/Set<kotlin/String> // com.nabobery.sdkgen.runtime/RawTextCodec.mediaTypes.<get-mediaTypes>|<get-mediaTypes>(){}[0]
+
+    final suspend fun decode(com.nabobery.sdkgen.runtime/SdkByteStream, kotlin/String?): #A // com.nabobery.sdkgen.runtime/RawTextCodec.decode|decode(com.nabobery.sdkgen.runtime.SdkByteStream;kotlin.String?){}[0]
+    final suspend fun encode(#A, kotlin/String): com.nabobery.sdkgen.runtime/SdkRequestBody // com.nabobery.sdkgen.runtime/RawTextCodec.encode|encode(1:0;kotlin.String){}[0]
+
+    final object Companion { // com.nabobery.sdkgen.runtime/RawTextCodec.Companion|null[0]
+        final fun of(kotlin/String, kotlin.collections/Set<kotlin/String>, kotlin/Long = ...): com.nabobery.sdkgen.runtime/RawTextCodec<kotlin/String> // com.nabobery.sdkgen.runtime/RawTextCodec.Companion.of|of(kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.Long){}[0]
+        final fun ofNullable(kotlin/String, kotlin.collections/Set<kotlin/String>, kotlin/Long = ...): com.nabobery.sdkgen.runtime/RawTextCodec<kotlin/String?> // com.nabobery.sdkgen.runtime/RawTextCodec.Companion.ofNullable|ofNullable(kotlin.String;kotlin.collections.Set<kotlin.String>;kotlin.Long){}[0]
+    }
+}
+
 final class <#A: kotlin/Any?> com.nabobery.sdkgen.runtime/SdkExecutionRequest { // com.nabobery.sdkgen.runtime/SdkExecutionRequest|null[0]
     constructor <init>(com.nabobery.sdkgen.runtime/OperationMetadata, kotlin/String, #A, kotlin.collections/List<kotlin/String>, kotlin.collections/List<com.nabobery.sdkgen.runtime/SdkRequestParameter> = ...) // com.nabobery.sdkgen.runtime/SdkExecutionRequest.<init>|<init>(com.nabobery.sdkgen.runtime.OperationMetadata;kotlin.String;1:0;kotlin.collections.List<kotlin.String>;kotlin.collections.List<com.nabobery.sdkgen.runtime.SdkRequestParameter>){}[0]
 

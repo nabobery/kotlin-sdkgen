@@ -391,7 +391,7 @@ class ParityProducerResolverTest {
                 paths.copy(corpus = missing),
                 paths.copy(config = missing),
                 paths.copy(lock = missing),
-                paths.copy(overlay = missing),
+                paths.copy(overlays = listOf(missing)),
                 paths.copy(toolchain = missing),
                 paths.copy(generatedDirectory = missing),
             )
@@ -437,7 +437,7 @@ class ParityProducerResolverTest {
         assertEquals(fixtureIds.sorted(), selected.execution.requestedFixtureIds)
         assertEquals(5, selected.rows.size)
         assertTrue(selected.rows.all { row -> row.status == ParityStatus.NOT_RUN })
-        assertNull(ProducerInputPaths.stripe(repositoryRoot).overlay)
+        assertTrue(ProducerInputPaths.stripe(repositoryRoot).overlays.isEmpty())
 
         assertFailsWith<IllegalArgumentException> {
             ParityProducerResolver.resolve(
@@ -569,7 +569,7 @@ class ParityProducerResolverTest {
         assertTrue(bundle.rows.all { it.configDigest == ParityRegistry.OPENROUTER_EFFECTIVE_CONFIG_SHA256 })
         assertTrue(bundle.rows.all { it.lockFileSha256 == ParityRegistry.OPENROUTER_LOCK_FILE_SHA256 })
         assertTrue(bundle.rows.all { it.configFileSha256 == ParityRegistry.OPENROUTER_CONFIG_FILE_SHA256 })
-        assertTrue(bundle.rows.all { it.overlaySha256 == ParityRegistry.OPENROUTER_OVERLAY_SHA256 })
+        assertTrue(bundle.rows.all { it.overlaySha256 == ParityRegistry.expectedOverlayDigest("openrouter") })
     }
 
     private fun resolve(

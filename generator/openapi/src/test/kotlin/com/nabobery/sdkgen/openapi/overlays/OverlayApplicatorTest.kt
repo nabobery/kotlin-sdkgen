@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:max-line-length")
+
 package com.nabobery.sdkgen.openapi.overlays
 
 import kotlin.test.Test
@@ -517,6 +519,153 @@ class OverlayApplicatorTest {
             )
         val result = OverlayApplicator().apply(source, listOf(vendor))
         assertEquals("untouched", result.document.at("/info/x-other-vendor/x-sdkgen-streaming").asText())
+    }
+
+    @Test
+    fun `allOf resolution extension accepts referenced and inline identity forms`() {
+        val valid =
+            overlay(
+                "allof-resolution-valid",
+                """
+                - target: "${'$'}['components']['schemas']['Combined']"
+                  update:
+                    x-sdkgen-allof-resolution:
+                      properties:
+                        part:
+                          strategy: unionSupersede
+                          source:
+                            ref: '#/components/schemas/Branch'
+                            propertySchemaSha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+                        inlinePart:
+                          strategy: unionSupersede
+                          source:
+                            inlineSchemaSha256: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+                            propertySchemaSha256: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+                """,
+            )
+        val source =
+            """
+            openapi: 3.1.0
+            info: { title: AllOf resolution, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Branch:
+                  type: object
+                  properties:
+                    part: { type: string }
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Branch'
+                    - type: object
+                      properties:
+                        inlinePart: { type: string }
+            """.trimIndent().toByteArray()
+
+        val result = OverlayApplicator().apply(source, listOf(valid))
+
+        assertEquals(
+            "unionSupersede",
+            result.document
+                .at(
+                    "/components/schemas/Combined/x-sdkgen-allof-resolution/properties/part/strategy",
+                ).asText(),
+        )
+        assertEquals(
+            "#/components/schemas/Branch",
+            result.document
+                .at(
+                    "/components/schemas/Combined/x-sdkgen-allof-resolution/properties/part/source/ref",
+                ).asText(),
+        )
+    }
+
+    @Test
+    fun `allOf resolution extension rejects frozen shape and placement rules`() {
+        val source =
+            """
+            openapi: 3.1.0
+            info: { title: AllOf resolution, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  responses: { '200': { description: ok } }
+            components:
+              schemas:
+                Branch: { type: object, properties: { part: { type: string } } }
+                Plain: { type: object }
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Branch'
+            """.trimIndent().toByteArray()
+        val invalidExtensions =
+            listOf(
+                """{"properties":{"part":{"strategy":"replace","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "strategy",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}},"unexpected":true}""" to
+                    "unexpected",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"branch":"Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "branch",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"branchIndex":0,"propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "branchIndex",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"ABC3456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "propertySchemaSha256",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef"}}}}""" to
+                    "propertySchemaSha256",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeg"}}}}""" to
+                    "propertySchemaSha256",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","inlineSchemaSha256":"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "inlineSchemaSha256",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}}}}""" to
+                    "ref",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","unexpected":true}}}}""" to
+                    "unexpected",
+                """{"properties":{"part":{"strategy":"unionSupersede","source":{"ref":"#/components/schemas/Branch","propertySchemaSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"unexpected":true}}}""" to
+                    "unexpected",
+            )
+
+        invalidExtensions.forEachIndexed { index, (extension, field) ->
+            val invalid =
+                overlay(
+                    "allof-resolution-invalid-$index",
+                    """
+                    - target: "${'$'}['components']['schemas']['Combined']"
+                      update:
+                        x-sdkgen-allof-resolution:
+                    """ + extension.trimIndent().prependIndent("      "),
+                )
+            val failure =
+                assertFailsWith<ExtensionValidationException> { OverlayApplicator().apply(source, listOf(invalid)) }
+            assertTrue(failure.message!!.contains(field), failure.message)
+        }
+
+        val misplaced =
+            overlay(
+                "allof-resolution-operation",
+                """
+                - target: "${'$'}['paths']['/items']['get']"
+                  update:
+                    x-sdkgen-allof-resolution:
+                      properties: {}
+                """,
+            )
+        val placementFailure =
+            assertFailsWith<ExtensionValidationException> { OverlayApplicator().apply(source, listOf(misplaced)) }
+        assertTrue(placementFailure.message!!.contains("allOf"), placementFailure.message)
+
+        val nonAllOf =
+            overlay(
+                "allof-resolution-non-allof",
+                """
+                - target: "${'$'}['components']['schemas']['Plain']"
+                  update:
+                    x-sdkgen-allof-resolution:
+                      properties: {}
+                """,
+            )
+        val nonAllOfFailure =
+            assertFailsWith<ExtensionValidationException> { OverlayApplicator().apply(source, listOf(nonAllOf)) }
+        assertTrue(nonAllOfFailure.message!!.contains("allOf"), nonAllOfFailure.message)
     }
 
     @Test

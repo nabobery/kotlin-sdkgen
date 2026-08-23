@@ -30,7 +30,9 @@ val corpusInputs =
         rootProject.layout.projectDirectory.file("conformance/stripe/openapi.json"),
         rootProject.layout.projectDirectory.file("conformance/stripe/sdkgen.lock"),
         rootProject.layout.projectDirectory.file("conformance/openrouter/openapi.yaml"),
+        rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/allof-resolution-audit.yaml"),
         rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/full-spec-compat.yaml"),
+        rootProject.layout.projectDirectory.file("conformance/github/overlays/allof-resolution-audit.yaml"),
     )
 val currentCommitSha =
     providers
@@ -336,6 +338,7 @@ tasks.register<JavaExec>("produceGitHubParityEvidence") {
             rootProject.layout.projectDirectory.file("conformance/github/sdkgen.yaml"),
             rootProject.layout.projectDirectory.file("conformance/github/sdkgen.lock"),
             rootProject.layout.projectDirectory.file("conformance/github/overlays/code-search-runtime-semantics.yaml"),
+            rootProject.layout.projectDirectory.file("conformance/github/overlays/allof-resolution-audit.yaml"),
             rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"),
         ).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(githubGenerated).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -362,9 +365,14 @@ tasks.register<JavaExec>("produceGitHubParityEvidence") {
         rootProject.layout.projectDirectory
             .file("conformance/github/sdkgen.lock")
             .asFile.absolutePath,
-        rootProject.layout.projectDirectory
-            .file("conformance/github/overlays/code-search-runtime-semantics.yaml")
-            .asFile.absolutePath,
+        listOf(
+            rootProject.layout.projectDirectory
+                .file("conformance/github/overlays/code-search-runtime-semantics.yaml")
+                .asFile.absolutePath,
+            rootProject.layout.projectDirectory
+                .file("conformance/github/overlays/allof-resolution-audit.yaml")
+                .asFile.absolutePath,
+        ).joinToString(","),
         rootProject.layout.projectDirectory
             .file("gradle/libs.versions.toml")
             .asFile.absolutePath,
@@ -639,6 +647,7 @@ tasks.register<JavaExec>("produceOpenRouterParityEvidence") {
             rootProject.layout.projectDirectory.file("conformance/openrouter/openapi.yaml"),
             rootProject.layout.projectDirectory.file("conformance/openrouter/sdkgen.yaml"),
             rootProject.layout.projectDirectory.file("conformance/openrouter/sdkgen.lock"),
+            rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/allof-resolution-audit.yaml"),
             rootProject.layout.projectDirectory.file("conformance/openrouter/overlays/full-spec-compat.yaml"),
             rootProject.layout.projectDirectory.file("gradle/libs.versions.toml"),
         ).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -666,9 +675,14 @@ tasks.register<JavaExec>("produceOpenRouterParityEvidence") {
         rootProject.layout.projectDirectory
             .file("conformance/openrouter/sdkgen.lock")
             .asFile.absolutePath,
-        rootProject.layout.projectDirectory
-            .file("conformance/openrouter/overlays/full-spec-compat.yaml")
-            .asFile.absolutePath,
+        listOf(
+            rootProject.layout.projectDirectory
+                .file("conformance/openrouter/overlays/allof-resolution-audit.yaml")
+                .asFile.absolutePath,
+            rootProject.layout.projectDirectory
+                .file("conformance/openrouter/overlays/full-spec-compat.yaml")
+                .asFile.absolutePath,
+        ).joinToString(","),
         rootProject.layout.projectDirectory
             .file("gradle/libs.versions.toml")
             .asFile.absolutePath,

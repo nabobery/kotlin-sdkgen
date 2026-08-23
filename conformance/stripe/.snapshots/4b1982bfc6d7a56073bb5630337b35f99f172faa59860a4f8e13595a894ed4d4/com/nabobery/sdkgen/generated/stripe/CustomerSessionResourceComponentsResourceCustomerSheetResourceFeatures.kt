@@ -1,0 +1,132 @@
+package com.nabobery.sdkgen.generated.stripe
+
+import kotlin.ConsistentCopyVisibility
+import kotlin.Unit
+import kotlin.collections.List
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
+
+@ConsistentCopyVisibility
+@Serializable
+public data class CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesView internal constructor(
+  @SerialName("payment_method_allow_redisplay_filters")
+  public val paymentMethodAllowRedisplayFilters:
+      List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>? = null,
+  @SerialName("payment_method_remove")
+  public val paymentMethodRemove:
+      InlineCustomerSessionResou1a5dPaymentMethodRemoveXdde9e2a1? = null,
+)
+
+/**
+ * This hash contains the features the customer sheet supports.
+ *
+ * Source:
+ * sdkgen://source/openapi.json#/components/schemas/customer_session_resource_components_resource_customer_sheet_resourc
+ * e_features
+ */
+@Serializable(with = CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures.Serializer::class)
+public class CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures(
+  paymentMethodAllowRedisplayFilters: List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>? = null,
+  /**
+   * Controls whether the customer sheet displays the option to remove a saved payment method."
+   *
+   * Allowing buyers to remove their saved payment methods impacts subscriptions that depend on that payment method.
+   * Removing the payment method detaches the [`customer`
+   * object](https://docs.stripe.com/api/payment_methods/object#payment_method_object-customer) from that
+   * [PaymentMethod](https://docs.stripe.com/api/payment_methods).
+   */
+  public val paymentMethodRemove:
+      InlineCustomerSessionResou1a5dPaymentMethodRemoveXdde9e2a1? = null,
+) {
+  /**
+   * A list of
+   * [`allow_redisplay`](https://docs.stripe.com/api/payment_methods/object#payment_method_object-allow_redisplay)
+   * values that controls which saved payment methods the customer sheet displays by filtering to only show payment
+   * methods with an `allow_redisplay` value that is present in this list.
+   *
+   * If not specified, defaults to ["always"]. In order to display all saved payment methods, specify ["always",
+   * "limited", "unspecified"].
+   */
+  public val paymentMethodAllowRedisplayFilters:
+      List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>? =
+      paymentMethodAllowRedisplayFilters?.let { collection0 -> collection0.toList() }
+
+  public class Builder {
+    private var paymentMethodAllowRedisplayFiltersValue:
+        List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>? = null
+
+    /**
+     * A list of
+     * [`allow_redisplay`](https://docs.stripe.com/api/payment_methods/object#payment_method_object-allow_redisplay)
+     * values that controls which saved payment methods the customer sheet displays by filtering to only show payment
+     * methods with an `allow_redisplay` value that is present in this list.
+     *
+     * If not specified, defaults to ["always"]. In order to display all saved payment methods, specify ["always",
+     * "limited", "unspecified"].
+     */
+    public var paymentMethodAllowRedisplayFilters:
+        List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>?
+      get() = paymentMethodAllowRedisplayFiltersValue?.let { collection0 -> collection0.toList() }
+      set(`value`) {
+        paymentMethodAllowRedisplayFiltersValue = value?.let { collection0 -> collection0.toList() }
+      }
+
+    /**
+     * Controls whether the customer sheet displays the option to remove a saved payment method."
+     *
+     * Allowing buyers to remove their saved payment methods impacts subscriptions that depend on that payment method.
+     * Removing the payment method detaches the [`customer`
+     * object](https://docs.stripe.com/api/payment_methods/object#payment_method_object-customer) from that
+     * [PaymentMethod](https://docs.stripe.com/api/payment_methods).
+     */
+    public var paymentMethodRemove: InlineCustomerSessionResou1a5dPaymentMethodRemoveXdde9e2a1? =
+        null
+
+    public fun build(): CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures = CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures(
+      paymentMethodAllowRedisplayFilters = paymentMethodAllowRedisplayFilters,
+      paymentMethodRemove = paymentMethodRemove,
+    )
+  }
+
+  public companion object {
+    public fun build(block: Builder.() -> Unit): CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures = Builder().apply(block).build()
+  }
+
+  internal object Serializer : KSerializer<CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures> {
+    override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures {
+      val jsonDecoder = decoder.requireJsonDecoder("CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures")
+      val json = jsonDecoder.json
+      val rawObject = jsonDecoder.decodeJsonElement() as? JsonObject ?: throw SerializationException("CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures must be a JSON object")
+      return CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures(
+        paymentMethodAllowRedisplayFilters = rawObject["payment_method_allow_redisplay_filters"]?.let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<List<InlineCustomerSessionResou1a5dPaymentMethodAllowRea1fdItemX950ca000>?>(element) },
+        paymentMethodRemove = rawObject["payment_method_remove"]?.let { element -> if (element == JsonNull) null else json.decodeFromJsonElement<InlineCustomerSessionResou1a5dPaymentMethodRemoveXdde9e2a1?>(element) },
+      )
+    }
+
+    override fun serialize(encoder: Encoder, `value`: CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures) {
+      val jsonEncoder = encoder.requireJsonEncoder("CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures")
+      val json = jsonEncoder.json
+      val raw = buildJsonObject {
+        value.paymentMethodAllowRedisplayFilters?.let { put("payment_method_allow_redisplay_filters", json.encodeToJsonElement(it)) }
+        value.paymentMethodRemove?.let { put("payment_method_remove", json.encodeToJsonElement(it)) }
+      }
+      jsonEncoder.encodeJsonElement(raw)
+    }
+  }
+}
+
+public fun customerSessionResourceComponentsResourceCustomerSheetResourceFeatures(block: CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures.Builder.() -> Unit): CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures = CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures.build(block)

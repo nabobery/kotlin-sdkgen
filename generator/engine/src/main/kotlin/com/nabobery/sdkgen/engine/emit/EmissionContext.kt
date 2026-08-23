@@ -269,6 +269,7 @@ internal val JSON_PRIMITIVE = ClassName("kotlinx.serialization.json", "JsonPrimi
 internal val LAZY_THREAD_SAFETY_MODE = ClassName("kotlin", "LazyThreadSafetyMode")
 internal val CALL_OPTIONS = ClassName("com.nabobery.sdkgen.runtime", "CallOptions")
 internal val KOTLINX_SERIALIZATION_CODEC = ClassName("com.nabobery.sdkgen.runtime", "KotlinxSerializationCodec")
+internal val RAW_TEXT_CODEC = ClassName("com.nabobery.sdkgen.runtime", "RawTextCodec")
 internal val MEDIA_TYPE_CODEC = ClassName("com.nabobery.sdkgen.runtime", "MediaTypeCodec")
 internal val MEDIA_TYPE_CODEC_REGISTRY = ClassName("com.nabobery.sdkgen.runtime", "MediaTypeCodecRegistry")
 internal val SET = ClassName("kotlin.collections", "Set")

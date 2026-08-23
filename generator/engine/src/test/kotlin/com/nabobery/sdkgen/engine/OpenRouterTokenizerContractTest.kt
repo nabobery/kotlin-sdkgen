@@ -29,20 +29,27 @@ class OpenRouterTokenizerContractTest {
                 contentLength = sourceBytes.size.toLong(),
             )
         val configPath = sourcePath.parent.resolve("sdkgen.yaml")
-        val config = ConfigLoader.decodeYaml(configPath.readText(), configPath.toString())
-        val overlayPath = sourcePath.parent.resolve("overlays/full-spec-compat.yaml")
-        val overlayBytes = overlayPath.readBytes()
+        // Full production binding: resolve EXACTLY the overlay list sdkgen.yaml declares (audit first, compat
+        // second) so this contract exercises the architecture rewrite in the real applied-overlay order.
+        val configured = ConfigLoader.decodeYaml(configPath.readText(), configPath.toString())
         val overlays =
-            listOf(
+            configured.overlays.map { overlay ->
+                val path = sourcePath.parent.resolve(overlay.uri)
+                val sha256 = path.readBytes().sha256()
+                assertEquals(
+                    overlay.sha256,
+                    sha256,
+                    "committed sdkgen.yaml digest for '${overlay.id}' must match the overlay bytes",
+                )
                 ResolvedGenerationOverlay(
-                    id = "openrouter-full-spec-compat",
-                    path = overlayPath,
-                    canonicalUri = "sdkgen://overlay/openrouter-full-spec-compat",
-                    sha256 = overlayBytes.sha256(),
-                ),
-            )
+                    id = overlay.id,
+                    path = path,
+                    canonicalUri = "sdkgen://overlay/${overlay.id}",
+                    sha256 = sha256,
+                )
+            }
 
-        val validation = GenerationPipeline("conformance-test").validate(config, source, overlays)
+        val validation = GenerationPipeline("conformance-test").validate(configured, source, overlays)
 
         assertFalse(
             validation.diagnostics.any { diagnostic ->
@@ -52,17 +59,17 @@ class OpenRouterTokenizerContractTest {
             "the compatibility overlay must resolve the architecture tokenizer allOf conflict",
         )
 
-        val effectivePath = materializeEffectiveSource(config, source, overlays)
+        val effectivePath = materializeEffectiveSource(configured, source, overlays)
         try {
             val document = SemanticAdapter().adapt(effectivePath, rootCanonicalUri = CANONICAL_URI).document
             val mapping =
                 StandardProjection().project(
                     DeclarationProjectionRequest(
                         document = document,
-                        packageName = config.kotlin.packageName,
+                        packageName = configured.kotlin.packageName,
                         canonicalDocumentUri = CANONICAL_URI,
-                        clientName = config.kotlin.naming.clientName,
-                        runtimeDefaults = config.runtime,
+                        clientName = configured.kotlin.naming.clientName,
+                        runtimeDefaults = configured.runtime,
                     ),
                 )
             val architecture =

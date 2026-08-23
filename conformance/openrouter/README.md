@@ -7,11 +7,12 @@ a published OpenRouter SDK.
 ## Snapshot
 
 - **OpenAPI operations:** 89
-- **Generated operations:** 86
+- **Generated operations:** 89
 - **OpenAPI SHA-256:** `b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47`
-- **Overlay SHA-256:** `f6f1916254474e974484ab516e3cd29f81902783f617a48f3034652b6628f8c2`
-- **Generated files:** 1,569
-- **Generated snapshot SHA-256:** `c62dfca137bc04cdabdfca822d5f9dac7d6ca8e077481f41f601fb32c27a2c59`
+- **Overlay SHA-256 (`overlays/allof-resolution-audit.yaml`):** `f8bc7a924cf9bc0af7ac54abc8a933037d0c30631b7bf690884ba3dfcd5cb6d0`
+- **Overlay SHA-256 (`overlays/full-spec-compat.yaml`):** `0ced3f18aa83e29f6aadc41d82d302e0312f3736c5c4914e27250dab964fb5c5`
+- **Generated files:** 1,671
+- **Generated snapshot SHA-256:** `1c1f75a48aeafba27a45a3c86e43d89811d043d1c9460d6187ddd598e9bbebbd`
 
 [`SHA256SUMS`](SHA256SUMS), [`sdkgen.yaml`](sdkgen.yaml), and [`sdkgen.lock`](sdkgen.lock) bind generation to the
 checked-in inputs. Conformance tests do not fetch the OpenAPI document from the network.
@@ -27,39 +28,37 @@ pagination across JVM and JavaScript test lanes.
   `listFiles` uses cursor pagination.
 - `createEmbeddings` and `createRerank` do not expose streaming because the pinned descriptions explicitly state that
   those operations do not stream.
+- `createAudioTranscriptions` (`POST /audio/transcriptions`) accepts audio two ways, so it now generates one callable
+  per compatible request-media group: `createAudioTranscriptions` (the normalized `application/json` variant keeps the
+  unsuffixed name) and `createAudioTranscriptionsMultipart` (`multipart/form-data`), each with its `WithResponse`
+  mirror. See [ADR 0021](../../docs/adr/0021-schema-intersection-and-request-media-variants.md).
 
-## Known coverage gaps
+## Full coverage (formerly "Known coverage gaps")
 
-Three operations are not generated in version 0.2.0:
+This corpus generates all **89 of 89** operations with zero blockers (direct and dependent closure). The three
+operations previously excluded at `0.2.0` — `createMessages` (`POST /messages`), `createResponses`
+(`POST /responses`), and `createAudioTranscriptions` (`POST /audio/transcriptions`) — are now generated. This is a
+*generator capability* on the unreleased 0.3.0 development line; the latest released Kotlin SDKGen (`0.2.0`)
+still generates the 86-operation surface. (Historical evidence records referencing this section's former name,
+"Known coverage gaps", describe the pre-0.3.0 state it documented.)
 
-| Operation                   | Path                         | Generator limitation                                     |
-| --------------------------- | ---------------------------- | -------------------------------------------------------- |
-| `createMessages`            | `POST /messages`             | Conflicting `allOf` properties across branches.          |
-| `createResponses`           | `POST /responses`            | Same conflicting `allOf` pattern.                        |
-| `createAudioTranscriptions` | `POST /audio/transcriptions` | JSON and multipart requests declare incompatible schemas. |
+`/messages` and `/responses` compose their response schemas with `allOf`, which is a logical AND: a value must satisfy
+every branch at once, and their branches redeclare the same property with different types and nullability. The
+[strict intersection algebra](../../docs/adr/0021-schema-intersection-and-request-media-variants.md) resolves each
+duplicate property to its well-defined common Kotlin projection (or refuses, rather than guessing). Where the correct
+resolution is a contract judgment rather than a mechanical one, the audited `x-sdkgen-allof-resolution` overlay
+([`overlays/allof-resolution-audit.yaml`](overlays/allof-resolution-audit.yaml)) elects the winning property schema;
+that election fails closed if it ever drifts from the schema graph. The proven boundary of the algebra is committed
+as evidence in `docs/conformance/evidence/schema-intersection-proof-table.tsv`.
 
-`/messages` and `/responses` compose their response schemas with `allOf`, which is a logical AND: a value must
-satisfy every branch at once. These branches redeclare the same property with conflicting types and nullability, so
-no single Kotlin property can satisfy both declarations and the generator refuses to guess one. (The upstream spec
-author appears to intend inheritance-style property replacement at these points, but the document still expresses it
-as a strict intersection.) For `/responses`, two request fields that reach the same graph are additionally removed by
-the compatibility overlay.
-
-`/audio/transcriptions` accepts audio two ways: its `application/json` request sends a base64 `input_audio` object,
-while its `multipart/form-data` request sends a binary `file` part. The two media types therefore declare incompatible
-request schemas, and the generator emits one request value per operation rather than media-type-specific variants, so
-it cannot represent the operation.
-
-The generator reports these as `SDKGEN-PROJECTION-UNREPRESENTABLE-OPERATION` (and related `-SCHEMA`) diagnostics.
-`incompatible-request-media` is not a generator diagnostic id; it is a category this corpus's blocker-inventory test
-synthesizes from the diagnostic message to track the audio case.
-
-These operations are excluded rather than generated with guessed or lossy types. Resolving conflicting `allOf`
-properties and supporting media-specific request variants would restore all three operations and raise this corpus
-from 86/89 to 89/89.
+`/audio/transcriptions` declares two incompatible request schemas — an `application/json` base64 `input_audio` object
+and a `multipart/form-data` binary `file` part — and is now represented by media-specific request variants (see
+"Supported surface" above) rather than one guessed request value.
 
 The remaining `SDKGEN-LEGACY-NULLABLE-COMPOSITION` diagnostics describe OpenAPI 3.0-style null-only branches. They
-are warnings and do not exclude operations.
+are warnings and do not exclude operations. A degenerate `{nullable/type: null}`-only `anyOf` member now canonicalizes
+into property nullability rather than a `JsonElement?` catch-all branch, so such unions are strict; a payload matching
+no branch throws the union's `NoMatchException` and explicit JSON `null` decodes to Kotlin `null` (ADR 0021).
 
 ## Verify locally
 
@@ -83,3 +82,6 @@ JAVA_TOOL_OPTIONS=-Xmx4g ./gradlew \
   -Dorg.gradle.parallel=false \
   -Pkotlin.compiler.execution.strategy=in-process
 ```
+
+The full consumer suite is green on the JVM, `jsNode`, and `macosArm64` lanes; the
+`:conformance:openrouter:consumer:macosArm64Test` lane runs on an Apple-silicon host.

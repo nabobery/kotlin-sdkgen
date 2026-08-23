@@ -3,6 +3,8 @@
 package com.nabobery.sdkgen.openapi
 
 import com.nabobery.sdkgen.model.AdditionalPropertiesModel
+import com.nabobery.sdkgen.model.AllOfResolutionSource
+import com.nabobery.sdkgen.model.AllOfResolutionStrategy
 import com.nabobery.sdkgen.model.CompositionKind
 import com.nabobery.sdkgen.model.DiagnosticCode
 import com.nabobery.sdkgen.model.EnumOpenness
@@ -139,6 +141,27 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `recognized legacy nullable oneOf branch is canonicalized to a null only branch in the OpenRouter corpus`() {
+        val document = adapter.adapt(ExperimentSupport.openRouterFixture).document
+        val caller = document.schema("ORAnthropicNullableCaller")
+        val oneOf = caller.compositions.single { it.kind == CompositionKind.ONE_OF }
+        val nullBranches = oneOf.branches.map { document.schemas.getValue(it.schemaId) }.filter { it.acceptsOnlyNull }
+
+        assertEquals(Nullability.NULLABLE, caller.nullability)
+        assertEquals(1, nullBranches.size)
+        // The legacy marker no longer survives as a contentless value branch that lacks an exact JSON kind.
+        assertTrue(
+            oneOf.branches.none { branch ->
+                val schema = document.schemas.getValue(branch.schemaId)
+                schema.types.isEmpty() &&
+                    schema.compositions.isEmpty() &&
+                    schema.properties.isEmpty() &&
+                    !schema.acceptsOnlyNull
+            },
+        )
+    }
+
+    @Test
     fun `oneOf and multi match anyOf remain distinct ordered compositions`() {
         val oneOf = adaptStress(1).schema("Pet").compositions.single()
         val anyOf = adaptStress(3).schema("SearchResult").compositions.single()
@@ -158,6 +181,591 @@ class SemanticModelTest {
         assertTrue(ownership.any { "minLength" in it.constraints })
         assertTrue(ownership.any { "maxLength" in it.constraints })
         assertEquals(2, ownership.map { it.ownerSchemaId }.distinct().size)
+    }
+
+    @Test
+    fun `audited allOf resolutions bind normalize and strip the canonical extension`() {
+        val template =
+            """
+            openapi: 3.1.0
+            info: { title: AllOf resolution, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Branch:
+                  type: object
+                  properties:
+                    part: { type: string }
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Branch'
+                    - type: object
+                      properties:
+                        inlinePart: { type: integer }
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      part:
+                        strategy: unionSupersede
+                        source:
+                          ref: '#/components/schemas/Branch'
+                          propertySchemaSha256: PART_DIGEST
+                      inlinePart:
+                        strategy: unionSupersede
+                        source:
+                          inlineSchemaSha256: INLINE_BRANCH_DIGEST
+                          propertySchemaSha256: INLINE_PROPERTY_DIGEST
+            """.trimIndent()
+        val raw = DocumentCodec.parse(template.toByteArray())
+        val source =
+            template
+                .replace("PART_DIGEST", canonicalSchemaDigest(raw.at("/components/schemas/Branch/properties/part")))
+                .replace("INLINE_BRANCH_DIGEST", canonicalSchemaDigest(raw.at("/components/schemas/Combined/allOf/1")))
+                .replace(
+                    "INLINE_PROPERTY_DIGEST",
+                    canonicalSchemaDigest(raw.at("/components/schemas/Combined/allOf/1/properties/inlinePart")),
+                )
+        val schema = adaptYaml(source).schema("Combined")
+
+        assertEquals(listOf("inlinePart", "part"), schema.allOfPropertyResolutions.map { it.propertyName })
+        assertEquals(AllOfResolutionStrategy.UNION_SUPERSEDE, schema.allOfPropertyResolutions.first().strategy)
+        assertEquals(
+            AllOfResolutionSource.Inline(
+                canonicalSchemaDigest(raw.at("/components/schemas/Combined/allOf/1")),
+            ),
+            schema.allOfPropertyResolutions.first().branch,
+        )
+        assertEquals(
+            AllOfResolutionSource.Referenced("#/components/schemas/Branch"),
+            schema.allOfPropertyResolutions.last().branch,
+        )
+        assertTrue("x-sdkgen-allof-resolution" !in schema.extensions)
+    }
+
+    @Test
+    fun `allOf resolution binding failures are diagnosed instead of silently dropped`() {
+        val failures =
+            listOf(
+                """
+                allOf:
+                  - type: object
+                    properties: { part: { type: string } }
+                x-sdkgen-allof-resolution:
+                  properties:
+                    part:
+                      strategy: unionSupersede
+                      source:
+                        ref: '#/components/schemas/Missing'
+                        propertySchemaSha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+                """ to "matched 0",
+                """
+                allOf:
+                  - type: object
+                    properties: { part: { type: string } }
+                  - type: object
+                    properties: { part: { type: string } }
+                x-sdkgen-allof-resolution:
+                  properties:
+                    part:
+                      strategy: unionSupersede
+                      source:
+                        inlineSchemaSha256: INLINE_DIGEST
+                        propertySchemaSha256: PROPERTY_DIGEST
+                """ to "matched 2",
+                """
+                allOf:
+                  - type: object
+                    properties: { other: { type: string } }
+                x-sdkgen-allof-resolution:
+                  properties:
+                    part:
+                      strategy: unionSupersede
+                      source:
+                        inlineSchemaSha256: INLINE_DIGEST
+                        propertySchemaSha256: PROPERTY_DIGEST
+                """ to "missing from the selected allOf branch",
+                """
+                allOf:
+                  - type: object
+                    properties: { part: { type: string } }
+                x-sdkgen-allof-resolution:
+                  properties:
+                    part:
+                      strategy: unionSupersede
+                      source:
+                        inlineSchemaSha256: INLINE_DIGEST
+                        propertySchemaSha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+                """ to "does not match the resolved schema of property",
+            )
+        failures.forEachIndexed { index, (body, expected) ->
+            val template =
+                """
+                openapi: 3.1.0
+                info: { title: AllOf failure $index, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Broken:
+                """.trimIndent() + "\n" + body.trimIndent().prependIndent("      ")
+            val raw = DocumentCodec.parse(template.toByteArray())
+            val source =
+                template
+                    .replace("INLINE_DIGEST", canonicalSchemaDigest(raw.at("/components/schemas/Broken/allOf/0")))
+                    .replace(
+                        "PROPERTY_DIGEST",
+                        canonicalSchemaDigest(raw.at("/components/schemas/Broken/allOf/0/properties/part")),
+                    )
+            val result = adaptYamlResult(source)
+            assertTrue(
+                result.document.diagnostics.any {
+                    it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                        expected in it.message
+                },
+                "missing binding diagnostic for case $index: ${result.document.diagnostics}",
+            )
+        }
+    }
+
+    @Test
+    fun `a mutated ref target keyword shadowed by a sibling still shifts the audit digest`() {
+        // `$ref` siblings apply CONJUNCTIVELY in JSON Schema: the target's `maxLength` and the sibling's both
+        // constrain the value. The resolved digest form must therefore keep BOTH declarations — with a
+        // last-wins merge the sibling would shadow the target's keyword, and mutating the target (10 -> 12)
+        // would leave the audit digest unchanged, silently defeating the fail-closed drift guarantee.
+        fun spec(
+            targetMaxLength: Int,
+            propertyDigest: String,
+        ) = """
+            openapi: 3.1.0
+            info: { title: Shadowed sibling, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Target:
+                  type: string
+                  maxLength: $targetMaxLength
+                OverrideBranch:
+                  type: object
+                  properties:
+                    part:
+                      ${'$'}ref: '#/components/schemas/Target'
+                      maxLength: 5
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/OverrideBranch'
+                    - type: object
+                      properties:
+                        part: { type: string }
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      part:
+                        strategy: unionSupersede
+                        source:
+                          ref: '#/components/schemas/OverrideBranch'
+                          propertySchemaSha256: $propertyDigest
+            """.trimIndent()
+
+        val probe = adaptYamlResult(spec(10, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"))
+        val mismatch =
+            probe.document.diagnostics
+                .single { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION && "does not match" in it.message }
+        val actualDigest =
+            requireNotNull(Regex("expected ([0-9a-f]{64})").find(mismatch.message)).groupValues[1]
+
+        // The extracted digest binds cleanly against the document it was computed for...
+        val bound = adaptYamlResult(spec(10, actualDigest))
+        assertTrue(
+            bound.document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION },
+            "digest must bind against its own document: ${bound.document.diagnostics}",
+        )
+        // ...and fails closed once the SHADOWED target keyword mutates underneath the unchanged sibling.
+        val drifted = adaptYamlResult(spec(12, actualDigest))
+        assertTrue(
+            drifted.document.diagnostics.any {
+                it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION && "does not match" in it.message
+            },
+            "mutating the shadowed target keyword must shift the digest: ${drifted.document.diagnostics}",
+        )
+    }
+
+    @Test
+    fun `allOf branch reordering preserves a referenced audit binding while deleting it fails closed`() {
+        val template =
+            """
+            openapi: 3.1.0
+            info: { title: Reordered resolution, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Base:
+                  type: object
+                  properties:
+                    part: { type: string }
+                Override:
+                  type: object
+                  properties:
+                    part: { type: object, properties: { id: { type: string } } }
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Base'
+                    - ${'$'}ref: '#/components/schemas/Override'
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      part:
+                        strategy: unionSupersede
+                        source:
+                          ref: '#/components/schemas/Override'
+                          propertySchemaSha256: PART_DIGEST
+            """.trimIndent()
+        val digest =
+            canonicalSchemaDigest(
+                DocumentCodec.parse(template.toByteArray()).at("/components/schemas/Override/properties/part"),
+            )
+        val bound = template.replace("PART_DIGEST", digest)
+        // After trimIndent() the allOf branch lines keep their indentation; derive it from the document so the
+        // manipulation matches the real lines (an unindented search silently no-ops and re-adapts the ORIGINAL
+        // base-first order).
+        val baseBranchLine =
+            bound.lineSequence().single { line -> line.trim() == "- \$ref: '#/components/schemas/Base'" }
+        val branchIndent = baseBranchLine.substringBefore("- \$ref")
+        val baseFirstBranches =
+            "$branchIndent- \$ref: '#/components/schemas/Base'\n$branchIndent- \$ref: '#/components/schemas/Override'"
+        val overrideFirstBranches =
+            "$branchIndent- \$ref: '#/components/schemas/Override'\n$branchIndent- \$ref: '#/components/schemas/Base'"
+        val reordered = bound.replace(baseFirstBranches, overrideFirstBranches)
+        assertTrue(reordered != bound, "reorder manipulation must genuinely swap the branches")
+        val reorderedResult = adaptYamlResult(reordered)
+        val reorderedCombined = reorderedResult.document.schema("Combined")
+        val allOfComposition =
+            reorderedCombined.compositions.single { composition -> composition.kind == CompositionKind.ALL_OF }
+        // Branches are 1:1 with the raw allOf array indices (SchemaAdapter.adaptComposition), so the FIRST
+        // branch's reference must now be the Override schema: textual proof the swap survived adaptation.
+        assertTrue(
+            allOfComposition.branches
+                .first()
+                .schemaId
+                .value
+                .endsWith("/components/schemas/Override"),
+            "the reordered fixture must bind Override as the FIRST allOf branch, got " +
+                allOfComposition.branches.joinToString { branch -> branch.schemaId.value },
+        )
+        assertTrue(
+            reorderedResult.document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION },
+            "reordering branches must preserve ref/digest binding: ${reorderedResult.document.diagnostics}",
+        )
+        val combined = reorderedResult.document.schema("Combined")
+        assertEquals(
+            AllOfResolutionSource.Referenced("#/components/schemas/Override"),
+            combined.allOfPropertyResolutions.single().branch,
+        )
+
+        val deleted =
+            bound.replace(
+                Regex("""(?m)^\s+- \${'$'}ref: '#/components/schemas/Override'\n"""),
+                "",
+            )
+        assertFalse(deleted.contains("- ${'$'}ref: '#/components/schemas/Override'"))
+        val deletedResult = adaptYamlResult(deleted)
+        assertTrue(
+            deletedResult.document.diagnostics.any {
+                it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION && "matched 0" in it.message
+            },
+            "deleting the chosen branch must fail closed: ${deletedResult.document.diagnostics}",
+        )
+    }
+
+    @Test
+    fun `property digests cover the resolved reference target and drift closes the audit`() {
+        val base =
+            """
+            openapi: 3.1.0
+            info: { title: Ref drift, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Payload: PAYLOAD_BODY
+                Branch:
+                  type: object
+                  properties:
+                    payload: { ${'$'}ref: '#/components/schemas/Payload' }
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Branch'
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      payload:
+                        strategy: unionSupersede
+                        source:
+                          ref: '#/components/schemas/Branch'
+                          propertySchemaSha256: PAYLOAD_DIGEST
+            """.trimIndent()
+        val stringPayload = "{ type: string }"
+        val objectPayload = "{ type: object, properties: { note: { type: string } } }"
+        val payloadDigest =
+            canonicalSchemaDigest(
+                DocumentCodec
+                    .parse(base.replace("PAYLOAD_BODY", stringPayload).toByteArray())
+                    .at("/components/schemas/Payload"),
+            )
+
+        // The '$ref' text is identical in both documents; only the referenced target content differs.
+        val matching =
+            adaptYamlResult(base.replace("PAYLOAD_BODY", stringPayload).replace("PAYLOAD_DIGEST", payloadDigest))
+        assertTrue(
+            matching.document.diagnostics.isEmpty(),
+            "unexpected diagnostics: ${matching.document.diagnostics}",
+        )
+        assertEquals(
+            listOf("payload"),
+            matching.document
+                .schema("Combined")
+                .allOfPropertyResolutions
+                .map { it.propertyName },
+        )
+
+        val drifted =
+            adaptYamlResult(base.replace("PAYLOAD_BODY", objectPayload).replace("PAYLOAD_DIGEST", payloadDigest))
+        assertTrue(
+            drifted.document.diagnostics.any {
+                it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                    "does not match the resolved schema of property" in it.message
+            },
+            "expected fail-closed drift diagnostic, got: ${drifted.document.diagnostics}",
+        )
+        // Fail-closed: the schema carrying the drifted audit is not represented at all.
+        assertTrue(
+            drifted.document.schemas.values
+                .none { it.id.value.endsWith("/components/schemas/Combined") },
+        )
+    }
+
+    @Test
+    fun `dual identity fields are rejected before value validation`() {
+        val validDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        val dualFieldCases =
+            listOf(
+                // Valid 'ref' beside a non-textual (invalid) 'inlineSchemaSha256'.
+                """
+                          ref: '#/components/schemas/Branch'
+                          inlineSchemaSha256: 7
+                          propertySchemaSha256: $validDigest
+                """,
+                // Non-textual (invalid) 'ref' beside a valid 'inlineSchemaSha256'.
+                """
+                          ref: 7
+                          inlineSchemaSha256: $validDigest
+                          propertySchemaSha256: $validDigest
+                """,
+            )
+        dualFieldCases.forEachIndexed { index, sourceBody ->
+            val document =
+                """
+                openapi: 3.1.0
+                info: { title: Dual identity $index, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Branch: { type: object, properties: { part: { type: string } } }
+                    Combined:
+                      allOf:
+                        - ${'$'}ref: '#/components/schemas/Branch'
+                      x-sdkgen-allof-resolution:
+                        properties:
+                          part:
+                            strategy: unionSupersede
+                            source:
+                """.trimIndent() + sourceBody.trimEnd('\n')
+            val result = adaptYamlResult(document)
+            assertTrue(
+                result.document.diagnostics.any {
+                    it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                        "must contain exactly one of 'ref' or 'inlineSchemaSha256'" in it.message
+                },
+                "case $index should be rejected as a dual identity, got: ${result.document.diagnostics}",
+            )
+        }
+    }
+
+    @Test
+    fun `referenced branch binding follows local and external alias chains`() {
+        val local =
+            """
+            openapi: 3.1.0
+            info: { title: Local alias, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Base:
+                  type: object
+                  properties:
+                    part: { type: string }
+                Alias:
+                  ${'$'}ref: '#/components/schemas/Base'
+                Combined:
+                  allOf:
+                    - ${'$'}ref: '#/components/schemas/Alias'
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      part:
+                        strategy: unionSupersede
+                        source:
+                          ref: '#/components/schemas/Alias'
+                          propertySchemaSha256: PART_DIGEST
+            """.trimIndent()
+        val partDigest =
+            canonicalSchemaDigest(
+                DocumentCodec.parse(local.toByteArray()).at("/components/schemas/Base/properties/part"),
+            )
+        val localResult = adaptYamlResult(local.replace("PART_DIGEST", partDigest))
+        assertTrue(
+            localResult.document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION },
+            "unexpected diagnostics: ${localResult.document.diagnostics}",
+        )
+        assertEquals(
+            AllOfResolutionSource.Referenced("#/components/schemas/Alias"),
+            localResult.document
+                .schema("Combined")
+                .allOfPropertyResolutions
+                .single()
+                .branch,
+        )
+
+        val externalPart =
+            canonicalSchemaDigest(
+                DocumentCodec
+                    .parse(
+                        EXTERNAL_ALIAS_COMPONENTS.toByteArray(),
+                    ).at("/components/schemas/Base/properties/part"),
+            )
+        val externalRoot =
+            """
+            openapi: 3.1.0
+            info: { title: External alias, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Combined:
+                  allOf:
+                    - ${'$'}ref: 'components.yaml#/components/schemas/Alias'
+                  x-sdkgen-allof-resolution:
+                    properties:
+                      part:
+                        strategy: unionSupersede
+                        source:
+                          ref: 'components.yaml#/components/schemas/Alias'
+                          propertySchemaSha256: $externalPart
+            """.trimIndent()
+        val externalResult =
+            adaptFiles(
+                root = "root.yaml",
+                files = mapOf("root.yaml" to externalRoot, "components.yaml" to EXTERNAL_ALIAS_COMPONENTS),
+            )
+        assertTrue(
+            externalResult.document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION },
+            "unexpected diagnostics: ${externalResult.document.diagnostics}",
+        )
+        assertEquals(
+            AllOfResolutionSource.Referenced("components.yaml#/components/schemas/Alias"),
+            externalResult.document
+                .schema("Combined")
+                .allOfPropertyResolutions
+                .single()
+                .branch,
+        )
+    }
+
+    @Test
+    fun `misplaced schema extensions are diagnosed on the zero-overlay path while valid nested placements survive`() {
+        val misplacedOnOperation =
+            """
+            openapi: 3.1.0
+            info: { title: Misplaced, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  x-sdkgen-allof-resolution:
+                    properties: {}
+                  responses: { '200': { description: ok } }
+            components: {}
+            """.trimIndent()
+        assertTrue(
+            adaptYamlResult(misplacedOnOperation).document.diagnostics.any {
+                it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                    "is only allowed as a direct property of a Schema Object with allOf" in it.message
+            },
+            "raw-source schema extension on an operation must be diagnosed, not silently dropped",
+        )
+
+        val operationWithEmptyAllOf =
+            """
+            openapi: 3.1.0
+            info: { title: Operation allOf, version: 1.0.0 }
+            paths:
+              /items:
+                get:
+                  allOf: []
+                  x-sdkgen-allof-resolution:
+                    properties: {}
+                  responses: { '200': { description: ok } }
+            components: {}
+            """.trimIndent()
+        assertTrue(
+            adaptYamlResult(operationWithEmptyAllOf).document.diagnostics.any {
+                it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                    "is only allowed as a direct property of a Schema Object with allOf" in it.message
+            },
+            "an Operation Object with a bare 'allOf: []' must not masquerade as a Schema Object",
+        )
+
+        val validNested =
+            """
+            openapi: 3.1.0
+            info: { title: Valid nested, version: 1.0.0 }
+            paths:
+              /items:
+                post:
+                  requestBody:
+                    content:
+                      application/json:
+                        schema:
+                          allOf:
+                            - ${'$'}ref: '#/components/schemas/Branch'
+                          x-sdkgen-allof-resolution:
+                            properties:
+                              part:
+                                strategy: unionSupersede
+                                source:
+                                  ref: '#/components/schemas/Branch'
+                                  propertySchemaSha256: PART_DIGEST
+                  responses: { '200': { description: ok } }
+            components:
+              schemas:
+                Branch:
+                  type: object
+                  properties:
+                    part: { type: string }
+                Nested:
+                  type: object
+                  properties:
+                    combined:
+                      allOf:
+                        - ${'$'}ref: '#/components/schemas/Branch'
+                      x-sdkgen-allof-resolution:
+                        properties:
+                          part:
+                            strategy: unionSupersede
+                            source:
+                              ref: '#/components/schemas/Branch'
+                              propertySchemaSha256: PART_DIGEST
+            """.trimIndent()
+        val partDigest =
+            canonicalSchemaDigest(
+                DocumentCodec.parse(validNested.toByteArray()).at("/components/schemas/Branch/properties/part"),
+            )
+        val nestedResult = adaptYamlResult(validNested.replace("PART_DIGEST", partDigest))
+        assertTrue(
+            nestedResult.document.diagnostics.none { it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION },
+            "nested component and media-type schema placements must remain valid: ${nestedResult.document.diagnostics}",
+        )
     }
 
     @Test
@@ -846,7 +1454,32 @@ class SemanticModelTest {
             Files.deleteIfExists(source)
         }
     }
+
+    private fun adaptFiles(
+        root: String,
+        files: Map<String, String>,
+    ): AdaptationResult {
+        val directory = Files.createTempDirectory("sdkgen-multi-")
+        return try {
+            files.forEach { (name, content) -> directory.resolve(name).writeText(content) }
+            adapter.adapt(directory.resolve(root))
+        } finally {
+            directory.toFile().deleteRecursively()
+        }
+    }
 }
+
+private val EXTERNAL_ALIAS_COMPONENTS =
+    """
+    components:
+      schemas:
+        Base:
+          type: object
+          properties:
+            part: { type: string }
+        Alias:
+          ${'$'}ref: '#/components/schemas/Base'
+    """.trimIndent()
 
 private fun SemanticDocument.schema(name: String): SchemaModel =
     schemas.values.single { it.id.value.endsWith("/components/schemas/$name") }
@@ -855,3 +1488,6 @@ private fun com.nabobery.sdkgen.model.SchemaRef.resolve(document: SemanticDocume
     document.schemas.getValue(schemaId)
 
 private fun List<com.nabobery.sdkgen.model.PropertyModel>.getValue(name: String) = single { it.name == name }
+
+private fun canonicalSchemaDigest(node: com.fasterxml.jackson.databind.JsonNode): String =
+    DocumentCodec.sha256(DocumentCodec.canonicalJson(node).encodeToByteArray())

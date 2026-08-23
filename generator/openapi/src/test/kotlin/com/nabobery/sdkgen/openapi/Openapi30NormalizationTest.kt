@@ -7,6 +7,7 @@ import com.nabobery.sdkgen.model.DiagnosticCode
 import com.nabobery.sdkgen.model.DiagnosticSeverity
 import com.nabobery.sdkgen.model.JsonValue
 import com.nabobery.sdkgen.model.Nullability
+import com.nabobery.sdkgen.model.NullabilitySurface
 import com.nabobery.sdkgen.model.SchemaModel
 import com.nabobery.sdkgen.model.SemanticDocument
 import java.nio.file.Files
@@ -14,6 +15,7 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -610,6 +612,175 @@ class Openapi30NormalizationTest {
     }
 
     @Test
+    fun `oneOf legacy nullable marker becomes a canonical null only branch not an empty value branch`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.0.3
+                info: { title: Legacy oneOf marker, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Choice:
+                      oneOf:
+                        - type: string
+                        - nullable: true
+                """.trimIndent(),
+            )
+        val choice = document.schema("Choice")
+        val oneOf = choice.compositions.single { it.kind == CompositionKind.ONE_OF }
+        val warning = document.diagnostics.single { it.code == DiagnosticCode.LEGACY_NULLABLE_COMPOSITION }
+
+        assertEquals(Nullability.NULLABLE, choice.nullability)
+        assertEquals(
+            NullabilitySurface.NULL_COMPOSITION,
+            choice.nullabilityOrigins.single().surface,
+        )
+        assertEquals(
+            "/components/schemas/Choice/oneOf/1/nullable",
+            choice.nullabilityOrigins
+                .single()
+                .source.jsonPointer,
+        )
+        assertEquals(DiagnosticSeverity.WARNING, warning.severity)
+        assertEquals(2, oneOf.branches.size)
+        assertEquals(1, oneOf.branches.count { document.schemas.getValue(it.schemaId).acceptsOnlyNull })
+        assertTrue(oneOf.branches.none { it.isEmptyValueBranch(document) })
+    }
+
+    @Test
+    fun `legacy marker branch canonicalizes even when an earlier component ref adapts it first`() {
+        // `AAlias` sorts before `Choice`, so it (and the ordinary adaptation of the lone marker it
+        // `$ref`s) is registered before `Choice`'s oneOf is canonicalized. The canonical null-only
+        // model must still win for both, so adaptation order does not change the outcome.
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.0.3
+                info: { title: Alias to legacy marker branch, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    AAlias:
+                      ${'$'}ref: '#/components/schemas/Choice/oneOf/1'
+                    Choice:
+                      oneOf:
+                        - type: string
+                        - nullable: true
+                """.trimIndent(),
+            )
+        val choice = document.schema("Choice")
+        val oneOf = choice.compositions.single { it.kind == CompositionKind.ONE_OF }
+        val branchRef = oneOf.branches[1]
+        val branch = document.schemas.getValue(branchRef.schemaId)
+
+        // The composition branch resolves to the canonical null-only model, keyed on the branch pointer.
+        assertTrue(branch.acceptsOnlyNull)
+        assertTrue(branchRef.schemaId.value.endsWith("/components/schemas/Choice/oneOf/1"))
+        assertEquals("/components/schemas/Choice/oneOf/1", branch.source.jsonPointer)
+        assertFalse(branchRef.isEmptyValueBranch(document))
+
+        // The alias links by id to the SAME shared entry, so it resolves to the identical null-only model.
+        val alias = document.schema("AAlias")
+        val aliasTargetId = assertNotNull(alias.referenceTarget)
+        assertEquals(branchRef.schemaId, aliasTargetId)
+        val aliasTarget = document.schemas.getValue(aliasTargetId)
+        assertTrue(aliasTarget.acceptsOnlyNull)
+        assertEquals("/components/schemas/Choice/oneOf/1", aliasTarget.source.jsonPointer)
+    }
+
+    @Test
+    fun `anyOf legacy nullable marker becomes a canonical null only branch not an empty value branch`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.0.3
+                info: { title: Legacy anyOf marker, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Choice:
+                      anyOf:
+                        - type: string
+                        - nullable: true
+                """.trimIndent(),
+            )
+        val choice = document.schema("Choice")
+        val anyOf = choice.compositions.single { it.kind == CompositionKind.ANY_OF }
+        val warning = document.diagnostics.single { it.code == DiagnosticCode.LEGACY_NULLABLE_COMPOSITION }
+
+        assertEquals(Nullability.NULLABLE, choice.nullability)
+        assertEquals(
+            NullabilitySurface.NULL_COMPOSITION,
+            choice.nullabilityOrigins.single().surface,
+        )
+        assertEquals(
+            "/components/schemas/Choice/anyOf/1/nullable",
+            choice.nullabilityOrigins
+                .single()
+                .source.jsonPointer,
+        )
+        assertEquals(DiagnosticSeverity.WARNING, warning.severity)
+        assertEquals(2, anyOf.branches.size)
+        assertEquals(1, anyOf.branches.count { document.schemas.getValue(it.schemaId).acceptsOnlyNull })
+        assertTrue(anyOf.branches.none { it.isEmptyValueBranch(document) })
+    }
+
+    @Test
+    fun `ambiguous oneOf with a legacy marker keeps the ambiguity error and does not canonicalize the marker`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.0.3
+                info: { title: Ambiguous legacy oneOf, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Choice:
+                      oneOf:
+                        - nullable: true
+                        - type: 'null'
+                """.trimIndent(),
+            )
+        val choice = document.schema("Choice")
+        val oneOf = choice.compositions.single { it.kind == CompositionKind.ONE_OF }
+
+        assertEquals(Nullability.NON_NULL, choice.nullability)
+        assertTrue(choice.nullabilityOrigins.isEmpty())
+        assertTrue(document.diagnostics.any { it.code == DiagnosticCode.ONE_OF_NULL_AMBIGUOUS })
+        // The legacy marker (branch 0) stays an empty value branch; only the explicit type:null branch is null-only.
+        assertFalse(document.schemas.getValue(oneOf.branches[0].schemaId).acceptsOnlyNull)
+        assertTrue(document.schemas.getValue(oneOf.branches[1].schemaId).acceptsOnlyNull)
+    }
+
+    @Test
+    fun `anyOf canonicalizes every direct legacy marker under its permissive semantics`() {
+        val document =
+            adaptYaml(
+                """
+                openapi: 3.0.3
+                info: { title: Multiple legacy anyOf markers, version: 1.0.0 }
+                paths: {}
+                components:
+                  schemas:
+                    Choice:
+                      anyOf:
+                        - type: string
+                        - nullable: true
+                        - nullable: true
+                """.trimIndent(),
+            )
+        val choice = document.schema("Choice")
+        val anyOf = choice.compositions.single { it.kind == CompositionKind.ANY_OF }
+
+        assertEquals(Nullability.NULLABLE, choice.nullability)
+        assertEquals(2, document.diagnostics.count { it.code == DiagnosticCode.LEGACY_NULLABLE_COMPOSITION })
+        assertEquals(3, anyOf.branches.size)
+        assertEquals(2, anyOf.branches.count { document.schemas.getValue(it.schemaId).acceptsOnlyNull })
+        assertTrue(anyOf.branches.none { it.isEmptyValueBranch(document) })
+    }
+
+    @Test
     fun `nested ref chain to null branch is recognized without injecting a duplicate`() {
         val document =
             adaptYaml(
@@ -802,6 +973,19 @@ class Openapi30NormalizationTest {
 
 private fun SemanticDocument.schema(name: String): SchemaModel =
     schemas.values.single { it.id.value.endsWith("/components/schemas/$name") }
+
+/**
+ * A branch that survived as a contentless value branch (no type, no composition, no properties) yet
+ * is not the canonical null-only branch: the exact residue the legacy-marker canonicalization removes.
+ */
+private fun com.nabobery.sdkgen.model.SchemaRef.isEmptyValueBranch(document: SemanticDocument): Boolean {
+    val schema = document.schemas.getValue(schemaId)
+    return schema.types.isEmpty() &&
+        schema.compositions.isEmpty() &&
+        schema.properties.isEmpty() &&
+        schema.enum == null &&
+        !schema.acceptsOnlyNull
+}
 
 private fun com.nabobery.sdkgen.model.SchemaRef.resolve(document: SemanticDocument): SchemaModel =
     document.schemas.getValue(schemaId)

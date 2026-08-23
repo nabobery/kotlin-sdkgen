@@ -29,8 +29,11 @@ class NamingInventoryTest {
         val schemaDeclarations = baseline.schemaDeclarations()
         val inline = schemaDeclarations.filter { declaration -> declaration.resolvedName.startsWith("Inline") }
 
+        // 927 -> 940: the strict-intersection resolver clears allOf conflicts that previously blocked
+        // schemas, so 13 more inline schemas (the resolved parents and their un-stranded inline closure) now
+        // project into emitted declarations.
         assertEquals(
-            927,
+            940,
             inline.size,
             "total=${schemaDeclarations.size}; identityKinds=${schemaDeclarations.groupingBy { declaration ->
                 document.schemas[declaration.sourceSchemaId()]?.identityKind
@@ -165,7 +168,11 @@ class NamingInventoryTest {
                     .toList()
                     .toSet()
             }
-        assertEquals(879, oldNames.size)
+        // 879 -> 944: the full-surface restoration (ADR 0021) brings back /messages, /responses, and /audio/transcriptions, so the
+        // regenerated OpenRouter snapshot now emits their reclaimed inline closure as committed Inline*.kt
+        // files (the raw-spec projection is unchanged, but more legacy candidates are now present on disk,
+        // which also flips committedLegacyFilePresent for the newly-emitted rows below).
+        assertEquals(944, oldNames.size)
         val rows =
             inlineDeclarations.sortedBy { declaration -> declaration.sourceSchemaId() }.map { declaration ->
                 val oldName = legacyInlineName(declaration.sourceSchemaId())

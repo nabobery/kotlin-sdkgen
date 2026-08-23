@@ -9,10 +9,19 @@ import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.KotlinFileDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
+import com.nabobery.sdkgen.engine.declarations.MultipartPartDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationClientDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationDeadlines
 import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
+import com.nabobery.sdkgen.engine.declarations.OperationParameterDeclaration
+import com.nabobery.sdkgen.engine.declarations.OperationParameterLocation
+import com.nabobery.sdkgen.engine.declarations.OperationRequestBodyAlternative
+import com.nabobery.sdkgen.engine.declarations.OperationRequestVariantDeclaration
+import com.nabobery.sdkgen.engine.declarations.OperationResponseAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
+import com.nabobery.sdkgen.engine.declarations.RequestBodyEncoding
+import com.nabobery.sdkgen.engine.declarations.RequestBodyReplayability
+import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
 import com.nabobery.sdkgen.engine.declarations.StandardProjection
 import com.nabobery.sdkgen.engine.declarations.goldenSliceModel
 import com.nabobery.sdkgen.openapi.SemanticAdapter
@@ -340,6 +349,135 @@ class KotlinPoetEmitterGoldenTest {
         assertTrue(source.contains("@throws SdkTransportException"))
         assertTrue(source.contains("internal val metadata: OperationMetadata"))
         assertFalse(source.contains("streaming support", ignoreCase = true))
+    }
+
+    @Test
+    fun dualMediaVariantEmissionMatchesExactGolden() {
+        val packageName = "com.example.generated"
+        val string = KotlinTypeRef("kotlin", "String")
+        val jsonRequest = KotlinTypeRef(packageName, "TranscribeJsonRequest")
+        val multipartRequest = KotlinTypeRef(packageName, "TranscribeMultipartRequest")
+        val operation =
+            OperationDeclaration(
+                symbolId = "operation:createTranscription",
+                order = 0,
+                operationId = "createTranscription",
+                operationIdentity = "createTranscription",
+                method = "POST",
+                path = "/audio/transcriptions",
+                requestMediaTypes = listOf("application/json"),
+                responseMediaTypes = listOf("application/json"),
+                successStatusCodes = setOf(200),
+                requestType = jsonRequest,
+                responseType = KotlinTypeRef(packageName, "Transcription"),
+                requestCodecPropertyName = "createTranscriptionRequestCodec",
+                responseCodecPropertyName = "createTranscriptionResponseCodec",
+                requestCodecConstantName = "CREATE_TRANSCRIPTION_REQUEST_CODEC_ID",
+                responseCodecConstantName = "CREATE_TRANSCRIPTION_RESPONSE_CODEC_ID",
+                requestCodecId = "createTranscription.request",
+                responseCodecId = "createTranscription.response",
+                responseMode = OperationResponseMode.BUFFERED,
+                deadlines = OperationDeadlines(60_000, 30_000, null),
+                methodKdoc = "Transcribes audio from a JSON payload or a multipart upload.",
+                parameters =
+                    listOf(
+                        OperationParameterDeclaration(
+                            name = "model",
+                            location = OperationParameterLocation.QUERY,
+                            type = string,
+                            required = false,
+                        ),
+                    ),
+                requestBodyAlternatives =
+                    listOf(
+                        OperationRequestBodyAlternative(
+                            "application/json",
+                            jsonRequest,
+                            required = true,
+                        ),
+                    ),
+                requestBodyRequired = true,
+                requestVariants =
+                    listOf(
+                        OperationRequestVariantDeclaration(
+                            methodName = "createTranscription",
+                            nameSuffix = "",
+                            operationIdentity = "createTranscription",
+                            mediaTypes = listOf("application/json"),
+                            type = jsonRequest,
+                            required = true,
+                            replayability = RequestBodyReplayability.REPLAYABLE,
+                            encoding = RequestBodyEncoding.JSON,
+                        ),
+                        OperationRequestVariantDeclaration(
+                            methodName = "createTranscriptionMultipart",
+                            nameSuffix = "Multipart",
+                            operationIdentity = "createTranscription",
+                            mediaTypes = listOf("multipart/form-data"),
+                            type = multipartRequest,
+                            required = true,
+                            multipartParts =
+                                listOf(
+                                    MultipartPartDeclaration(
+                                        wireName = "file",
+                                        accessorName = "file",
+                                        type = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
+                                        required = true,
+                                        contentType = "audio/wav",
+                                    ),
+                                    MultipartPartDeclaration(
+                                        wireName = "caption",
+                                        accessorName = "caption",
+                                        type = string.copy(nullable = true),
+                                        required = false,
+                                        contentType = "text/plain",
+                                    ),
+                                ),
+                            replayability = RequestBodyReplayability.NON_REPLAYABLE,
+                            encoding = RequestBodyEncoding.MULTIPART,
+                        ),
+                    ),
+                responseAlternatives =
+                    listOf(
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.ExactStatus(200),
+                            listOf("application/json"),
+                            KotlinTypeRef(packageName, "Transcription"),
+                        ),
+                        OperationResponseAlternative(
+                            ResponseSelectorDeclaration.StatusRange(400, 499),
+                            listOf("application/problem+json"),
+                            KotlinTypeRef(packageName, "ApiError"),
+                        ),
+                    ),
+            )
+        val declaration =
+            OperationClientDeclaration(
+                symbolId = "client:DualMediaClient",
+                order = 0,
+                packageName = packageName,
+                fileName = "DualMediaClient",
+                resolvedName = "DualMediaClient",
+                kdoc = "Client exposing one callable method per request-media variant.",
+                codecsObjectName = "DualMediaCodecs",
+                operations = listOf(operation),
+            )
+        val actual =
+            KotlinPoetEmitter(packageName)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(KotlinFileDeclaration(packageName, "DualMediaClient", listOf(declaration))),
+                    ),
+                ).files
+                .single()
+                .bytes
+        val golden =
+            Path
+                .of(requireNotNull(System.getProperty("engine.wave1GoldenRoot")))
+                .resolve("DualMediaClient.kt")
+        if (System.getenv("UPDATE_WAVE1_GOLDENS") == "1") golden.writeBytes(actual)
+
+        assertEquals(golden.readText(), actual.decodeToString())
     }
 
     private fun collectionOwnershipField(

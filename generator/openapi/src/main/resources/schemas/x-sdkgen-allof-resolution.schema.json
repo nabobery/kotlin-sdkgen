@@ -1,0 +1,59 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://nabobery.com/kotlin-sdkgen/extensions/x-sdkgen-allof-resolution.schema.json",
+    "title": "x-sdkgen-allof-resolution",
+    "description": "Audited, per-property resolution metadata for a Schema Object's strict allOf intersection. Only valid as a direct property of a Schema Object that declares an array-valued 'allOf'. Every digest in this extension is computed over the *resolved structural form* of a schema node: canonical JSON (object keys sorted lexicographically, no insignificant whitespace, JSON numbers rendered from the parsed value) of the node with every '$ref' replaced, transitively, by the content of its target. Each '$ref' resolves against the document that declared it (external references use their own base URI). A '$ref' whose canonical target id '<documentUri>#<jsonPointer>' is already being resolved on the current path is a cycle and is substituted with the token object {\"$sdkgen-allof-resolution-cycle\": \"<documentUri>#<jsonPointer>\"}; an unresolvable '$ref' is substituted with {\"$sdkgen-allof-resolution-unresolved-ref\": \"<raw reference>\"}. Keywords declared alongside a '$ref' apply conjunctively, as in JSON Schema: the resolved form keeps the target's keywords AND the siblings, and on a key conflict both declarations are preserved, wrapped as the token object {\"$sdkgen-allof-resolution-conjunction\": [<target value>, <sibling value>]}. Because these digests cover the resolved target and every shadowed keyword, mutating a referenced schema without changing the '$ref' text still shifts the digest and fails the audit closed. Reproduce the canonical form via the same key-sorted UTF-8 canonical JSON described here; a failed source binding reports each candidate branch's expected digest.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "properties": {
+            "type": "object",
+            "description": "Map of property name to the audited resolution for that property within the intersection.",
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "strategy": {
+                        "const": "unionSupersede",
+                        "description": "The only supported inheritance-style resolution strategy: the selected branch's property schema supersedes the others in the intersection."
+                    },
+                    "source": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "description": "Identifies exactly one allOf branch (by '$ref' text or by resolved inline digest) and pins the resolved schema of the named property on that branch.",
+                        "properties": {
+                            "ref": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Selects the branch whose literal 'allOf' '$ref' text equals this value. The property is then located by following that branch's '$ref'/alias chain; when more than one chain layer declares the property, all layers must agree on a single resolved form."
+                            },
+                            "inlineSchemaSha256": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$",
+                                "description": "Selects the (single) inline allOf branch whose resolved structural form has this SHA-256 digest. 64 lowercase hexadecimal characters."
+                            },
+                            "propertySchemaSha256": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$",
+                                "description": "SHA-256 of the resolved structural form of the named property's schema on the selected branch. 64 lowercase hexadecimal characters. Must match the current source or adaptation fails closed."
+                            }
+                        },
+                        "required": ["propertySchemaSha256"],
+                        "oneOf": [
+                            {
+                                "required": ["ref"],
+                                "not": { "required": ["inlineSchemaSha256"] }
+                            },
+                            {
+                                "required": ["inlineSchemaSha256"],
+                                "not": { "required": ["ref"] }
+                            }
+                        ]
+                    }
+                },
+                "required": ["strategy", "source"]
+            }
+        }
+    },
+    "required": ["properties"]
+}

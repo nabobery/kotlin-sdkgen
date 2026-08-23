@@ -21,8 +21,9 @@ import kotlin.test.assertTrue
  * discriminated `oneOf`, and lazily-typed `anyOf` views, exercised against the actual symbols the
  * generator now emits for these OpenRouter schemas. These symbol names (and, in a couple of cases,
  * the exact branch shape) differ from the earlier curated single-operation generation because
- * full-spec naming resolution scopes generated names per schema and `ChatRequest.stop` gained a
- * third, unconstrained `anyOf` branch.
+ * full-spec naming resolution scopes generated names per schema and `ChatRequest.stop` is a
+ * two-branch `anyOf` (`String` | `List<String>` with maxItems 4) whose degenerate `nullable: true`
+ * member is canonicalized into property-level nullability rather than a third catch-all branch.
  */
 class OpenRouterGeneratedBehaviorTest {
     @Test
@@ -154,14 +155,17 @@ class OpenRouterGeneratedBehaviorTest {
         assertEquals(listOf("stop", "halt", "wait", "done"), listValue.branch2)
         assertEquals(listRaw, SdkJson.encodeToString(listValue))
 
-        // A 5-element array no longer matches the size-bounded list branch (max 4), but the full-spec
-        // schema also declares an unconstrained `JsonElement?` catch-all branch that the pre-T19
-        // curated schema did not have, so it still decodes through that catch-all branch instead
-        // of throwing.
+        // A 5-element array matches neither branch: it is not a `String` (Branch1) and, though it is
+        // a `List<String>`, it violates the size bound (maxItems 4) enforced by Branch2. The 0.3.0
+        // contract has no unconstrained catch-all branch (the source anyOf's degenerate
+        // `nullable: true` member is canonicalized into property-level nullability), so `fromRaw`
+        // rejects the payload with a typed no-match failure instead of silently accepting it.
         val tooMany = buildJsonArray { repeat(5) { add(JsonPrimitive("stop-$it")) } }
-        val tooManyValue = InlineChatRequestStopX9225cac3.fromRaw(tooMany)
-        assertTrue(InlineChatRequestStopX9225cac3Branch.Branch2 !in tooManyValue.matchedBranches)
-        assertTrue(InlineChatRequestStopX9225cac3Branch.Branch3 in tooManyValue.matchedBranches)
+        val tooManyFailure =
+            assertFailsWith<InlineChatRequestStopX9225cac3NoMatchException> {
+                InlineChatRequestStopX9225cac3.fromRaw(tooMany)
+            }
+        assertTrue(tooManyFailure.message?.contains("matched 0 branches") == true)
 
         val stringRaw = "\"done\""
         val stringValue = SdkJson.decodeFromString<InlineChatRequestStopX9225cac3>(stringRaw)
@@ -177,6 +181,14 @@ class OpenRouterGeneratedBehaviorTest {
     fun stopRoundTripsAbsentAndStringList() {
         val absent = roundTrip(request())
         assertNull(absent.stop)
+
+        // JSON `null` for `stop` decodes to Kotlin `null` via property-level nullability (the source
+        // anyOf's degenerate `nullable: true` member canonicalized into the property), not a branch.
+        val explicitNull =
+            SdkJson.decodeFromString<ChatRequest>(
+                """{"messages":[{"role":"user","content":"hello"}],"stop":null}""",
+            )
+        assertNull(explicitNull.stop)
 
         val stringValue =
             roundTrip(

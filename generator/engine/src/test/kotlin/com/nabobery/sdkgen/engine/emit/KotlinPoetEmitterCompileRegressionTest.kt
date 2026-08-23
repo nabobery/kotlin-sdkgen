@@ -24,6 +24,7 @@ import com.nabobery.sdkgen.engine.declarations.KotlinDeclarationModel
 import com.nabobery.sdkgen.engine.declarations.KotlinFileDeclaration
 import com.nabobery.sdkgen.engine.declarations.KotlinTypeRef
 import com.nabobery.sdkgen.engine.declarations.ModelDeclaration
+import com.nabobery.sdkgen.engine.declarations.MultipartPartDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfCaseDeclaration
 import com.nabobery.sdkgen.engine.declarations.OneOfDeclaration
 import com.nabobery.sdkgen.engine.declarations.OpenEnumDeclaration
@@ -3395,7 +3396,7 @@ class KotlinPoetEmitterCompileRegressionTest {
     }
 
     @Test
-    fun openRouterDualContentTranscriptionIsDiagnosedAtMultipartSchema() {
+    fun openRouterDualContentTranscriptionProjectsCallableMediaVariants() {
         val source =
             Files.createTempFile("sdkgen-stt-dual-content-", ".yaml").also { path ->
                 path.writeText(
@@ -3449,19 +3450,30 @@ class KotlinPoetEmitterCompileRegressionTest {
                 ),
             )
 
-        val diagnostic = mapping.diagnostics.single { it.symbolId == "operation:createAudioTranscriptions" }
-        assertEquals(GenerationDiagnosticCode.UNREPRESENTABLE_OPERATION, diagnostic.code)
-        assertEquals(
-            "/paths/~1audio~1transcriptions/post/requestBody/content/multipart~1form-data/schema",
-            diagnostic.source.jsonPointer,
+        assertTrue(
+            mapping.diagnostics.none { it.symbolId == "operation:createAudioTranscriptions" },
+            mapping.diagnostics.joinToString { it.message },
         )
-        assertTrue(diagnostic.message.contains("incompatible request schemas"))
-        assertFalse(
+        val operation =
             mapping.model.files
                 .flatMap(KotlinFileDeclaration::declarations)
                 .filterIsInstance<OperationClientDeclaration>()
                 .flatMap(OperationClientDeclaration::operations)
-                .any { it.operationIdentity == "createAudioTranscriptions" },
+                .single { it.operationIdentity == "createAudioTranscriptions" }
+        val variants = operation.requestVariants
+
+        assertEquals(2, variants.size)
+        assertEquals("createAudioTranscriptions", variants.first().methodName)
+        assertEquals("", variants.first().nameSuffix)
+        assertEquals(listOf("application/json"), variants.first().mediaTypes)
+        assertEquals("createAudioTranscriptionsMultipart", variants.last().methodName)
+        assertEquals("Multipart", variants.last().nameSuffix)
+        assertEquals(listOf("multipart/form-data"), variants.last().mediaTypes)
+        // Multipart/form metadata lives ONLY on the multipart variant.
+        assertTrue(variants.first().multipartParts.isEmpty())
+        assertEquals(
+            listOf("file", "language", "model", "response_format"),
+            variants.last().multipartParts.map(MultipartPartDeclaration::wireName),
         )
     }
 
@@ -4277,6 +4289,103 @@ class KotlinPoetEmitterCompileRegressionTest {
                 ),
             ),
         )
+
+    // RED-first regression for the JVM 255-argument method-signature limit. A large discriminated union
+    // (here 46 branches, each contributing a `type` discriminator state and a payload state) generates an
+    // inspection carrier whose flat `data class` shape would emit a `copy$default` synthetic well beyond the
+    // 255-slot cap. kotlinc COMPILES that class, but the JVM REJECTS it at load time with
+    // `ClassFormatError: Too many arguments in method signature`. The pre-fix emitter therefore passes
+    // `compileGenerated` yet fails the moment `BigUnionInspection` is loaded (directly, or transitively via a
+    // decode). The threshold-based dual carrier shape drops the data-class form for oversized unions so the
+    // class loads and decodes normally.
+    @Test
+    fun oneOfInspectionCarrierBeyondJvmParameterLimitLoadsAndDecodes() {
+        val string = KotlinTypeRef("kotlin", "String")
+        val branchCount = 46
+        val cases =
+            (0 until branchCount).map { index ->
+                val payload = UnionFieldDeclaration("payload$index", "payload$index", string)
+                OneOfCaseDeclaration(
+                    symbolId = "schema:BigUnion/case$index",
+                    order = index,
+                    resolvedName = "Case$index",
+                    requiredFields = listOf(payload),
+                    matchFields =
+                        listOf(
+                            UnionFieldDeclaration("type", "type", string, expectedStringValue = "type$index"),
+                            payload,
+                        ),
+                )
+            }
+        val union =
+            OneOfDeclaration(
+                symbolId = "schema:BigUnion",
+                order = 0,
+                packageName = PACKAGE,
+                fileName = "BigUnion",
+                resolvedName = "BigUnion",
+                kdoc = "",
+                cases = cases,
+            )
+        val rendered =
+            KotlinPoetEmitter(PACKAGE)
+                .render(
+                    KotlinDeclarationModel(
+                        listOf(
+                            KotlinFileDeclaration(PACKAGE, "BigUnion", listOf(union)),
+                            KotlinFileDeclaration(
+                                PACKAGE,
+                                "SerializationSupport",
+                                listOf(
+                                    SupportDeclaration(
+                                        "support:serialization",
+                                        0,
+                                        PACKAGE,
+                                        "SerializationSupport",
+                                        "SerializationSupport",
+                                        "",
+                                        SupportKind.Serialization,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ).files
+        val unionSource = rendered.single { it.path.endsWith("/BigUnion.kt") }.bytes.decodeToString()
+        // Oversized union must use the no-arg mutable carrier, not the flat data class.
+        assertFalse(unionSource.contains("internal data class BigUnionInspection"))
+        assertTrue(unionSource.contains("internal class BigUnionInspection"))
+        assertTrue(unionSource.contains("internal var rawEmpty: Boolean = false"))
+        assertTrue(unionSource.contains("val inspection = BigUnionInspection()"))
+
+        val harness =
+            """
+            package $PACKAGE
+
+            fun decodeBigUnion(raw: String): String {
+                val value = SdkJson.decodeFromString(BigUnionSerializer, raw)
+                return value::class.simpleName ?: "?"
+            }
+            """.trimIndent()
+        val output =
+            compileGenerated(
+                rendered +
+                    RenderedKotlinFile(
+                        "${PACKAGE.replace('.', '/')}/BigUnionHarness.kt",
+                        harness.encodeToByteArray(),
+                    ),
+            )
+
+        URLClassLoader(arrayOf(output.toUri().toURL()), javaClass.classLoader).use { loader ->
+            // Directly load the carrier: pre-fix this throws ClassFormatError before any decode runs.
+            loader.loadClass("$PACKAGE.BigUnionInspection")
+            val decode =
+                loader
+                    .loadClass("$PACKAGE.BigUnionHarnessKt")
+                    .getMethod("decodeBigUnion", String::class.java)
+            assertEquals("Case5", decode.invoke(null, """{"type":"type5","payload5":"ok"}"""))
+        }
+    }
 
     private fun sourcePointer(): SourcePointer = SourcePointer("sdkgen://test", "/", SourceLocation(1, 1, 0))
 

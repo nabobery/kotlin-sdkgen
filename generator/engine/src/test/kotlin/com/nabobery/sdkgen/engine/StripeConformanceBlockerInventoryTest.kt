@@ -50,11 +50,12 @@ class StripeConformanceBlockerInventoryTest {
                 }.eachCount(),
         )
         assertEquals(
-            68,
+            EXPECTED_CURRENT_BLOCKED_SYMBOLS,
             validation.exclusions
                 .map { exclusion -> exclusion.symbolId }
                 .toSet()
                 .size,
+            "Stripe current blocked-symbol set size drifted from the frozen baseline",
         )
 
         val inventory = Path.of(requireNotNull(System.getProperty("engine.t11StripeBlockerInventory")))
@@ -86,17 +87,29 @@ class StripeConformanceBlockerInventoryTest {
             validation.exclusions.mapTo(mutableSetOf(), GenerationExclusionView::symbolId)
 
         assertEquals(161, historicalSymbolIds.size)
-        assertEquals(
-            emptySet(),
-            currentSymbolIds - historicalSymbolIds,
-            "ADR-0014 must not block any operation that was generatable before",
-        )
+        assertNoNewlyBlockedSymbol(currentSymbolIds, historicalSymbolIds)
         assertEquals(93, historicalSymbolIds.size - currentSymbolIds.size)
 
         val output = Path.of(requireNotNull(System.getProperty("engine.stripeGeneratedOutput"))).resolve("blocked")
         val failure =
             assertFailsWith<GenerationBlockedException> { pipeline.generate(config, source, emptyList(), output) }
         assertEquals(validation, failure.validation)
+    }
+
+    /**
+     * The blocker-transition contract for Stripe: the current blocked-symbol set may only shrink relative to the
+     * historical baseline. Any operation that generated before must still generate — a newly blocked symbol is a
+     * regression. Kept as a named, reusable assertion so future tasks reuse the exact monotonicity guarantee.
+     */
+    private fun assertNoNewlyBlockedSymbol(
+        current: Set<String>,
+        historical: Set<String>,
+    ) {
+        assertEquals(
+            emptySet(),
+            current - historical,
+            "no operation that was generatable before may become newly blocked",
+        )
     }
 
     private fun inputs(): Pair<SdkgenConfigV1Alpha1, ResolvedSource> {
@@ -174,4 +187,9 @@ class StripeConformanceBlockerInventoryTest {
         }
 
     private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte) }
+
+    private companion object {
+        // Frozen blocker-transition baseline (verified 2026-08-21): the current Stripe blocked-symbol set size.
+        const val EXPECTED_CURRENT_BLOCKED_SYMBOLS = 68
+    }
 }

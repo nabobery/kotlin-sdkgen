@@ -142,15 +142,15 @@ The repository keeps generated snapshots and executable consumers for three inde
 | Corpus                                | What it demonstrates                                                                                                                        |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | [OpenRouter](conformance/openrouter/) | KMP generation with typed contracts, SSE streaming, pagination, authentication, retries, and typed errors.                                  |
-| [GitHub REST](conformance/github/)    | 7,169 generated Kotlin files; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.                        |
+| [GitHub REST](conformance/github/)    | 7,189 generated Kotlin files; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.                        |
 | [Stripe](conformance/stripe/)         | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses. |
 
 These corpora are conformance fixtures, not supported third-party SDK distributions. Their pinned inputs, overlays,
 waivers, snapshots, and consumer tests make generator changes reviewable at realistic scale.
 
 For a smaller tour, browse the generated
-[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/c62dfca137bc04cdabdfca822d5f9dac7d6ca8e077481f41f601fb32c27a2c59/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
-or the [`Stripe client snapshot`](conformance/stripe/.snapshots/41a6e92abf3a36ac96ecb503515327e98d3f1fe559f267b9e8f3a355d537eb13/com/nabobery/sdkgen/generated/stripe/StripeClient.kt).
+[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/1c1f75a48aeafba27a45a3c86e43d89811d043d1c9460d6187ddd598e9bbebbd/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
+or the [`Stripe client snapshot`](conformance/stripe/.snapshots/4b1982bfc6d7a56073bb5630337b35f99f172faa59860a4f8e13595a894ed4d4/com/nabobery/sdkgen/generated/stripe/StripeClient.kt).
 
 ## Benchmark
 
@@ -181,9 +181,11 @@ Implemented and released through `0.2.0`:
 - Server-sent event streaming, offset/limit pagination, and Intel Apple publication variants for the portable
   runtime, testing library, and Ktor transport.
 
-The OpenRouter conformance corpus currently generates 86 of 89 operations. The three intentionally excluded
-operations and the generator limitations blocking them are documented in the
-[`OpenRouter corpus README`](conformance/openrouter/README.md).
+The OpenRouter conformance corpus now generates all 89 of 89 operations with zero blockers. This full-surface
+support lands on the 0.3.0 development line and is not yet part of a published release (the latest release is
+`0.2.0`, which generates 86 of 89). The strict `allOf` intersection algebra, audited overrides, and media-specific
+request variants behind it are documented in the [`OpenRouter corpus README`](conformance/openrouter/README.md) and
+[ADR 0021](docs/adr/0021-schema-intersection-and-request-media-variants.md).
 
 See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
 [`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,

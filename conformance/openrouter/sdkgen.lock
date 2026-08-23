@@ -1,6 +1,6 @@
 {
   "version": "v1alpha1",
-  "configDigest": "4c2395b17adf82080ab66a7f833880f76c7f58fae4397eafdf226386c57901a1",
+  "configDigest": "b679f33544b38bbad5dc928d836a1c32ee2cc2fb1b6a09539216d4cfce475c13",
   "source": {
     "canonicalUri": "sdkgen://source/openapi.yaml",
     "sha256": "b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47",
@@ -9,13 +9,18 @@
   },
   "overlays": [
     {
+      "id": "openrouter-allof-resolution-audit",
+      "canonicalUri": "sdkgen://overlay/openrouter-allof-resolution-audit",
+      "sha256": "f8bc7a924cf9bc0af7ac54abc8a933037d0c30631b7bf690884ba3dfcd5cb6d0"
+    },
+    {
       "id": "openrouter-full-spec-compat",
       "canonicalUri": "sdkgen://overlay/openrouter-full-spec-compat",
-      "sha256": "f6f1916254474e974484ab516e3cd29f81902783f617a48f3034652b6628f8c2"
+      "sha256": "0ced3f18aa83e29f6aadc41d82d302e0312f3736c5c4914e27250dab964fb5c5"
     }
   ],
   "generator": {
-    "version": "0.2.1-SNAPSHOT",
+    "version": "0.3.0-SNAPSHOT",
     "edition": "community"
   },
   "compatibilityProfiles": [],

@@ -282,6 +282,67 @@ public data class PropertyOwnership(
     public override val source: SourcePointer,
 ) : MaterialNode
 
+/** The only currently supported inheritance-style allOf resolution strategy. */
+public enum class AllOfResolutionStrategy {
+    UNION_SUPERSEDE,
+}
+
+/**
+ * Stable identity of the allOf branch selected by an audited resolution entry: either the literal
+ * `allOf` `$ref` text ([Referenced]) or the resolved-form digest of the single inline branch
+ * ([Inline]). See [AllOfPropertyResolution] for the exact digest contract.
+ */
+public sealed interface AllOfResolutionSource {
+    public data class Referenced(
+        public val ref: String,
+    ) : AllOfResolutionSource
+
+    public data class Inline(
+        public val schemaSha256: String,
+    ) : AllOfResolutionSource
+}
+
+/**
+ * A validated per-property allOf resolution supplied by a reviewed overlay (the
+ * `x-sdkgen-allof-resolution` canonical schema extension).
+ *
+ * Both [schemaSha256][AllOfResolutionSource.Inline.schemaSha256] and [propertySchemaSha256] are
+ * SHA-256 digests over the **resolved structural form** of a schema node, not its raw source bytes:
+ * the canonical JSON — object keys sorted lexicographically, insignificant whitespace removed (via
+ * `DocumentCodec.canonicalJson`) — of the node with every `$ref` replaced, transitively, by the
+ * content of its target. Each `$ref` resolves against the document that declared it, so external
+ * references follow their own base URI. A `$ref` whose canonical target id
+ * `<documentUri>#<jsonPointer>` is already being resolved on the current path is a cycle and is
+ * substituted with the deterministic token object `{"$sdkgen-allof-resolution-cycle": "<id>"}`;
+ * an unresolvable `$ref` is substituted with `{"$sdkgen-allof-resolution-unresolved-ref": "<raw>"}`.
+ * Sibling keywords alongside a `$ref` apply CONJUNCTIVELY, as in JSON Schema: on a key conflict the
+ * resolved form keeps BOTH declarations, wrapping them as
+ * `{"$sdkgen-allof-resolution-conjunction": [<target value>, <sibling value>]}`. Because the digest
+ * covers the resolved target and every shadowed keyword, mutating a referenced schema without
+ * changing the `$ref` text still shifts the digest and fails adaptation closed. [propertySchemaSha256]
+ * covers the resolved schema of [propertyName] on the selected branch, located by following that
+ * branch's `$ref`/alias chain (with cycle detection); an ambiguous chain is rejected rather than
+ * silently resolved.
+ *
+ * [winningPropertySchemaId] is the semantic-model [SchemaId] the adapter assigned to the selected
+ * branch's declaration of [propertyName] — the same id an operand [PropertyModel.schema] carries when
+ * the engine folds the `allOf`. It lets the strict-intersection resolver elect the audited branch by
+ * matching that operand's identity directly, without re-digesting the adapted model (the
+ * resolved-structural-form [propertySchemaSha256]/[AllOfResolutionSource.Inline.schemaSha256] digests are
+ * computed over the `DocumentCodec.canonicalJson` of the ref-resolved node at adaptation and never
+ * recomputed in the engine — a structural digest of the adapted SchemaModel could not reproduce them).
+ * The binding is total: an accepted audited resolution always names exactly one semantic node, and an
+ * election the adapter cannot bind fails adaptation instead of producing an unbound entry.
+ */
+public data class AllOfPropertyResolution(
+    public val propertyName: String,
+    public val strategy: AllOfResolutionStrategy,
+    public val branch: AllOfResolutionSource,
+    public val propertySchemaSha256: String,
+    public override val source: SourcePointer,
+    public val winningPropertySchemaId: SchemaId,
+) : MaterialNode
+
 /**
  * A single property on an object schema. [requiredness] and [nullability] state the contract;
  * [presenceStates] is the derived, authoritative set of instance shapes the property actually
@@ -365,6 +426,8 @@ public data class SchemaModel(
     public val contentMediaType: String? = null,
     /** Property names asserted by this schema's own `required` keyword, including inherited-only constraints. */
     public val requiredPropertyNames: List<String> = emptyList(),
+    /** Audited per-property resolution metadata for this schema's strict `allOf` intersection. */
+    public val allOfPropertyResolutions: List<AllOfPropertyResolution> = emptyList(),
 ) : MaterialNode
 
 public data class EncodingModel(

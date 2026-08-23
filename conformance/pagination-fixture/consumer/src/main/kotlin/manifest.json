@@ -6,7 +6,7 @@
     "configDigest": "9ff460acbd819f4759a4a4da72a80fb3ba1d0204a01849548dcd334ca515e7d2",
     "declarationModelSha256": "924785735e957b48f3cd1e1d68cbd79b9280c3604f5ff60229f1ec1f3afe1b86",
     "effectiveContractSha256": "2602438f453d055590335937b2c675ced78eb3bf02e9233de7abf1caa7f669ba",
-    "semanticModelSha256": "69c2ae3e36cb9dce56466606e2ead50f5936d2cb2f30f6244f1c08ffa9aeb328",
+    "semanticModelSha256": "75452d6f576240ab54317f465339504a2729072310e967a1d877cacb3b129c15",
     "kotlinApiSha256": "f7c61baaf09f9da1825c97c2e567d14d6ccdea3e606ba803fc92109f498fc636",
     "source": {
         "canonicalUri": "sdkgen://pagination-fixture/openapi.yaml",

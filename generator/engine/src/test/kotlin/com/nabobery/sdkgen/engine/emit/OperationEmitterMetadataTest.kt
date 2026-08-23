@@ -17,6 +17,7 @@ import com.nabobery.sdkgen.engine.declarations.OperationDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationParameterDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationParameterLocation
 import com.nabobery.sdkgen.engine.declarations.OperationRequestBodyAlternative
+import com.nabobery.sdkgen.engine.declarations.OperationRequestVariantDeclaration
 import com.nabobery.sdkgen.engine.declarations.OperationResponseAlternative
 import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
 import com.nabobery.sdkgen.engine.declarations.OperationSafetyDeclaration
@@ -25,11 +26,14 @@ import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaratio
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeRef
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
 import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
+import com.nabobery.sdkgen.engine.declarations.RequestBodyEncoding
+import com.nabobery.sdkgen.engine.declarations.RequestBodyReplayability
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
 import com.nabobery.sdkgen.engine.declarations.RetryDeclaration
 import com.nabobery.sdkgen.engine.declarations.StreamingDeclaration
 import com.nabobery.sdkgen.model.JsonValue
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -321,6 +325,610 @@ class OperationEmitterMetadataTest {
             methodKdoc = "Uploads an asset.",
             requestBodyAlternatives = listOf(multipart),
             requestBodyRequired = true,
+        )
+    }
+
+    @Test
+    fun dualMediaOperationEmitsOneMethodCodecAndMetadataPerCallableVariant() {
+        val source = render(dualMediaOperation())
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        // One callable method per declared variant, each typed to its own request wire type.
+        assertTrue(
+            Regex("public suspend fun createTranscription\\(\\s?request: SttRequestJson").containsMatchIn(flat),
+            source,
+        )
+        assertTrue(
+            Regex("public suspend fun createTranscriptionMultipart\\(\\s?request: SttRequestMultipart")
+                .containsMatchIn(flat),
+            source,
+        )
+        // The typed withResponse surface exists for every callable variant too.
+        assertTrue(flat.contains("public suspend fun createTranscriptionWithResponse("), source)
+        assertTrue(flat.contains("public suspend fun createTranscriptionMultipartWithResponse("), source)
+        // Each variant carries its own metadata whose requestMediaTypes are exactly the variant's own —
+        // this is what hardcodes the Content-Type per method at execution time. (Single-variant operations keep
+        // the operation-level property, so only the multipart variant's dedicated name appears here.)
+        assertTrue(flat.contains("""val createTranscriptionMultipartMetadata: OperationMetadata"""), source)
+        assertTrue(flat.contains("""requestMediaTypes = listOf("application/json")"""), source)
+        assertTrue(flat.contains("""requestMediaTypes = listOf("multipart/form-data")"""), source)
+        // Each variant encodes through its own codec: a kotlinx JSON codec for SttRequestJson (id constant
+        // "createTranscription.request") and its own multipart codec object for SttRequestMultipart, behind
+        // separate registries.
+        assertTrue(
+            source.contains("""CREATE_TRANSCRIPTION_REQUEST_CODEC_ID: String = "createTranscription.request""""),
+            source,
+        )
+        assertTrue(source.contains("MediaTypeCodec<SttRequestJson>"), source)
+        assertTrue(source.contains("MediaTypeCodec<SttRequestMultipart>"), source)
+        assertTrue(source.contains(".binary(name = \"file\", stream = request.file"), source)
+        assertTrue(source.contains("val createTranscriptionRequestCodecRegistry"), source)
+        assertTrue(source.contains("val createTranscriptionMultipartRequestCodecRegistry"), source)
+        // No runtime media-type selection anywhere in the generated method bodies: each method body wires
+        // only its OWN registry. Slice each method body and assert which registry it references.
+        val jsonBody =
+            source
+                .substringAfter("public suspend fun createTranscription(")
+                .substringBefore("public suspend fun")
+        val multipartBody =
+            source.substringAfter("public suspend fun createTranscriptionMultipart(").substringBefore("\n  }")
+        assertTrue(jsonBody.contains("createTranscriptionRequestCodecRegistry"), jsonBody)
+        assertFalse(jsonBody.contains("createTranscriptionMultipartRequestCodecRegistry"), jsonBody)
+        assertTrue(multipartBody.contains("createTranscriptionMultipartRequestCodecRegistry"), multipartBody)
+        assertFalse(multipartBody.contains("createTranscriptionRequestCodecRegistry,"), multipartBody)
+        assertFalse(flat.contains("mediaType =="), source)
+    }
+
+    @Test
+    fun dualMediaVariantsShareResponseTypesDecoderAndErrorSurface() {
+        val source = render(dualMediaOperation())
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        // Response semantics stay operation-level: one response hierarchy, one decoder object, one API
+        // exception type — never duplicated per media family.
+        assertEquals(1, Regex("sealed interface CreateTranscriptionResponse").findAll(source).count())
+        assertEquals(1, Regex("private object CreateTranscriptionResponseDecoder").findAll(source).count())
+        assertEquals(1, Regex("class CreateTranscriptionApiException").findAll(source).count())
+        assertTrue(
+            flat.contains(
+                "executeWithTypedErrors<SttRequestJson, CreateTranscriptionResponse, Transcription>(",
+            ),
+            source,
+        )
+        assertTrue(
+            flat.contains(
+                "executeWithTypedErrors<SttRequestMultipart, CreateTranscriptionResponse, Transcription>(",
+            ),
+            source,
+        )
+    }
+
+    @Test
+    fun dualMediaStreamingOperationEmitsTheStreamingFlowSurfaceForEveryVariant() {
+        val source = render(dualMediaStreamingOperation())
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        // The primary keeps its streaming surface: a cold Flow method executed through executeRaw + sseFlow.
+        assertTrue(
+            Regex("public fun createTranscription\\(\\s?request: SttRequestJson").containsMatchIn(flat),
+            source,
+        )
+        val primaryBody =
+            source
+                .substringAfter("public fun createTranscription(")
+                .substringBefore("public fun")
+        assertTrue(primaryBody.contains("executor.executeRaw<SttRequestJson>"), primaryBody)
+        assertTrue(primaryBody.contains("createTranscriptionRequestCodecRegistry"), primaryBody)
+
+        // A streaming operation's SECONDARY variant must get the SAME streaming surface — a Flow method through
+        // the streaming execution path — differing only in its own request codec ids, request type, and metadata.
+        // It must never reach the buffered executor.execute path: streaming operations emit no response codec
+        // ids, so that call would always throw after performing transport.
+        assertTrue(
+            Regex("public fun createTranscriptionMultipart\\(\\s?request: SttRequestMultipart").containsMatchIn(flat),
+            source,
+        )
+        assertFalse(
+            Regex("public suspend fun createTranscriptionMultipart").containsMatchIn(flat),
+            source,
+        )
+        val secondarySignature = flat.substringAfter("public fun createTranscriptionMultipart(").trimStart()
+        assertTrue(secondarySignature.startsWith("request: SttRequestMultipart"), flat)
+        assertTrue(flat.contains("): Flow<StreamEvent>"), source)
+        val secondaryBody =
+            source
+                .substringAfter("public fun createTranscriptionMultipart(")
+                .substringBefore("public fun")
+        assertTrue(secondaryBody.contains("sseFlow("), secondaryBody)
+        assertTrue(secondaryBody.contains("executor.executeRaw<SttRequestMultipart>"), secondaryBody)
+        assertFalse(secondaryBody.contains("executor.execute<"), secondaryBody)
+        // Own request codec id list and registry; shared event decoding stays operation-level.
+        assertTrue(
+            secondaryBody.contains("listOf(MetadataCodecs.CREATE_TRANSCRIPTION_MULTIPART_REQUEST_CODEC_ID)"),
+            secondaryBody,
+        )
+        assertTrue(secondaryBody.contains("createTranscriptionMultipartRequestCodecRegistry"), secondaryBody)
+        assertTrue(
+            secondaryBody.contains(
+                "createTranscriptionMultipartMetadata.streaming as? StreamingDescriptor.ServerSentEvents",
+            ),
+            secondaryBody,
+        )
+        // Its own metadata hardwires the variant's request media types (the Content-Type of every call).
+        assertTrue(flat.contains("""val createTranscriptionMultipartMetadata: OperationMetadata"""), source)
+        assertTrue(flat.contains("""requestMediaTypes = listOf("multipart/form-data")"""), source)
+        assertFalse(flat.contains("mediaType =="), source)
+    }
+
+    @Test
+    fun genericSecondaryMediaVariantBindsItsOwnMediaTypesIntoItsCodec() {
+        val source = render(dualGenericMediaOperation())
+        val flat = source.replace(Regex("\\s+"), " ")
+
+        // A VALUE-family secondary with a generic (non-form, non-multipart) media type is a callable variant
+        // taking its wire type directly; its method body executes through its own registry and codec id.
+        assertTrue(
+            Regex("public suspend fun createTranscriptionMixed\\(\\s?request: String").containsMatchIn(flat),
+            source,
+        )
+        assertTrue(
+            flat.contains(
+                """CREATE_TRANSCRIPTION_MIXED_REQUEST_CODEC_ID: String = "createTranscription.requestMixed"""",
+            ),
+            source,
+        )
+        assertTrue(source.contains("val createTranscriptionMixedRequestCodecRegistry"), source)
+        // The codec emitted for this variant must advertise the VARIANT's exact media types: the executor sends
+        // the variant's declared Content-Type, and a JSON-only codec can never be selected for it.
+        val codecSection =
+            source
+                .substringAfter("val createTranscriptionMixedRequestCodec: MediaTypeCodec<String>")
+                .substringBefore("val createTranscriptionMixedRequestCodecRegistry")
+        assertTrue(codecSection.contains("""setOf("multipart/mixed")"""), codecSection)
+        val mixedBody = flat.substringAfter("public suspend fun createTranscriptionMixed(")
+        assertTrue(mixedBody.contains("createTranscriptionMixedRequestCodecRegistry"), mixedBody)
+    }
+
+    @Test
+    fun singleVariantDeclarationRendersByteIdenticallyToOperationLevelProjection() {
+        val withDeclaredSingleVariant = render(dualMediaOperation(variants = listOf(jsonVariantOnly())))
+        val legacy = render(dualMediaOperation(variants = emptyList()))
+
+        assertEquals(legacy, withDeclaredSingleVariant)
+    }
+
+    @Test
+    fun caseCollidingVariantConstantsAreDisambiguatedThroughTheNamePlan() {
+        // 'createTranscriptionABcJson' and 'createTranscriptionAbcJson' are distinct member names, but the
+        // screaming-snake transform is lossy: both become CREATE_TRANSCRIPTION_ABC_JSON. Without
+        // a collision-checked constant plan the codecs object emits two identical `const val`s and fails to
+        // compile; the plan gives the later variant a deterministic numeric suffix instead.
+        fun secondary(
+            methodName: String,
+            suffix: String,
+            media: String,
+            type: KotlinTypeRef,
+        ) = OperationRequestVariantDeclaration(
+            methodName = methodName,
+            nameSuffix = suffix,
+            operationIdentity = "createTranscription",
+            mediaTypes = listOf(media),
+            type = type,
+            required = true,
+            replayability = RequestBodyReplayability.REPLAYABLE,
+            encoding = RequestBodyEncoding.JSON,
+        )
+        val rendered =
+            render(
+                dualMediaOperation(
+                    variants =
+                        listOf(
+                            jsonVariantOnly(),
+                            secondary(
+                                "createTranscriptionABcJson",
+                                "ABcJson",
+                                "application/a-bc+json",
+                                KotlinTypeRef("kotlin", "Long"),
+                            ),
+                            secondary(
+                                "createTranscriptionAbcJson",
+                                "AbcJson",
+                                "application/abc+json",
+                                KotlinTypeRef("kotlin", "String"),
+                            ),
+                        ),
+                ),
+            )
+        val screaming = Regex("CREATE_TRANSCRIPTION_ABC_JSON_REQUEST_CODEC_ID\\b").findAll(rendered).count()
+        val disambiguated = Regex("CREATE_TRANSCRIPTION_ABC_JSON_REQUEST_CODEC_ID2\\b").findAll(rendered).count()
+        assertTrue(screaming > 0, rendered)
+        assertTrue(disambiguated > 0, "colliding constant must take a deterministic suffix:\n$rendered")
+    }
+
+    @Test
+    fun zeroPropertyFormVariantsStillEmitTheFormCodecNeverJson() {
+        // A valid zero-property form body has empty field metadata; the FORM encoding on the declaration —
+        // not the emptiness of that metadata — must select the form codec. A JSON fallback here would send
+        // `{}` under an urlencoded Content-Type.
+        val emptyForm =
+            OperationRequestVariantDeclaration(
+                methodName = "createTranscription",
+                nameSuffix = "",
+                operationIdentity = "createTranscription",
+                mediaTypes = listOf("application/x-www-form-urlencoded"),
+                type = KotlinTypeRef(PACKAGE, "SttRequestForm"),
+                required = true,
+                formFields = emptyList(),
+                replayability = RequestBodyReplayability.REPLAYABLE,
+                encoding = RequestBodyEncoding.FORM,
+            )
+        val rendered = render(dualMediaOperation(variants = listOf(emptyForm)))
+        assertTrue(rendered.contains("FormCodec"), rendered)
+        assertTrue(
+            !rendered.contains("KotlinxSerializationCodec(MetadataCodecs.CREATETRANSCRIPTION_REQUEST_CODEC_ID") &&
+                !rendered.contains("KotlinxSerializationCodec(CREATETRANSCRIPTION_REQUEST_CODEC_ID"),
+            "an empty form variant must never fall back to the kotlinx JSON request codec:\n$rendered",
+        )
+    }
+
+    private fun jsonVariantOnly(): OperationRequestVariantDeclaration =
+        OperationRequestVariantDeclaration(
+            methodName = "createTranscription",
+            nameSuffix = "",
+            operationIdentity = "createTranscription",
+            mediaTypes = listOf("application/json"),
+            type = KotlinTypeRef(PACKAGE, "SttRequestJson"),
+            required = true,
+            replayability = RequestBodyReplayability.REPLAYABLE,
+            encoding = RequestBodyEncoding.JSON,
+        )
+
+    @Test
+    fun variantReplayabilityMustMatchTheGeneratedBodyEncoding() {
+        val stream = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+
+        val streamPartMarkedReplayable =
+            OperationRequestVariantDeclaration(
+                methodName = "createTranscriptionMultipart",
+                nameSuffix = "Multipart",
+                operationIdentity = "createTranscription",
+                mediaTypes = listOf("multipart/form-data"),
+                type = KotlinTypeRef(PACKAGE, "SttRequestMultipart"),
+                required = true,
+                multipartParts =
+                    listOf(
+                        MultipartPartDeclaration(
+                            wireName = "file",
+                            accessorName = "file",
+                            type = stream,
+                            required = true,
+                            contentType = "audio/wav",
+                        ),
+                    ),
+                replayability = RequestBodyReplayability.REPLAYABLE,
+                encoding = RequestBodyEncoding.MULTIPART,
+            )
+        val replayableFailure =
+            assertFailsWith<IllegalArgumentException> {
+                render(dualMediaOperation(variants = listOf(streamPartMarkedReplayable)))
+            }
+        assertTrue(requireNotNull(replayableFailure.message).contains("NON_REPLAYABLE"))
+
+        val bytesOnlyMultipartMarkedNonReplayable =
+            OperationRequestVariantDeclaration(
+                methodName = "createTranscription",
+                nameSuffix = "",
+                operationIdentity = "createTranscription",
+                mediaTypes = listOf("multipart/form-data"),
+                type = KotlinTypeRef(PACKAGE, "SttRequestMultipart"),
+                required = true,
+                multipartParts =
+                    listOf(
+                        MultipartPartDeclaration(
+                            wireName = "file",
+                            accessorName = "file",
+                            type = KotlinTypeRef(PACKAGE, "FileBytes"),
+                            required = true,
+                            contentType = "audio/wav",
+                        ),
+                    ),
+                replayability = RequestBodyReplayability.NON_REPLAYABLE,
+                encoding = RequestBodyEncoding.MULTIPART,
+            )
+        val nonReplayableFailure =
+            assertFailsWith<IllegalArgumentException> {
+                render(dualMediaOperation(variants = listOf(bytesOnlyMultipartMarkedNonReplayable)))
+            }
+        assertTrue(requireNotNull(nonReplayableFailure.message).contains("REPLAYABLE"))
+
+        val streamBodyMarkedReplayable =
+            OperationRequestVariantDeclaration(
+                methodName = "uploadBlob",
+                nameSuffix = "",
+                operationIdentity = "uploadBlob",
+                mediaTypes = listOf("application/octet-stream"),
+                type = stream,
+                required = true,
+                replayability = RequestBodyReplayability.REPLAYABLE,
+                encoding = RequestBodyEncoding.BINARY,
+            )
+        val streamFailure =
+            assertFailsWith<IllegalArgumentException> {
+                render(blobUploadOperation(streamBodyMarkedReplayable))
+            }
+        assertTrue(requireNotNull(streamFailure.message).contains("NON_REPLAYABLE"))
+    }
+
+    private fun blobUploadOperation(variant: OperationRequestVariantDeclaration): OperationDeclaration {
+        val stream = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream")
+        return OperationDeclaration(
+            symbolId = "operation:uploadBlob",
+            order = 0,
+            operationId = "uploadBlob",
+            operationIdentity = "uploadBlob",
+            method = "POST",
+            path = "/blobs",
+            requestMediaTypes = listOf("application/octet-stream"),
+            responseMediaTypes = emptyList(),
+            successStatusCodes = setOf(204),
+            requestType = stream,
+            responseType = KotlinTypeRef("kotlin", "Unit"),
+            requestCodecPropertyName = "uploadBlobRequestCodec",
+            responseCodecPropertyName = "uploadBlobResponseCodec",
+            requestCodecConstantName = "UPLOAD_BLOB_REQUEST_CODEC_ID",
+            responseCodecConstantName = "UPLOAD_BLOB_RESPONSE_CODEC_ID",
+            requestCodecId = "uploadBlob.request",
+            responseCodecId = "uploadBlob.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(null, null, null),
+            methodKdoc = "Uploads a blob.",
+            requestBodyRequired = true,
+            requestVariants = listOf(variant),
+        )
+    }
+
+    private fun dualMediaOperation(variants: List<OperationRequestVariantDeclaration>? = null): OperationDeclaration {
+        val string = KotlinTypeRef("kotlin", "String")
+        val jsonRequest = KotlinTypeRef(PACKAGE, "SttRequestJson")
+        val multipartRequest = KotlinTypeRef(PACKAGE, "SttRequestMultipart")
+        return OperationDeclaration(
+            symbolId = "operation:createTranscription",
+            order = 0,
+            operationId = "createTranscription",
+            operationIdentity = "createTranscription",
+            method = "POST",
+            path = "/audio/transcriptions/{team}",
+            requestMediaTypes = listOf("application/json"),
+            responseMediaTypes = listOf("application/json"),
+            successStatusCodes = setOf(200),
+            requestType = jsonRequest,
+            responseType = KotlinTypeRef(PACKAGE, "Transcription"),
+            requestCodecPropertyName = "createTranscriptionRequestCodec",
+            responseCodecPropertyName = "createTranscriptionResponseCodec",
+            requestCodecConstantName = "CREATE_TRANSCRIPTION_REQUEST_CODEC_ID",
+            responseCodecConstantName = "CREATE_TRANSCRIPTION_RESPONSE_CODEC_ID",
+            requestCodecId = "createTranscription.request",
+            responseCodecId = "createTranscription.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(60_000, 30_000, null),
+            methodKdoc = "Transcribes audio.",
+            parameters =
+                listOf(
+                    OperationParameterDeclaration("team", OperationParameterLocation.PATH, string, required = true),
+                ),
+            requestBodyAlternatives =
+                listOf(
+                    OperationRequestBodyAlternative("application/json", jsonRequest, required = true),
+                ),
+            requestBodyRequired = true,
+            requestVariants =
+                variants
+                    ?: listOf(
+                        OperationRequestVariantDeclaration(
+                            methodName = "createTranscription",
+                            nameSuffix = "",
+                            operationIdentity = "createTranscription",
+                            mediaTypes = listOf("application/json"),
+                            type = jsonRequest,
+                            required = true,
+                            replayability = RequestBodyReplayability.REPLAYABLE,
+                            encoding = RequestBodyEncoding.JSON,
+                        ),
+                        OperationRequestVariantDeclaration(
+                            methodName = "createTranscriptionMultipart",
+                            nameSuffix = "Multipart",
+                            operationIdentity = "createTranscription",
+                            mediaTypes = listOf("multipart/form-data"),
+                            type = multipartRequest,
+                            required = true,
+                            multipartParts =
+                                listOf(
+                                    MultipartPartDeclaration(
+                                        wireName = "file",
+                                        accessorName = "file",
+                                        type = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
+                                        required = true,
+                                        contentType = "audio/wav",
+                                    ),
+                                ),
+                            replayability = RequestBodyReplayability.NON_REPLAYABLE,
+                            encoding = RequestBodyEncoding.MULTIPART,
+                        ),
+                    ),
+            responseAlternatives =
+                listOf(
+                    OperationResponseAlternative(
+                        ResponseSelectorDeclaration.ExactStatus(200),
+                        listOf("application/json"),
+                        KotlinTypeRef(PACKAGE, "Transcription"),
+                    ),
+                    OperationResponseAlternative(
+                        ResponseSelectorDeclaration.StatusRange(400, 499),
+                        listOf("application/problem+json"),
+                        KotlinTypeRef(PACKAGE, "ApiError"),
+                    ),
+                ),
+        )
+    }
+
+    private fun dualMediaStreamingOperation(): OperationDeclaration {
+        val jsonRequest = KotlinTypeRef(PACKAGE, "SttRequestJson")
+        val multipartRequest = KotlinTypeRef(PACKAGE, "SttRequestMultipart")
+        return OperationDeclaration(
+            symbolId = "operation:createTranscription",
+            order = 0,
+            operationId = "createTranscription",
+            operationIdentity = "createTranscription",
+            method = "POST",
+            path = "/audio/transcriptions/{team}",
+            requestMediaTypes = listOf("application/json"),
+            responseMediaTypes = listOf("text/event-stream"),
+            successStatusCodes = setOf(200),
+            requestType = jsonRequest,
+            responseType = KotlinTypeRef(PACKAGE, "StreamEvent"),
+            requestCodecPropertyName = "createTranscriptionRequestCodec",
+            responseCodecPropertyName = "createTranscriptionResponseCodec",
+            requestCodecConstantName = "CREATE_TRANSCRIPTION_REQUEST_CODEC_ID",
+            responseCodecConstantName = "CREATE_TRANSCRIPTION_RESPONSE_CODEC_ID",
+            requestCodecId = "createTranscription.request",
+            responseCodecId = "createTranscription.response",
+            responseMode = OperationResponseMode.STREAMING,
+            deadlines = OperationDeadlines(null, 30_000, null),
+            methodKdoc = "Streams transcription events.",
+            parameters =
+                listOf(
+                    OperationParameterDeclaration(
+                        "team",
+                        OperationParameterLocation.PATH,
+                        KotlinTypeRef("kotlin", "String"),
+                        required = true,
+                    ),
+                ),
+            requestBodyAlternatives =
+                listOf(
+                    OperationRequestBodyAlternative("application/json", jsonRequest, required = true),
+                ),
+            requestBodyRequired = true,
+            requestVariants =
+                listOf(
+                    OperationRequestVariantDeclaration(
+                        methodName = "createTranscription",
+                        nameSuffix = "",
+                        operationIdentity = "createTranscription",
+                        mediaTypes = listOf("application/json"),
+                        type = jsonRequest,
+                        required = true,
+                        replayability = RequestBodyReplayability.REPLAYABLE,
+                        encoding = RequestBodyEncoding.JSON,
+                    ),
+                    OperationRequestVariantDeclaration(
+                        methodName = "createTranscriptionMultipart",
+                        nameSuffix = "Multipart",
+                        operationIdentity = "createTranscription",
+                        mediaTypes = listOf("multipart/form-data"),
+                        type = multipartRequest,
+                        required = true,
+                        multipartParts =
+                            listOf(
+                                MultipartPartDeclaration(
+                                    wireName = "file",
+                                    accessorName = "file",
+                                    type = KotlinTypeRef("com.nabobery.sdkgen.runtime", "SdkByteStream"),
+                                    required = true,
+                                    contentType = "audio/wav",
+                                ),
+                            ),
+                        replayability = RequestBodyReplayability.NON_REPLAYABLE,
+                        encoding = RequestBodyEncoding.MULTIPART,
+                    ),
+                ),
+            responseAlternatives =
+                listOf(
+                    OperationResponseAlternative(
+                        ResponseSelectorDeclaration.ExactStatus(200),
+                        listOf("text/event-stream"),
+                        KotlinTypeRef(PACKAGE, "StreamEvent"),
+                        OperationResponseMode.STREAMING,
+                    ),
+                ),
+            streaming =
+                StreamingDeclaration.ServerSentEvents(
+                    "[DONE]",
+                    responseContentType = "text/event-stream",
+                ),
+        )
+    }
+
+    private fun dualGenericMediaOperation(): OperationDeclaration {
+        val jsonRequest = KotlinTypeRef(PACKAGE, "SttRequestJson")
+        return OperationDeclaration(
+            symbolId = "operation:createTranscription",
+            order = 0,
+            operationId = "createTranscription",
+            operationIdentity = "createTranscription",
+            method = "POST",
+            path = "/audio/transcriptions/{team}",
+            requestMediaTypes = listOf("application/json"),
+            responseMediaTypes = listOf("application/json"),
+            successStatusCodes = setOf(200),
+            requestType = jsonRequest,
+            responseType = KotlinTypeRef(PACKAGE, "Transcription"),
+            requestCodecPropertyName = "createTranscriptionRequestCodec",
+            responseCodecPropertyName = "createTranscriptionResponseCodec",
+            requestCodecConstantName = "CREATE_TRANSCRIPTION_REQUEST_CODEC_ID",
+            responseCodecConstantName = "CREATE_TRANSCRIPTION_RESPONSE_CODEC_ID",
+            requestCodecId = "createTranscription.request",
+            responseCodecId = "createTranscription.response",
+            responseMode = OperationResponseMode.BUFFERED,
+            deadlines = OperationDeadlines(60_000, 30_000, null),
+            methodKdoc = "Transcribes audio.",
+            parameters =
+                listOf(
+                    OperationParameterDeclaration(
+                        "team",
+                        OperationParameterLocation.PATH,
+                        KotlinTypeRef("kotlin", "String"),
+                        required = true,
+                    ),
+                ),
+            requestBodyAlternatives =
+                listOf(
+                    OperationRequestBodyAlternative("application/json", jsonRequest, required = true),
+                ),
+            requestBodyRequired = true,
+            requestVariants =
+                listOf(
+                    OperationRequestVariantDeclaration(
+                        methodName = "createTranscription",
+                        nameSuffix = "",
+                        operationIdentity = "createTranscription",
+                        mediaTypes = listOf("application/json"),
+                        type = jsonRequest,
+                        required = true,
+                        replayability = RequestBodyReplayability.REPLAYABLE,
+                        encoding = RequestBodyEncoding.JSON,
+                    ),
+                    // Hand-built pre-encoding declaration: a JSON-encoding variant over a non-form media
+                    // keeps its wire type as-is (here kotlin.String) with no part/field projection.
+                    OperationRequestVariantDeclaration(
+                        methodName = "createTranscriptionMixed",
+                        nameSuffix = "Mixed",
+                        operationIdentity = "createTranscription",
+                        mediaTypes = listOf("multipart/mixed"),
+                        type = KotlinTypeRef("kotlin", "String"),
+                        required = true,
+                        replayability = RequestBodyReplayability.REPLAYABLE,
+                        encoding = RequestBodyEncoding.JSON,
+                    ),
+                ),
+            responseAlternatives =
+                listOf(
+                    OperationResponseAlternative(
+                        ResponseSelectorDeclaration.ExactStatus(200),
+                        listOf("application/json"),
+                        KotlinTypeRef(PACKAGE, "Transcription"),
+                    ),
+                ),
         )
     }
 
