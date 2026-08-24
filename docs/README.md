@@ -5,6 +5,8 @@ Kotlin SDKGen's public documentation is organized by what you are trying to acco
 ## Get started
 
 - Start with the [project README](../README.md) to generate and validate the bundled OpenRouter example.
+- Read the [0.3.0 release notes](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0) and
+  [changelog](../CHANGELOG.md#030---2026-08-23) before upgrading across the preview API changes.
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md) before proposing or implementing a change.
 - Use the [support policy](support-policy.md) to choose the right place for questions, bugs, and security reports.
 
@@ -20,6 +22,8 @@ Kotlin SDKGen's public documentation is organized by what you are trying to acco
 - [Requirements](requirements.md): product and compatibility requirements.
 - [Architecture decision records](adr/): durable architectural decisions and their consequences.
 - [Design decisions](design-decisions.md): cross-cutting implementation policies.
+- [Schema intersections and request-media variants](adr/0021-schema-intersection-and-request-media-variants.md):
+  the strict composition and wire-encoding contracts introduced in 0.3.0.
 - [Threat model](threat-model.md): trust boundaries and release-security controls.
 - [Industry research](research/industry-patterns.md): external patterns considered by the project.
 

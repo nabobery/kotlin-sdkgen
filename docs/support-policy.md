@@ -1,6 +1,6 @@
 # Support policy
 
-Kotlin SDKGen `0.2.0` is a production-oriented preview published to Maven Central. This policy
+Kotlin SDKGen `0.3.0` is a production-oriented preview published to Maven Central. This policy
 describes support for published versions while the project remains in preview.
 
 ## Current state
@@ -51,10 +51,10 @@ The generated Stripe SDK is organized into 75 resource clients. For untagged ope
 first non-version path segment. This coverage does not imply that excluded
 operations are supported.
 
-The OpenRouter corpus generated with the released Kotlin SDKGen `0.2.0` covers 86 of 89 operations. On the unreleased 0.3.0 development line the
-generator now represents the full 89-of-89 surface with zero blockers: the strict `allOf` intersection algebra with
-audited overrides and media-specific request variants ([ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md))
-unblocked the three previously excluded operations. Current corpus coverage is documented in the
+The released Kotlin SDKGen `0.3.0` represents the full OpenRouter 89-of-89 operation surface with zero blockers.
+Its strict `allOf` intersection algebra with audited overrides and media-specific request variants
+([ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md)) unblocked the three operations excluded
+by 0.2.0. Current corpus coverage is documented in the
 [OpenRouter corpus README](../conformance/openrouter/README.md).
 
 ## Target/platform support notes

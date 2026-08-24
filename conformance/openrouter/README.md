@@ -38,9 +38,8 @@ pagination across JVM and JavaScript test lanes.
 This corpus generates all **89 of 89** operations with zero blockers (direct and dependent closure). The three
 operations previously excluded at `0.2.0` — `createMessages` (`POST /messages`), `createResponses`
 (`POST /responses`), and `createAudioTranscriptions` (`POST /audio/transcriptions`) — are now generated. This is a
-*generator capability* on the unreleased 0.3.0 development line; the latest released Kotlin SDKGen (`0.2.0`)
-still generates the 86-operation surface. (Historical evidence records referencing this section's former name,
-"Known coverage gaps", describe the pre-0.3.0 state it documented.)
+released generator capability in Kotlin SDKGen `0.3.0`. Historical evidence records referencing this section's former
+name, "Known coverage gaps", describe the pre-0.3.0 state it documented.)
 
 `/messages` and `/responses` compose their response schemas with `allOf`, which is a logical AND: a value must satisfy
 every branch at once, and their branches redeclare the same property with different types and nullability. The

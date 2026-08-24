@@ -1,7 +1,7 @@
 # Conformance suites
 
-This directory holds the stress corpus (`stress/`) and the pinned upstream OpenRouter
-specification (`openrouter/`) that the generator's semantic-adaptation layer is proven against.
+This directory holds focused stress fixtures and pinned OpenRouter, GitHub REST, and Stripe corpora that exercise
+the generator against both isolated schema constructs and large real-world API descriptions.
 
 ## Stress fixtures
 
@@ -54,18 +54,19 @@ every run, not only for the OpenRouter document.
 ### OpenRouter
 
 `conformance/openrouter/` pins the OpenRouter `openapi.yaml` (see `SHA256SUMS`) plus a generated consumer
-module that exercises the SDK end-to-end across the supported test matrix.
+module that exercises the SDK end-to-end across the supported test matrix. All 89 operations generate with zero
+blockers, including strict schema intersections and media-specific JSON/multipart request variants.
 
 ### GitHub REST
 
 `conformance/github/` pins the GitHub REST corpus, its lock/config and narrowly scoped runtime-semantics
-overlay, one canonical generated snapshot, and a JVM consumer. The current accepted state has 7,169 generated
-Kotlin files, 139 exact accepted waivers, and zero active exclusions. The consumer covers Link-header pagination,
+overlay, one canonical generated snapshot, and a JVM consumer. The current accepted state has 7,189 generated
+Kotlin files, 119 exact accepted waivers, and zero active exclusions. The consumer covers Link-header pagination,
 bearer authentication, typed errors, PATCH presence semantics, parameter encoding, and exact union behavior.
 
 ### Stripe
 
 `conformance/stripe/` pins the Stripe corpus, exact waiver inventory, one canonical generated snapshot, and a
-KMP consumer with a JVM conformance suite. The current accepted state has 10,616 generated Kotlin files,
+KMP consumer with a JVM conformance suite. The current accepted state has 10,690 generated Kotlin files,
 68 exact accepted waivers and 68 explicitly excluded operations. The consumer covers Stripe-compatible indexed form
 arrays, typed maps, disjoint form unions, indexed multipart arrays, Basic authentication, and typed responses.

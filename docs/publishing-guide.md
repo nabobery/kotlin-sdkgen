@@ -17,9 +17,10 @@ step as ready when it is not.
 
 ## 0. The honest starting point
 
-The build-side publication stack is present. A real publish still fails closed until the protected release
-environment supplies Central, signing, and Plugin Portal credentials. `release-verification.yml` remains
-credential-free and never publishes; `.github/workflows/release.yml` is the only remote-publication path.
+The build-side publication stack is present and has completed a public release. Every subsequent publish still
+fails closed unless the protected release environment supplies Central, signing, and Plugin Portal credentials.
+`release-verification.yml` remains credential-free and never publishes; `.github/workflows/release.yml` is the
+only remote-publication path.
 
 - `-PsdkgenRelease=true` requires `GPG_SIGNING_KEY` and `GPG_SIGNING_PASSPHRASE`.
 - The protected workflow opts Nmcp into an `AUTOMATIC` Central deployment and waits up to 30 minutes for
@@ -28,9 +29,9 @@ credential-free and never publishes; `.github/workflows/release.yml` is the only
 - `com.gradle.plugin-publish` provides `validatePlugins` and `publishPlugins` for the Gradle plugin.
 - CycloneDX generates the SBOM and GitHub attests the staged release artifacts in the protected workflow.
 
-The safest first step is the isolated local-repository staging rehearsal. It verifies the eight ADR-0008 coordinates
-and Gradle plugin marker, rejects internal-coordinate leakage, and validates publication metadata and the staged
-artifact inventory. Section 5 contains the reproducible commands.
+The first step for every release is the isolated local-repository staging rehearsal. It verifies the eight ADR-0008
+coordinates and Gradle plugin marker, rejects internal-coordinate leakage, and validates publication metadata and
+the staged artifact inventory. Section 5 contains the reproducible commands.
 
 The structure of the rest of this guide: what must be true before a first publish (§1), how to set up each
 credential (§2), the recommended release mechanism and why (§3), the version/release flow (§4), the dry-run
@@ -57,7 +58,7 @@ externally (no code change).
 | 12  | Provenance attestation wiring (`actions/attest-build-provenance`)                   | code               | complete                               | Immutable v4.1.0 action SHA in `release.yml`                                                                                                                                       |
 | 13  | GitHub Environment with required reviewer, scoped publish secrets                   | account/CI config  | complete                               | The maintainer is the required reviewer with self-review allowed for solo operation; administrator bypass is disabled, the `main`/`v*` policy is active, and all six secrets exist |
 
-The remaining unchecked items are release-specific verification and publication steps.
+Release-specific completion belongs in the corresponding workflow and GitHub Release, not in this reusable guide.
 
 ## 2. Credential setup
 
@@ -213,8 +214,8 @@ build depends on whatever is locally checked out, cached, or configured, not a c
 immutable tag; (3) signing key material ends up on a developer laptop rather than a scoped CI secret store,
 which is a materially worse blast radius if that laptop is compromised.
 
-The workflow is implemented in `.github/workflows/release.yml`. Before the first real publication, add a
-required reviewer to the `release` environment and confirm its `main`/`v*` deployment policy.
+The workflow is implemented in `.github/workflows/release.yml`. The `release` environment has a required reviewer
+and a `main`/`v*` deployment policy; preserve both controls for every publication.
 Create the protected `v<version>` tag from the reviewed `main` commit before dispatching the workflow; the
 workflow refuses a branch ref, a mismatched version, or a tag whose commit is not on `origin/main`.
 
@@ -224,7 +225,7 @@ The default development version is stored in `gradle.properties` as `sdkgenVersi
 
 - **SNAPSHOT versions** (`-SNAPSHOT` suffix) are for local/CI iteration only. Maven Central **rejects
   SNAPSHOT publications** outright — a real release must bump `sdkgenVersion` to a plain release version
-  (for example, `0.2.1`) before publishing.
+  (for example, `1.2.3`) before publishing.
 - **Version validation:** `release.yml` validates its required version input against the strict
   `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$` grammar and rejects SNAPSHOT versions before
   using the quoted value in any Gradle argument. It also requires the selected ref to be the matching
@@ -289,7 +290,7 @@ reaches either portal. Only an explicitly authorized publication can prove those
 
 ## 6. Release checklist
 
-Ordered; each step assumes the previous ones are done.
+The one-time repository and account setup is implemented:
 
 1. [x] Verify the `io.github.nabobery` Central Portal namespace (GitHub verification; already decided) — §2.
 2. [x] Add complete POM metadata to every publication.
@@ -303,23 +304,26 @@ Ordered; each step assumes the previous ones are done.
 9. [x] Confirm Plugin Portal publisher ownership and credential availability.
 10. [x] Add a required reviewer to the existing GitHub `release` Environment and confirm its `main`/`v*`
         deployment policy.
-11. [x] Choose the real release version for the protected workflow's `version` input (§4); never reuse a
-        version already published to either portal.
-12. [x] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
-        and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real
-        release" step 3).
-13. [x] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact
-        identity, signatures, and any SBOM are version-specific.
-14. [x] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback,
-        no project substitution) to prove the graph resolves independently.
-15. [x] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from
-        that tag with the matching `version`, then obtain the required-reviewer approval on the Environment.
-16. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed for this version.
-17. [x] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
-18. [ ] Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain`), the
-        applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
-19. [ ] **Post-publish verification:** resolve every published coordinate from a fresh, unrelated project
-        (not this repository) against the real Central repository, confirm the version and checksums match what
-        was staged, and confirm the artifact is visible on `central.sonatype.com` and (if published) on
-        `plugins.gradle.org`.
-20. [ ] Publish the version's release record and retain links to the successful workflows and attestations.
+
+For each release, copy the following checklist into the release tracking record and complete it in order. A prior
+release's checked record is not evidence for a new version.
+
+1. [ ] Choose the release version for the protected workflow's `version` input (§4); never reuse a version
+       already published to either portal.
+2. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
+       and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real release"
+       step 3).
+3. [ ] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact identity,
+       signatures, and any SBOM are version-specific.
+4. [ ] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback and no
+       project substitution) to prove the graph resolves independently.
+5. [ ] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from that tag
+       with the matching `version`, then obtain the required-reviewer approval on the Environment.
+6. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed for this version.
+7. [ ] Verify the workflow's GitHub provenance attestation and confirm the matching protected tag.
+8. [ ] Publish release notes summarizing the effective contract diff (`sdkgen diff`/`sdkgen explain`), the
+       applied-overlay report, and the conformance/waiver summary (`docs/release-runbook.md` step 7).
+9. [ ] **Post-publish verification:** resolve every published coordinate from a fresh, unrelated project (not this
+       repository) against the real Central repository, confirm the version and checksums match what was staged,
+       and confirm the artifact is visible on `central.sonatype.com` and `plugins.gradle.org`.
+10. [ ] Publish the version's release record and retain links to the successful workflows and attestations.

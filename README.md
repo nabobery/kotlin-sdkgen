@@ -5,7 +5,8 @@ transports, deterministic output, and compatibility tooling designed for long-li
 
 > [!IMPORTANT]
 > Kotlin SDKGen is a **production-oriented preview**. It is exercised against large real-world API
-> descriptions. Version `0.2.0` is available from Maven Central, and the Gradle plugin is published
+> descriptions. Version [`0.3.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0) is available
+> from Maven Central, and the Gradle plugin is published
 > on the Gradle Plugin Portal. Public APIs may change while the project remains in preview.
 
 ## Why Kotlin SDKGen?
@@ -21,6 +22,8 @@ Kotlin SDKGen focuses on those boundaries:
 - Typed Kotlin models and resource clients generated through KotlinPoet.
 - Exact handling of `oneOf`, lossless multi-match `anyOf`, open enums, nullable/optional fields, and typed
   additional properties.
+- Strict `allOf` intersections with fail-closed, audited resolution for contract-specific property conflicts.
+- Media-specific request methods and explicit JSON, form, multipart, text, and binary wire encodings.
 - Runtime support for authentication, retries, deadlines, pagination, server-sent events, multipart requests,
   middleware, and telemetry.
 - Ktor, OkHttp, and Java HTTP transport adapters behind a shared transport contract.
@@ -42,7 +45,7 @@ cd kotlin-sdkgen
 Expected result:
 
 ```text
-validate: ok diagnostics=21 exclusions=0
+validate: ok diagnostics=23 exclusions=0
 ```
 
 The relative path starts from `generator/cli`, which is the working directory of Gradle's `run` task.
@@ -78,7 +81,7 @@ sources into Kotlin/JVM or `commonMain` automatically:
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("io.github.nabobery.kotlin-sdkgen") version "0.2.0"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.3.0"
 }
 
 kotlin {
@@ -139,11 +142,11 @@ test matrix and platform qualifications.
 
 The repository keeps generated snapshots and executable consumers for three independently shaped APIs:
 
-| Corpus                                | What it demonstrates                                                                                                                        |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [OpenRouter](conformance/openrouter/) | KMP generation with typed contracts, SSE streaming, pagination, authentication, retries, and typed errors.                                  |
-| [GitHub REST](conformance/github/)    | 7,189 generated Kotlin files; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.                        |
-| [Stripe](conformance/stripe/)         | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses. |
+| Corpus                                | What it demonstrates                                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [OpenRouter](conformance/openrouter/) | All 89 operations; strict schema intersections, request-media variants, SSE, pagination, authentication, retries, and typed errors.                  |
+| [GitHub REST](conformance/github/)    | 7,189 generated Kotlin files and 119 accepted waivers; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.        |
+| [Stripe](conformance/stripe/)         | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses.         |
 
 These corpora are conformance fixtures, not supported third-party SDK distributions. Their pinned inputs, overlays,
 waivers, snapshots, and consumer tests make generator changes reviewable at realistic scale.
@@ -171,7 +174,7 @@ and heap rather than treating this number as a cross-machine speed claim.
 
 ## Project status
 
-Implemented and released through `0.2.0`:
+Implemented and released through [`0.3.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0):
 
 - CLI, generation engine, KMP runtime, three transports, and cacheable Gradle integration.
 - Corpus-scale generation, consumer compilation, compatibility reporting, ABI checks, and deterministic snapshots.
@@ -180,12 +183,16 @@ Implemented and released through `0.2.0`:
 - Tag-bound release automation with credential-free verification and protected publication.
 - Server-sent event streaming, offset/limit pagination, and Intel Apple publication variants for the portable
   runtime, testing library, and Ktor transport.
+- Full 89-of-89 OpenRouter generation with zero blockers, strict `allOf` intersection algebra, audited conflict
+  resolution, media-specific request variants, and explicit request-body wire encodings.
+- Ten reclaimed GitHub webhook payload schemas (plus ten inline sub-schemas), reducing its accepted-waiver
+  inventory from 139 to 119.
 
-The OpenRouter conformance corpus now generates all 89 of 89 operations with zero blockers. This full-surface
-support lands on the 0.3.0 development line and is not yet part of a published release (the latest release is
-`0.2.0`, which generates 86 of 89). The strict `allOf` intersection algebra, audited overrides, and media-specific
-request variants behind it are documented in the [`OpenRouter corpus README`](conformance/openrouter/README.md) and
-[ADR 0021](docs/adr/0021-schema-intersection-and-request-media-variants.md).
+The 0.3.0 schema-composition and request-media contracts are documented in the
+[`OpenRouter corpus README`](conformance/openrouter/README.md) and
+[ADR 0021](docs/adr/0021-schema-intersection-and-request-media-variants.md). See the
+[`0.3.0 changelog`](CHANGELOG.md#030---2026-08-23) for the public API and wire-contract changes to consider when
+upgrading.
 
 See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
 [`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,
