@@ -14,8 +14,9 @@ Kotlin SDKGen has three trust-relevant surfaces:
 2. **Generated-runtime execution** — the shared runtime (`runtime/core`) and transport adapters
    that a _generated_ SDK uses at the consumer's own runtime, including credential handling.
 3. **Release and distribution** — building, signing, and publishing SDKGen's own artifacts
-   (`build-logic/.../sdkgen.publishing.gradle.kts`), plus the scheduled automation that opens
-   scoped pull requests from upstream spec drift.
+   (`build-logic/.../sdkgen.publishing.gradle.kts`), plus scheduled drift detection and manually
+   authorized drift pull requests. A pull request can be opened only when a manual workflow dispatch
+   sets `open_pr: true`; scheduled runs are detection-only.
 
 Each is analyzed separately because they have different actors, different trust boundaries, and
 different current implementation status.

@@ -29,9 +29,9 @@ only remote-publication path.
 - `com.gradle.plugin-publish` provides `validatePlugins` and `publishPlugins` for the Gradle plugin.
 - CycloneDX generates the SBOM and GitHub attests the staged release artifacts in the protected workflow.
 
-The first step for every release is the isolated local-repository staging rehearsal. It verifies the eight ADR-0008
-coordinates and Gradle plugin marker, rejects internal-coordinate leakage, and validates publication metadata and
-the staged artifact inventory. Section 5 contains the reproducible commands.
+Before publication, run the isolated local-repository staging rehearsal. It verifies the eight ADR-0008 coordinates
+and Gradle plugin marker, rejects internal-coordinate leakage, and validates publication metadata and the staged
+artifact inventory. Section 5 contains the reproducible commands.
 
 The structure of the rest of this guide: what must be true before a first publish (§1), how to set up each
 credential (§2), the recommended release mechanism and why (§3), the version/release flow (§4), the dry-run
@@ -313,10 +313,11 @@ release's checked record is not evidence for a new version.
 2. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
        and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real release"
        step 3).
-3. [ ] Run the §5 rehearsal against the release version specifically (not a prior SNAPSHOT) — artifact identity,
-       signatures, and any SBOM are version-specific.
-4. [ ] Consume every published coordinate from a clean, isolated external build (no Maven Local fallback and no
-       project substitution) to prove the graph resolves independently.
+3. [ ] Run the credential-free §5 rehearsal against the release version specifically (not a prior SNAPSHOT) —
+       staged artifact identity and metadata are version-specific. Release-mode signatures, the SBOM, and
+       attestation belong to the protected publication workflow.
+4. [ ] Consume every staged coordinate from the isolated publication repository in a clean external build (no
+       Maven Local fallback and no project substitution) to prove the graph resolves independently.
 5. [ ] Create the protected `v<version>` tag on the reviewed `main` commit, dispatch `release.yml` from that tag
        with the matching `version`, then obtain the required-reviewer approval on the Environment.
 6. [ ] Confirm the Maven Central deployment and Gradle Plugin Portal publication succeed for this version.
