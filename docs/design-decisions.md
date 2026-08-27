@@ -282,8 +282,14 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Validate the generator's published JVM and KMP ABI against the actual Maven publications with BCV 0.18.1: point `jvmApiBuild.inputJar` at the staged JVM JAR and compare every staged KLib with Kotlin 2.3.20 `klib dump-abi`. KGP 2.3.20 has no `binariesSource`, `MAVEN_PUBLICATIONS`, or `keepLocallyUnsupportedTargets` DSL; use version-pinned syntax and re-evaluate on a Kotlin baseline bump. See [ADR 0007](adr/0007-abi-gate-bcv.md).
 - Classify generated API additions, removals, renames, type changes, presence/nullability changes, and operation moves independently of OpenAPI breaking-change classification.
 - On pull requests, run unit, semantic, golden, deterministic, JVM compile, representative KMP compile, and focused conformance tests.
-- On the main branch, run the complete stable-target compile matrix, all adapter contracts, full OpenRouter generation, and compatibility reports.
-- Before release, additionally run secondary target-family checks, clean consumer builds from staged publications, Maven metadata/signature verification, SBOM and provenance generation, and a reproducibility check from a clean checkout.
+- On pushes to `main`, rerun the same standard CI matrix: configured production-module checks, `ktlintCheck`, and
+  `apiCheck`. Do not infer release-only live-parity or complete-target evidence from ordinary CI.
+- Before publication, run release verification—directly for rehearsal or through the protected release workflow—with
+  the complete stable-target compile matrix, all adapter contracts, full OpenRouter generation, live cross-corpus
+  parity, secondary target-family checks, clean consumer builds from staged publications, Maven metadata/signature
+  verification, SBOM and provenance generation, and a reproducibility check from a clean checkout. Produce
+  cross-version compatibility reports separately from retained before/after evidence; a missing layer must remain
+  `unavailable` rather than being inferred from a different gate.
 - Never auto-merge a drift update or auto-publish from a spec-update workflow.
 - Set quantitative generation-time, memory, and output-size budgets only after Foundation Evaluation establishes reproducible baselines.
 

@@ -36,8 +36,9 @@ and executable consumers. Each corpus README explains its source, supported surf
 - [GitHub REST](../conformance/github/README.md)
 - [Stripe](../conformance/stripe/README.md)
 
-Files under [`docs/conformance/evidence`](conformance/evidence/) are versioned inputs to compatibility checks and
-build verification. They are current reproducibility evidence, not release-planning records.
-
-Internal implementation plans, review notes, and point-in-time run logs are intentionally excluded from the public
-documentation tree.
+Files under the [conformance evidence index](conformance/evidence/README.md) include durable conformance inputs,
+proof tables, generated matrices, and release-bound evidence packets. Each artifact documents its own scope and
+freshness; a point-in-time matrix or incomplete compatibility report must not be treated as proof for a layer it
+marks `notRun` or `unavailable`. The
+[OpenRouter 0.2.0-to-0.3.0 packet](conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/) is the first
+cross-release example.

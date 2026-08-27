@@ -310,9 +310,10 @@ release's checked record is not evidence for a new version.
 
 1. [ ] Choose the release version for the protected workflow's `version` input (§4); never reuse a version
        already published to either portal.
-2. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, the cross-corpus parity gate,
-       and the current compatibility report for the release diff (`docs/release-runbook.md`, "Real release"
-       step 3).
+2. [ ] Run the full verification gate: `./gradlew build check ktlintCheck apiCheck`, ABI/BCV, cross-corpus parity,
+       the benchmark budget, and isolated publication verification (`docs/release-runbook.md`, "Real release"
+       step 3). Run `sdkgen compat` with the retained before/after evidence, and record missing layers as
+       `unavailable` rather than describing compatibility reporting as CI-enforced.
 3. [ ] Run the credential-free §5 rehearsal against the release version specifically (not a prior SNAPSHOT) —
        staged artifact identity and metadata are version-specific. Release-mode signatures, the SBOM, and
        attestation belong to the protected publication workflow.
