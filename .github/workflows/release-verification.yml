@@ -56,8 +56,9 @@ permissions:
 
 jobs:
   # Linux lane: JVM + JS(node+browser) + Android + Linux native targets, plus every task that
-  # composes parity, compatibility reporting, publication rehearsal, and performance-budget
-  # verification. ADR-0007 assigns Apple host ABI and execution evidence to the `macos` job below.
+  # composes live parity, publication rehearsal, and committed benchmark-budget verification.
+  # Cross-version compatibility reporting remains a separately assembled evidence packet.
+  # ADR-0007 assigns Apple host ABI and execution evidence to the `macos` job below.
   # Kotlin/Native may cross-compile Apple klibs from Linux, but this job does not claim that as
   # Apple-lane evidence and its publication rehearsal explicitly disables that cross-compilation.
   verify-linux:

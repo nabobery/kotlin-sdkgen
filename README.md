@@ -192,7 +192,10 @@ The 0.3.0 schema-composition and request-media contracts are documented in the
 [`OpenRouter corpus README`](conformance/openrouter/README.md) and
 [ADR 0021](docs/adr/0021-schema-intersection-and-request-media-variants.md). See the
 [`0.3.0 changelog`](CHANGELOG.md#030---2026-08-23) for the public API and wire-contract changes to consider when
-upgrading.
+upgrading. The
+[`0.2.0`-to-`0.3.0` OpenRouter evidence packet](docs/conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/)
+records the release-bound corpus and emitted-API comparison, including the two compatibility layers that could not
+be reconstructed after publication.
 
 See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
 [`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,

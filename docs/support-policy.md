@@ -14,10 +14,16 @@ describes support for published versions while the project remains in preview.
 - General support is provided through the public issue tracker. Security vulnerabilities use the
   verified private reporting channel documented in `SECURITY.md`.
 
-Published releases are backed by the five-layer compatibility report (`sourceContract`,
-`semanticModel`, `kotlinApi`, `behavior`, and `abi`) for the applicable release diff. Security fixes
-are prioritized according to impact and maintainer availability; see `SECURITY.md` for private
-reporting.
+Kotlin SDKGen can render a five-layer compatibility report (`sourceContract`, `semanticModel`, `kotlinApi`,
+`behavior`, and `abi`) when the corresponding before/after evidence is supplied. The release workflow currently
+enforces API/ABI checks, cross-corpus parity, the benchmark budget, and isolated publication verification, but it
+does not assemble a complete cross-version report. Missing report layers remain explicitly `unavailable`; they are
+never inferred to have passed. The reconstructed
+[OpenRouter 0.2.0-to-0.3.0 report](conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/) records source-contract,
+semantic-model, and emitted-Kotlin-API changes; behavior and generated-SDK ABI remain unavailable because comparable
+release packets were not retained. The 0.3.0 release is additionally backed by its protected tag, successful
+release workflow, API/ABI and parity gates, publication checks, and provenance attestation. Security fixes are
+prioritized according to impact and maintainer availability; see `SECURITY.md` for private reporting.
 
 ## What issues to file where
 

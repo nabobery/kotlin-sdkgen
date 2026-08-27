@@ -47,9 +47,9 @@ effectively true for the Gradle Plugin Portal. This means:
    Module Metadata.
 3. Verify POM and module metadata plus sources/docs artifacts. In the protected release build,
    also verify signatures, checksums, and the aggregated SBOM before any remote publication step.
-4. Consume every published coordinate from a clean, isolated external build (no Maven Local
-   fallback, no composite/project substitution, no undeclared repository) to prove the artifact
-   graph resolves independently.
+4. Consume every staged product coordinate from the isolated publication repository in a clean external build (no
+   Maven Local fallback, no composite/project substitution, and no undeclared repository) to prove the artifact
+   graph resolves independently before publication.
 5. Run `validatePlugins` for the Gradle plugin. Keep `publishPlugins` exclusively in the protected,
    explicitly authorized release job; credential-free rehearsal must not contact the Plugin Portal.
 6. For local or contributor signed rehearsals, use a throwaway signing key. The credential-free CI
@@ -68,8 +68,11 @@ Follow this procedure for every version. A prior successful release is not evide
    the required `version` input. The workflow rejects any ref/version mismatch and any tagged commit
    that is not on `origin/main`. Do not reuse a version published to either portal.
 3. The workflow calls `release-verification.yml` for that exact SHA. It must complete the full
-   build/check/ktlint/API, ABI/BCV, cross-corpus parity, benchmark, compatibility, and isolated
-   publication gates before the protected publish job becomes eligible.
+   build/check/ktlint/API, ABI/BCV, cross-corpus parity, committed benchmark-budget verification, and isolated
+   publication gates before the protected publish job becomes eligible. The workflow does not currently assemble
+   the complete before/after evidence consumed by `sdkgen compat`; produce the release comparison separately from
+   the evidence retained for both versions, and record missing layers as `unavailable` rather than treating
+   compatibility reporting as CI-enforced.
 4. Obtain the required `release` Environment reviewer approval. Only the publish job can read release
    credentials, and each credential pair is exposed only to the step that needs it.
 5. The protected job builds and verifies the signed release repository, SBOM, clean external consumer,

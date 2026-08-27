@@ -35,11 +35,13 @@ pagination across JVM and JavaScript test lanes.
 
 ## Full coverage (formerly "Known coverage gaps")
 
-This corpus generates all **89 of 89** operations with zero blockers (direct and dependent closure). The three
-operations previously excluded at `0.2.0` — `createMessages` (`POST /messages`), `createResponses`
-(`POST /responses`), and `createAudioTranscriptions` (`POST /audio/transcriptions`) — are now generated. This is a
-released generator capability in Kotlin SDKGen `0.3.0`. Historical evidence records referencing this section's former
-name, "Known coverage gaps", describe the pre-0.3.0 state it documented.)
+Kotlin SDKGen `0.3.0` generates all **89 of 89** operations with zero blockers (direct and dependent closure). The
+three operations excluded by `0.2.0` — `createMessages` (`POST /messages`), `createResponses`
+(`POST /responses`), and `createAudioTranscriptions` (`POST /audio/transcriptions`) — are now generated. The
+[versioned 0.2.0-to-0.3.0 evidence packet](../../docs/conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/)
+binds that coverage change to the immutable release tags and records which compatibility layers could be
+reconstructed. Historical records referencing this section's former name, "Known coverage gaps", describe the
+pre-0.3.0 state it documented.
 
 `/messages` and `/responses` compose their response schemas with `allOf`, which is a logical AND: a value must satisfy
 every branch at once, and their branches redeclare the same property with different types and nullability. The
