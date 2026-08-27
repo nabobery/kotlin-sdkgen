@@ -57,33 +57,39 @@ to its tagged snapshot.
 
 ## Reproduce
 
-For each tag, build the CLI with the corresponding release version and generate the pinned OpenRouter corpus plus
-an emitted-API projection:
+In the same shell, create a temporary evidence directory, then build each tag's CLI with the corresponding release
+version and generate the pinned OpenRouter corpus plus an emitted-API projection:
 
 ```bash
+evidence_dir="$(mktemp -d)"
+v020_output="$evidence_dir/v0.2.0-output"
+v020_projection="$evidence_dir/v0.2.0-kotlin-api.json"
+v030_output="$evidence_dir/v0.3.0-output"
+v030_projection="$evidence_dir/v0.3.0-kotlin-api.json"
+
 git switch --detach v0.2.0
 ./gradlew :generator:cli:installDist -PsdkgenVersion=0.2.0
 generator/cli/build/install/cli/bin/cli generate \
   --config conformance/openrouter/sdkgen.yaml \
-  --output <v0.2.0-output> \
-  --kotlin-api-projection <v0.2.0-projection>
+  --output "$v020_output" \
+  --kotlin-api-projection "$v020_projection"
 
 git switch --detach v0.3.0
 ./gradlew :generator:cli:installDist -PsdkgenVersion=0.3.0
 generator/cli/build/install/cli/bin/cli generate \
   --config conformance/openrouter/sdkgen.yaml \
-  --output <v0.3.0-output> \
-  --kotlin-api-projection <v0.3.0-projection>
+  --output "$v030_output" \
+  --kotlin-api-projection "$v030_projection"
 ```
 
 Then run the `v0.3.0` CLI:
 
 ```bash
 generator/cli/build/install/cli/bin/cli compat \
-  --from <v0.2.0-output>/manifest.json \
-  --to <v0.3.0-output>/manifest.json \
-  --kotlin-api-from <v0.2.0-projection> \
-  --kotlin-api-to <v0.3.0-projection> \
+  --from "$v020_output/manifest.json" \
+  --to "$v030_output/manifest.json" \
+  --kotlin-api-from "$v020_projection" \
+  --kotlin-api-to "$v030_projection" \
   --format json \
   --fail-on never
 ```
