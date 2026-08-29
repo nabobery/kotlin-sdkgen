@@ -348,8 +348,11 @@ internal class SdkGenPluginTestKitTest {
             rootProject.name = "$name"
             """.trimIndent(),
         )
+        // One TestKit daemon serves every fixture build in this class; the composite build plus KGP/AGP class
+        // loaders exceed Gradle's default 384 MB daemon metaspace cap by the time the Android fixtures run.
         project.resolve("gradle.properties").writeText(
-            "org.gradle.configuration-cache.problems=fail\n",
+            "org.gradle.configuration-cache.problems=fail\n" +
+                "org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8\n",
         )
         project.resolve("openapi.yaml").writeText(openApi)
         project.resolve("nested").createDirectories()
@@ -357,6 +360,211 @@ internal class SdkGenPluginTestKitTest {
         project.resolve("sdkgen.yaml").writeText(config)
         project.resolve("plugin.bin").writeText("test-plugin")
         return project
+    }
+
+    @Test
+    fun androidKmpConsumerCompilesGeneratedSourcesWithoutEarlyProviderQueries() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "Android SDK not available (set ANDROID_HOME); release CI runs this lane")
+        val project = createProject("kmp-android")
+        enableRuntimeComposite(project)
+        writeKmpAndroidBuild(project, "api", requireNotNull(sdk))
+
+        val result = run(project, "verifySdkgenAndroidWiring", "--configuration-cache", environment = androidHome(sdk))
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":generateApiSdk")?.outcome)
+        // The consumer project's own Android compile tasks (the composite runtime's are not under test here).
+        val androidCompile =
+            result.tasks.filter { task ->
+                task.path.startsWith(":compile") && task.path.contains("Android", ignoreCase = true)
+            }
+        assertTrue(androidCompile.isNotEmpty(), result.tasks.map { it.path }.toString())
+        assertTrue(androidCompile.all { task -> task.outcome == TaskOutcome.SUCCESS }, androidCompile.toString())
+        assertTrue(project.resolve("build/generated/sdkgen/api/sources").exists())
+    }
+
+    @Test
+    fun androidKmpConsumerReusesConfigurationCacheAcrossCompiles() {
+        val sdk = androidSdkDirectory()
+        assumeTrue(sdk != null, "Android SDK not available (set ANDROID_HOME); release CI runs this lane")
+        val project = createProject("kmp-android-cc")
+        enableRuntimeComposite(project)
+        writeKmpAndroidBuild(project, "api", requireNotNull(sdk))
+
+        val arguments =
+            arrayOf("verifySdkgenAndroidWiring", "--configuration-cache", "--configuration-cache-problems=fail")
+        run(project, *arguments, environment = androidHome(sdk))
+        val second = run(project, *arguments, environment = androidHome(sdk))
+
+        assertTrue(second.output.contains("Reusing configuration cache."), second.output)
+    }
+
+    @Test
+    fun jvmConsumerReusesConfigurationCacheAcrossCompiles() {
+        val project = createProject("jvm-cc")
+        enableRuntimeComposite(project)
+        writeKotlinJvmBuild(project, "api")
+
+        run(project, "compileKotlin", "--configuration-cache", "--configuration-cache-problems=fail")
+        val second = run(project, "compileKotlin", "--configuration-cache", "--configuration-cache-problems=fail")
+
+        assertTrue(second.output.contains("Reusing configuration cache."), second.output)
+        assertEquals(TaskOutcome.UP_TO_DATE, second.task(":compileKotlin")?.outcome)
+    }
+
+    @Test
+    fun kmpConsumerReusesConfigurationCacheAcrossCompiles() {
+        val project = createProject("kmp-cc")
+        enableRuntimeComposite(project)
+        writeKmpBuild(project, "api")
+
+        run(project, "compileKotlinJvm", "--configuration-cache", "--configuration-cache-problems=fail")
+        val second = run(project, "compileKotlinJvm", "--configuration-cache", "--configuration-cache-problems=fail")
+
+        assertTrue(second.output.contains("Reusing configuration cache."), second.output)
+    }
+
+    @Test
+    fun ktlintAppliedAfterSdkgenExcludesGeneratedSourcesAndStillLintsHandwrittenCode() {
+        assertKtlintIntegration("ktlint-after", ktlintFirst = false)
+    }
+
+    @Test
+    fun ktlintAppliedBeforeSdkgenExcludesGeneratedSourcesAndStillLintsHandwrittenCode() {
+        assertKtlintIntegration("ktlint-before", ktlintFirst = true)
+    }
+
+    private fun assertKtlintIntegration(
+        name: String,
+        ktlintFirst: Boolean,
+    ) {
+        val project = createProject(name)
+        enableRuntimeComposite(project)
+        writeKotlinJvmKtlintBuild(project, "api", ktlintFirst)
+        project.resolve("src/main/kotlin").createDirectories()
+        project.resolve("src/main/kotlin/Handwritten.kt").writeText("fun  handwritten( ) =  1\n")
+
+        // Plugin application and configuration must succeed in either order.
+        run(project, "help")
+
+        // The source-set task depends on generation through the generated-sources collection, not on an explicit
+        // consumer-side `dependsOn`; `--continue` is not needed because only one lint task runs.
+        val lint = runAndFail(project, "ktlintMainSourceSetCheck")
+
+        assertEquals(TaskOutcome.SUCCESS, lint.task(":generateApiSdk")?.outcome)
+        assertEquals(TaskOutcome.FAILED, lint.task(":ktlintMainSourceSetCheck")?.outcome)
+        assertTrue(lint.output.contains("Handwritten.kt"), lint.output)
+        assertFalse(lint.output.contains("build/generated/sdkgen"), lint.output)
+    }
+
+    /**
+     * The composite build's own Android targets (for example `runtime:core`) locate the SDK through the nested
+     * Gradle's environment; the consumer's `local.properties` only reaches the consumer build.
+     */
+    private fun androidHome(sdk: Path): Map<String, String> = mapOf("ANDROID_HOME" to sdk.toString())
+
+    private fun androidSdkDirectory(): Path? =
+        listOfNotNull(
+            System.getenv("ANDROID_HOME"),
+            System.getenv("ANDROID_SDK_ROOT"),
+            System.getProperty("user.home")?.let { home -> "$home/Library/Android/sdk" },
+        ).map(Path::of)
+            .firstOrNull { candidate -> candidate.resolve("platforms/android-36").exists() }
+
+    private fun writeKmpAndroidBuild(
+        project: Path,
+        name: String,
+        sdk: Path,
+    ) {
+        project.resolve("local.properties").writeText("sdk.dir=${sdk.toString().replace('\\', '/')}\n")
+        project.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("org.jetbrains.kotlin.multiplatform") version "2.3.20"
+                id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
+                id("com.android.kotlin.multiplatform.library") version "9.2.1"
+                id("io.github.nabobery.kotlin-sdkgen")
+            }
+            repositories {
+                mavenCentral()
+                google()
+            }
+            kotlin {
+                jvm()
+                jvmToolchain(17)
+                androidLibrary {
+                    namespace = "com.example.generated"
+                    compileSdk = 36
+                    minSdk = 24
+                }
+                sourceSets {
+                    commonMain.dependencies {
+                        implementation("io.github.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
+                    }
+                }
+            }
+            sdkgen {
+                configurations {
+                    register("$name") {
+                        configFile.set(layout.projectDirectory.file("sdkgen.yaml"))
+                    }
+                }
+            }
+            tasks.register("verifySdkgenAndroidWiring") {
+                dependsOn(tasks.matching { task -> task.name.startsWith("compile") && task.name.contains("Android") })
+                // Enumerated at configuration time on purpose: the generated source root must be a stable path that
+                // resolves without querying a task output, and this task must stay configuration-cache compatible.
+                val sourceDirectories = kotlin.sourceSets.getByName("commonMain").kotlin.srcDirs.map { directory ->
+                    directory.path.replace('\\', '/')
+                }
+                doLast {
+                    check(sourceDirectories.any { directory -> directory.endsWith("build/generated/sdkgen/$name/sources") })
+                }
+            }
+            """.trimIndent(),
+        )
+        // AGP and its dependencies resolve from Google's repository: add it beside every `mavenCentral()` entry in
+        // both the plugin-management and dependency-resolution blocks, whatever their indentation.
+        val settings = project.resolve("settings.gradle.kts")
+        settings.writeText(
+            settings.readText().replace(Regex("(?m)^(\\s*)mavenCentral\\(\\)$"), "$1mavenCentral()\n$1google()"),
+        )
+    }
+
+    private fun writeKotlinJvmKtlintBuild(
+        project: Path,
+        name: String,
+        ktlintFirst: Boolean,
+    ) {
+        val ktlint = "id(\"org.jlleitschuh.gradle.ktlint\") version \"14.2.0\""
+        val sdkgen = "id(\"io.github.nabobery.kotlin-sdkgen\")"
+        val ordered = if (ktlintFirst) listOf(ktlint, sdkgen) else listOf(sdkgen, ktlint)
+        project.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("org.jetbrains.kotlin.jvm") version "2.3.20"
+                id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20"
+                ${ordered[0]}
+                ${ordered[1]}
+            }
+            repositories {
+                mavenCentral()
+            }
+            dependencies {
+                implementation("io.github.nabobery:kotlin-sdkgen-runtime:0.1.0-SNAPSHOT")
+            }
+            kotlin {
+                jvmToolchain(17)
+            }
+            sdkgen {
+                configurations {
+                    register("$name") {
+                        configFile.set(layout.projectDirectory.file("sdkgen.yaml"))
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
     }
 
     private fun enableRuntimeComposite(project: Path) {
@@ -675,16 +883,18 @@ internal class SdkGenPluginTestKitTest {
     private fun run(
         project: Path,
         vararg arguments: String,
-    ): BuildResult = runner(project, arguments).build()
+        environment: Map<String, String> = emptyMap(),
+    ): BuildResult = runner(project, arguments, environment).build()
 
     private fun runAndFail(
         project: Path,
         vararg arguments: String,
-    ): BuildResult = runner(project, arguments).buildAndFail()
+    ): BuildResult = runner(project, arguments, emptyMap()).buildAndFail()
 
     private fun runner(
         project: Path,
         arguments: Array<out String>,
+        environment: Map<String, String>,
     ): GradleRunner =
         GradleRunner
             .create()
@@ -694,6 +904,9 @@ internal class SdkGenPluginTestKitTest {
                 *(arguments.toList() + listOf("--stacktrace", "--console=plain")).toTypedArray(),
             ).withPluginClasspath()
             .forwardOutput()
+            .let { runner ->
+                if (environment.isEmpty()) runner else runner.withEnvironment(System.getenv() + environment)
+            }
 
     private val openApi =
         """

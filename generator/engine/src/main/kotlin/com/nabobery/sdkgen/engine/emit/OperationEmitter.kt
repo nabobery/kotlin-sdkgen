@@ -1,6 +1,7 @@
 package com.nabobery.sdkgen.engine.emit
 
 import com.nabobery.sdkgen.engine.declarations.DeepObjectAdditionalPropertiesSerialization
+import com.nabobery.sdkgen.engine.declarations.DeepObjectParameterPropertyDeclaration
 import com.nabobery.sdkgen.engine.declarations.FormFieldDeclaration
 import com.nabobery.sdkgen.engine.declarations.FormScalarKind
 import com.nabobery.sdkgen.engine.declarations.FormValueDeclaration
@@ -19,6 +20,7 @@ import com.nabobery.sdkgen.engine.declarations.OperationResponseMode
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaration
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
 import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
+import com.nabobery.sdkgen.engine.declarations.ParameterValueEncoding
 import com.nabobery.sdkgen.engine.declarations.RequestBodyEncoding
 import com.nabobery.sdkgen.engine.declarations.RequestBodyReplayability
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
@@ -43,6 +45,7 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.UNIT
 import java.util.Locale
 
 internal fun EmissionContext.emitOperationClient(
@@ -68,28 +71,7 @@ internal fun EmissionContext.emitOperationClient(
             .classBuilder(clientType)
             .addModifiers(KModifier.PUBLIC)
             .addKdoc("%L\n", sanitizeKDoc(declaration.kdoc))
-            .primaryConstructor(
-                FunSpec
-                    .constructorBuilder()
-                    .addParameter("transport", SDK_TRANSPORT)
-                    .addParameter("baseUri", STRING)
-                    .addParameter(
-                        ParameterSpec
-                            .builder("credentialProviders", MAP.parameterizedBy(STRING, CREDENTIAL_PROVIDER))
-                            .defaultValue("emptyMap()")
-                            .build(),
-                    ).addParameter(
-                        ParameterSpec
-                            .builder("trustedHosts", TRUSTED_HOSTS.copy(nullable = true))
-                            .defaultValue("null")
-                            .build(),
-                    ).addParameter(
-                        ParameterSpec
-                            .builder("authentication", SDK_AUTHENTICATION.copy(nullable = true))
-                            .defaultValue("null")
-                            .build(),
-                    ).build(),
-            )
+            .addClientConstructors(declaration.defaultBaseUri)
     if (requiresSecurityAuthentication) {
         clientBuilder.addProperty(
             PropertySpec
@@ -110,11 +92,8 @@ internal fun EmissionContext.emitOperationClient(
             PropertySpec
                 .builder("executor", SDK_EXECUTOR)
                 .addModifiers(KModifier.PRIVATE)
-                .initializer(
-                    "%T(transport, authentication = this@%L.authentication)",
-                    SDK_EXECUTOR,
-                    declaration.resolvedName,
-                ).build(),
+                .initializer(executorInitializer(declaration.resolvedName, declaration.productToken))
+                .build(),
         ).addProperty(
             PropertySpec
                 .builder("baseUri", STRING)
@@ -222,28 +201,7 @@ private fun operationClientFacade(declaration: OperationClientDeclaration): Type
             .classBuilder(facadeType)
             .addModifiers(KModifier.PUBLIC)
             .addKdoc("%L\n", sanitizeKDoc(declaration.kdoc))
-            .primaryConstructor(
-                FunSpec
-                    .constructorBuilder()
-                    .addParameter("transport", SDK_TRANSPORT)
-                    .addParameter("baseUri", STRING)
-                    .addParameter(
-                        ParameterSpec
-                            .builder("credentialProviders", MAP.parameterizedBy(STRING, CREDENTIAL_PROVIDER))
-                            .defaultValue("emptyMap()")
-                            .build(),
-                    ).addParameter(
-                        ParameterSpec
-                            .builder("trustedHosts", TRUSTED_HOSTS.copy(nullable = true))
-                            .defaultValue("null")
-                            .build(),
-                    ).addParameter(
-                        ParameterSpec
-                            .builder("authentication", SDK_AUTHENTICATION.copy(nullable = true))
-                            .defaultValue("null")
-                            .build(),
-                    ).build(),
-            )
+            .addClientConstructors(declaration.defaultBaseUri)
     declaration.subClients.forEach { subClient ->
         val subClientType = ClassName(subClient.packageName, subClient.className)
         builder.addProperty(
@@ -252,7 +210,7 @@ private fun operationClientFacade(declaration: OperationClientDeclaration): Type
                 .addModifiers(KModifier.PUBLIC)
                 .addKdoc("%L\n", sanitizeKDoc(subClient.kdoc))
                 .delegate(
-                    "lazy(%T.PUBLICATION) {\n⇥%T(transport, baseUri, credentialProviders, trustedHosts, authentication)\n⇤}",
+                    "lazy(%T.PUBLICATION) {\n⇥%T(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication)\n⇤}",
                     LAZY_THREAD_SAFETY_MODE,
                     subClientType,
                 ).build(),
@@ -260,6 +218,138 @@ private fun operationClientFacade(declaration: OperationClientDeclaration): Type
     }
     return builder.build()
 }
+
+/**
+ * The per-call options every generated executor path hands to [SdkExecutor]: the caller's `options` folded
+ * through the client's shared configuration (retry and deadlines, per `SdkClientConfig.resolveCallOptions`).
+ * Centralized so a new operation variant cannot forget the client layer and silently regress to wrapper-only
+ * behaviour.
+ */
+private val RESOLVED_CALL_OPTIONS: CodeBlock = CodeBlock.of("clientConfig.resolveCallOptions(options)")
+
+/**
+ * Applies the 0.4.0 generated-client constructor layout to a resource client or the root facade: one private
+ * canonical constructor carrying the shared `SdkClientConfig`, plus two public constructors — the 0.3.0
+ * signature, whose JVM descriptor and default-argument bridge stay byte-identical, and the configuration-aware
+ * overload that places `clientConfig` third so it can never collide with the legacy third-parameter map. The
+ * canonical constructor's trailing `marker: Unit` keeps its descriptor distinct from the configured overload.
+ */
+private fun TypeSpec.Builder.addClientConstructors(defaultBaseUri: String?): TypeSpec.Builder {
+    fun baseUri(defaulted: Boolean) =
+        ParameterSpec
+            .builder("baseUri", STRING)
+            .apply { if (defaulted && defaultBaseUri != null) defaultValue("%S", defaultBaseUri) }
+            .build()
+
+    fun credentialProviders(defaulted: Boolean) =
+        ParameterSpec
+            .builder("credentialProviders", MAP.parameterizedBy(STRING, CREDENTIAL_PROVIDER))
+            .apply { if (defaulted) defaultValue("emptyMap()") }
+            .build()
+
+    fun trustedHosts(defaulted: Boolean) =
+        ParameterSpec
+            .builder("trustedHosts", TRUSTED_HOSTS.copy(nullable = true))
+            .apply { if (defaulted) defaultValue("null") }
+            .build()
+
+    fun authentication(defaulted: Boolean) =
+        ParameterSpec
+            .builder("authentication", SDK_AUTHENTICATION.copy(nullable = true))
+            .apply { if (defaulted) defaultValue("null") }
+            .build()
+    primaryConstructor(
+        FunSpec
+            .constructorBuilder()
+            .addModifiers(KModifier.PRIVATE)
+            .addParameter("transport", SDK_TRANSPORT)
+            .addParameter(baseUri(defaulted = false))
+            .addParameter("clientConfig", SDK_CLIENT_CONFIG)
+            .addParameter(credentialProviders(defaulted = false))
+            .addParameter(trustedHosts(defaulted = false))
+            .addParameter(authentication(defaulted = false))
+            .addParameter("marker", UNIT)
+            .build(),
+    )
+    addProperty(
+        PropertySpec
+            .builder("clientConfig", SDK_CLIENT_CONFIG)
+            .addModifiers(KModifier.PRIVATE)
+            .initializer("clientConfig")
+            .build(),
+    )
+    addFunction(
+        FunSpec
+            .constructorBuilder()
+            .addModifiers(KModifier.PUBLIC)
+            .addParameter("transport", SDK_TRANSPORT)
+            .addParameter(baseUri(defaulted = true))
+            .addParameter(credentialProviders(defaulted = true))
+            .addParameter(trustedHosts(defaulted = true))
+            .addParameter(authentication(defaulted = true))
+            .callThisConstructor(
+                CodeBlock.of("transport"),
+                CodeBlock.of("baseUri"),
+                CodeBlock.of("%T()", SDK_CLIENT_CONFIG),
+                CodeBlock.of("credentialProviders"),
+                CodeBlock.of("trustedHosts"),
+                CodeBlock.of("authentication"),
+                CodeBlock.of("Unit"),
+            ).build(),
+    )
+    addFunction(
+        FunSpec
+            .constructorBuilder()
+            .addModifiers(KModifier.PUBLIC)
+            .addParameter("transport", SDK_TRANSPORT)
+            .addParameter(baseUri(defaulted = true))
+            .addParameter("clientConfig", SDK_CLIENT_CONFIG)
+            .addParameter(credentialProviders(defaulted = true))
+            .addParameter(trustedHosts(defaulted = true))
+            .addParameter(authentication(defaulted = true))
+            .callThisConstructor(
+                CodeBlock.of("transport"),
+                CodeBlock.of("baseUri"),
+                CodeBlock.of("clientConfig"),
+                CodeBlock.of("credentialProviders"),
+                CodeBlock.of("trustedHosts"),
+                CodeBlock.of("authentication"),
+                CodeBlock.of("Unit"),
+            ).build(),
+    )
+    return this
+}
+
+/**
+ * Builds the resource client's private executor from its shared configuration: hook, budget, middleware, and
+ * observers are handed over exactly once (never copied into per-call options), and the product token falls back
+ * to [productToken] — the SDK author's `runtime.userAgentSuffix`-derived token — or, when the author set none, to
+ * the runtime's version-neutral default.
+ */
+private fun executorInitializer(
+    clientName: String,
+    productToken: String?,
+): CodeBlock =
+    CodeBlock
+        .builder()
+        .add("%T(\n", SDK_EXECUTOR)
+        .indent()
+        .add("transport,\n")
+        .add("authentication = this@%L.authentication,\n", clientName)
+        .add("requestHook = clientConfig.requestHook,\n")
+        .add("retryBudget = clientConfig.retryBudget,\n")
+        .add("logicalMiddleware = clientConfig.logicalMiddleware,\n")
+        .add("attemptMiddleware = clientConfig.attemptMiddleware,\n")
+        .add("observers = clientConfig.observers,\n")
+        .apply {
+            if (productToken != null) {
+                add("productToken = clientConfig.productToken ?: %S,\n", productToken)
+            } else {
+                add("productToken = clientConfig.productToken ?: %T.DEFAULT_PRODUCT_TOKEN,\n", SDK_EXECUTOR)
+            }
+        }.unindent()
+        .add(")")
+        .build()
 
 private fun authenticationInitializer(requiresSecurityAuthentication: Boolean): CodeBlock {
     if (!requiresSecurityAuthentication) return CodeBlock.of("authentication")
@@ -1054,7 +1144,7 @@ private fun withResponseFunction(
         .returns(SDK_RESPONSE_RESULT.parameterizedBy(responseInterface))
         .addKdoc("%L", withResponseKDoc(operation, names))
         .addStatement(
-            "return executor.executeWithResponse<%T, %T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L, options)",
+            "return executor.executeWithResponse<%T, %T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L, %L)",
             requestType,
             responseInterface,
             SDK_EXECUTION_REQUEST,
@@ -1065,6 +1155,7 @@ private fun withResponseFunction(
             codecsType,
             "${variant.codecPropertyName}Registry",
             requireNotNull(names.responseDecoderName),
+            RESOLVED_CALL_OPTIONS,
         ).build()
 }
 
@@ -2436,7 +2527,7 @@ private fun EmissionContext.bufferedOperationFunction(
     when {
         operation.responseType.isUnit() -> {
             function.addStatement(
-                "return executor.executeBodyless<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)",
+                "return executor.executeBodyless<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L)",
                 requestType,
                 SDK_EXECUTION_REQUEST,
                 variant.metadataProperty(primaryMetadataPropertyName),
@@ -2445,12 +2536,13 @@ private fun EmissionContext.bufferedOperationFunction(
                 requestParametersExpression(operation, names),
                 codecsType,
                 "${variant.codecPropertyName}Registry",
+                RESOLVED_CALL_OPTIONS,
             )
         }
 
         operation.responseType.isRawStream() -> {
             function.addStatement(
-                "return executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)",
+                "return executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L)",
                 requestType,
                 SDK_EXECUTION_REQUEST,
                 variant.metadataProperty(primaryMetadataPropertyName),
@@ -2459,12 +2551,13 @@ private fun EmissionContext.bufferedOperationFunction(
                 requestParametersExpression(operation, names),
                 codecsType,
                 "${variant.codecPropertyName}Registry",
+                RESOLVED_CALL_OPTIONS,
             )
         }
 
         else -> {
             function.addStatement(
-                "return executor.execute<%T, %T>(%T(%L, baseUri, %L, %L, %L), %L, %T.%L, %T.%L, options)",
+                "return executor.execute<%T, %T>(%T(%L, baseUri, %L, %L, %L), %L, %T.%L, %T.%L, %L)",
                 requestType,
                 responseType,
                 SDK_EXECUTION_REQUEST,
@@ -2477,6 +2570,7 @@ private fun EmissionContext.bufferedOperationFunction(
                 "${variant.codecPropertyName}Registry",
                 codecsType,
                 "${operation.responseCodecPropertyName}Registry",
+                RESOLVED_CALL_OPTIONS,
             )
         }
     }
@@ -2553,7 +2647,7 @@ private fun typedErrorExecutionCode(
         .add("}\n")
         .unindent()
         .add("},\n")
-        .add("options = options,\n")
+        .add("options = %L,\n", RESOLVED_CALL_OPTIONS)
         .unindent()
         .add(")\n")
         .build()
@@ -2658,7 +2752,7 @@ private fun rawTypedErrorStreamCode(
         .add("}\n")
         .unindent()
         .add("},\n")
-        .add("options = options,\n")
+        .add("options = %L,\n", RESOLVED_CALL_OPTIONS)
         .unindent()
         .add(")\n")
         .build()
@@ -2709,7 +2803,7 @@ private fun EmissionContext.sseFlowFunction(
         )
     } else {
         body.add(
-            "executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, options)\n",
+            "executor.executeRaw<%T>(%T(%L, baseUri, %L, %L, %L), %T.%L, %L)\n",
             requestType,
             SDK_EXECUTION_REQUEST,
             metadataPropertyName,
@@ -2718,6 +2812,7 @@ private fun EmissionContext.sseFlowFunction(
             requestParametersExpression(operation, names),
             codecsType,
             registryName,
+            RESOLVED_CALL_OPTIONS,
         )
     }
     body.unindent().add("},\n")
@@ -2883,7 +2978,7 @@ private fun EmissionContext.pageFetcherFunction(
         is PaginationDeclaration.CursorToken -> {
             body.add(
                 "val response = executor.execute<%T, %T>(%T(pageMetadata, baseUri, pageRequestValue, %L, %L), " +
-                    "%L, %T.%L, %T.%L, options)\n",
+                    "%L, %T.%L, %T.%L, %L)\n",
                 requestType,
                 responseType,
                 SDK_EXECUTION_REQUEST,
@@ -2894,6 +2989,7 @@ private fun EmissionContext.pageFetcherFunction(
                 "${operation.requestCodecPropertyName}Registry",
                 codecsType,
                 "${operation.responseCodecPropertyName}Registry",
+                RESOLVED_CALL_OPTIONS,
             )
             body.add(
                 "return %T(value = response, items = %L.orEmpty(), nextCursor = %L)\n",
@@ -2930,7 +3026,7 @@ private fun EmissionContext.pageFetcherFunction(
             body.add("%L,\n", responseCodecIds(operation, codecsType))
             body.add("%T.%L,\n", codecsType, "${operation.requestCodecPropertyName}Registry")
             body.add("%T.%L,\n", codecsType, "${operation.responseCodecPropertyName}Registry")
-            body.add("options,\n")
+            body.add("%L,\n", RESOLVED_CALL_OPTIONS)
             body.unindent().add(")\n")
             body.add(
                 "val requestUri = %M(effectiveBaseUri, effectivePath, effectiveParameters)\n",
@@ -2951,7 +3047,7 @@ private fun EmissionContext.pageFetcherFunction(
         is PaginationDeclaration.OffsetLimit -> {
             body.add(
                 "val response = executor.execute<%T, %T>(%T(pageMetadata, baseUri, pageRequestValue, %L, %L), " +
-                    "%L, %T.%L, %T.%L, options)\n",
+                    "%L, %T.%L, %T.%L, %L)\n",
                 requestType,
                 responseType,
                 SDK_EXECUTION_REQUEST,
@@ -2962,6 +3058,7 @@ private fun EmissionContext.pageFetcherFunction(
                 "${operation.requestCodecPropertyName}Registry",
                 codecsType,
                 "${operation.responseCodecPropertyName}Registry",
+                RESOLVED_CALL_OPTIONS,
             )
             val totalPath = pagination.responseTotalPath
             if (totalPath != null) {
@@ -3095,11 +3192,12 @@ private fun parameterListExpression(
                 result
                     .indent()
                     .add(
-                        "add(%T(location = %T.%L, name = %S + \"[\" + index + \"]\", values = listOf(value.toString())))\n",
+                        "add(%T(location = %T.%L, name = %S + \"[\" + index + \"]\", values = listOf(value.%L)))\n",
                         SDK_REQUEST_PARAMETER,
                         SDK_PARAMETER_LOCATION,
                         parameter.location.name,
                         parameter.name,
+                        parameter.valueEncoding.accessor,
                     ).unindent()
                     .add("}\n")
             }
@@ -3112,7 +3210,7 @@ private fun parameterListExpression(
                         SDK_PARAMETER_LOCATION,
                         parameter.location.name,
                         "${parameter.name}[${property.wireName}]",
-                        deepObjectPropertyValuesExpression(parameter, parameterName, property.accessorName),
+                        deepObjectPropertyValuesExpression(parameter, parameterName, property),
                     )
                 }
                 serialization.additionalProperties?.let { additional ->
@@ -3184,7 +3282,11 @@ private fun parameterListExpression(
                         pageRequestAware && pagination?.requestCursorParam == parameter.name &&
                             parameter.location == OperationParameterLocation.QUERY &&
                             names.cursorParameterName != null -> {
-                            CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
+                            if (parameter.type.isKotlinString()) {
+                                CodeBlock.of("listOfNotNull(effectiveCursor)")
+                            } else {
+                                CodeBlock.of("effectiveCursor?.let { listOf(it.toString()) }.orEmpty()")
+                            }
                         }
 
                         pageRequestAware && offsetPagination?.requestOffsetParam == parameter.name &&
@@ -3246,21 +3348,40 @@ private fun parameterValuesExpression(
             CodeBlock.of("%M(%L.raw)", SDK_PRIMITIVE_UNION_PARAMETER_VALUES, parameterName)
         }
     } else if (parameter.serialization == ParameterSerialization.CommaJoined) {
+        val joined =
+            when (parameter.valueEncoding) {
+                ParameterValueEncoding.TO_STRING -> "joinToString(\",\")"
+                ParameterValueEncoding.OPEN_ENUM_VALUE -> "joinToString(\",\") { item -> item.value }"
+            }
         if (!parameter.required || parameter.type.nullable) {
-            CodeBlock.of("%L?.let { listOf(it.joinToString(\",\")) }.orEmpty()", parameterName)
+            CodeBlock.of("%L?.let { listOf(it.%L) }.orEmpty()", parameterName, joined)
         } else {
-            CodeBlock.of("listOf(%L.joinToString(\",\"))", parameterName)
+            CodeBlock.of("listOf(%L.%L)", parameterName, joined)
         }
     } else if (parameter.type.isRepeatedParameter()) {
-        if (!parameter.required || parameter.type.nullable) {
-            CodeBlock.of("%L?.map { it.toString() }.orEmpty()", parameterName)
+        // `String` elements need no conversion; converting them anyway is a compiler warning in every generated client.
+        val stringElements =
+            parameter.type.arguments
+                .singleOrNull()
+                ?.isKotlinString() == true
+        val optional = !parameter.required || parameter.type.nullable
+        val element = parameter.valueEncoding.accessor
+        when {
+            stringElements && optional -> CodeBlock.of("%L?.toList().orEmpty()", parameterName)
+            stringElements -> CodeBlock.of("%L.toList()", parameterName)
+            optional -> CodeBlock.of("%L?.map { it.%L }.orEmpty()", parameterName, element)
+            else -> CodeBlock.of("%L.map { it.%L }", parameterName, element)
+        }
+    } else if (parameter.type.isKotlinString()) {
+        if (parameter.required && !parameter.type.nullable) {
+            CodeBlock.of("listOf(%L)", parameterName)
         } else {
-            CodeBlock.of("%L.map { it.toString() }", parameterName)
+            CodeBlock.of("listOfNotNull(%L)", parameterName)
         }
     } else if (parameter.required && !parameter.type.nullable) {
-        CodeBlock.of("listOf(%L.toString())", parameterName)
+        CodeBlock.of("listOf(%L.%L)", parameterName, parameter.valueEncoding.accessor)
     } else {
-        CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", parameterName)
+        CodeBlock.of("%L?.let { listOf(it.%L) }.orEmpty()", parameterName, parameter.valueEncoding.accessor)
     }
 
 private fun stripeCompatibleJsonScalarValuesExpression(
@@ -3283,18 +3404,30 @@ private fun stripeCompatibleJsonScalarValuesExpression(
 private fun deepObjectPropertyValuesExpression(
     parameter: OperationParameterDeclaration,
     parameterName: String,
-    accessorName: String,
+    property: DeepObjectParameterPropertyDeclaration,
 ): CodeBlock {
-    val propertyExpression = "$parameterName.$accessorName"
-    return if (parameter.required && !parameter.type.nullable) {
-        CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", propertyExpression)
-    } else {
-        CodeBlock.of("%L?.let { listOf(it.toString()) }.orEmpty()", "$parameterName?.$accessorName")
-    }
+    val separator = if (parameter.required && !parameter.type.nullable) "." else "?."
+    return CodeBlock.of(
+        "%L%L%L?.let { listOf(it.%L) }.orEmpty()",
+        parameterName,
+        separator,
+        property.accessorName,
+        property.valueEncoding.accessor,
+    )
 }
+
+/** The Kotlin member that yields a parameter value's wire text. */
+private val ParameterValueEncoding.accessor: String
+    get() =
+        when (this) {
+            ParameterValueEncoding.TO_STRING -> "toString()"
+            ParameterValueEncoding.OPEN_ENUM_VALUE -> "value"
+        }
 
 private fun KotlinTypeRef.isRepeatedParameter(): Boolean =
     packageName == "kotlin.collections" && simpleName in setOf("List", "Set")
+
+private fun KotlinTypeRef.isKotlinString(): Boolean = packageName == "kotlin" && simpleName == "String"
 
 private fun pageFetchArguments(
     operation: OperationDeclaration,

@@ -14,6 +14,7 @@ actions:
       requestFlag: stream
       responseContentType: text/event-stream
       sentinel: "[DONE]"
+      payloadProperty: data
 - target: "$['paths']['/chat/completions']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
   remove: true
 - target: "$['paths']['/images']['post']"
@@ -23,6 +24,7 @@ actions:
       requestFlag: stream
       responseContentType: text/event-stream
       sentinel: "[DONE]"
+      payloadProperty: data
 - target: "$['paths']['/images']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
   remove: true
 - target: "$['paths']['/byok']['get']"
@@ -192,6 +194,7 @@ actions:
       requestFlag: stream
       responseContentType: text/event-stream
       sentinel: "[DONE]"
+      payloadProperty: data
 - target: "$['paths']['/messages']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
   remove: true
 - target: "$['paths']['/responses']['post']"
@@ -201,6 +204,7 @@ actions:
       requestFlag: stream
       responseContentType: text/event-stream
       sentinel: "[DONE]"
+      payloadProperty: data
 - target: "$['paths']['/responses']['post']['responses']['200']['content']['text/event-stream']['x-speakeasy-sse-sentinel']"
   remove: true
 # StandardProjection rejects an allOf property when its type or nullability differs across branches. OverlayApplicator

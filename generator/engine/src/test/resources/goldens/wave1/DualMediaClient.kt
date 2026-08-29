@@ -12,6 +12,7 @@ import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkApiException
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkDeadlines
 import com.nabobery.sdkgen.runtime.SdkExecutionRequest
 import com.nabobery.sdkgen.runtime.SdkExecutor
@@ -30,6 +31,7 @@ import com.nabobery.sdkgen.runtime.bodies.MultipartBody
 import kotlin.Int
 import kotlin.LazyThreadSafetyMode
 import kotlin.String
+import kotlin.Unit
 import kotlin.collections.List
 import kotlin.collections.Map
 import kotlin.collections.Set
@@ -100,15 +102,42 @@ internal object DualMediaCodecs {
 /**
  * Client exposing one callable method per request-media variant.
  */
-public class DualMediaClient(
+public class DualMediaClient private constructor(
   transport: SdkTransport,
   private val baseUri: String,
-  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
-  trustedHosts: TrustedHosts? = null,
-  private val authentication: SdkAuthentication? = null,
+  private val clientConfig: SdkClientConfig,
+  credentialProviders: Map<String, CredentialProvider>,
+  trustedHosts: TrustedHosts?,
+  private val authentication: SdkAuthentication?,
+  marker: Unit,
 ) {
-  private val executor: SdkExecutor =
-      SdkExecutor(transport, authentication = this@DualMediaClient.authentication)
+  private val executor: SdkExecutor = SdkExecutor(
+        transport,
+        authentication = this@DualMediaClient.authentication,
+        requestHook = clientConfig.requestHook,
+        retryBudget = clientConfig.retryBudget,
+        logicalMiddleware = clientConfig.logicalMiddleware,
+        attemptMiddleware = clientConfig.attemptMiddleware,
+        observers = clientConfig.observers,
+        productToken = clientConfig.productToken ?: SdkExecutor.DEFAULT_PRODUCT_TOKEN,
+      )
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, SdkClientConfig(), credentialProviders, trustedHosts, authentication, Unit)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    clientConfig: SdkClientConfig,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication, Unit)
 
   /**
    * Transcribes audio from a JSON payload or a multipart upload.
@@ -128,7 +157,7 @@ public class DualMediaClient(
     options: CallOptions = CallOptions(),
   ): Transcription = executor.executeWithTypedErrors<TranscribeJsonRequest, CreateTranscriptionResponse, Transcription>(
     request = SdkExecutionRequest(metadata, baseUri, request, listOf(DualMediaCodecs.CREATE_TRANSCRIPTION_REQUEST_CODEC_ID), buildList {
-      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = model?.let { listOf(it.toString()) }.orEmpty()))
+      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = listOfNotNull(model)))
     }),
     requestCodecs = DualMediaCodecs.createTranscriptionRequestCodecRegistry,
     responseDecoder = CreateTranscriptionResponseDecoder,
@@ -146,7 +175,7 @@ public class DualMediaClient(
         is CreateTranscriptionResponse.Unknown -> error("Runtime returned an unmatched response through the typed error path.")
       }
     },
-    options = options,
+    options = clientConfig.resolveCallOptions(options),
   )
 
   /**
@@ -170,7 +199,7 @@ public class DualMediaClient(
     options: CallOptions = CallOptions(),
   ): Transcription = executor.executeWithTypedErrors<TranscribeMultipartRequest, CreateTranscriptionResponse, Transcription>(
     request = SdkExecutionRequest(createTranscriptionMultipartMetadata, baseUri, request, listOf(DualMediaCodecs.CREATE_TRANSCRIPTION_MULTIPART_REQUEST_CODEC_ID), buildList {
-      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = model?.let { listOf(it.toString()) }.orEmpty()))
+      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = listOfNotNull(model)))
     }),
     requestCodecs = DualMediaCodecs.createTranscriptionMultipartRequestCodecRegistry,
     responseDecoder = CreateTranscriptionResponseDecoder,
@@ -188,7 +217,7 @@ public class DualMediaClient(
         is CreateTranscriptionResponse.Unknown -> error("Runtime returned an unmatched response through the typed error path.")
       }
     },
-    options = options,
+    options = clientConfig.resolveCallOptions(options),
   )
 
   /**
@@ -205,8 +234,8 @@ public class DualMediaClient(
     model: String? = null,
     options: CallOptions = CallOptions(),
   ): SdkResponseResult<CreateTranscriptionResponse> = executor.executeWithResponse<TranscribeJsonRequest, CreateTranscriptionResponse>(SdkExecutionRequest(metadata, baseUri, request, listOf(DualMediaCodecs.CREATE_TRANSCRIPTION_REQUEST_CODEC_ID), buildList {
-    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = model?.let { listOf(it.toString()) }.orEmpty()))
-  }), DualMediaCodecs.createTranscriptionRequestCodecRegistry, CreateTranscriptionResponseDecoder, options)
+    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = listOfNotNull(model)))
+  }), DualMediaCodecs.createTranscriptionRequestCodecRegistry, CreateTranscriptionResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Transcribes audio from a JSON payload or a multipart upload.
@@ -222,8 +251,8 @@ public class DualMediaClient(
     model: String? = null,
     options: CallOptions = CallOptions(),
   ): SdkResponseResult<CreateTranscriptionResponse> = executor.executeWithResponse<TranscribeMultipartRequest, CreateTranscriptionResponse>(SdkExecutionRequest(createTranscriptionMultipartMetadata, baseUri, request, listOf(DualMediaCodecs.CREATE_TRANSCRIPTION_MULTIPART_REQUEST_CODEC_ID), buildList {
-    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = model?.let { listOf(it.toString()) }.orEmpty()))
-  }), DualMediaCodecs.createTranscriptionMultipartRequestCodecRegistry, CreateTranscriptionResponseDecoder, options)
+    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "model", values = listOfNotNull(model)))
+  }), DualMediaCodecs.createTranscriptionMultipartRequestCodecRegistry, CreateTranscriptionResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Decoded non-success response alternatives that `createTranscription` may expose through its typed API exception.

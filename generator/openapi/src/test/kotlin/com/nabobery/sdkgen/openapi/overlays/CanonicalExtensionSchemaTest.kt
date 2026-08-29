@@ -40,6 +40,27 @@ class CanonicalExtensionSchemaTest {
     }
 
     @Test
+    fun `streaming schema stays closed and declares payloadProperty as an optional non-empty string`() {
+        val schema =
+            DocumentCodec.parseJson(
+                checkNotNull(javaClass.getResourceAsStream("/schemas/x-sdkgen-streaming.schema.json")).readBytes(),
+            )
+        assertEquals(false, schema.path("additionalProperties").asBoolean())
+        assertEquals(listOf("mode", "responseContentType"), schema.path("required").map { it.asText() })
+        assertEquals(
+            listOf("mode", "payloadProperty", "requestFlag", "responseContentType", "sentinel"),
+            schema
+                .path("properties")
+                .fieldNames()
+                .asSequence()
+                .sorted()
+                .toList(),
+        )
+        assertEquals("string", schema.at("/properties/payloadProperty/type").asText())
+        assertEquals(1, schema.at("/properties/payloadProperty/minLength").asInt())
+    }
+
+    @Test
     fun `pagination schema enforces complete RFC 6901 escaping`() {
         val schema =
             DocumentCodec.parseJson(

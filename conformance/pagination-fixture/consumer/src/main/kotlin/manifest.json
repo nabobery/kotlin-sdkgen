@@ -4,7 +4,7 @@
     "edition": "community",
     "kotlinPoetVersion": "2.3.0",
     "configDigest": "9ff460acbd819f4759a4a4da72a80fb3ba1d0204a01849548dcd334ca515e7d2",
-    "declarationModelSha256": "924785735e957b48f3cd1e1d68cbd79b9280c3604f5ff60229f1ec1f3afe1b86",
+    "declarationModelSha256": "6aedc6ed13924da5a3edddfb4e21db35a81c02619f291f61c88000f3fc644068",
     "effectiveContractSha256": "2602438f453d055590335937b2c675ced78eb3bf02e9233de7abf1caa7f669ba",
     "semanticModelSha256": "75452d6f576240ab54317f465339504a2729072310e967a1d877cacb3b129c15",
     "kotlinApiSha256": "f7c61baaf09f9da1825c97c2e567d14d6ccdea3e606ba803fc92109f498fc636",
@@ -46,7 +46,7 @@
         },
         {
             "path": "com/nabobery/sdkgen/generated/PaginationFixtureClient.kt",
-            "sha256": "ee190ac62759bce847268c31df17c8789fed473282ccd2604746ae7bf4613c4e"
+            "sha256": "1c54d8044909e13e915a8c875cf8fbda05ed7ecc1237be0eedac0bdb55baa29f"
         },
         {
             "path": "com/nabobery/sdkgen/generated/SerializationSupport.kt",
@@ -62,7 +62,7 @@
         },
         {
             "path": "com/nabobery/sdkgen/generated/repos/ReposClient.kt",
-            "sha256": "e47718db5e8dd262420af9809d78cbe8b168a92e9acab3d870f029babc0c1a08"
+            "sha256": "7e1dce4a2536a4a06d359940d1ef255fcbece1429aa5b9714131007cb4abb462"
         }
     ]
 }

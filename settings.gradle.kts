@@ -37,6 +37,16 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenCentral()
+        // ktlint-gradle is published only to the Plugin Portal; the SDKGen Gradle plugin's tests compile against it
+        // to pin the ktlint filter contract its optional integration relies on.
+        exclusiveContent {
+            forRepository {
+                gradlePluginPortal()
+            }
+            filter {
+                includeGroupByRegex("org\\.jlleitschuh\\.gradle(\\..*)?")
+            }
+        }
         exclusiveContent {
             forRepository {
                 google()

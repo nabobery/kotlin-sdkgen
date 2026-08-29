@@ -1,0 +1,140 @@
+{
+    "schemaVersion": "v1alpha2",
+    "generatorVersion": "0.4.0-SNAPSHOT",
+    "edition": "community",
+    "kotlinPoetVersion": "2.3.0",
+    "configDigest": "efe5aeb43ada0b4f91d399c307432c56640a411d15283b5b7b84fb767d5303c5",
+    "declarationModelSha256": "ca7bd4ccefb8ab9aecd70a31e8ca467a26860c9f53d2056ab1c30ea5b993978c",
+    "effectiveContractSha256": "e82c9040600b8c744cd35869ffe26aab1554136ab352da7686b92b3560ff075f",
+    "semanticModelSha256": "fcaefb96ad7e7b5b8ea2edb14aae11a7250c5fa91856aeec5570ca2549e526a4",
+    "kotlinApiSha256": "f53b5cb6400f544b212494d2191b18408e19b3208a272722ab7a01022d29305c",
+    "source": {
+        "canonicalUri": "sdkgen://source/openapi.yaml",
+        "sha256": "e82c9040600b8c744cd35869ffe26aab1554136ab352da7686b92b3560ff075f",
+        "contentLength": 7991
+    },
+    "references": [],
+    "overlays": [],
+    "targets": [
+        "jvm"
+    ],
+    "compatibilityProfiles": [],
+    "plugins": [],
+    "tools": [
+        {
+            "id": "kotlinpoet",
+            "version": "2.3.0"
+        }
+    ],
+    "warningsAsErrors": false,
+    "warningAllowlist": [],
+    "diagnostics": [],
+    "exclusions": [],
+    "acceptedWaivers": [],
+    "files": [
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatBlockedDetail.kt",
+            "sha256": "964f51b98fd071c8ef724d47cdecf1cf87e5d0d2f050c2272b202474f79ecfbf"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatDelta.kt",
+            "sha256": "0f00ed28051243ec2ed7a308a225d612c3b3dd26cc664e2f8c415490387c155e"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatRequest.kt",
+            "sha256": "a74c88ea301088e805bb0b4d220484fe11404466020206029ec7a19742c4e5d8"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatResult.kt",
+            "sha256": "665264a483262bf767a450e27bb39ba80ecfe94b73a1fa830c2fdf9289127107"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatResultDetail.kt",
+            "sha256": "5e25d2372fb5ef8528eb22319a3c64334ff156cfbcff7a888e77732b5e274ca6"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ChatTextDetail.kt",
+            "sha256": "23043c4d55f40627ea52848ce78dff2a0da72db9fa5fe1b1a00043abe53b5db4"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/ErrorResponse.kt",
+            "sha256": "5af8d9a34d8a4c4f255f277ed585f032ec5b602547b311544796910441b59b7a"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/EventChunk.kt",
+            "sha256": "a506ab2bc50a7593807e4f2326688a81a8bc5c38ad26a7b79692d6f9ce9a156b"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/EventEnvelope.kt",
+            "sha256": "95dff6c8124a635c49430ebf52cfd03b6485793c83f15c3912767ecba789e2d6"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/EventSubscription.kt",
+            "sha256": "22687ffd144e6cd6257b8fe77d01fc5754d7a9e00cac57ff86f00dd952e57e78"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/FieldPresence.kt",
+            "sha256": "55eda7c5ae84c0f15ad1d488fc52d839bfeaeac0286c830e827ef7e2f55a4597"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/FileBucket.kt",
+            "sha256": "8962c1a1666f1031469aaa18b8af89fd1d7fb5b75fc0a514449c0689e94842de"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/FileEntry.kt",
+            "sha256": "a95da19bd651d913fb208ff4a5e687f4800b246026b88be903690e85c1f88d9d"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/FileListResponse.kt",
+            "sha256": "3e7135f122a4d6868655352e299502a57536a46af2b7f75362ed6571b9405769"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/InlineOpenAiFileListObjectValueX1f865375.kt",
+            "sha256": "40c110f9310788664cd7eea09aa79d283f2454403ea5e0655970635fddc9a775"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/InlineOpenAiFileListShapeX12980995.kt",
+            "sha256": "3deafc7f94363be0a619cac6c1d0bead2695c8ba1d80d644dcf227d35c399881"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/InlineOpenRouterFileListShapeX1640caf6.kt",
+            "sha256": "4f3de789189c179de2d2818610b752355d190e19b97442fdcb3ce139b70d7777"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/OpenAiFileList.kt",
+            "sha256": "8d34f26cb4dee8488fc6f95e22dbf9167208abe17ccccbbf397171be234a362d"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/OpenRouterFileList.kt",
+            "sha256": "1d3b7b791737df8643dbe216c50c1c0c4c5eed962d553dc88ee1ee615675de90"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/PageShape.kt",
+            "sha256": "539c683f65e85ee44a4daf8ca69f36de07d27ba77e3cacd7c62b581b8d79a9f4"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/PageSort.kt",
+            "sha256": "ea1b0d58772127a52a500b58c588f07c91096e368c4739840d20785815575f91"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/SerializationSupport.kt",
+            "sha256": "4c810f7e8ed56b923faa5ee907fbc26f5af9dd4550277aa8a2240d4bb340eb0d"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/StreamingFixtureClient.kt",
+            "sha256": "a20af2f7615be5a4390383a2ccf7ec749991a645e36e8d23694f73c0ad7af372"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/chat/ChatClient.kt",
+            "sha256": "92efd59f06fb8f8036d3189e66149a47a22768b18b0ba4b5d3781e73eb1fb572"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/events/EventsClient.kt",
+            "sha256": "8439175ffe52d5ab5bfd3fa791b155111df2d69b07907ab503dbce0b8fff917a"
+        },
+        {
+            "path": "com/nabobery/sdkgen/generated/files/FilesClient.kt",
+            "sha256": "b25d2c502c7eddc844aa67048b6ceeeefbb6b621082659dec282fbc448d36001"
+        }
+    ]
+}

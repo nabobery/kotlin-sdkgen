@@ -10,9 +10,9 @@ a published OpenRouter SDK.
 - **Generated operations:** 89
 - **OpenAPI SHA-256:** `b901d462e355e54b90ee2320bf7f18d0cb8edea857d5cdd8623d704f77a9eb47`
 - **Overlay SHA-256 (`overlays/allof-resolution-audit.yaml`):** `f8bc7a924cf9bc0af7ac54abc8a933037d0c30631b7bf690884ba3dfcd5cb6d0`
-- **Overlay SHA-256 (`overlays/full-spec-compat.yaml`):** `0ced3f18aa83e29f6aadc41d82d302e0312f3736c5c4914e27250dab964fb5c5`
+- **Overlay SHA-256 (`overlays/full-spec-compat.yaml`):** `798d9e434ff3d7e3334cae329192d1e9f7eafbb5e69f8cb3182df41d6441cfa0`
 - **Generated files:** 1,671
-- **Generated snapshot SHA-256:** `1c1f75a48aeafba27a45a3c86e43d89811d043d1c9460d6187ddd598e9bbebbd`
+- **Generated snapshot SHA-256:** `ed786b7bd85732deb25f659eb7d81576cb729ecb54e21b979f09806aa8685478`
 
 [`SHA256SUMS`](SHA256SUMS), [`sdkgen.yaml`](sdkgen.yaml), and [`sdkgen.lock`](sdkgen.lock) bind generation to the
 checked-in inputs. Conformance tests do not fetch the OpenAPI document from the network.
@@ -24,6 +24,12 @@ pagination across JVM and JavaScript test lanes.
 
 - Chat-completion and image generation expose buffered, `WithResponse`, and server-sent event stream methods. The
   caller supplies `stream = true`; generated code preserves the request instead of changing it.
+- The four SSE operations (`/chat/completions`, `/images`, `/messages`, `/responses`) describe their event stream as a
+  Speakeasy envelope (`{ "event": …, "data": … }`) while the wire carries only the payload JSON in each `data:` field.
+  The compatibility overlay selects the payload with `x-sdkgen-streaming.payloadProperty: data`, so the generated
+  `Flow<T>` element types are the payload models — `ChatStreamChunk`, the image stream union, `MessagesStreamEvents`,
+  and `StreamEvents` — and the consumer fixtures replay the documented wire form. See
+  [ADR 0022](../../docs/adr/0022-generated-client-configuration-and-sse-payloads.md).
 - All 17 annotated pagination operations expose `Pages` and `Items` flows. Sixteen use offset/limit pagination and
   `listFiles` uses cursor pagination.
 - `createEmbeddings` and `createRerank` do not expose streaming because the pinned descriptions explicitly state that

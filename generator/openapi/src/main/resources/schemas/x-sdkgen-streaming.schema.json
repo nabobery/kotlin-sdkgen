@@ -7,7 +7,12 @@
         "mode": { "const": "sse" },
         "requestFlag": { "type": "string", "minLength": 1 },
         "responseContentType": { "const": "text/event-stream" },
-        "sentinel": { "type": "string", "minLength": 1 }
+        "sentinel": { "type": "string", "minLength": 1 },
+        "payloadProperty": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Top-level property of the matching text/event-stream response schema whose schema describes the JSON carried by each SSE data field. When set, the response schema is an event envelope and generated streams yield the selected payload type; omit to treat the response schema itself as the payload."
+        }
     },
     "required": ["mode", "responseContentType"]
 }

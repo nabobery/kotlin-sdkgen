@@ -12,14 +12,17 @@ public fun interface SdkRequestHook {
 }
 
 /**
- * A per-call decision about [CallOptions.retry], the one policy currently layered this way under [CallOptions]:
- * leave it as configured further up the resolution chain, turn it off for this call, or replace it outright.
+ * One layered policy decision — currently for retry, at both the client layer ([SdkClientConfig.retry]) and the
+ * per-call layer ([CallOptions.retry]): leave the policy as configured further up the resolution chain, turn it
+ * off, or replace it outright.
  *
  * The absence of an explicit choice always means [Inherit] — there is no separate nullable/tri-state boolean flag
- * to keep in sync with a value; a caller who wants to say "use the operation/client default" simply omits the
- * override. This is not a general-purpose resolution model for arbitrary [CallOptions] fields (e.g. deadlines or
- * pagination bounds resolve by simple non-null-wins-over-default, not through this tri-state) — it is generic over
- * `T` only because [RetryDescriptor] is the value it wraps, not because other policies are expected to adopt it.
+ * to keep in sync with a value; a layer that wants to say "use the next-outer default" simply omits the override.
+ * Each layer resolves the same way: a non-[Inherit] inner value wins over the outer value, so a per-call
+ * [Disabled] or [Replace] wins over the client decision, which in turn wins over the operation's generated default
+ * (see [SdkClientConfig.resolveCallOptions] and [resolveRetry]). This is not a general-purpose resolution model for
+ * arbitrary fields (deadlines and pagination bounds resolve by simple non-null-wins-over-default); it is generic
+ * over `T` only because [RetryDescriptor] is the value it wraps.
  */
 public sealed interface PolicyOverride<out T> {
     /** Defer to whatever the next-outer layer in the resolution chain decided (the default). */
@@ -42,9 +45,9 @@ public data class PaginationBounds(
 )
 
 /**
- * Per-call overrides layered on top of the operation's already-resolved defaults. Each property follows its own
- * resolution contract: [retry] is the only field using [PolicyOverride]'s retry-specific tri-state, while nullable
- * fields such as [deadlines] and [pagination] use their documented non-null override semantics.
+ * Per-call overrides layered on top of the operation's already-resolved defaults — the final layer after
+ * [SdkClientConfig]. Each property follows its own resolution contract: [retry] uses [PolicyOverride]'s tri-state,
+ * while nullable fields such as [deadlines] and [pagination] use their documented non-null override semantics.
  *
  * @property headers additional headers merged onto the request; per-call headers do not remove headers set by
  *   earlier layers.

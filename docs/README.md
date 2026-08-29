@@ -24,6 +24,8 @@ Kotlin SDKGen's public documentation is organized by what you are trying to acco
 - [Design decisions](design-decisions.md): cross-cutting implementation policies.
 - [Schema intersections and request-media variants](adr/0021-schema-intersection-and-request-media-variants.md):
   the strict composition and wire-encoding contracts introduced in 0.3.0.
+- [Client configuration, compatible constructors, SSE payload projection, and Gradle consumer wiring](adr/0022-generated-client-configuration-and-sse-payloads.md):
+  the consumer-facing contracts introduced in 0.4.0.
 - [Threat model](threat-model.md): trust boundaries and release-security controls.
 - [Industry research](research/industry-patterns.md): external patterns considered by the project.
 

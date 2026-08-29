@@ -21,7 +21,10 @@ does not assemble a complete cross-version report. Missing report layers remain 
 never inferred to have passed. The reconstructed
 [OpenRouter 0.2.0-to-0.3.0 report](conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/) records source-contract,
 semantic-model, and emitted-Kotlin-API changes; behavior and generated-SDK ABI remain unavailable because comparable
-release packets were not retained. The 0.3.0 release is additionally backed by its protected tag, successful
+release packets were not retained. The
+[OpenRouter 0.3.0-to-0.4.0 report](conformance/evidence/releases/v0.3.0-to-v0.4.0/openrouter/) covers the same three
+layers for the 0.4.0 line: the generated constructor surface is additive and the only breaking classifications are the
+four intended SSE element-type corrections enabled by `payloadProperty` (ADR 0022). The 0.3.0 release is additionally backed by its protected tag, successful
 release workflow, API/ABI and parity gates, publication checks, and provenance attestation. Security fixes are
 prioritized according to impact and maintainer availability; see `SECURITY.md` for private reporting.
 

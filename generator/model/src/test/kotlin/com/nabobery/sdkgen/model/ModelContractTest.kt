@@ -52,6 +52,7 @@ class ModelContractTest {
                 requestFlag = "stream",
                 responseContentType = "text/event-stream",
                 sentinel = "[DONE]",
+                payloadProperty = "data",
             )
         val idempotency =
             IdempotencyModel(
@@ -61,6 +62,8 @@ class ModelContractTest {
 
         assertEquals(pagination, pagination.copy())
         assertEquals(streaming, streaming.copy())
+        assertEquals("data", streaming.payloadProperty)
+        assertEquals(null, streaming.copy(payloadProperty = null).payloadProperty)
         assertEquals(idempotency, idempotency.copy())
         assertEquals(listOf("data"), pagination.responseItems.segments)
     }

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "sdkgen-release-evidence/v1",
+  "corpus": "openrouter",
+  "comparison": {
+    "from": {
+      "tag": "v0.3.0",
+      "commitSha": "827d47985b70941a3e8602413a80dcf4542747ed",
+      "operationCount": 89,
+      "generatedFileCount": 1670,
+      "manifestGeneratorVersion": "0.3.0"
+    },
+    "to": {
+      "tag": "v0.4.0",
+      "commitSha": null,
+      "commitBinding": "pending: rebind this packet at the protected v0.4.0 tag before release",
+      "operationCount": 89,
+      "generatedFileCount": 1670,
+      "manifestGeneratorVersion": "0.4.0"
+    }
+  },
+  "report": {
+    "aggregateOutcome": "incomplete",
+    "totalChangeCount": 35,
+    "changeCountsByClassification": {
+      "breaking": 4,
+      "unknown": 2,
+      "additive": 29
+    },
+    "availableLayers": [
+      "sourceContract",
+      "semanticModel",
+      "kotlinApi"
+    ],
+    "unavailableLayers": {
+      "behavior": "missing-behavior-evidence",
+      "abi": "missing-layer-evidence"
+    }
+  },
+  "stagedEvidence": {
+    "v0.3.0KotlinApiProjectionSha256": "e353ac8a21a4047891030023b32e0a3147d63d30540ff281f82344e48af53fd4",
+    "v0.4.0KotlinApiProjectionSha256": "142a6dfc383d2aed0c649ccddc62c759116ebbde92dd2836e6e1553887f328cf"
+  }
+}

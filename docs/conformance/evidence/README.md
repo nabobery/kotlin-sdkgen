@@ -12,6 +12,10 @@ Release-bound packets retain immutable tags and commits, release-bound manifests
 evidence digests, and integrity checks. Adding or correcting an evidence packet does not change published binaries
 and therefore does not require a new SDKGen version. A code or artifact defect discovered while producing evidence
 must still be fixed in a new release; evidence must never rewrite an existing publication.
+- [OpenRouter 0.3.0 to 0.4.0](releases/v0.3.0-to-v0.4.0/openrouter/): source-contract, semantic-model, and
+  emitted-Kotlin-API comparison for the 0.4.0 line (four intended stream element-type corrections, one additive
+  configured constructor per client); behavior and ABI layers remain `unavailable`; the `0.4.0` commit binding is
+  completed at the release tag.
 
 ## Durable proof and inventory files
 

@@ -7,16 +7,20 @@ import com.nabobery.sdkgen.runtime.CallOptions
 import com.nabobery.sdkgen.runtime.PolicyOverride
 import com.nabobery.sdkgen.runtime.ResponseSelector
 import com.nabobery.sdkgen.runtime.RetryDescriptor
+import com.nabobery.sdkgen.runtime.SdkApiException
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkAuthenticationException
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkHeader
 import com.nabobery.sdkgen.runtime.SdkRequestBody
 import com.nabobery.sdkgen.runtime.SdkResponseResult
 import com.nabobery.sdkgen.runtime.TransportCapabilities
+import com.nabobery.sdkgen.runtime.UnknownApiException
 import com.nabobery.sdkgen.runtime.bodies.MultipartBody
 import com.nabobery.sdkgen.runtime.bodies.TransferEvent
 import com.nabobery.sdkgen.runtime.bodies.TransferObserver
 import com.nabobery.sdkgen.runtime.observation.SdkLifecycleObserver
+import com.nabobery.sdkgen.runtime.resilience.RetryBudget
 import com.nabobery.sdkgen.testing.FakeByteStream
 import com.nabobery.sdkgen.testing.FakeTransport
 import com.nabobery.sdkgen.testing.assertClosedWith
@@ -199,9 +203,10 @@ class OpenRouterFixtureConformanceTest {
                 OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
 
             val request = chatRequestWithStream()
-            val events = client.chat.sendChatCompletionRequestStream(request).toList()
+            // `payloadProperty: data` projects the element type to the wire payload model, not the envelope.
+            val events: List<ChatStreamChunk> = client.chat.sendChatCompletionRequestStream(request).toList()
 
-            assertEquals(listOf("hé", "llo"), events.map { it.data.choices.single().delta.content })
+            assertEquals(listOf("hé", "llo"), events.map { it.choices.single().delta.content })
             assertEquals("sendChatCompletionRequest", transport.capturedRequests.single().operationId)
             val requestBody = consume(requireNotNull(transport.capturedRequests.single().body)).decodeToString()
             assertEquals(SdkJson.encodeToString(request), requestBody)
@@ -266,15 +271,15 @@ class OpenRouterFixtureConformanceTest {
     fun generatedImagesStreamSurfacesInBandErrorValueAndClosesAtDone() =
         runTest {
             val preSentinelRaw =
-                "data: {\"data\":{\"error\":{\"message\":\"provider failed\"," +
-                    "\"code\":\"bad_request\"},\"type\":\"error\"}}\n\n" +
+                "data: {\"error\":{\"message\":\"provider failed\"," +
+                    "\"code\":\"bad_request\"},\"type\":\"error\"}\n\n" +
                     "data: [DONE]\n\n"
             val preSentinelChunks =
                 preSentinelRaw.encodeToByteArray().toList().chunked(5).map { it.toByteArray() }
             val poisonChunk =
                 (
-                    "data: {\"data\":{\"error\":{\"message\":\"poison\",\"code\":\"poison\"}," +
-                        "\"type\":\"error\"}}\n\n"
+                    "data: {\"error\":{\"message\":\"poison\",\"code\":\"poison\"}," +
+                        "\"type\":\"error\"}\n\n"
                 ).encodeToByteArray()
             val unexpectedPostDoneRead = IllegalStateException("Post-[DONE] images chunk was read")
             val stream =
@@ -294,7 +299,7 @@ class OpenRouterFixtureConformanceTest {
 
             val event = client.images.createImagesStream(imageRequestWithStream()).toList().single()
 
-            val error = requireNotNull(event.data.imageGenStreamErrorEvent)
+            val error = requireNotNull(event.imageGenStreamErrorEvent)
             assertEquals("provider failed", error.error.message)
             assertEquals("bad_request", error.error.code)
             assertEquals("error", error.type.value)
@@ -393,6 +398,46 @@ class OpenRouterFixtureConformanceTest {
             )
             assertTrue(firstBody.closed)
             assertTrue(secondBody.closed)
+        }
+
+    @Test
+    fun oneRetryBudgetGovernsEveryResourceClientOfAConfiguredFacade() =
+        runTest {
+            val throttled = "{\"error\":{\"code\":429,\"message\":\"retry\"}}"
+            val transport = FakeTransport()
+            repeat(3) { transport.enqueueResponse(429, body = FakeByteStream(listOf(throttled.encodeToByteArray()))) }
+            val config =
+                SdkClientConfig(
+                    retry =
+                        PolicyOverride.Replace(
+                            RetryDescriptor(
+                                retryableStatusCodes = listOf(ResponseSelector.ExactStatus(429)),
+                                maxAttempts = 2,
+                                backoff = BackoffHints(1, maxDelayMillis = 1),
+                            ),
+                        ),
+                    retryBudget = RetryBudget(capacity = 1),
+                )
+            val client =
+                OpenRouterClient(
+                    transport,
+                    "https://openrouter.test",
+                    config,
+                    authentication = SdkAuthentication { it },
+                )
+
+            // `files` spends the facade's only retry token (attempt, retry, fail) ...
+            assertFailsWith<SdkApiException> { client.files.downloadFileContent("file-1") }
+            assertEquals(2, transport.capturedRequests.size)
+
+            // ... so `models`, a different lazily-built resource client, finds the shared budget exhausted
+            // (429 is unmapped for `getModels`, hence the unknown-status exception rather than a typed one).
+            assertFailsWith<UnknownApiException> { client.models.getModels() }
+            assertEquals(3, transport.capturedRequests.size)
+            assertEquals(
+                listOf("downloadFileContent", "downloadFileContent", "getModels"),
+                transport.capturedRequests.map { it.operationId },
+            )
         }
 
     @Test
@@ -497,9 +542,10 @@ class OpenRouterFixtureConformanceTest {
             assertTrue(transport.capturedRequests.isEmpty())
         }
 
+    /** Documented wire form: each `data:` field carries the `ChatStreamChunk` JSON itself, not the SSE envelope. */
     private fun chatStreamEvent(content: String): String =
-        "data: {\"data\":{\"choices\":[{\"delta\":{\"content\":\"$content\"},\"finish_reason\":null,\"index\":0}]," +
-            "\"created\":1,\"id\":\"chat-1\",\"model\":\"test\",\"object\":\"chat.completion.chunk\"}}\n\n"
+        "data: {\"choices\":[{\"delta\":{\"content\":\"$content\"},\"finish_reason\":null,\"index\":0}]," +
+            "\"created\":1,\"id\":\"chat-1\",\"model\":\"test\",\"object\":\"chat.completion.chunk\"}\n\n"
 
     private fun chatRequestWithStream(): ChatRequest =
         chatRequest {

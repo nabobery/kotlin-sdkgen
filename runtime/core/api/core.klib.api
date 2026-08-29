@@ -1332,6 +1332,30 @@ final class com.nabobery.sdkgen.runtime/SdkCapabilityException : com.nabobery.sd
         final fun <get-capability>(): kotlin/String // com.nabobery.sdkgen.runtime/SdkCapabilityException.capability.<get-capability>|<get-capability>(){}[0]
 }
 
+final class com.nabobery.sdkgen.runtime/SdkClientConfig { // com.nabobery.sdkgen.runtime/SdkClientConfig|null[0]
+    constructor <init>(com.nabobery.sdkgen.runtime/PolicyOverride<com.nabobery.sdkgen.runtime/RetryDescriptor> = ..., com.nabobery.sdkgen.runtime/SdkDeadlines? = ..., com.nabobery.sdkgen.runtime/SdkRequestHook? = ..., kotlin.collections/List<com.nabobery.sdkgen.runtime.middleware/LogicalMiddleware> = ..., kotlin.collections/List<com.nabobery.sdkgen.runtime.middleware/AttemptMiddleware> = ..., kotlin.collections/List<com.nabobery.sdkgen.runtime.observation/SdkLifecycleObserver> = ..., com.nabobery.sdkgen.runtime.resilience/RetryBudget = ..., kotlin/String? = ...) // com.nabobery.sdkgen.runtime/SdkClientConfig.<init>|<init>(com.nabobery.sdkgen.runtime.PolicyOverride<com.nabobery.sdkgen.runtime.RetryDescriptor>;com.nabobery.sdkgen.runtime.SdkDeadlines?;com.nabobery.sdkgen.runtime.SdkRequestHook?;kotlin.collections.List<com.nabobery.sdkgen.runtime.middleware.LogicalMiddleware>;kotlin.collections.List<com.nabobery.sdkgen.runtime.middleware.AttemptMiddleware>;kotlin.collections.List<com.nabobery.sdkgen.runtime.observation.SdkLifecycleObserver>;com.nabobery.sdkgen.runtime.resilience.RetryBudget;kotlin.String?){}[0]
+
+    final val attemptMiddleware // com.nabobery.sdkgen.runtime/SdkClientConfig.attemptMiddleware|{}attemptMiddleware[0]
+        final fun <get-attemptMiddleware>(): kotlin.collections/List<com.nabobery.sdkgen.runtime.middleware/AttemptMiddleware> // com.nabobery.sdkgen.runtime/SdkClientConfig.attemptMiddleware.<get-attemptMiddleware>|<get-attemptMiddleware>(){}[0]
+    final val deadlines // com.nabobery.sdkgen.runtime/SdkClientConfig.deadlines|{}deadlines[0]
+        final fun <get-deadlines>(): com.nabobery.sdkgen.runtime/SdkDeadlines? // com.nabobery.sdkgen.runtime/SdkClientConfig.deadlines.<get-deadlines>|<get-deadlines>(){}[0]
+    final val logicalMiddleware // com.nabobery.sdkgen.runtime/SdkClientConfig.logicalMiddleware|{}logicalMiddleware[0]
+        final fun <get-logicalMiddleware>(): kotlin.collections/List<com.nabobery.sdkgen.runtime.middleware/LogicalMiddleware> // com.nabobery.sdkgen.runtime/SdkClientConfig.logicalMiddleware.<get-logicalMiddleware>|<get-logicalMiddleware>(){}[0]
+    final val observers // com.nabobery.sdkgen.runtime/SdkClientConfig.observers|{}observers[0]
+        final fun <get-observers>(): kotlin.collections/List<com.nabobery.sdkgen.runtime.observation/SdkLifecycleObserver> // com.nabobery.sdkgen.runtime/SdkClientConfig.observers.<get-observers>|<get-observers>(){}[0]
+    final val productToken // com.nabobery.sdkgen.runtime/SdkClientConfig.productToken|{}productToken[0]
+        final fun <get-productToken>(): kotlin/String? // com.nabobery.sdkgen.runtime/SdkClientConfig.productToken.<get-productToken>|<get-productToken>(){}[0]
+    final val requestHook // com.nabobery.sdkgen.runtime/SdkClientConfig.requestHook|{}requestHook[0]
+        final fun <get-requestHook>(): com.nabobery.sdkgen.runtime/SdkRequestHook? // com.nabobery.sdkgen.runtime/SdkClientConfig.requestHook.<get-requestHook>|<get-requestHook>(){}[0]
+    final val retry // com.nabobery.sdkgen.runtime/SdkClientConfig.retry|{}retry[0]
+        final fun <get-retry>(): com.nabobery.sdkgen.runtime/PolicyOverride<com.nabobery.sdkgen.runtime/RetryDescriptor> // com.nabobery.sdkgen.runtime/SdkClientConfig.retry.<get-retry>|<get-retry>(){}[0]
+    final val retryBudget // com.nabobery.sdkgen.runtime/SdkClientConfig.retryBudget|{}retryBudget[0]
+        final fun <get-retryBudget>(): com.nabobery.sdkgen.runtime.resilience/RetryBudget // com.nabobery.sdkgen.runtime/SdkClientConfig.retryBudget.<get-retryBudget>|<get-retryBudget>(){}[0]
+
+    final fun resolveCallOptions(com.nabobery.sdkgen.runtime/CallOptions): com.nabobery.sdkgen.runtime/CallOptions // com.nabobery.sdkgen.runtime/SdkClientConfig.resolveCallOptions|resolveCallOptions(com.nabobery.sdkgen.runtime.CallOptions){}[0]
+    final fun toString(): kotlin/String // com.nabobery.sdkgen.runtime/SdkClientConfig.toString|toString(){}[0]
+}
+
 final class com.nabobery.sdkgen.runtime/SdkConfigurationException : com.nabobery.sdkgen.runtime/SdkException { // com.nabobery.sdkgen.runtime/SdkConfigurationException|null[0]
     constructor <init>(kotlin/String, kotlin/String? = ..., kotlin/Throwable? = ...) // com.nabobery.sdkgen.runtime/SdkConfigurationException.<init>|<init>(kotlin.String;kotlin.String?;kotlin.Throwable?){}[0]
 }

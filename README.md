@@ -81,7 +81,7 @@ sources into Kotlin/JVM or `commonMain` automatically:
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("io.github.nabobery.kotlin-sdkgen") version "0.3.0"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.4.0"
 }
 
 kotlin {
@@ -99,6 +99,57 @@ sdkgen {
 
 The plugin declaration resolves from the Gradle Plugin Portal. In this repository, the same integration is
 covered with composite-build TestKit fixtures.
+
+Generated sources are attached to `main` (Kotlin/JVM) or `commonMain` (Kotlin Multiplatform) through a stable path
+that the generation task builds, so Android Gradle Plugin consumers and configuration-cache builds need no ordering
+shims. To attach the same sources to another source set, use the configuration's `generatedSources` collection:
+
+```kotlin
+kotlin.sourceSets.getByName("androidMain").kotlin.srcDir(sdkgen.configurations.getByName("petstore").generatedSources)
+```
+
+When the `org.jlleitschuh.gradle.ktlint` plugin is applied — before or after SDKGen — the plugin excludes every SDKGen
+output root from linting through ktlint's supported filter API.
+
+## Configuring generated clients
+
+Every generated client keeps its original constructor and adds an overload that accepts a client-scoped
+`SdkClientConfig` (retry and deadline defaults, request hook, middleware, lifecycle observers, a shared retry
+budget, and the `User-Agent` product token). Per-call `CallOptions` keep final precedence:
+
+```kotlin
+val config =
+    SdkClientConfig(
+        retry = PolicyOverride.Replace(RetryDescriptor(maxAttempts = 2)),
+        deadlines = SdkDeadlines(30_000, 10_000, null),
+        productToken = "acme-app/1.2.3",
+    )
+val client = PetstoreClient(transport, "https://api.example.com", config)
+
+client.pets.listPets()                                                // client retry + deadlines
+client.pets.listPets(options = CallOptions(retry = PolicyOverride.Disabled)) // per-call override wins
+```
+
+Resource clients reached through one facade share that facade's configuration and retry budget. `runtime.defaultServer`
+and `runtime.userAgentSuffix` in `sdkgen.yaml` provide the `baseUri` default and the default product token.
+
+Contracts that describe a server-sent-event *envelope* (`{"event": …, "data": …}`) while the wire carries only the
+payload in each `data:` field can select the payload with `x-sdkgen-streaming.payloadProperty`, in the document or
+through an overlay:
+
+```yaml
+- target: "$['paths']['/chat/completions']['post']"
+  update:
+    x-sdkgen-streaming:
+      mode: sse
+      responseContentType: text/event-stream
+      sentinel: "[DONE]"
+      payloadProperty: data
+```
+
+The generated `Flow<T>` element type is then the payload model; omitting `payloadProperty` keeps the envelope type,
+and a property that does not exist fails generation with an `UNREPRESENTABLE_OPERATION` diagnostic. See
+[ADR 0022](docs/adr/0022-generated-client-configuration-and-sse-payloads.md).
 
 ## Architecture
 
@@ -195,7 +246,11 @@ The 0.3.0 schema-composition and request-media contracts are documented in the
 upgrading. The
 [`0.2.0`-to-`0.3.0` OpenRouter evidence packet](docs/conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/)
 records the release-bound corpus and emitted-API comparison, including the two compatibility layers that could not
-be reconstructed after publication.
+be reconstructed after publication. The 0.4.0 line adds client-scoped configuration with compatible constructors,
+explicit SSE payload projection, and Android/configuration-cache-safe Gradle wiring; see
+[ADR 0022](docs/adr/0022-generated-client-configuration-and-sse-payloads.md), the
+[unreleased changelog](CHANGELOG.md#unreleased), and the
+[`0.3.0`-to-`0.4.0` OpenRouter evidence packet](docs/conformance/evidence/releases/v0.3.0-to-v0.4.0/openrouter/).
 
 See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
 [`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,

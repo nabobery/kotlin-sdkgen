@@ -1481,8 +1481,13 @@ public class SdkExecutor(
          */
         public val PIPELINE_ORDER: List<SdkPipelineStage> = SdkPipelineStage.entries.toList()
 
-        /** Default `User-Agent` product token, applied when no caller-supplied value or explicit override exists. */
-        public const val DEFAULT_PRODUCT_TOKEN: String = "kotlin-sdkgen/0.1.0-SNAPSHOT"
+        /**
+         * Default `User-Agent` product token, applied when no caller-supplied value or explicit override exists.
+         * Deliberately version-neutral: SDK-specific attribution belongs to the generated fallback (derived from
+         * `runtime.userAgentSuffix`) or an explicit [SdkClientConfig.productToken], never to a runtime constant that
+         * would go stale.
+         */
+        public const val DEFAULT_PRODUCT_TOKEN: String = "kotlin-sdkgen"
 
         internal const val USER_AGENT_HEADER: String = "User-Agent"
         internal const val ACCEPT_HEADER: String = "Accept"
