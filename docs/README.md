@@ -5,8 +5,8 @@ Kotlin SDKGen's public documentation is organized by what you are trying to acco
 ## Get started
 
 - Start with the [project README](../README.md) to generate and validate the bundled OpenRouter example.
-- Read the [0.3.0 release notes](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0) and
-  [changelog](../CHANGELOG.md#030---2026-08-23) before upgrading across the preview API changes.
+- Read the [0.4.0 release notes](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.4.0) and
+  [changelog](../CHANGELOG.md#040---2026-08-30) before upgrading across the preview API changes.
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md) before proposing or implementing a change.
 - Use the [support policy](support-policy.md) to choose the right place for questions, bugs, and security reports.
 
@@ -43,4 +43,6 @@ proof tables, generated matrices, and release-bound evidence packets. Each artif
 freshness; a point-in-time matrix or incomplete compatibility report must not be treated as proof for a layer it
 marks `notRun` or `unavailable`. The
 [OpenRouter 0.2.0-to-0.3.0 packet](conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/) is the first
-cross-release example.
+cross-release example; the
+[0.3.0-to-0.4.0 packet](conformance/evidence/releases/v0.3.0-to-v0.4.0/openrouter/) records the configured-client
+constructor additions and intended SSE element-type corrections.

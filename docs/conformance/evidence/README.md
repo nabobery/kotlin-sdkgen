@@ -7,15 +7,15 @@ what it proves; no artifact should be read more broadly than its own status and 
 
 - [OpenRouter 0.2.0 to 0.3.0](releases/v0.2.0-to-v0.3.0/openrouter/): reconstructed source-contract,
   semantic-model, and emitted-Kotlin-API evidence. Behavior and generated-SDK ABI are explicitly unavailable.
+- [OpenRouter 0.3.0 to 0.4.0](releases/v0.3.0-to-v0.4.0/openrouter/): source-contract, semantic-model, and
+  emitted-Kotlin-API comparison for the 0.4.0 line (four intended stream element-type corrections, one additive
+  configured constructor per client); behavior and ABI layers remain `unavailable`; the `0.4.0` commit binding must
+  be completed after the protected release tag is created.
 
 Release-bound packets retain immutable tags and commits, release-bound manifests, generated compatibility reports,
 evidence digests, and integrity checks. Adding or correcting an evidence packet does not change published binaries
 and therefore does not require a new SDKGen version. A code or artifact defect discovered while producing evidence
 must still be fixed in a new release; evidence must never rewrite an existing publication.
-- [OpenRouter 0.3.0 to 0.4.0](releases/v0.3.0-to-v0.4.0/openrouter/): source-contract, semantic-model, and
-  emitted-Kotlin-API comparison for the 0.4.0 line (four intended stream element-type corrections, one additive
-  configured constructor per client); behavior and ABI layers remain `unavailable`; the `0.4.0` commit binding is
-  completed at the release tag.
 
 ## Durable proof and inventory files
 
