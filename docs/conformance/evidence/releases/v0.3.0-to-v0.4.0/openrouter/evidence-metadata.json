@@ -11,8 +11,7 @@
     },
     "to": {
       "tag": "v0.4.0",
-      "commitSha": null,
-      "commitBinding": "pending: rebind this packet at the protected v0.4.0 tag before release",
+      "commitSha": "012461abc2bcd6048e5e2ff66ab7cb663b357a2e",
       "operationCount": 89,
       "generatedFileCount": 1670,
       "manifestGeneratorVersion": "0.4.0"
