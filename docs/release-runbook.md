@@ -72,7 +72,9 @@ Follow this procedure for every version. A prior successful release is not evide
    publication gates before the protected publish job becomes eligible. The workflow does not currently assemble
    the complete before/after evidence consumed by `sdkgen compat`; produce the release comparison separately from
    the evidence retained for both versions, and record missing layers as `unavailable` rather than treating
-   compatibility reporting as CI-enforced.
+   compatibility reporting as CI-enforced. The Gradle-plugin TestKit lane includes Android Gradle Plugin consumer
+   builds that need an Android SDK with platform 36 (`ANDROID_HOME`); on a host without it those tests report a JUnit
+   assumption skip, which is not a passing release gate — a release run must execute them.
 4. Obtain the required `release` Environment reviewer approval. Only the publish job can read release
    credentials, and each credential pair is exposed only to the step that needs it.
 5. The protected job builds and verifies the signed release repository, SBOM, clean external consumer,

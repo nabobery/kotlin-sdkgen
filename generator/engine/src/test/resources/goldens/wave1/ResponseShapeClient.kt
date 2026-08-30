@@ -12,6 +12,7 @@ import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkApiException
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkDeadlines
 import com.nabobery.sdkgen.runtime.SdkExecutionRequest
 import com.nabobery.sdkgen.runtime.SdkExecutor
@@ -83,15 +84,42 @@ internal object ResponseShapeCodecs {
 /**
  * Golden client for compatible and incompatible successful response shapes.
  */
-public class ResponseShapeClient(
+public class ResponseShapeClient private constructor(
   transport: SdkTransport,
   private val baseUri: String,
-  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
-  trustedHosts: TrustedHosts? = null,
-  private val authentication: SdkAuthentication? = null,
+  private val clientConfig: SdkClientConfig,
+  credentialProviders: Map<String, CredentialProvider>,
+  trustedHosts: TrustedHosts?,
+  private val authentication: SdkAuthentication?,
+  marker: Unit,
 ) {
-  private val executor: SdkExecutor =
-      SdkExecutor(transport, authentication = this@ResponseShapeClient.authentication)
+  private val executor: SdkExecutor = SdkExecutor(
+        transport,
+        authentication = this@ResponseShapeClient.authentication,
+        requestHook = clientConfig.requestHook,
+        retryBudget = clientConfig.retryBudget,
+        logicalMiddleware = clientConfig.logicalMiddleware,
+        attemptMiddleware = clientConfig.attemptMiddleware,
+        observers = clientConfig.observers,
+        productToken = clientConfig.productToken ?: SdkExecutor.DEFAULT_PRODUCT_TOKEN,
+      )
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, SdkClientConfig(), credentialProviders, trustedHosts, authentication, Unit)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    clientConfig: SdkClientConfig,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication, Unit)
 
   /**
    * Golden response-shape regression for 'jsonFirst'.
@@ -103,7 +131,7 @@ public class ResponseShapeClient(
    * into success values.
    * @param options Execution options.
    */
-  public suspend fun jsonFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<JsonFirstResponse> = executor.executeWithResponse<Unit, JsonFirstResponse>(SdkExecutionRequest(jsonFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.jsonFirstRequestCodecRegistry, JsonFirstResponseDecoder, options)
+  public suspend fun jsonFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<JsonFirstResponse> = executor.executeWithResponse<Unit, JsonFirstResponse>(SdkExecutionRequest(jsonFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.jsonFirstRequestCodecRegistry, JsonFirstResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Golden response-shape regression for 'binaryFirst'.
@@ -115,7 +143,7 @@ public class ResponseShapeClient(
    * into success values.
    * @param options Execution options.
    */
-  public suspend fun binaryFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<BinaryFirstResponse> = executor.executeWithResponse<Unit, BinaryFirstResponse>(SdkExecutionRequest(binaryFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.binaryFirstRequestCodecRegistry, BinaryFirstResponseDecoder, options)
+  public suspend fun binaryFirstWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<BinaryFirstResponse> = executor.executeWithResponse<Unit, BinaryFirstResponse>(SdkExecutionRequest(binaryFirstMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.binaryFirstRequestCodecRegistry, BinaryFirstResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Golden response-shape regression for 'compatibleMedia'.
@@ -149,7 +177,7 @@ public class ResponseShapeClient(
         is CompatibleMediaResponse.Unknown -> error("Runtime returned an unmatched response through the typed error path.")
       }
     },
-    options = options,
+    options = clientConfig.resolveCallOptions(options),
   )
 
   /**
@@ -159,7 +187,7 @@ public class ResponseShapeClient(
    * into success values.
    * @param options Execution options.
    */
-  public suspend fun compatibleMediaWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<CompatibleMediaResponse> = executor.executeWithResponse<Unit, CompatibleMediaResponse>(SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.compatibleMediaRequestCodecRegistry, CompatibleMediaResponseDecoder, options)
+  public suspend fun compatibleMediaWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<CompatibleMediaResponse> = executor.executeWithResponse<Unit, CompatibleMediaResponse>(SdkExecutionRequest(compatibleMediaMetadata, baseUri, Unit, emptyList(), emptyList()), ResponseShapeCodecs.compatibleMediaRequestCodecRegistry, CompatibleMediaResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Typed response alternatives for `jsonFirst`. Non-success alternatives are not converted into success values.

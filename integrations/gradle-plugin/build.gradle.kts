@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(project(":generator:engine"))
     testImplementation(gradleTestKit())
+    // Not a plugin dependency: `KtlintIntegration` reaches ktlint through Gradle core types only. The test classpath
+    // compiles against ktlint-gradle so `KtlintIntegrationContractTest` pins the supported `filter` signature.
+    testImplementation(libs.ktlint.gradle.plugin)
 }
 
 tasks.test {

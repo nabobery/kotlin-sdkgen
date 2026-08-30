@@ -16,13 +16,14 @@ class CorpusOverlayTest {
     private val corpusRoot = Path.of(checkNotNull(System.getProperty("corpus.root")))
 
     @Test
-    fun `applies three realistic overlays to OpenRouter and revalidates OpenAPI 3_1`() {
+    fun `applies four realistic overlays to OpenRouter and revalidates OpenAPI 3_1`() {
         val sourcePath = corpusRoot.resolve("openrouter/openapi.yaml")
         val overlays =
             listOf(
                 resourceOverlay("openrouter-streaming", "/overlays/openrouter/01-streaming.yaml"),
                 resourceOverlay("openrouter-description", "/overlays/openrouter/02-description.yaml"),
                 resourceOverlay("openrouter-remove-legacy", "/overlays/openrouter/03-remove-legacy-sentinel.yaml"),
+                resourceOverlay("openrouter-payload-property", "/overlays/openrouter/04-payload-property.yaml"),
             )
         lateinit var result: OverlayApplicationResult
         val elapsed =
@@ -31,13 +32,19 @@ class CorpusOverlayTest {
             }
 
         assertEquals("sse", result.document.at("/paths/~1chat~1completions/post/x-sdkgen-streaming/mode").asText())
+        assertEquals(
+            "data",
+            result.document.at("/paths/~1chat~1completions/post/x-sdkgen-streaming/payloadProperty").asText(),
+        )
         assertTrue(
             result.document
                 .at(
                     "/paths/~1chat~1completions/post/responses/200/content/text~1event-stream/x-speakeasy-sse-sentinel",
                 ).isMissingNode,
         )
-        assertEquals(3, result.overlays.size)
+        assertEquals(4, result.overlays.size)
+        // The payload-selection overlay updates the node the streaming overlay created, so the effective diff
+        // coalesces both into one change at that pointer.
         assertEquals(3, result.changes.size)
         validateOpenApi31(result.document, "OpenRouter")
 

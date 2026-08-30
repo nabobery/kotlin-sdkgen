@@ -738,18 +738,23 @@ private fun adaptOffsetLimitPagination(
     )
 }
 
+/** Every field the canonical `x-sdkgen-streaming` extension may carry; mirrors its published JSON schema. */
+private val STREAMING_EXTENSION_FIELDS: Set<String> =
+    setOf("mode", "requestFlag", "responseContentType", "sentinel", "payloadProperty")
+
 private fun adaptStreaming(
     node: JsonNode,
     pointer: String,
 ): StreamingModel.Sse {
     requireExtensionObject(node, pointer)
-    requireExtensionFields(node, pointer, setOf("mode", "requestFlag", "responseContentType", "sentinel"))
+    requireExtensionFields(node, pointer, STREAMING_EXTENSION_FIELDS)
     requireExtensionConstant(node, pointer, "mode", "sse")
     requireExtensionConstant(node, pointer, "responseContentType", "text/event-stream")
     return StreamingModel.Sse(
         requestFlag = optionalExtensionString(node, pointer, "requestFlag"),
         responseContentType = "text/event-stream",
         sentinel = optionalExtensionString(node, pointer, "sentinel"),
+        payloadProperty = optionalExtensionString(node, pointer, "payloadProperty"),
     )
 }
 

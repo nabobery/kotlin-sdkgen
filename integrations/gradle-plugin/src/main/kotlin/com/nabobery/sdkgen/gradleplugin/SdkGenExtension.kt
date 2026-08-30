@@ -73,6 +73,19 @@ public open class SdkGenConfiguration internal constructor(
     /** Unique task-owned output root; generated sources are published below its `sources` child. */
     public val outputDirectory: DirectoryProperty = objects.directoryProperty()
 
+    /**
+     * The generated Kotlin source root (`outputDirectory/sources`) as a file collection that is built by this
+     * configuration's generation task. Its location is derived from [outputDirectory] alone — never from a task
+     * output provider — so consumers (and the plugin's own `main`/`commonMain` wiring) can add it to any source set,
+     * including Android or custom KMP source sets, without triggering early task-output queries or capturing a task
+     * provider in the configuration cache:
+     *
+     * ```kotlin
+     * kotlin.sourceSets.getByName("androidMain").kotlin.srcDir(sdkgen.configurations.getByName("api").generatedSources)
+     * ```
+     */
+    public val generatedSources: ConfigurableFileCollection = objects.fileCollection()
+
     init {
         generatorVersion.convention(version)
         edition.convention(SdkGenEditions.COMMUNITY)

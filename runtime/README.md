@@ -1,5 +1,33 @@
 # Runtime modules
 
+## Client-scoped configuration
+
+Generated clients accept an immutable `SdkClientConfig` in addition to their original constructor. One instance is
+shared by a generated root client and all of its resource clients, including its `RetryBudget`. It can provide retry
+and deadline defaults, a request hook, logical and attempt middleware, lifecycle observers, and the `User-Agent`
+product token without creating transports or reading environment state:
+
+```kotlin
+val config =
+    SdkClientConfig(
+        retry = PolicyOverride.Replace(RetryDescriptor(maxAttempts = 2)),
+        deadlines = SdkDeadlines(totalMillis = 30_000, attemptMillis = 10_000, idleMillis = null),
+        productToken = "acme-app/1.2.3",
+    )
+
+val client = PetstoreClient(transport, "https://api.example.com", config)
+```
+
+Per-call `CallOptions` retain final precedence: `PolicyOverride.Disabled` or `Replace` overrides the client retry
+decision, and a non-null per-call deadline replaces the client deadline. Client hooks and middleware are composed
+with, rather than copied into, per-call options so they execute exactly once. Generated defaults from
+`runtime.defaultServer` and `runtime.userAgentSuffix` supply constructor defaults; explicit constructor arguments and
+`SdkClientConfig.productToken` can override them. See
+[ADR 0022](../docs/adr/0022-generated-client-configuration-and-sse-payloads.md) for the complete resolution and
+constructor-compatibility contract.
+
+## Target matrix
+
 `core` and `testing` apply the shared `sdkgen.kotlin-kmp` convention plus the opt-in
 `sdkgen.kotlin-kmp-android` convention (`build.gradle.kts` for each module), and therefore target:
 

@@ -5,7 +5,9 @@ info:
     A small, purpose-built OpenRouter-shaped spec proving dual JSON+SSE response mode generation (task T7):
     one operation whose success response is available either as a single buffered JSON body or as a
     text/event-stream of incrementally-decoded deltas, selected by explicit content type and x-sdkgen-streaming
-    metadata only.
+    metadata only. It also carries consumer-reported wire regressions (openrouter-kotlin, 2026-08-29) on
+    `/files/{bucket}`: enum-typed parameters must bind their documented wire values, and a terminal page's explicit
+    `null` cursor must still match its `_shape` branch.
   version: "1"
 servers:
   - url: https://api.streaming-fixture.test
@@ -44,6 +46,73 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /events:
+    post:
+      operationId: subscribeEvents
+      summary: Streams events whose spec models each SSE event as an envelope around a `payload` property.
+      x-sdkgen-streaming:
+        mode: sse
+        responseContentType: text/event-stream
+        sentinel: "[DONE]"
+        payloadProperty: payload
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventSubscription"
+      responses:
+        "200":
+          description: Event stream; each `data:` field carries an EventChunk, not the envelope.
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/EventEnvelope"
+        "401":
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /files/{bucket}:
+    get:
+      operationId: listFiles
+      summary: Lists files in the negotiated page shape.
+      security:
+        - apiKey: []
+      parameters:
+        - name: bucket
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/FileBucket"
+        - name: shape
+          in: query
+          schema:
+            $ref: "#/components/schemas/PageShape"
+        - name: sort
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/PageSort"
+      responses:
+        "200":
+          description: A page of files; a terminal page carries explicit null cursors.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileListResponse"
+        "401":
+          description: Unauthorized.
           content:
             application/json:
               schema:
@@ -117,4 +186,125 @@ components:
         - message
       properties:
         message:
+          type: string
+    EventSubscription:
+      type: object
+      additionalProperties: false
+      required:
+        - topic
+      properties:
+        topic:
+          type: string
+    EventEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - payload
+      properties:
+        event:
+          type: string
+        payload:
+          $ref: "#/components/schemas/EventChunk"
+    EventChunk:
+      type: object
+      additionalProperties: false
+      required:
+        - sequence
+        - text
+      properties:
+        sequence:
+          type: integer
+        text:
+          type: string
+    FileBucket:
+      type: string
+      enum:
+        - hot
+        - cold
+    PageShape:
+      type: string
+      enum:
+        - openrouter
+        - openai
+    PageSort:
+      type: string
+      enum:
+        - created_at
+        - filename
+    FileListResponse:
+      oneOf:
+        - $ref: "#/components/schemas/OpenRouterFileList"
+        - $ref: "#/components/schemas/OpenAiFileList"
+      discriminator:
+        propertyName: _shape
+        mapping:
+          openrouter: "#/components/schemas/OpenRouterFileList"
+          openai: "#/components/schemas/OpenAiFileList"
+    OpenRouterFileList:
+      type: object
+      additionalProperties: false
+      required:
+        - _shape
+        - data
+        - has_more
+        - first_id
+        - last_id
+        - cursor
+      properties:
+        _shape:
+          type: string
+          enum:
+            - openrouter
+        cursor:
+          description: Opaque cursor for the next page; null when there are no more results.
+          type:
+            - string
+            - "null"
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileEntry"
+        first_id:
+          type:
+            - string
+            - "null"
+        has_more:
+          type: boolean
+        last_id:
+          type:
+            - string
+            - "null"
+    OpenAiFileList:
+      type: object
+      additionalProperties: false
+      required:
+        - _shape
+        - object
+        - data
+        - has_more
+      properties:
+        _shape:
+          type: string
+          enum:
+            - openai
+        object:
+          type: string
+          enum:
+            - list
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileEntry"
+        has_more:
+          type: boolean
+    FileEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - filename
+      properties:
+        id:
+          type: string
+        filename:
           type: string

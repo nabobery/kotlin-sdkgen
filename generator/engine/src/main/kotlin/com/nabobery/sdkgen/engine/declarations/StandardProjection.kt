@@ -225,6 +225,11 @@ internal class StandardProjection : DeclarationProjection {
                 .mapNotNull { (schemeId, scheme) -> projectSecurityScheme(scheme)?.let { schemeId to it } }
                 .toMap()
 
+        val defaultBaseUri = request.runtimeDefaults.defaultServer
+        val productToken =
+            request.runtimeDefaults.userAgentSuffix
+                ?.trim()
+                ?.let { suffix -> "kotlin-sdkgen $suffix" }
         val groupClients =
             sortedGroupKeys.mapIndexed { index, key ->
                 val groupOperations = operationsByGroup.getValue(key)
@@ -253,6 +258,8 @@ internal class StandardProjection : DeclarationProjection {
                                 referencedSchemeIds
                         },
                     preserveOperationMetadataNames = true,
+                    defaultBaseUri = defaultBaseUri,
+                    productToken = productToken,
                 )
             }
         declarations += groupClients
@@ -278,6 +285,8 @@ internal class StandardProjection : DeclarationProjection {
                             kdoc = "Operations tagged/grouped under '$key'.",
                         )
                     },
+                defaultBaseUri = defaultBaseUri,
+                productToken = productToken,
             )
         declarations += facade
         origins[facade.symbolId] = request.document.source
@@ -616,7 +625,26 @@ internal class StandardProjection : DeclarationProjection {
             explode = parameter.explode,
             kdoc = context.projectedKdoc(parameter.description, schemaRef, subject = "parameter"),
             serialization = parameterSerialization(parameter, schemaRef, schema, context),
+            valueEncoding = parameterValueEncoding(schema, context),
         )
+    }
+
+    /**
+     * Enum schemas project to generated open enums (see [SchemaProjectionContext.projectDeclaration]), whose wire
+     * text is the case's `value`; every other primitive renders through `toString()`. A repeated parameter is
+     * classified by its element schema.
+     */
+    private fun parameterValueEncoding(
+        schema: SchemaModel,
+        context: SchemaProjectionContext,
+    ): ParameterValueEncoding {
+        val scalar =
+            if (schema.types.filterNot { it == "null" } == listOf("array")) {
+                schema.items?.let(context::dereference) ?: return ParameterValueEncoding.TO_STRING
+            } else {
+                schema
+            }
+        return if (scalar.enum != null) ParameterValueEncoding.OPEN_ENUM_VALUE else ParameterValueEncoding.TO_STRING
     }
 
     private fun parameterSerialization(
@@ -840,7 +868,17 @@ internal class StandardProjection : DeclarationProjection {
                             "deepObject parameter '${parameter.name}' property '${property.name}' has no resolved accessor",
                             property.source,
                         )
-                DeepObjectParameterPropertyDeclaration(property.name, field.resolvedName, field.required)
+                DeepObjectParameterPropertyDeclaration(
+                    wireName = property.name,
+                    accessorName = field.resolvedName,
+                    required = field.required,
+                    valueEncoding =
+                        if (propertySchema.enum != null) {
+                            ParameterValueEncoding.OPEN_ENUM_VALUE
+                        } else {
+                            ParameterValueEncoding.TO_STRING
+                        },
+                )
             },
             additionalProperties,
         )
@@ -1676,23 +1714,81 @@ internal class StandardProjection : DeclarationProjection {
                 )
             } else {
                 response.content.mapIndexed { contentIndex, content ->
+                    val mode = responseMode(operation.streaming, content)
+                    val inlineName =
+                        KotlinNameResolver.typeName(
+                            "${operation.operationId} ${response.selector} response $contentIndex",
+                        )
+                    val payloadProperty =
+                        (operation.streaming as? StreamingModel.Sse)
+                            ?.payloadProperty
+                            ?.takeIf { mode == OperationResponseMode.STREAMING }
                     OperationResponseAlternative(
                         selector = selector,
                         mediaTypes = listOf(content.mediaType),
                         type =
-                            content.schema?.let { schema ->
-                                context.typeFor(
-                                    schema,
-                                    KotlinNameResolver.typeName(
-                                        "${operation.operationId} ${response.selector} response $contentIndex",
-                                    ),
-                                )
-                            } ?: KotlinTypeRef("kotlin", "Unit"),
-                        mode = responseMode(operation.streaming, content),
+                            when {
+                                payloadProperty != null -> {
+                                    ssePayloadType(content, payloadProperty, inlineName, context)
+                                }
+
+                                content.schema != null -> {
+                                    context.typeFor(content.schema, inlineName)
+                                }
+
+                                else -> {
+                                    KotlinTypeRef("kotlin", "Unit")
+                                }
+                            },
+                        mode = mode,
                     )
                 }
             }
         }
+
+    /**
+     * Resolves the wire payload type selected by an explicit `x-sdkgen-streaming.payloadProperty`: the
+     * `text/event-stream` response schema must resolve to an object carrying that top-level property, whose schema
+     * is what each SSE `data:` field decodes into. Every other shape fails closed with an SSE-specific diagnostic —
+     * falling back to the envelope type would silently recreate the wire mismatch this metadata exists to fix.
+     */
+    private fun ssePayloadType(
+        content: MediaTypeModel,
+        payloadProperty: String,
+        inlineName: String,
+        context: SchemaProjectionContext,
+    ): KotlinTypeRef {
+        val schema =
+            content.schema
+                ?: throw UnrepresentableOperationException(
+                    "SSE payload property '$payloadProperty' cannot be selected because the " +
+                        "'${content.mediaType}' response has no schema",
+                    content.source,
+                    SSE_PAYLOAD_REMEDIATION,
+                )
+        val envelope = context.dereference(schema)
+        val concreteTypes = envelope.types.filterNot { type -> type == "null" }
+        val objectShaped =
+            "object" in concreteTypes ||
+                (concreteTypes.isEmpty() && context.flattenObjectProperties(envelope).isNotEmpty())
+        if (!objectShaped) {
+            throw UnrepresentableOperationException(
+                "SSE payload property '$payloadProperty' cannot be selected because response schema " +
+                    "${envelope.id} is not an object",
+                content.source,
+                SSE_PAYLOAD_REMEDIATION,
+            )
+        }
+        return try {
+            context.typeAtPath(schema, listOf(payloadProperty), inlineName, subject = "SSE payload property")
+        } catch (failure: UnrepresentableOperationException) {
+            throw UnrepresentableOperationException(
+                requireNotNull(failure.message),
+                failure.source ?: content.source,
+                SSE_PAYLOAD_REMEDIATION,
+            )
+        }
+    }
 
     private fun operationResponseMode(operation: OperationModel): OperationResponseMode {
         val modes =
@@ -1958,6 +2054,7 @@ internal class StandardProjection : DeclarationProjection {
                     terminalSentinel = streaming.sentinel,
                     requestFlag = streaming.requestFlag,
                     responseContentType = streaming.responseContentType,
+                    payloadProperty = streaming.payloadProperty,
                 )
             }
 
@@ -2029,6 +2126,10 @@ internal class StandardProjection : DeclarationProjection {
     ): Nothing = throw UnrepresentableOperationException(message, source)
 
     private companion object {
+        const val SSE_PAYLOAD_REMEDIATION =
+            "Point x-sdkgen-streaming.payloadProperty at a top-level property of the text/event-stream response " +
+                "schema (the property whose schema describes each SSE data payload), or remove payloadProperty to " +
+                "decode the response schema itself."
         const val JSON_MEDIA_TYPE = "application/json"
         const val OCTET_STREAM_MEDIA_TYPE = "application/octet-stream"
         const val MULTIPART_FORM_DATA_MEDIA_TYPE = "multipart/form-data"
@@ -2520,18 +2621,23 @@ private class SchemaProjectionContext(
         return typeFor(itemSchema, inlineName)
     }
 
-    /** Resolves the projected type of the (scalar) field at [path] within [root], without requiring an array. */
+    /**
+     * Resolves the projected type of the (scalar) field at [path] within [root], without requiring an array.
+     * [subject] names the caller's concept in the "not present" diagnostic (pagination by default, so existing
+     * pagination diagnostics keep their wording; SSE payload selection passes its own).
+     */
     fun typeAtPath(
         root: SchemaRef,
         path: List<String>,
         inlineName: String,
+        subject: String = "pagination path segment",
     ): KotlinTypeRef {
         var current = dereference(root)
         var currentRef = root
         path.forEach { segment ->
             val property =
                 flattenObjectProperties(current).firstOrNull { candidate -> candidate.name == segment }
-                    ?: unsupported("pagination path segment '$segment' is not present on ${current.id}")
+                    ?: unsupported("$subject '$segment' is not present on ${current.id}")
             currentRef = property.schema
             current = dereference(property.schema)
         }
@@ -3219,6 +3325,7 @@ private class SchemaProjectionContext(
     private fun primitiveOneOfPredicate(
         schema: SchemaModel,
         visiting: MutableSet<SchemaId> = linkedSetOf(),
+        acceptsNull: Boolean = false,
     ): JsonBranchPredicate {
         if (!visiting.add(schema.id)) unsupported("oneOf branch ${schema.id} has a recursive predicate reference")
         try {
@@ -3226,7 +3333,7 @@ private class SchemaProjectionContext(
                 unsupported("oneOf branch ${schema.id} uses unsupported content assertions")
             }
             val predicates = mutableListOf<JsonBranchPredicate>()
-            val typedPredicates =
+            val declaredKinds =
                 schema.types.distinct().map { type ->
                     when (type) {
                         "null" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NULL)
@@ -3238,6 +3345,15 @@ private class SchemaProjectionContext(
                         "object" -> JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.OBJECT)
                         else -> unsupported("oneOf branch ${schema.id} has unsupported JSON type '$type'")
                     }
+                }
+            // The semantic adapter folds a `null` type into nullability, so a nested `[string, null]` property
+            // arrives here as `string` + nullable; an explicit JSON `null` must still satisfy its branch.
+            val nullKind = JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NULL)
+            val typedPredicates =
+                if (acceptsNull && declaredKinds.isNotEmpty() && nullKind !in declaredKinds) {
+                    declaredKinds + nullKind
+                } else {
+                    declaredKinds
                 }
             when (typedPredicates.size) {
                 0 -> Unit
@@ -3321,7 +3437,14 @@ private class SchemaProjectionContext(
                 is JsonValue.BooleanValue -> value.value
                 else -> unsupported("oneOf branch ${schema.id} has non-boolean uniqueItems")
             }
-        val item = schema.items?.let { reference -> primitiveOneOfPredicate(dereference(reference), visiting) }
+        val item =
+            schema.items?.let { reference ->
+                primitiveOneOfPredicate(
+                    dereference(reference),
+                    visiting,
+                    acceptsNull = isEffectivelyNullable(reference),
+                )
+            }
         return if (minItems == null && maxItems == null && !uniqueItems && item == null) {
             null
         } else {
@@ -3356,7 +3479,11 @@ private class SchemaProjectionContext(
 
                 is AdditionalPropertiesModel.Typed -> {
                     JsonAdditionalPropertiesPredicate.Typed(
-                        primitiveOneOfPredicate(dereference(value.valueSchema), visiting),
+                        primitiveOneOfPredicate(
+                            dereference(value.valueSchema),
+                            visiting,
+                            acceptsNull = isEffectivelyNullable(value.valueSchema),
+                        ),
                     )
                 }
             }
@@ -3367,7 +3494,14 @@ private class SchemaProjectionContext(
             requiredNames = requiredNames,
             properties =
                 properties.associate { property ->
-                    property.name to primitiveOneOfPredicate(dereference(property.schema), visiting)
+                    property.name to
+                        primitiveOneOfPredicate(
+                            dereference(property.schema),
+                            visiting,
+                            acceptsNull =
+                                property.nullability == Nullability.NULLABLE ||
+                                    isEffectivelyNullable(property.schema),
+                        )
                 },
             additionalProperties = additional,
         )

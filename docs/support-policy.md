@@ -1,6 +1,6 @@
 # Support policy
 
-Kotlin SDKGen `0.3.0` is a production-oriented preview published to Maven Central. This policy
+Kotlin SDKGen `0.4.0` is a production-oriented preview published to Maven Central. This policy
 describes support for published versions while the project remains in preview.
 
 ## Current state
@@ -21,8 +21,12 @@ does not assemble a complete cross-version report. Missing report layers remain 
 never inferred to have passed. The reconstructed
 [OpenRouter 0.2.0-to-0.3.0 report](conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/) records source-contract,
 semantic-model, and emitted-Kotlin-API changes; behavior and generated-SDK ABI remain unavailable because comparable
-release packets were not retained. The 0.3.0 release is additionally backed by its protected tag, successful
-release workflow, API/ABI and parity gates, publication checks, and provenance attestation. Security fixes are
+release packets were not retained. The
+[OpenRouter 0.3.0-to-0.4.0 report](conformance/evidence/releases/v0.3.0-to-v0.4.0/openrouter/) covers the same three
+layers for the 0.4.0 line: the generated constructor surface is additive and the only breaking classifications are
+the four intended SSE element-type corrections enabled by `payloadProperty` (ADR 0022). Each release is additionally
+backed by its protected tag, successful release workflow, API/ABI and parity gates, publication checks, and
+provenance attestation. Security fixes are
 prioritized according to impact and maintainer availability; see `SECURITY.md` for private reporting.
 
 ## What issues to file where
@@ -57,10 +61,11 @@ The generated Stripe SDK is organized into 75 resource clients. For untagged ope
 first non-version path segment. This coverage does not imply that excluded
 operations are supported.
 
-The released Kotlin SDKGen `0.3.0` represents the full OpenRouter 89-of-89 operation surface with zero blockers.
+The released Kotlin SDKGen `0.4.0` retains the full OpenRouter 89-of-89 operation surface with zero blockers.
 Its strict `allOf` intersection algebra with audited overrides and media-specific request variants
 ([ADR 0021](adr/0021-schema-intersection-and-request-media-variants.md)) unblocked the three operations excluded
-by 0.2.0. Current corpus coverage is documented in the
+by 0.2.0; ADR 0022 adds compatible client configuration and correct SSE payload projection. Current corpus coverage
+is documented in the
 [OpenRouter corpus README](../conformance/openrouter/README.md).
 
 ## Target/platform support notes

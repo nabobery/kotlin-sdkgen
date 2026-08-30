@@ -4222,7 +4222,8 @@ class KotlinPoetEmitterCompileRegressionTest {
                 .bytes
                 .decodeToString()
 
-        assertTrue(source.contains("labels?.map { it.toString() }.orEmpty()"))
+        // `List<String>` needs no element conversion; the null-safe projection is a plain copy.
+        assertTrue(source.contains("labels?.toList().orEmpty()"))
         compileGenerated(rendered)
     }
 

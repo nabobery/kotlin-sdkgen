@@ -972,8 +972,14 @@ private fun oneOfPredicateFunctions(model: OneOfDeclaration): List<FunSpec> {
             .addModifiers(KModifier.PRIVATE)
             .addParameter("rawObject", JSON_OBJECT)
             .returns(BOOLEAN)
-            .addStatement("return %L", primitivePredicateExpression(requireNotNull(case.predicate), "rawObject"))
-            .build()
+            .addStatement(
+                "return %L",
+                primitivePredicateExpression(
+                    requireNotNull(case.predicate),
+                    "rawObject",
+                    knownKind = PrimitiveOneOfJsonKind.OBJECT,
+                ),
+            ).build()
     } + if (predicateCases.isEmpty()) emptyList() else predicateSupportFunctions(model.packageName)
 }
 
@@ -993,9 +999,18 @@ private fun primitiveOneOfPredicateFunctions(model: PrimitiveOneOfDeclaration): 
             .build()
     } + predicateSupportFunctions(model.packageName)
 
+/**
+ * Renders [predicate] as a Kotlin boolean expression over [element], a *stable* value (a function or lambda
+ * parameter) of static type `JsonElement` — or, when [knownKind] is given, already known to be that JSON kind
+ * (`rawObject: JsonObject` in the per-branch predicate functions). Static knowledge folds the kind checks the
+ * compiler would otherwise flag as always true/false, and every shape guard relies on smart casts rather than
+ * explicit `as` casts, so the generated predicates compile without `USELESS_CAST`/`USELESS_IS_CHECK` warnings.
+ * Acceptance semantics are unchanged: a folded check is only ever replaced by the constant it must evaluate to.
+ */
 private fun primitivePredicateExpression(
     predicate: JsonBranchPredicate,
     element: String,
+    knownKind: PrimitiveOneOfJsonKind? = null,
 ): String =
     when (predicate) {
         JsonBranchPredicate.AnyValue -> {
@@ -1007,18 +1022,39 @@ private fun primitivePredicateExpression(
         }
 
         is JsonBranchPredicate.Kind -> {
-            primitiveOneOfKindCondition(predicate.kind, element)
+            when (knownKind) {
+                null -> primitiveOneOfKindCondition(predicate.kind, element)
+                predicate.kind -> "true"
+                else -> "false"
+            }
         }
 
         is JsonBranchPredicate.AllOf -> {
-            predicate.predicates.joinToString(" && ", "(", ")") {
-                primitivePredicateExpression(it, element)
+            // `(a && b) && c` is `a && b && c`: nested conjunctions (an `allOf` inside an `allOf`) are flattened so
+            // that one kind check, emitted first, smart-casts `element` for every later conjunct; the shapes that
+            // follow are then rendered as if that kind were statically known — no second `!is` guard, no cast — and
+            // a kind check repeated by several members is emitted once.
+            val flattened = predicate.flattenedConjuncts()
+            val kinds = flattened.filterIsInstance<JsonBranchPredicate.Kind>().distinct()
+            val impliedKind = knownKind ?: kinds.map { it.kind }.distinct().singleOrNull()
+            val conjuncts =
+                kinds.map { primitivePredicateExpression(it, element, knownKind) } +
+                    flattened
+                        .filterNot { it is JsonBranchPredicate.Kind }
+                        .map { primitivePredicateExpression(it, element, impliedKind) }
+            when {
+                "false" in conjuncts -> "false"
+                conjuncts.all { it == "true" } -> "true"
+                else -> conjuncts.filterNot { it == "true" }.joinToString(" && ", "(", ")")
             }
         }
 
         is JsonBranchPredicate.AnyOf -> {
-            predicate.predicates.joinToString(" || ", "(", ")") {
-                primitivePredicateExpression(it, element)
+            val disjuncts = predicate.predicates.map { primitivePredicateExpression(it, element, knownKind) }
+            when {
+                "true" in disjuncts -> "true"
+                disjuncts.all { it == "false" } -> "false"
+                else -> disjuncts.filterNot { it == "false" }.joinToString(" || ", "(", ")")
             }
         }
 
@@ -1053,7 +1089,9 @@ private fun primitivePredicateExpression(
         }
 
         is JsonBranchPredicate.ArrayShape -> {
-            val array = "($element as JsonArray)"
+            // Inside the `!is JsonArray ||` guard (or when the kind is statically known) `element` smart-casts to
+            // `JsonArray`; it is a stable value, so no explicit cast is needed, even inside the nested lambdas.
+            val array = element
             val checks = mutableListOf<String>()
             predicate.minItems?.let { checks += "$array.size >= $it" }
             predicate.maxItems?.let { checks += "$array.size <= $it" }
@@ -1065,15 +1103,16 @@ private fun primitivePredicateExpression(
                 checks +=
                     "$array.indices.none { left -> (left + 1 until $array.size).any { right -> $array[left].jsonSchemaEquals($array[right]) } }"
             }
+            val shape = checks.joinToString(" && ").ifEmpty { "true" }
             // Self-parenthesizing: this expression's top-level operator is `||`, and callers embed it in
             // `&&` joins (`AllOf`). Without the outer parentheses, `element is JsonArray && <this>` parses as
-            // `(element is JsonArray && element !is JsonArray) || (element as JsonArray)…` — always false on
-            // the left, so the cast on the right runs for every non-array and throws ClassCastException.
-            "($element !is JsonArray || (${checks.joinToString(" && ").ifEmpty { "true" }}))"
+            // `(element is JsonArray && element !is JsonArray) || element…` — always false on the left, so the
+            // smart-cast member accesses on the right run for every non-array.
+            if (knownKind == PrimitiveOneOfJsonKind.ARRAY) "($shape)" else "($element !is JsonArray || ($shape))"
         }
 
         is JsonBranchPredicate.ObjectShape -> {
-            val jsonObject = "($element as JsonObject)"
+            val jsonObject = element
             val checks = mutableListOf<String>()
             if (predicate.requiredNames.isNotEmpty()) {
                 checks +=
@@ -1103,8 +1142,14 @@ private fun primitivePredicateExpression(
                         "$jsonObject.all { (name, value) -> name in setOf<String>($declaredNames) || $additionalPredicate }"
                 }
             }
-            "($element !is JsonObject || (${checks.joinToString(" && ").ifEmpty { "true" }}))"
+            val shape = checks.joinToString(" && ").ifEmpty { "true" }
+            if (knownKind == PrimitiveOneOfJsonKind.OBJECT) "($shape)" else "($element !is JsonObject || ($shape))"
         }
+    }
+
+private fun JsonBranchPredicate.AllOf.flattenedConjuncts(): List<JsonBranchPredicate> =
+    predicates.flatMap { conjunct ->
+        if (conjunct is JsonBranchPredicate.AllOf) conjunct.flattenedConjuncts() else listOf(conjunct)
     }
 
 private fun primitiveOneOfKindCondition(

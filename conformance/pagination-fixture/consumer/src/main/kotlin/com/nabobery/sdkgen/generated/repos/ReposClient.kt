@@ -21,6 +21,7 @@ import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkApiException
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkDeadlines
 import com.nabobery.sdkgen.runtime.SdkExecutionRequest
 import com.nabobery.sdkgen.runtime.SdkExecutor
@@ -110,12 +111,14 @@ internal object ReposCodecs {
 /**
  * Client for the 'repos' group of Pagination Fixture.
  */
-public class ReposClient(
+public class ReposClient private constructor(
   transport: SdkTransport,
   private val baseUri: String,
-  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
-  trustedHosts: TrustedHosts? = null,
-  authentication: SdkAuthentication? = null,
+  private val clientConfig: SdkClientConfig,
+  credentialProviders: Map<String, CredentialProvider>,
+  trustedHosts: TrustedHosts?,
+  authentication: SdkAuthentication?,
+  marker: Unit,
 ) {
   private val contractSecuritySchemes: Map<String, SecurityScheme> = mapOf(
         "apiKey" to SecurityScheme.ApiKey(location = SecurityScheme.ApiKeyLocation.HEADER, parameterName = "Authorization"),
@@ -129,10 +132,35 @@ public class ReposClient(
         trustedHosts = trustedHosts ?: TrustedHosts.of(baseUri),
       )
 
-  private val executor: SdkExecutor =
-      SdkExecutor(transport, authentication = this@ReposClient.authentication)
+  private val executor: SdkExecutor = SdkExecutor(
+        transport,
+        authentication = this@ReposClient.authentication,
+        requestHook = clientConfig.requestHook,
+        retryBudget = clientConfig.retryBudget,
+        logicalMiddleware = clientConfig.logicalMiddleware,
+        attemptMiddleware = clientConfig.attemptMiddleware,
+        observers = clientConfig.observers,
+        productToken = clientConfig.productToken ?: SdkExecutor.DEFAULT_PRODUCT_TOKEN,
+      )
 
   private val paginationTrustedHosts: TrustedHosts = trustedHosts ?: TrustedHosts.of(baseUri)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, SdkClientConfig(), credentialProviders, trustedHosts, authentication, Unit)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    clientConfig: SdkClientConfig,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication, Unit)
 
   /**
    * Lists issues for a repository, paginated via the Link response header.
@@ -167,9 +195,9 @@ public class ReposClient(
     repo: String,
     options: CallOptions = CallOptions(),
   ): SdkResponseResult<ListIssuesResponse> = executor.executeWithResponse<Unit, ListIssuesResponse>(SdkExecutionRequest(listIssuesMetadata, baseUri, Unit, emptyList(), buildList {
-    add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner.toString())))
-    add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo.toString())))
-  }), ReposCodecs.listIssuesRequestCodecRegistry, ListIssuesResponseDecoder, options)
+    add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner)))
+    add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo)))
+  }), ReposCodecs.listIssuesRequestCodecRegistry, ListIssuesResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Returns a cold page flow for listIssues.
@@ -236,8 +264,8 @@ public class ReposClient(
     val effectiveParameters = when (pageRequest) {
       is PageRequest.NextUrl -> emptyList()
       else -> buildList {
-        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner.toString())))
-        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo.toString())))
+        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "owner", values = listOf(owner)))
+        add(SdkRequestParameter(location = SdkParameterLocation.PATH, name = "repo", values = listOf(repo)))
       }
     }
     val response = executor.executeWithHeaders<Unit, IssuePage>(
@@ -245,7 +273,7 @@ public class ReposClient(
       listOf(ReposCodecs.LISTISSUES_RESPONSE_CODEC_ID),
       ReposCodecs.listIssuesRequestCodecRegistry,
       ReposCodecs.listIssuesResponseCodecRegistry,
-      options,
+      clientConfig.resolveCallOptions(options),
     )
     val requestUri = buildRequestUri(effectiveBaseUri, effectivePath, effectiveParameters)
     return PageEnvelope(
@@ -293,10 +321,10 @@ public class ReposClient(
     offset: Int? = null,
     options: CallOptions = CallOptions(),
   ): SdkResponseResult<ListWidgetsResponse> = executor.executeWithResponse<Unit, ListWidgetsResponse>(SdkExecutionRequest(listWidgetsMetadata, baseUri, Unit, emptyList(), buildList {
-    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "kind", values = kind?.let { listOf(it.toString()) }.orEmpty()))
+    add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "kind", values = listOfNotNull(kind)))
     add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "limit", values = limit?.let { listOf(it.toString()) }.orEmpty()))
     add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "offset", values = offset?.let { listOf(it.toString()) }.orEmpty()))
-  }), ReposCodecs.listWidgetsRequestCodecRegistry, ListWidgetsResponseDecoder, options)
+  }), ReposCodecs.listWidgetsRequestCodecRegistry, ListWidgetsResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Returns a cold page flow for listWidgets.
@@ -360,13 +388,13 @@ public class ReposClient(
     }
     val pageMetadata = metadataForListWidgetsPage(pageRequest, kind, limit, offset)
     val response = executor.execute<Unit, WidgetPage>(SdkExecutionRequest(pageMetadata, baseUri, pageRequestValue, emptyList(), buildList {
-      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "kind", values = kind?.let { listOf(it.toString()) }.orEmpty()))
+      add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "kind", values = listOfNotNull(kind)))
       add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "limit", values = limit?.let { listOf(it.toString()) }.orEmpty()))
       add(SdkRequestParameter(location = SdkParameterLocation.QUERY, name = "offset", values = when (pageRequest) {
         is PageRequest.NextOffset -> listOf(pageRequest.offset.toString())
         else -> offset?.let { listOf(it.toString()) }.orEmpty()
       }))
-    }), listOf(ReposCodecs.LISTWIDGETS_RESPONSE_CODEC_ID), ReposCodecs.listWidgetsRequestCodecRegistry, ReposCodecs.listWidgetsResponseCodecRegistry, options)
+    }), listOf(ReposCodecs.LISTWIDGETS_RESPONSE_CODEC_ID), ReposCodecs.listWidgetsRequestCodecRegistry, ReposCodecs.listWidgetsResponseCodecRegistry, clientConfig.resolveCallOptions(options))
     return PageEnvelope(value = response, items = response.data.orEmpty(), totalCount = response.total?.toLong())
   }
 

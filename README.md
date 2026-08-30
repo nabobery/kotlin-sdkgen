@@ -5,7 +5,7 @@ transports, deterministic output, and compatibility tooling designed for long-li
 
 > [!IMPORTANT]
 > Kotlin SDKGen is a **production-oriented preview**. It is exercised against large real-world API
-> descriptions. Version [`0.3.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0) is available
+> descriptions. Version [`0.4.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.4.0) is available
 > from Maven Central, and the Gradle plugin is published
 > on the Gradle Plugin Portal. Public APIs may change while the project remains in preview.
 
@@ -81,7 +81,7 @@ sources into Kotlin/JVM or `commonMain` automatically:
 plugins {
     kotlin("multiplatform") version "2.3.20"
     kotlin("plugin.serialization") version "2.3.20"
-    id("io.github.nabobery.kotlin-sdkgen") version "0.3.0"
+    id("io.github.nabobery.kotlin-sdkgen") version "0.4.0"
 }
 
 kotlin {
@@ -99,6 +99,57 @@ sdkgen {
 
 The plugin declaration resolves from the Gradle Plugin Portal. In this repository, the same integration is
 covered with composite-build TestKit fixtures.
+
+Generated sources are attached to `main` (Kotlin/JVM) or `commonMain` (Kotlin Multiplatform) through a stable path
+that the generation task builds, so Android Gradle Plugin consumers and configuration-cache builds need no ordering
+shims. To attach the same sources to another source set, use the configuration's `generatedSources` collection:
+
+```kotlin
+kotlin.sourceSets.getByName("androidMain").kotlin.srcDir(sdkgen.configurations.getByName("petstore").generatedSources)
+```
+
+When the `org.jlleitschuh.gradle.ktlint` plugin is applied — before or after SDKGen — the plugin excludes every SDKGen
+output root from linting through ktlint's supported filter API.
+
+## Configuring generated clients
+
+Every generated client keeps its original constructor and adds an overload that accepts a client-scoped
+`SdkClientConfig` (retry and deadline defaults, request hook, middleware, lifecycle observers, a shared retry
+budget, and the `User-Agent` product token). Per-call `CallOptions` keep final precedence:
+
+```kotlin
+val config =
+    SdkClientConfig(
+        retry = PolicyOverride.Replace(RetryDescriptor(maxAttempts = 2)),
+        deadlines = SdkDeadlines(30_000, 10_000, null),
+        productToken = "acme-app/1.2.3",
+    )
+val client = PetstoreClient(transport, "https://api.example.com", config)
+
+client.pets.listPets()                                                // client retry + deadlines
+client.pets.listPets(options = CallOptions(retry = PolicyOverride.Disabled)) // per-call override wins
+```
+
+Resource clients reached through one facade share that facade's configuration and retry budget. `runtime.defaultServer`
+and `runtime.userAgentSuffix` in `sdkgen.yaml` provide the `baseUri` default and the default product token.
+
+Contracts that describe a server-sent-event *envelope* (`{"event": …, "data": …}`) while the wire carries only the
+payload in each `data:` field can select the payload with `x-sdkgen-streaming.payloadProperty`, in the document or
+through an overlay:
+
+```yaml
+- target: "$['paths']['/chat/completions']['post']"
+  update:
+    x-sdkgen-streaming:
+      mode: sse
+      responseContentType: text/event-stream
+      sentinel: "[DONE]"
+      payloadProperty: data
+```
+
+The generated `Flow<T>` element type is then the payload model; omitting `payloadProperty` keeps the envelope type,
+and a property that does not exist fails generation with an `UNREPRESENTABLE_OPERATION` diagnostic. See
+[ADR 0022](docs/adr/0022-generated-client-configuration-and-sse-payloads.md).
 
 ## Architecture
 
@@ -142,18 +193,18 @@ test matrix and platform qualifications.
 
 The repository keeps generated snapshots and executable consumers for three independently shaped APIs:
 
-| Corpus                                | What it demonstrates                                                                                                                                 |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [OpenRouter](conformance/openrouter/) | All 89 operations; strict schema intersections, request-media variants, SSE, pagination, authentication, retries, and typed errors.                  |
-| [GitHub REST](conformance/github/)    | 7,189 generated Kotlin files and 119 accepted waivers; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions.        |
-| [Stripe](conformance/stripe/)         | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses.         |
+| Corpus | What it demonstrates |
+| --- | --- |
+| [OpenRouter](conformance/openrouter/) | All 89 operations; strict schema intersections, request-media variants, SSE payload projection, client defaults, pagination, authentication, retries, and typed errors. |
+| [GitHub REST](conformance/github/) | 7,189 generated Kotlin files and 119 accepted waivers; pagination, bearer authentication, PATCH presence semantics, typed errors, and unions. |
+| [Stripe](conformance/stripe/) | 10,690 generated Kotlin files; 519 of 587 operations generated; form encoding, multipart arrays, Basic authentication, and typed responses. |
 
 These corpora are conformance fixtures, not supported third-party SDK distributions. Their pinned inputs, overlays,
 waivers, snapshots, and consumer tests make generator changes reviewable at realistic scale.
 
 For a smaller tour, browse the generated
-[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/1c1f75a48aeafba27a45a3c86e43d89811d043d1c9460d6187ddd598e9bbebbd/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
-or the [`Stripe client snapshot`](conformance/stripe/.snapshots/4b1982bfc6d7a56073bb5630337b35f99f172faa59860a4f8e13595a894ed4d4/com/nabobery/sdkgen/generated/stripe/StripeClient.kt).
+[`OpenRouter ChatClient`](conformance/openrouter/.snapshots/ed786b7bd85732deb25f659eb7d81576cb729ecb54e21b979f09806aa8685478/com/nabobery/sdkgen/generated/chat/ChatClient.kt)
+or the [`Stripe client snapshot`](conformance/stripe/.snapshots/68c9ee6fdf1612aba97c79584c8483ca8432c81d29169f369f1ea7463b28b5ec/com/nabobery/sdkgen/generated/stripe/StripeClient.kt).
 
 ## Benchmark
 
@@ -174,7 +225,7 @@ and heap rather than treating this number as a cross-machine speed claim.
 
 ## Project status
 
-Implemented and released through [`0.3.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.3.0):
+Implemented and released through [`0.4.0`](https://github.com/nabobery/kotlin-sdkgen/releases/tag/v0.4.0):
 
 - CLI, generation engine, KMP runtime, three transports, and cacheable Gradle integration.
 - Corpus-scale generation, consumer compilation, compatibility reporting, ABI checks, and deterministic snapshots.
@@ -187,6 +238,12 @@ Implemented and released through [`0.3.0`](https://github.com/nabobery/kotlin-sd
   resolution, media-specific request variants, and explicit request-body wire encodings.
 - Ten reclaimed GitHub webhook payload schemas (plus ten inline sub-schemas), reducing its accepted-waiver
   inventory from 139 to 119.
+- Client-scoped retry and deadline defaults, request hooks, middleware, lifecycle observers, shared retry budgets,
+  product identity, and generated default-server configuration with compatible generated-client constructors.
+- Explicit SSE envelope payload projection for truthful stream element types, plus correct enum wire values and
+  nullable-union branch matching.
+- Android and custom KMP generated-source wiring that remains configuration-cache safe, with supported ktlint
+  generated-source filtering.
 
 The 0.3.0 schema-composition and request-media contracts are documented in the
 [`OpenRouter corpus README`](conformance/openrouter/README.md) and
@@ -195,7 +252,11 @@ The 0.3.0 schema-composition and request-media contracts are documented in the
 upgrading. The
 [`0.2.0`-to-`0.3.0` OpenRouter evidence packet](docs/conformance/evidence/releases/v0.2.0-to-v0.3.0/openrouter/)
 records the release-bound corpus and emitted-API comparison, including the two compatibility layers that could not
-be reconstructed after publication.
+be reconstructed after publication. Version 0.4.0 adds client-scoped configuration with compatible constructors,
+explicit SSE payload projection, and Android/configuration-cache-safe Gradle wiring; see
+[ADR 0022](docs/adr/0022-generated-client-configuration-and-sse-payloads.md), the
+[`0.4.0` changelog](CHANGELOG.md#040---2026-08-30), and the
+[`0.3.0`-to-`0.4.0` OpenRouter evidence packet](docs/conformance/evidence/releases/v0.3.0-to-v0.4.0/openrouter/).
 
 See the [`documentation index`](docs/README.md), [`changelog`](CHANGELOG.md),
 [`support policy`](docs/support-policy.md), and [`release runbook`](docs/release-runbook.md) for public contracts,

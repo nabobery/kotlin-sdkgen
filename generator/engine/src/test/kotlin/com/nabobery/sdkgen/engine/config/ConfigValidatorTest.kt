@@ -131,7 +131,59 @@ class ConfigValidatorTest {
                 "$.diagnostics.warningAllowlist[0]",
                 config.copy(diagnostics = config.diagnostics.copy(warningAllowlist = listOf("not-a-code"))),
             ),
+            InvalidCase(
+                "relative default server",
+                "$.runtime.defaultServer",
+                config.copy(runtime = config.runtime.copy(defaultServer = "/v1")),
+            ),
+            InvalidCase(
+                "non-http default server",
+                "$.runtime.defaultServer",
+                config.copy(runtime = config.runtime.copy(defaultServer = "ftp://api.example/v1")),
+            ),
+            InvalidCase(
+                "blank default server",
+                "$.runtime.defaultServer",
+                config.copy(runtime = config.runtime.copy(defaultServer = "   ")),
+            ),
+            InvalidCase(
+                "default server without a host",
+                "$.runtime.defaultServer",
+                config.copy(runtime = config.runtime.copy(defaultServer = "https:///v1")),
+            ),
+            InvalidCase(
+                "blank user agent suffix",
+                "$.runtime.userAgentSuffix",
+                config.copy(runtime = config.runtime.copy(userAgentSuffix = "  ")),
+            ),
+            InvalidCase(
+                "user agent suffix with a line feed",
+                "$.runtime.userAgentSuffix",
+                config.copy(runtime = config.runtime.copy(userAgentSuffix = "acme\nX-Injected: 1")),
+            ),
+            InvalidCase(
+                "user agent suffix with a carriage return",
+                "$.runtime.userAgentSuffix",
+                config.copy(runtime = config.runtime.copy(userAgentSuffix = "acme\rX-Injected: 1")),
+            ),
         )
+    }
+
+    @Test
+    fun `loader accepts an absolute http default server and a plain user agent suffix`() {
+        val config =
+            TestFixtures.config.copy(
+                runtime =
+                    TestFixtures.config.runtime.copy(
+                        defaultServer = "https://api.example/v1",
+                        userAgentSuffix = "acme-kotlin/1.0",
+                    ),
+            )
+
+        val decoded = ConfigLoader.decodeJson(ConfigFormats.json.encodeToString(config), "sdkgen.json")
+
+        assertEquals("https://api.example/v1", decoded.runtime.defaultServer)
+        assertEquals("acme-kotlin/1.0", decoded.runtime.userAgentSuffix)
     }
 
     private data class InvalidCase(

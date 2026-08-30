@@ -552,6 +552,16 @@ internal class OperationClientDeclaration(
     securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = emptyMap(),
     subClients: List<OperationClientGroupRef> = emptyList(),
     val preserveOperationMetadataNames: Boolean = false,
+    /**
+     * SDK-author default `baseUri` from `runtime.defaultServer`: when non-null it becomes the default value of the
+     * public constructors' `baseUri` parameter; when null the argument stays required.
+     */
+    val defaultBaseUri: String? = null,
+    /**
+     * SDK-author fallback `User-Agent` product token derived from `runtime.userAgentSuffix`, used when the caller's
+     * `SdkClientConfig.productToken` is null; when null the runtime's version-neutral default applies.
+     */
+    val productToken: String? = null,
 ) : Declaration {
     val operations: List<OperationDeclaration> = operations.toList()
     val securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = securitySchemes.toMap()
@@ -574,6 +584,8 @@ internal class OperationClientDeclaration(
         securitySchemes: Map<String, OperationSecuritySchemeDeclaration> = this.securitySchemes,
         subClients: List<OperationClientGroupRef> = this.subClients,
         preserveOperationMetadataNames: Boolean = this.preserveOperationMetadataNames,
+        defaultBaseUri: String? = this.defaultBaseUri,
+        productToken: String? = this.productToken,
     ): OperationClientDeclaration =
         OperationClientDeclaration(
             symbolId,
@@ -587,6 +599,8 @@ internal class OperationClientDeclaration(
             securitySchemes,
             subClients,
             preserveOperationMetadataNames,
+            defaultBaseUri,
+            productToken,
         )
 }
 
@@ -822,10 +836,17 @@ internal sealed interface PaginationDeclaration {
 }
 
 internal sealed interface StreamingDeclaration {
+    /**
+     * @property payloadProperty the envelope property whose schema the projection selected as the SSE `data:`
+     *   payload type (from `x-sdkgen-streaming.payloadProperty`). Projection-only provenance: it shapes
+     *   [OperationDeclaration.streamResponseType] and the declaration digest but is never emitted into the runtime
+     *   `StreamingDescriptor`, which already receives the raw `data` string and has no envelope to unwrap.
+     */
     data class ServerSentEvents(
         val terminalSentinel: String?,
         val requestFlag: String? = null,
         val responseContentType: String = "text/event-stream",
+        val payloadProperty: String? = null,
     ) : StreamingDeclaration
 }
 
@@ -845,7 +866,22 @@ internal data class OperationParameterDeclaration(
     val explode: Boolean? = null,
     val serialization: ParameterSerialization = ParameterSerialization.Repeated,
     val kdoc: String = "",
+    val valueEncoding: ParameterValueEncoding = ParameterValueEncoding.TO_STRING,
 )
+
+/**
+ * How a scalar parameter value — or each element of a repeated one — is rendered onto the wire.
+ *
+ * Generated enums are forward-compatible sealed classes whose cases expose the documented wire text as `value`;
+ * their `toString()` is the Kotlin case name, so an enum-typed parameter must be bound through [OPEN_ENUM_VALUE].
+ */
+internal enum class ParameterValueEncoding {
+    /** `toString()` of the Kotlin value: numbers, booleans, and other primitives whose text is the wire form. */
+    TO_STRING,
+
+    /** The `value` property of a generated open enum case. */
+    OPEN_ENUM_VALUE,
+}
 
 internal sealed interface ParameterSerialization {
     data object Repeated : ParameterSerialization
@@ -883,6 +919,7 @@ internal data class DeepObjectParameterPropertyDeclaration(
     val wireName: String,
     val accessorName: String,
     val required: Boolean,
+    val valueEncoding: ParameterValueEncoding = ParameterValueEncoding.TO_STRING,
 )
 
 internal enum class DeepObjectAdditionalPropertiesSerialization {
@@ -1509,6 +1546,8 @@ private fun Declaration.canonicalText(): String =
             buildString {
                 append("operation-client|").append(commonText()).append("|codecs:").append(codecsObjectName)
                 append("|preserve-operation-metadata-names:").append(preserveOperationMetadataNames)
+                append("|default-base-uri:").append(defaultBaseUri.orEmpty())
+                append("|product-token:").append(productToken.orEmpty())
                 securitySchemes.toSortedMap().forEach { (schemeId, scheme) ->
                     append("|security-scheme:").append(schemeId).append(':').append(scheme)
                 }

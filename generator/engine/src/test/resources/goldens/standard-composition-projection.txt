@@ -369,29 +369,50 @@ package com.example.generated
 
 import com.example.generated.choice.ChoiceClient
 import com.nabobery.sdkgen.runtime.SdkAuthentication
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkTransport
 import com.nabobery.sdkgen.runtime.auth.CredentialProvider
 import com.nabobery.sdkgen.runtime.auth.TrustedHosts
 import kotlin.LazyThreadSafetyMode
 import kotlin.String
+import kotlin.Unit
 import kotlin.collections.Map
 
 /**
  * Client for Composition golden.
  */
-public class CompositionClient(
+public class CompositionClient private constructor(
   transport: SdkTransport,
   baseUri: String,
-  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
-  trustedHosts: TrustedHosts? = null,
-  authentication: SdkAuthentication? = null,
+  private val clientConfig: SdkClientConfig,
+  credentialProviders: Map<String, CredentialProvider>,
+  trustedHosts: TrustedHosts?,
+  authentication: SdkAuthentication?,
+  marker: Unit,
 ) {
   /**
    * Operations tagged/grouped under 'choice'.
    */
   public val choice: ChoiceClient by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        ChoiceClient(transport, baseUri, credentialProviders, trustedHosts, authentication)
+        ChoiceClient(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication)
       }
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, SdkClientConfig(), credentialProviders, trustedHosts, authentication, Unit)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    clientConfig: SdkClientConfig,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication, Unit)
 }
 
 --- com/example/generated/Dog.kt ---
@@ -704,6 +725,7 @@ import com.nabobery.sdkgen.runtime.ResponseSelector
 import com.nabobery.sdkgen.runtime.RetryDescriptor
 import com.nabobery.sdkgen.runtime.SdkAuthentication
 import com.nabobery.sdkgen.runtime.SdkByteStream
+import com.nabobery.sdkgen.runtime.SdkClientConfig
 import com.nabobery.sdkgen.runtime.SdkDeadlines
 import com.nabobery.sdkgen.runtime.SdkExecutionRequest
 import com.nabobery.sdkgen.runtime.SdkExecutor
@@ -744,15 +766,42 @@ internal object ChoiceCodecs {
 /**
  * Client for the 'choice' group of Composition golden.
  */
-public class ChoiceClient(
+public class ChoiceClient private constructor(
   transport: SdkTransport,
   private val baseUri: String,
-  credentialProviders: Map<String, CredentialProvider> = emptyMap(),
-  trustedHosts: TrustedHosts? = null,
-  private val authentication: SdkAuthentication? = null,
+  private val clientConfig: SdkClientConfig,
+  credentialProviders: Map<String, CredentialProvider>,
+  trustedHosts: TrustedHosts?,
+  private val authentication: SdkAuthentication?,
+  marker: Unit,
 ) {
-  private val executor: SdkExecutor =
-      SdkExecutor(transport, authentication = this@ChoiceClient.authentication)
+  private val executor: SdkExecutor = SdkExecutor(
+        transport,
+        authentication = this@ChoiceClient.authentication,
+        requestHook = clientConfig.requestHook,
+        retryBudget = clientConfig.retryBudget,
+        logicalMiddleware = clientConfig.logicalMiddleware,
+        attemptMiddleware = clientConfig.attemptMiddleware,
+        observers = clientConfig.observers,
+        productToken = clientConfig.productToken ?: SdkExecutor.DEFAULT_PRODUCT_TOKEN,
+      )
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, SdkClientConfig(), credentialProviders, trustedHosts, authentication, Unit)
+
+  public constructor(
+    transport: SdkTransport,
+    baseUri: String,
+    clientConfig: SdkClientConfig,
+    credentialProviders: Map<String, CredentialProvider> = emptyMap(),
+    trustedHosts: TrustedHosts? = null,
+    authentication: SdkAuthentication? = null,
+  ) : this(transport, baseUri, clientConfig, credentialProviders, trustedHosts, authentication, Unit)
 
   /**
    * Executes 'getChoice'.
@@ -763,7 +812,7 @@ public class ChoiceClient(
    * @throws SdkSerializationException When a request or response cannot be serialized.
    * @throws SdkTransportException When transport execution fails.
    */
-  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit, Choice>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), listOf(ChoiceCodecs.GETCHOICE_RESPONSE_CODEC_ID), ChoiceCodecs.getChoiceRequestCodecRegistry, ChoiceCodecs.getChoiceResponseCodecRegistry, options)
+  public suspend fun getChoice(options: CallOptions = CallOptions()): Choice = executor.execute<Unit, Choice>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), listOf(ChoiceCodecs.GETCHOICE_RESPONSE_CODEC_ID), ChoiceCodecs.getChoiceRequestCodecRegistry, ChoiceCodecs.getChoiceResponseCodecRegistry, clientConfig.resolveCallOptions(options))
 
   /**
    * Executes 'getChoice'.
@@ -772,7 +821,7 @@ public class ChoiceClient(
    * into success values.
    * @param options Execution options.
    */
-  public suspend fun getChoiceWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit, GetChoiceResponse>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), ChoiceCodecs.getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, options)
+  public suspend fun getChoiceWithResponse(options: CallOptions = CallOptions()): SdkResponseResult<GetChoiceResponse> = executor.executeWithResponse<Unit, GetChoiceResponse>(SdkExecutionRequest(getChoiceMetadata, baseUri, Unit, emptyList(), emptyList()), ChoiceCodecs.getChoiceRequestCodecRegistry, GetChoiceResponseDecoder, clientConfig.resolveCallOptions(options))
 
   /**
    * Typed response alternatives for `getChoice`. Non-success alternatives are not converted into success values.

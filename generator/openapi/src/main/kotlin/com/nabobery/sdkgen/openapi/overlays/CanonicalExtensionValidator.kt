@@ -78,11 +78,16 @@ internal class CanonicalExtensionValidator {
         pointer: String,
     ) {
         requireObject(value, pointer)
-        requireAllowedFields(value, pointer, setOf("mode", "requestFlag", "responseContentType", "sentinel"))
+        requireAllowedFields(
+            value,
+            pointer,
+            setOf("mode", "requestFlag", "responseContentType", "sentinel", "payloadProperty"),
+        )
         requireConstant(value, pointer, "mode", "sse")
         requireConstant(value, pointer, "responseContentType", "text/event-stream")
         requireOptionalNonEmptyString(value, pointer, "requestFlag")
         requireOptionalNonEmptyString(value, pointer, "sentinel")
+        requireOptionalNonEmptyString(value, pointer, "payloadProperty")
     }
 
     private fun validatePagination(

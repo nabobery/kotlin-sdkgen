@@ -77,6 +77,6 @@ operation POST /chat id=streamChat deprecated=false @sdkgen://source/12-sse-requ
     media application/json schema=sdkgen://source/12-sse-request-streaming.yaml#/paths/~1chat/post/requestBody/content/application~1json/schema streaming=false encoding=[] @sdkgen://source/12-sse-request-streaming.yaml#/paths/~1chat/post/requestBody/content/application~1json:20:13:552
   response EXACT:200 @sdkgen://source/12-sse-request-streaming.yaml#/paths/~1chat/post/responses/200:31:11:837
     media text/event-stream schema=sdkgen://source/12-sse-request-streaming.yaml#/components/schemas/ChatChunk streaming=true encoding=[] @sdkgen://source/12-sse-request-streaming.yaml#/paths/~1chat/post/responses/200/content/text~1event-stream:34:15:938
-  streaming Sse(requestFlag=stream, responseContentType=text/event-stream, sentinel=[DONE])
+  streaming Sse(requestFlag=stream, responseContentType=text/event-stream, sentinel=[DONE], payloadProperty=null)
   extensions {}
 diagnostics 0

@@ -408,6 +408,6 @@ class StripeConsumerConformanceTest {
          * emitter-level guard is `CodecPartitioningTest`, which inventories internal nested types as well as
          * internal properties.
          */
-        const val MANIFEST_SHA256 = "26022c817b8a11966f3c818b10b8ff98e1d0a29fe6e29a52f2566e1b62d82df6"
+        const val MANIFEST_SHA256 = "3c5f9b2310bacd01f227c69a792ee1b587e19589f216e9818195abf445b73f52"
     }
 }

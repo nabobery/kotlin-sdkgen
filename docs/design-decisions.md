@@ -122,6 +122,13 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
     - `Replace(value)` replaces the complete resolved policy.
 - Per-call runtime policies do not perform implicit field-level merging.
 - Contract-level extensions may define explicit merge behavior during generation.
+- Client-scoped defaults live in one runtime value, `SdkClientConfig`, accepted by an additive generated constructor
+  overload; the 0.3.0 constructor signature is preserved. Retry and deadline defaults fold into a call only where the
+  call left them at inherit; hooks, middleware, observers, the retry budget, and the `User-Agent` product token are
+  installed once on the client's executor and compose with per-call values through the executor's ordinary layering
+  (client outermost). One configuration means one shared retry budget across a facade's resource clients. See
+  [ADR 0022](adr/0022-generated-client-configuration-and-sse-payloads.md).
+- `SdkClientConfig` does not load environment variables or files and does not create transports.
 
 ## Timeouts
 
@@ -472,6 +479,11 @@ The generator uses one shared JVM engine. The CLI ships in early alpha; the Grad
 - Use the media-type schema for decoded event types, including discriminated unions.
 - Require `x-sdkgen-streaming` for conditional modes, terminators, in-band errors, resumability, or ambiguous/non-standard framing.
 - Do not infer conditional streaming solely from a request property named `stream`.
+- When a contract's `text/event-stream` schema describes the SSE envelope rather than the `data:` payload,
+  `x-sdkgen-streaming.payloadProperty` names the envelope property whose type is the payload; the generated
+  `Flow<T>` element type is that property's type. The selection is explicit (never inferred from vendor extensions
+  or property names), is a generation-time projection the runtime never sees, and fails closed when the property
+  does not exist. See [ADR 0022](adr/0022-generated-client-configuration-and-sse-payloads.md).
 
 ### SSE behavior
 

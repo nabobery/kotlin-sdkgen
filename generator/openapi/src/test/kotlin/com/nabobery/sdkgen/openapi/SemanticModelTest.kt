@@ -911,6 +911,68 @@ class SemanticModelTest {
     }
 
     @Test
+    fun `explicit SSE payloadProperty survives adaptation exactly`() {
+        val operation = adaptYaml(streamingSpec("payloadProperty: data")).operations.single()
+
+        assertEquals(
+            StreamingModel.Sse("stream", "text/event-stream", "[DONE]", payloadProperty = "data"),
+            operation.streaming,
+        )
+    }
+
+    @Test
+    fun `omitting SSE payloadProperty keeps the envelope-free default`() {
+        val streaming = assertIs<StreamingModel.Sse>(adaptYaml(streamingSpec("")).operations.single().streaming)
+
+        assertEquals(null, streaming.payloadProperty)
+    }
+
+    @Test
+    fun `malformed SSE payloadProperty fails closed at its pointer`() {
+        listOf("payloadProperty: ''", "payloadProperty: 1", "payloadProperty: [data]", "payloadProperty: {name: data}")
+            .forEach { fragment ->
+                val diagnostics = adaptYamlResult(streamingSpec(fragment)).document.diagnostics
+                assertTrue(
+                    diagnostics.any {
+                        it.code == DiagnosticCode.INVALID_CANONICAL_EXTENSION &&
+                            "x-sdkgen-streaming/payloadProperty" in it.message
+                    },
+                    "$fragment -> $diagnostics",
+                )
+            }
+    }
+
+    private fun streamingSpec(payloadFragment: String): String =
+        """
+        openapi: 3.1.0
+        info: { title: Streaming, version: 1.0.0 }
+        paths:
+          /chat:
+            post:
+              operationId: chat
+              x-sdkgen-streaming:
+                mode: sse
+                requestFlag: stream
+                responseContentType: text/event-stream
+                sentinel: '[DONE]'
+                $payloadFragment
+              responses:
+                '200':
+                  description: ok
+                  content:
+                    text/event-stream:
+                      schema:
+                        type: object
+                        required: [data]
+                        properties:
+                          data:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+        """.trimIndent()
+
+    @Test
     fun `headerNextUrl pagination adapts to typed metadata without cursor fields`() {
         val document =
             adaptYaml(

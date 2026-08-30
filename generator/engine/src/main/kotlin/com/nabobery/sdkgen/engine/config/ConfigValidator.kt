@@ -1,6 +1,8 @@
 package com.nabobery.sdkgen.engine.config
 
 import com.nabobery.sdkgen.engine.spi.PluginSpiRange
+import java.net.URI
+import java.util.Locale
 
 internal object ConfigValidator {
     fun validate(
@@ -177,6 +179,27 @@ internal object ConfigValidator {
             "jitterRatio must be between zero and one inclusive.",
             file,
         )
+        runtime.defaultServer?.let { defaultServer ->
+            requireConstraint(
+                isAbsoluteHttpUrl(defaultServer),
+                "$.runtime.defaultServer",
+                "defaultServer must be an absolute http or https URL with a host.",
+                file,
+            )
+        }
+        runtime.userAgentSuffix?.let { suffix ->
+            requireConstraint(
+                suffix.isNotBlank() && '\r' !in suffix && '\n' !in suffix,
+                "$.runtime.userAgentSuffix",
+                "userAgentSuffix must be non-blank and must not contain CR or LF characters.",
+                file,
+            )
+        }
+    }
+
+    private fun isAbsoluteHttpUrl(value: String): Boolean {
+        val uri = runCatching { URI(value) }.getOrElse { return false }
+        return uri.isAbsolute && uri.scheme.lowercase(Locale.ROOT) in HTTP_SCHEMES && !uri.host.isNullOrBlank()
     }
 
     private fun validateRules(
@@ -391,4 +414,5 @@ internal object ConfigValidator {
     private val IDENTIFIER = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
     private val PACKAGE_NAME = Regex("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+$")
     private val DIAGNOSTIC_CODE = Regex("^SDKGEN-[A-Z0-9-]+$")
+    private val HTTP_SCHEMES = setOf("http", "https")
 }

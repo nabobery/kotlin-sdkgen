@@ -576,6 +576,6 @@ class GitHubConsumerConformanceTest {
          * github-allof-resolution-audit overlay reclaimed 10 webhook payload schemas (+ their 10 inline
          * sub-schemas), shrinking the accepted-waiver ledger from 139 to 119.
          */
-        const val MANIFEST_SHA256 = "01ed0ae00d8dc0bf3b931336ad128fcacf03699983720e9655d59f77766bec82"
+        const val MANIFEST_SHA256 = "c9f543093d78e301ba14ab2973c171e31a4e3d0a6a6e5bb38d0dc701e4737fb5"
     }
 }

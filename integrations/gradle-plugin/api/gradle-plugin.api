@@ -16,6 +16,7 @@ public abstract class com/nabobery/sdkgen/gradleplugin/GenerateSdkTask : org/gra
 public class com/nabobery/sdkgen/gradleplugin/SdkGenConfiguration {
 	public final fun getConfigFile ()Lorg/gradle/api/file/RegularFileProperty;
 	public final fun getEdition ()Lorg/gradle/api/provider/Property;
+	public final fun getGeneratedSources ()Lorg/gradle/api/file/ConfigurableFileCollection;
 	public final fun getGeneratorVersion ()Lorg/gradle/api/provider/Property;
 	public final fun getKotlinPoetVersion ()Lorg/gradle/api/provider/Property;
 	public final fun getName ()Ljava/lang/String;

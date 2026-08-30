@@ -4,8 +4,8 @@ import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
-import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.TaskProvider
 
 /**
@@ -34,74 +34,24 @@ public class SdkGenPlugin : Plugin<Project> {
             task.configure { generated ->
                 generated.allOutputRoots.set(allOutputRoots)
             }
+            // D5: the source root is a stable path derived from the extension's `outputDirectory`, with the
+            // generation task attached as a build dependency. Deriving it from `task.flatMap { outputDirectory }`
+            // instead makes Kotlin/Android compile tasks query a task output before the task ran and captures the
+            // task provider in the configuration cache (`KotlinCompile.javaSourceFiles` cannot be serialized).
+            configuration.generatedSources
+                .from(configuration.outputDirectory.dir("sources"))
+                .builtBy(task)
             wireSourcesJar(target, task)
             target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-                wireKotlinSourceSet(target, task, "main")
+                wireKotlinSourceSet(target, configuration.generatedSources, "main")
             }
             target.pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
-                wireKotlinSourceSet(target, task, "commonMain")
+                wireKotlinSourceSet(target, configuration.generatedSources, "commonMain")
             }
             target.pluginManager.withPlugin("org.jlleitschuh.gradle.ktlint") {
-                excludeGeneratedOutputFromKtlint(target, configuration)
+                KtlintIntegration.excludeOutputRoot(target, configuration.outputDirectory)
             }
         }
-    }
-
-    private fun excludeGeneratedOutputFromKtlint(
-        project: Project,
-        configuration: SdkGenConfiguration,
-    ) {
-        val ktlintExtension =
-            requireNotNull(project.extensions.findByName("ktlint")) {
-                "The ktlint plugin did not register its extension before SDKGen configured it."
-            }
-        val filterMethod =
-            requireNotNull(
-                ktlintExtension.javaClass.methods.firstOrNull { method ->
-                    method.name == "filter" && method.parameterTypes.size == 1
-                },
-            ) {
-                "The installed ktlint Gradle plugin does not expose filter(Action)."
-            }
-        filterMethod.invoke(
-            ktlintExtension,
-            Action<Any> { patternFilterable ->
-                val excludeMethod =
-                    requireNotNull(
-                        patternFilterable.javaClass.methods.firstOrNull { method ->
-                            method.name == "exclude" &&
-                                method.parameterTypes.size == 1 &&
-                                Spec::class.java.isAssignableFrom(method.parameterTypes[0])
-                        },
-                    ) {
-                        "The installed ktlint Gradle plugin does not expose exclude(Spec)."
-                    }
-                excludeMethod.invoke(
-                    patternFilterable,
-                    Spec<Any> { element ->
-                        val file =
-                            requireNotNull(
-                                element.javaClass.methods
-                                    .firstOrNull { method ->
-                                        method.name == "getFile" && method.parameterTypes.isEmpty()
-                                    }?.invoke(element) as? java.io.File,
-                            ) { "The installed ktlint Gradle plugin did not expose file metadata." }
-                        val generatedRoot =
-                            configuration.outputDirectory
-                                .get()
-                                .asFile
-                                .toPath()
-                                .toAbsolutePath()
-                                .normalize()
-                        file
-                            .toPath()
-                            .toAbsolutePath()
-                            .normalize()
-                            .startsWith(generatedRoot)
-                    },
-                )
-            },
-        )
     }
 
     private fun registerGenerationTask(
@@ -154,7 +104,7 @@ public class SdkGenPlugin : Plugin<Project> {
 
     private fun wireKotlinSourceSet(
         project: Project,
-        task: TaskProvider<GenerateSdkTask>,
+        generatedSources: FileCollection,
         sourceSetName: String,
     ) {
         val kotlinExtension = project.extensions.findByName("kotlin") ?: return
@@ -171,11 +121,7 @@ public class SdkGenPlugin : Plugin<Project> {
                     method.name == "getKotlin" && method.parameterTypes.isEmpty()
                 }?.invoke(sourceSet) as? SourceDirectorySet
                 ?: error("Kotlin source set '$sourceSetName' does not expose Kotlin sources.")
-        kotlinSources.srcDir(
-            task.flatMap { generated -> generated.outputDirectory }.map { directory ->
-                directory.dir("sources")
-            },
-        )
+        kotlinSources.srcDir(generatedSources)
     }
 
     private fun wireSourcesJar(

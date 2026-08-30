@@ -7,6 +7,57 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-30
+
+### Added
+
+- `SdkClientConfig`: a client-scoped runtime configuration value carrying retry and deadline defaults, a request
+  hook, logical/attempt middleware, lifecycle observers, a shared `RetryBudget`, and a `User-Agent` product token.
+  Every generated client (root facade and resource clients) gained an additive constructor overload that takes it as
+  the third parameter; resource clients built from one facade share one configuration and one retry budget. Per-call
+  `CallOptions` keep final precedence (`Disabled`/`Replace` win; `Inherit` falls back to the client value). See
+  ADR 0022.
+- `runtime.defaultServer` and `runtime.userAgentSuffix` in `sdkgen.yaml` now reach generated code: the former becomes
+  the `baseUri` default of every generated constructor, the latter the default `User-Agent` product token. Both are
+  validated (absolute `http`/`https` URL with a host; no line breaks).
+- `x-sdkgen-streaming.payloadProperty`: names the property of an SSE envelope schema whose type describes the JSON
+  carried by each `data:` field, so the generated `Flow<T>` element type is the wire payload rather than the
+  envelope. Omission preserves 0.3.0 behavior; a missing property or non-object envelope fails closed with an
+  `UNREPRESENTABLE_OPERATION` diagnostic.
+- Gradle plugin: `SdkGenConfiguration.generatedSources`, a file collection built by the generation task, for wiring
+  generated sources into Android or custom Kotlin Multiplatform source sets.
+
+### Changed
+
+- OpenRouter conformance overlay: the `/chat/completions`, `/images`, `/messages`, and `/responses` streaming
+  operations declare `payloadProperty: data`, so their generated stream element types are now the payload models
+  (`ChatStreamChunk`, the image stream union, `MessagesStreamEvents`, `StreamEvents`) instead of the
+  `…StreamingResponse` envelopes. This is an intended source-API correction for consumers of the conformance SDK;
+  envelope models are still generated.
+- `StreamingModel.Sse` (generator semantic model) gained a `payloadProperty` field; its generated `copy` descriptor
+  changed and a three-argument secondary constructor is retained for source compatibility.
+- Generated union branch predicates and query/header parameter encoding no longer emit redundant casts, statically
+  decided `is`/`!is` checks, or `toString()` on `String` values; a clean OpenRouter JVM compile drops from 3,562
+  compiler warnings in these categories to zero. Acceptance semantics are unchanged.
+
+### Fixed
+
+- Generated clients bind enum-typed path, query, and header parameters by the enum case's documented wire `value`
+  instead of its `toString()` (the Kotlin case name), so `interval=daily` and `direction=asc` reach the server rather
+  than `Daily`/`Asc`. Covers scalar, repeated, comma-joined, Stripe-indexed, and deepObject-property parameters; the
+  projection records the encoding as `ParameterValueEncoding` so the emitter no longer guesses from the Kotlin type.
+- `oneOf` branch predicates accept an explicit JSON `null` for a nullable property (`type: [string, 'null']`) nested
+  in a branch, so a real terminal page such as `{"_shape":"openrouter","cursor":null,…}` decodes to its branch
+  instead of raising the union's `NoMatchException`. The streaming-fixture corpus gained `/files/{bucket}` to prove
+  both fixes through the generated SDK.
+- Gradle plugin: generated sources are wired through a stable path derived from `outputDirectory` with the
+  generation task as a build dependency instead of a task-output provider, fixing
+  `Querying the mapped value of flatmap(provider(task 'generate…Sdk')) … is not supported` with the Android Gradle
+  Plugin and restoring configuration-cache reuse for Kotlin compile tasks (`KotlinCompile.javaSourceFiles`).
+- Gradle plugin: ktlint integration uses ktlint-gradle's supported `filter(Action<PatternFilterable>)` entry point
+  with Gradle-core types instead of reflective member scanning, fixing `argument type mismatch` on ktlint-gradle
+  14.x in either plugin-application order and across plugin class loaders.
+
 ## [0.3.0] - 2026-08-23
 
 ### Added
@@ -86,7 +137,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for published
 - Updated the Kotlin/JS dependency lock to resolve known vulnerable transitive packages before the
   initial publication.
 
-[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nabobery/kotlin-sdkgen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nabobery/kotlin-sdkgen/tree/v0.1.0

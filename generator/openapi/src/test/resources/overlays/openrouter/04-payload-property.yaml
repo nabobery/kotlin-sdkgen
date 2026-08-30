@@ -1,0 +1,8 @@
+overlay: 1.1.0
+info:
+  title: Canonical OpenRouter SSE payload selection
+  version: 1.0.0
+actions:
+  - target: "$['paths']['/chat/completions']['post']['x-sdkgen-streaming']"
+    update:
+      payloadProperty: data

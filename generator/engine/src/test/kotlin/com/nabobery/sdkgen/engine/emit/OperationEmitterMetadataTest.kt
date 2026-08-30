@@ -26,6 +26,7 @@ import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeDeclaratio
 import com.nabobery.sdkgen.engine.declarations.OperationSecuritySchemeRef
 import com.nabobery.sdkgen.engine.declarations.PaginationDeclaration
 import com.nabobery.sdkgen.engine.declarations.ParameterSerialization
+import com.nabobery.sdkgen.engine.declarations.ParameterValueEncoding
 import com.nabobery.sdkgen.engine.declarations.RequestBodyEncoding
 import com.nabobery.sdkgen.engine.declarations.RequestBodyReplayability
 import com.nabobery.sdkgen.engine.declarations.ResponseSelectorDeclaration
@@ -72,6 +73,27 @@ class OperationEmitterMetadataTest {
         assertTrue(source.contains("requestFlag = \"stream\""))
         assertTrue(source.contains("responseContentType = \"text/event-stream\""))
         assertTrue(source.contains("SdkDeadlines(12_000, 3_000, 1_000)"))
+    }
+
+    @Test
+    fun ssePayloadPropertyIsProjectionOnlyAndNeverReachesTheRuntimeDescriptor() {
+        val operation =
+            operationWithCompleteMetadata(
+                streaming =
+                    StreamingDeclaration.ServerSentEvents(
+                        "[DONE]",
+                        "stream",
+                        "text/event-stream",
+                        payloadProperty = "data",
+                    ),
+            )
+
+        val source = render(operation)
+
+        assertTrue(source.contains("StreamingDescriptor.ServerSentEvents("))
+        assertFalse(source.contains("payloadProperty"))
+        assertTrue(source.contains("terminalSentinel = \"[DONE]\""))
+        assertTrue(source.contains("requestFlag = \"stream\""))
     }
 
     @Test
@@ -217,6 +239,12 @@ class OperationEmitterMetadataTest {
                 ),
             ),
         parameters: List<OperationParameterDeclaration> = emptyList(),
+        streaming: StreamingDeclaration =
+            StreamingDeclaration.ServerSentEvents(
+                "[DONE]",
+                "stream",
+                "text/event-stream",
+            ),
     ): OperationDeclaration =
         OperationDeclaration(
             symbolId = "operation:listItems",
@@ -272,7 +300,7 @@ class OperationEmitterMetadataTest {
                     "nextCursor",
                     KotlinTypeRef(PACKAGE, "Widget"),
                 ),
-            streaming = StreamingDeclaration.ServerSentEvents("[DONE]", "stream", "text/event-stream"),
+            streaming = streaming,
         )
 
     private fun multipartOperation(
@@ -1401,7 +1429,7 @@ class OperationEmitterMetadataTest {
         assertTrue(source.contains("values = listOf(primitive.content)"))
         assertTrue(source.contains("expand?.forEachIndexed { index, value ->"))
         assertTrue(source.contains("name = \"expand\" + \"[\" + index + \"]\""))
-        assertTrue(source.contains("name = \"created\", values = created?.let { listOf(it.toString()) }.orEmpty()"))
+        assertTrue(source.contains("name = \"created\", values = listOfNotNull(created)"))
         assertTrue(source.contains("createdUnion?.let { value ->"))
         assertTrue(source.contains("value.raw as? JsonPrimitive"))
     }
@@ -1437,6 +1465,93 @@ class OperationEmitterMetadataTest {
 
         assertTrue(source.contains("values = listOf(dynamicValue.value)"))
         assertFalse(source.contains("values = listOf(dynamicValue.toString())"))
+    }
+
+    @Test
+    fun bindsOpenEnumParametersByWireValueInEveryLocationAndShape() {
+        val enumRef = KotlinTypeRef(PACKAGE, "Interval")
+        val source =
+            render(
+                operationWithCompleteMetadata(
+                    parameters =
+                        listOf(
+                            OperationParameterDeclaration(
+                                "interval",
+                                OperationParameterLocation.PATH,
+                                enumRef,
+                                required = true,
+                                valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                            ),
+                            OperationParameterDeclaration(
+                                "direction",
+                                OperationParameterLocation.QUERY,
+                                enumRef,
+                                required = false,
+                                valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                            ),
+                            OperationParameterDeclaration(
+                                "states",
+                                OperationParameterLocation.QUERY,
+                                KotlinTypeRef("kotlin.collections", "List", listOf(enumRef)),
+                                required = false,
+                                valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                            ),
+                            OperationParameterDeclaration(
+                                "sort",
+                                OperationParameterLocation.QUERY,
+                                KotlinTypeRef("kotlin.collections", "List", listOf(enumRef)),
+                                required = true,
+                                serialization = ParameterSerialization.CommaJoined,
+                                valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                            ),
+                            OperationParameterDeclaration(
+                                "expand",
+                                OperationParameterLocation.QUERY,
+                                KotlinTypeRef("kotlin.collections", "List", listOf(enumRef)),
+                                required = false,
+                                serialization = ParameterSerialization.StripeCompatibleIndexedArray,
+                                valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                            ),
+                            OperationParameterDeclaration(
+                                "filter",
+                                OperationParameterLocation.QUERY,
+                                KotlinTypeRef(PACKAGE, "Filter"),
+                                required = false,
+                                style = "deepObject",
+                                explode = true,
+                                serialization =
+                                    ParameterSerialization.DeepObject(
+                                        properties =
+                                            listOf(
+                                                DeepObjectParameterPropertyDeclaration(
+                                                    wireName = "status",
+                                                    accessorName = "status",
+                                                    required = false,
+                                                    valueEncoding = ParameterValueEncoding.OPEN_ENUM_VALUE,
+                                                ),
+                                            ),
+                                    ),
+                            ),
+                            OperationParameterDeclaration(
+                                "limit",
+                                OperationParameterLocation.QUERY,
+                                KotlinTypeRef("kotlin", "Int"),
+                                required = false,
+                            ),
+                        ),
+                ),
+            )
+
+        assertTrue(source.contains("name = \"interval\", values = listOf(interval.value)"))
+        assertTrue(source.contains("name = \"direction\", values = direction?.let { listOf(it.value) }.orEmpty()"))
+        assertTrue(source.contains("name = \"states\", values = states?.map { it.value }.orEmpty()"))
+        assertTrue(source.contains("name = \"sort\", values = listOf(sort.joinToString(\",\") { item -> item.value })"))
+        assertTrue(source.contains("name = \"expand\" + \"[\" + index + \"]\", values = listOf(value.value)"))
+        assertTrue(
+            source.contains("name = \"filter[status]\", values = filter?.status?.let { listOf(it.value) }.orEmpty()"),
+        )
+        assertTrue(source.contains("name = \"limit\", values = limit?.let { listOf(it.toString()) }.orEmpty()"))
+        assertFalse(source.contains("interval.toString()"))
     }
 
     @Test

@@ -1,6 +1,6 @@
 # PROJECT KNOWLEDGE BASE
 
-**Updated:** 2026-07-29 for the cross-corpus conformance and release-readiness changes
+**Updated:** 2026-08-29 for the 0.4.0 consumer-readiness changes (client configuration, SSE payload projection, Gradle wiring)
 
 ## OVERVIEW
 
@@ -28,7 +28,7 @@ kotlin-sdkgen/
 │   └── openrouter/consumer/ # Generated SDK conformance test
 ├── experiments-import/      # Config contract experiment (archived)
 └── docs/
-    ├── adr/                 # 19 ADRs
+    ├── adr/                 # 22 ADRs
     └── archive/             # Historical release-readiness records
 ```
 
@@ -63,7 +63,7 @@ kotlin-sdkgen/
 - **Gradle**: Configuration cache on, `org.gradle.configuration-cache.problems=fail`
 - **Ktlint**: formatting and linting enforced via convention plugins
 - **Testing**: JUnit 5 (JVM), kotlin.test (KMP), golden file tests for emitter
-- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0019)
+- **Architecture decisions**: Documented in `docs/adr/` as numbered ADRs (0001-0022)
 - **Build**: Convention plugins under `build-logic/` rather than direct plugin application
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -98,6 +98,9 @@ kotlin-sdkgen/
   and `-Pkotlin.compiler.execution.strategy=in-process`.
 - Set `JAVA_TOOL_OPTIONS=-Xmx2g` for focused checks and raise deliberately: 3–4 GiB for generation or emitter
   work; up to 8 GiB only for a clean full Stripe compile, with no concurrent build.
+- Bind the build-JVM heap explicitly with `-Dorg.gradle.jvmargs="-Xmx<N>g -XX:MaxMetaspaceSize=1g"` on the command
+  line: a user-level `~/.gradle/gradle.properties` overrides both the project value and `JAVA_TOOL_OPTIONS`, and with
+  in-process compilation the GitHub and Stripe consumer compiles fail with `OutOfMemoryError` below 8 GiB.
 - Prefer focused tests and configuration-cache reuse. Never run generated-source formatting over committed corpus
   snapshots.
 

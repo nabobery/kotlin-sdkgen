@@ -578,11 +578,25 @@ public sealed interface PaginationModel {
 
 /** Canonical operation streaming metadata adapted from `x-sdkgen-streaming`. */
 public sealed interface StreamingModel {
+    /**
+     * @property payloadProperty when non-null, the top-level property of the matching `text/event-stream`
+     *   response schema whose schema describes the JSON carried by each SSE `data:` field; the response schema is
+     *   then an event envelope, not the wire payload. `null` (the 0.3.0 default) means the response schema is the
+     *   payload itself.
+     */
     public data class Sse(
         public val requestFlag: String?,
         public val responseContentType: String,
         public val sentinel: String?,
-    ) : StreamingModel
+        public val payloadProperty: String? = null,
+    ) : StreamingModel {
+        /** 0.3.0 constructor shape, retained so existing callers keep linking. */
+        public constructor(
+            requestFlag: String?,
+            responseContentType: String,
+            sentinel: String?,
+        ) : this(requestFlag, responseContentType, sentinel, null)
+    }
 }
 
 /** Canonical client-generated idempotency-key metadata adapted from `x-sdkgen-idempotency`. */

@@ -23,6 +23,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+private typealias TextDelta =
+    InlineMessagesContentBlockDeltaEventDeltaX956b8ed8.InlineMessagesContentBlockDeltaEventDeltaOneOf1Xecf23299
+
 /**
  * Acceptance coverage (ADR 0021) for the OpenRouter operation surface restored by removing the compat
  * overlay's `/messages`, `/responses`, and `/audio/transcriptions` path removals. Every symbol
@@ -57,9 +60,17 @@ class OpenRouterRestoredSurfaceTest {
                 OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
 
             val request = messagesRequest(stream = true)
-            val events = client.anthropicMessages.createMessagesStream(request).toList()
+            // `payloadProperty: data` projects the element type to the `MessagesStreamEvents` payload union, so the
+            // envelope's `event` name is no longer part of the collected value; the typed branch is.
+            val events: List<MessagesStreamEvents> = client.anthropicMessages.createMessagesStream(request).toList()
 
-            assertEquals(listOf("content_block_delta", "content_block_delta"), events.map { it.event })
+            assertEquals(
+                listOf("Hello", "world"),
+                events.map { event ->
+                    val delta = assertIs<MessagesStreamEvents.MessagesContentBlockDeltaEvent>(event).delta
+                    assertIs<TextDelta>(delta).text
+                },
+            )
             assertEquals("createMessages", transport.capturedRequests.single().operationId)
             val requestBody = consume(requireNotNull(transport.capturedRequests.single().body)).decodeToString()
             assertEquals(SdkJson.encodeToString(request), requestBody)
@@ -148,7 +159,7 @@ class OpenRouterRestoredSurfaceTest {
                 OpenRouterClient(transport, "https://openrouter.test", authentication = SdkAuthentication { it })
 
             val request = responsesRequest(stream = true)
-            val events = client.betaResponses.createResponsesStream(request).toList()
+            val events: List<StreamEvents> = client.betaResponses.createResponsesStream(request).toList()
 
             assertEquals(2, events.size)
             assertEquals("createResponses", transport.capturedRequests.single().operationId)
@@ -312,14 +323,15 @@ class OpenRouterRestoredSurfaceTest {
 
     // ---- helpers -----------------------------------------------------------------------------
 
+    /** Documented wire form: each `data:` field carries the payload JSON itself, not the SSE envelope. */
     private fun messagesStreamEvent(text: String): String =
-        "data: {\"event\":\"content_block_delta\",\"data\":{\"type\":\"content_block_delta\"," +
-            "\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"$text\"}}}\n\n"
+        "data: {\"type\":\"content_block_delta\"," +
+            "\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"$text\"}}\n\n"
 
     private fun responsesStreamEvent(text: String): String =
-        "data: {\"data\":{\"type\":\"response.output_text.delta\",\"content_index\":0," +
+        "data: {\"type\":\"response.output_text.delta\",\"content_index\":0," +
             "\"delta\":\"$text\",\"item_id\":\"item-1\",\"logprobs\":[],\"output_index\":0," +
-            "\"sequence_number\":4}}\n\n"
+            "\"sequence_number\":4}\n\n"
 
     private fun messagesRequest(stream: Boolean): MessagesRequest =
         SdkJson.decodeFromString(

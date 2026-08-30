@@ -3735,6 +3735,144 @@ class StandardProjectionTest {
         }
     }
 
+    @Test
+    fun projectsOpenEnumParametersWithWireValueEncoding() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info:
+                  title: Budgets
+                  version: "1"
+                paths:
+                  /budgets/{interval}:
+                    get:
+                      operationId: getBudget
+                      parameters:
+                        - name: interval
+                          in: path
+                          required: true
+                          schema:
+                            type: string
+                            enum: [daily, weekly]
+                        - name: directions
+                          in: query
+                          schema:
+                            type: array
+                            items:
+                              ${'$'}ref: '#/components/schemas/Direction'
+                        - name: limit
+                          in: query
+                          schema:
+                            type: integer
+                        - name: tags
+                          in: query
+                          schema:
+                            type: array
+                            items:
+                              type: string
+                      responses:
+                        '204':
+                          description: No content
+                components:
+                  schemas:
+                    Direction:
+                      type: string
+                      enum: [asc, desc]
+                """,
+            )
+
+        val encodings =
+            project(document)
+                .operations
+                .single()
+                .parameters
+                .associate { parameter -> parameter.name to parameter.valueEncoding }
+
+        assertEquals(
+            mapOf(
+                "interval" to ParameterValueEncoding.OPEN_ENUM_VALUE,
+                "directions" to ParameterValueEncoding.OPEN_ENUM_VALUE,
+                "limit" to ParameterValueEncoding.TO_STRING,
+                "tags" to ParameterValueEncoding.TO_STRING,
+            ),
+            encodings,
+        )
+    }
+
+    @Test
+    fun nestedNullablePropertiesAcceptExplicitNullInBranchPredicates() {
+        val document =
+            adapt(
+                """
+                openapi: 3.1.0
+                info:
+                  title: Files
+                  version: "1"
+                paths:
+                  /files:
+                    get:
+                      operationId: listFiles
+                      responses:
+                        '200':
+                          description: A page
+                          content:
+                            application/json:
+                              schema:
+                                ${'$'}ref: '#/components/schemas/Page'
+                components:
+                  schemas:
+                    Page:
+                      oneOf:
+                        - ${'$'}ref: '#/components/schemas/CursorPage'
+                        - ${'$'}ref: '#/components/schemas/OffsetPage'
+                    CursorPage:
+                      type: object
+                      required: [kind, cursor]
+                      properties:
+                        kind:
+                          type: string
+                          enum: [cursor]
+                        cursor:
+                          type: [string, 'null']
+                    OffsetPage:
+                      type: object
+                      required: [kind, offset]
+                      properties:
+                        kind:
+                          type: string
+                          enum: [offset]
+                        offset:
+                          type: integer
+                """,
+            )
+
+        val page =
+            projectMapping(document)
+                .model
+                .files
+                .flatMap(KotlinFileDeclaration::declarations)
+                .filterIsInstance<OneOfDeclaration>()
+                .single { declaration -> declaration.resolvedName == "Page" }
+        val cursorBranch = page.cases.single { case -> case.resolvedName == "CursorPage" }
+        val objectShape =
+            assertIs<JsonBranchPredicate.AllOf>(cursorBranch.predicate)
+                .predicates
+                .filterIsInstance<JsonBranchPredicate.ObjectShape>()
+                .single()
+        val cursorPredicate = objectShape.properties.getValue("cursor")
+
+        assertEquals(
+            JsonBranchPredicate.AnyOf(
+                listOf(
+                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.STRING),
+                    JsonBranchPredicate.Kind(PrimitiveOneOfJsonKind.NULL),
+                ),
+            ),
+            cursorPredicate,
+        )
+    }
+
     private fun projectionSummary(mapping: DeclarationMappingResult): String =
         buildString {
             mapping.model.files
@@ -5836,6 +5974,47 @@ class StandardProjectionTest {
         )
     }
 
+    @Test
+    fun authorRuntimeDefaultsAreCarriedOntoEveryGeneratedClientDeclaration() {
+        val document = adapt(AUTHOR_DEFAULTS_SPEC)
+        val configured =
+            projectWithRuntimeDefaults(
+                document,
+                RuntimeDefaults(defaultServer = "https://api.example/v1", userAgentSuffix = " openrouter-kotlin "),
+            )
+        val unconfigured = projectWithRuntimeDefaults(document, RuntimeDefaults())
+
+        val configuredClients = configured.clients()
+        assertTrue(configuredClients.any { it.subClients.isNotEmpty() }, "facade expected")
+        assertTrue(configuredClients.any { it.subClients.isEmpty() }, "group client expected")
+        configuredClients.forEach { client ->
+            assertEquals("https://api.example/v1", client.defaultBaseUri, client.resolvedName)
+            assertEquals("kotlin-sdkgen openrouter-kotlin", client.productToken, client.resolvedName)
+        }
+        unconfigured.clients().forEach { client ->
+            assertEquals(null, client.defaultBaseUri, client.resolvedName)
+            assertEquals(null, client.productToken, client.resolvedName)
+        }
+        assertTrue(configured.model.digest() != unconfigured.model.digest(), "author defaults must change provenance")
+    }
+
+    private fun DeclarationMappingResult.clients(): List<OperationClientDeclaration> =
+        model.files.flatMap(KotlinFileDeclaration::declarations).filterIsInstance<OperationClientDeclaration>()
+
+    private fun projectWithRuntimeDefaults(
+        document: com.nabobery.sdkgen.model.SemanticDocument,
+        runtimeDefaults: RuntimeDefaults,
+    ): DeclarationMappingResult =
+        StandardProjection().project(
+            DeclarationProjectionRequest(
+                document = document,
+                packageName = GENERATED_PACKAGE,
+                canonicalDocumentUri = document.documentUri,
+                clientName = "WidgetsClient",
+                runtimeDefaults = runtimeDefaults,
+            ),
+        )
+
     private fun projectMapping(
         document: com.nabobery.sdkgen.model.SemanticDocument,
         requestTimeoutMillis: Long = 60_000,
@@ -5866,5 +6045,28 @@ class StandardProjectionTest {
 
     private companion object {
         const val GENERATED_PACKAGE: String = "com.example.generated"
+        val AUTHOR_DEFAULTS_SPEC: String =
+            """
+            openapi: 3.1.0
+            info:
+              title: Widgets
+              version: "1"
+            paths:
+              /widgets:
+                get:
+                  operationId: listWidgets
+                  tags: [widgets]
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            required: [id]
+                            properties:
+                              id:
+                                type: string
+            """
     }
 }

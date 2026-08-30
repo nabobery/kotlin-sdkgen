@@ -287,6 +287,7 @@ internal val PROPERTY_PATH = ClassName("com.nabobery.sdkgen.runtime", "PropertyP
 internal val STREAMING_DESCRIPTOR = ClassName("com.nabobery.sdkgen.runtime", "StreamingDescriptor")
 internal val SDK_DEADLINES = ClassName("com.nabobery.sdkgen.runtime", "SdkDeadlines")
 internal val SDK_EXECUTOR = ClassName("com.nabobery.sdkgen.runtime", "SdkExecutor")
+internal val SDK_CLIENT_CONFIG = ClassName("com.nabobery.sdkgen.runtime", "SdkClientConfig")
 internal val SDK_API_EXCEPTION = ClassName("com.nabobery.sdkgen.runtime", "SdkApiException")
 internal val SDK_AUTHENTICATION = ClassName("com.nabobery.sdkgen.runtime", "SdkAuthentication")
 internal val SDK_RESPONSE_RESULT = ClassName("com.nabobery.sdkgen.runtime", "SdkResponseResult")
