@@ -1,8 +1,8 @@
 # Security policy
 
-Kotlin SDKGen is currently pre-release (`0.1.0-SNAPSHOT`). No
-artifact has been published to Maven Central or the Gradle Plugin Portal. There is no supported
-released version yet, so there is no version-support matrix to publish.
+Kotlin SDKGen is a production-oriented preview. Version `0.4.0` is the current released line and is published to
+Maven Central and the Gradle Plugin Portal. The most recent minor release line receives bug fixes; older preview
+lines are supported on a best-effort basis as described in the [support policy](docs/support-policy.md).
 
 ## Reporting a vulnerability
 
@@ -58,14 +58,14 @@ See [`docs/threat-model.md`](docs/threat-model.md) for the full threat model.
 
 ## Supply chain and releases
 
-- Releases will be published to Maven Central and the Gradle Plugin Portal. **Maven Central
+- Releases are published to Maven Central and the Gradle Plugin Portal. **Maven Central
   releases are immutable**: once a coordinate/version is published it cannot be replaced or
   deleted, only superseded by a new version. See
   [`docs/release-runbook.md`](docs/release-runbook.md) for the staged rehearsal and the explicit
   human-authorized publication step; publication is never an automatic side effect of CI.
-- Signing, checksums, CycloneDX SBOM generation, and GitHub provenance attestation are implemented and
-  exercised by the protected release rehearsal. No artifact has been published yet; verify the runbook,
-  attestation, and portal records for the specific version once a real release exists.
+- Signing, checksums, CycloneDX SBOM generation, and GitHub provenance attestation are exercised by the protected
+  release workflow. Verify the workflow, attestation, and portal records for the specific version rather than
+  inferring release status from a branch or unprotected build.
 
 ## Scope
 

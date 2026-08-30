@@ -1,16 +1,16 @@
 # Kotlin SDKGen: Product and Engineering Requirements
 
-| Field            | Value                                                                                              |
-| ---------------- | -------------------------------------------------------------------------------------------------- |
-| Status           | Production-oriented preview; first public release pending                                  |
-| Project          | Kotlin SDKGen                                                                                      |
-| Repository       | [`nabobery/kotlin-sdkgen`](https://github.com/nabobery/kotlin-sdkgen)                              |
+| Field            | Value                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| Status           | Production-oriented preview; current public release `0.4.0`                                         |
+| Project          | Kotlin SDKGen                                                                                       |
+| Repository       | [`nabobery/kotlin-sdkgen`](https://github.com/nabobery/kotlin-sdkgen)                               |
 | Kotlin packages  | `com.nabobery.sdkgen`                                                                               |
 | Publishing group | `io.github.nabobery`                                                                                |
-| Initial consumer | [`nabobery/openrouter-kotlin`](https://github.com/nabobery/openrouter-kotlin)                      |
-| Primary input    | OpenAPI 3.1 documents plus version-controlled overlays                                             |
-| Primary output   | Complete deterministic Kotlin Multiplatform SDKs, shared runtime contracts, and transport adapters |
-| Last updated     | 2026-08-13                                                                                         |
+| Initial consumer | [`nabobery/openrouter-kotlin`](https://github.com/nabobery/openrouter-kotlin)                       |
+| Primary input    | OpenAPI 3.1 documents plus version-controlled overlays                                              |
+| Primary output   | Complete deterministic Kotlin Multiplatform SDKs, shared runtime contracts, and transport adapters  |
+| Last updated     | 2026-08-30                                                                                          |
 
 ## 1. Executive summary
 

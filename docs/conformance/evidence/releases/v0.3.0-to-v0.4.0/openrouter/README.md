@@ -50,8 +50,8 @@ descriptor changed.
 - [`v0.3.0-manifest.json`](v0.3.0-manifest.json) is the manifest reproduced from tag `v0.3.0` at commit
   `827d47985b70941a3e8602413a80dcf4542747ed` with the packaged version `0.3.0`.
 - [`v0.4.0-manifest.json`](v0.4.0-manifest.json) is the manifest produced by the `0.4.0` generator with the packaged
-  version `0.4.0`. Its commit binding is recorded as pending in `evidence-metadata.json` and must be rebound at the
-  protected `v0.4.0` tag as part of the release procedure.
+  version `0.4.0` at protected tag `v0.4.0`, commit
+  `012461abc2bcd6048e5e2ff66ab7cb663b357a2e`.
 - [`evidence-metadata.json`](evidence-metadata.json) binds the tags, commits, coverage counts, report summary, and
   staged projection digests.
 - [`SHA256SUMS`](SHA256SUMS) provides file-level integrity checks for this committed packet.
