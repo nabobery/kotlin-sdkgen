@@ -115,7 +115,7 @@ jobs:
           node-version: "24"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       # Resource-safe conformance (AGENTS.md "RESOURCE-SAFE CONFORMANCE"): one Gradle/generation
       # lane at a time, single worker, no parallel project execution, in-process Kotlin compile.
